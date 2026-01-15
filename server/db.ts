@@ -1,11 +1,16 @@
-import { eq } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { 
+  InsertUser, users, 
+  conversations, InsertConversation, Conversation,
+  messages, InsertMessage, Message,
+  leads, InsertLead, Lead,
+  documents, InsertDocument, Document
+} from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -18,6 +23,7 @@ export async function getDb() {
   return _db;
 }
 
+// User functions
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) {
     throw new Error("User openId is required for upsert");
@@ -85,8 +91,120 @@ export async function getUserByOpenId(openId: string) {
   }
 
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// Conversation functions
+export async function createConversation(data: InsertConversation): Promise<Conversation | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  await db.insert(conversations).values(data);
+  const result = await db.select().from(conversations).where(eq(conversations.sessionId, data.sessionId)).limit(1);
+  return result[0] || null;
+}
+
+export async function getConversationBySessionId(sessionId: string): Promise<Conversation | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.select().from(conversations).where(eq(conversations.sessionId, sessionId)).limit(1);
+  return result[0] || null;
+}
+
+export async function updateConversation(sessionId: string, data: Partial<InsertConversation>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(conversations).set(data).where(eq(conversations.sessionId, sessionId));
+}
+
+export async function getAllConversations(): Promise<Conversation[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(conversations).orderBy(desc(conversations.createdAt));
+}
+
+// Message functions
+export async function createMessage(data: InsertMessage): Promise<Message | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(messages).values(data);
+  const insertId = result[0].insertId;
+  const created = await db.select().from(messages).where(eq(messages.id, insertId)).limit(1);
+  return created[0] || null;
+}
+
+export async function getMessagesByConversationId(conversationId: number): Promise<Message[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(messages).where(eq(messages.conversationId, conversationId)).orderBy(messages.createdAt);
+}
+
+// Lead functions
+export async function createLead(data: InsertLead): Promise<Lead | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(leads).values(data);
+  const insertId = result[0].insertId;
+  const created = await db.select().from(leads).where(eq(leads.id, insertId)).limit(1);
+  return created[0] || null;
+}
+
+export async function getAllLeads(): Promise<Lead[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(leads).orderBy(desc(leads.createdAt));
+}
+
+export async function getLeadById(id: number): Promise<Lead | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.select().from(leads).where(eq(leads.id, id)).limit(1);
+  return result[0] || null;
+}
+
+export async function updateLead(id: number, data: Partial<InsertLead>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(leads).set(data).where(eq(leads.id, id));
+}
+
+// Document functions
+export async function createDocument(data: InsertDocument): Promise<Document | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(documents).values(data);
+  const insertId = result[0].insertId;
+  const created = await db.select().from(documents).where(eq(documents.id, insertId)).limit(1);
+  return created[0] || null;
+}
+
+export async function getDocumentsByConversationId(conversationId: number): Promise<Document[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(documents).where(eq(documents.conversationId, conversationId)).orderBy(desc(documents.createdAt));
+}
+
+export async function getDocumentsByLeadId(leadId: number): Promise<Document[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(documents).where(eq(documents.leadId, leadId)).orderBy(desc(documents.createdAt));
+}
+
+export async function getAllDocuments(): Promise<Document[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(documents).orderBy(desc(documents.createdAt));
+}
