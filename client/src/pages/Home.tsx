@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { MessageCircle, GraduationCap, Globe, BookOpen, Phone, Mail, MapPin, ChevronRight, X } from "lucide-react";
@@ -26,16 +26,28 @@ const stats = [
 export default function Home() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const { updateUserContext, hideMascot, showMascot } = useMascotAgent();
+  const prevChatOpenRef = useRef(isChatOpen);
 
-  // Update context when chat opens/closes
+  // Update context when chat opens/closes - use ref to prevent infinite loop
   useEffect(() => {
-    if (isChatOpen) {
-      updateUserContext({ chatStarted: true });
-      hideMascot();
-    } else {
-      showMascot();
+    if (isChatOpen !== prevChatOpenRef.current) {
+      prevChatOpenRef.current = isChatOpen;
+      if (isChatOpen) {
+        updateUserContext({ chatStarted: true });
+        hideMascot();
+      } else {
+        showMascot();
+      }
     }
-  }, [isChatOpen, updateUserContext, hideMascot, showMascot]);
+  }, [isChatOpen]); // Only depend on isChatOpen, not the functions
+
+  const handleOpenChat = () => {
+    setIsChatOpen(true);
+  };
+
+  const handleCloseChat = () => {
+    setIsChatOpen(false);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -60,7 +72,7 @@ export default function Home() {
                 Contact
               </Button>
             </a>
-            <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={() => setIsChatOpen(true)}>
+            <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={handleOpenChat}>
               <MessageCircle className="w-4 h-4 mr-2" />
               Chat with AI
             </Button>
@@ -104,7 +116,7 @@ export default function Home() {
                 transition={{ duration: 0.5, delay: 0.3 }}
                 className="flex flex-col sm:flex-row gap-4"
               >
-                <Button size="lg" className="bg-primary hover:bg-primary/90" onClick={() => setIsChatOpen(true)}>
+                <Button size="lg" className="bg-primary hover:bg-primary/90" onClick={handleOpenChat}>
                   <MessageCircle className="w-5 h-5 mr-2" />
                   Talk to Our AI Assistant
                 </Button>
@@ -137,7 +149,7 @@ export default function Home() {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="relative"
             >
-              <div className="relative z-10 cursor-pointer" onClick={() => setIsChatOpen(true)}>
+              <div className="relative z-10 cursor-pointer" onClick={handleOpenChat}>
                 <motion.img 
                   src="/mascot.png" 
                   alt="SpecTa AI Assistant" 
@@ -281,7 +293,7 @@ export default function Home() {
               size="lg" 
               variant="secondary" 
               className="bg-white text-primary hover:bg-white/90"
-              onClick={() => setIsChatOpen(true)}
+              onClick={handleOpenChat}
             >
               <MessageCircle className="w-5 h-5 mr-2" />
               Chat with SpecTa AI
@@ -343,7 +355,7 @@ export default function Home() {
       </footer>
 
       {/* Smart Mascot - Floating Interactive Agent */}
-      <SmartMascot onChatOpen={() => setIsChatOpen(true)} />
+      <SmartMascot onChatOpen={handleOpenChat} />
 
       {/* Chat Modal */}
       <AnimatePresence>
@@ -376,7 +388,7 @@ export default function Home() {
                   </div>
                 </div>
                 <button
-                  onClick={() => setIsChatOpen(false)}
+                  onClick={handleCloseChat}
                   className="p-2 hover:bg-primary-foreground/10 rounded-full transition-colors"
                 >
                   <X className="w-5 h-5" />

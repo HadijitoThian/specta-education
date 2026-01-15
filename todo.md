@@ -53,3 +53,6 @@
 - [x] Achievement celebrations (e.g., completing a form)
 - [x] Idle detection with helpful prompts
 - [x] Emotion states (happy, curious, excited, supportive)
+
+## Bug Fixes
+- [x] Fix AI Chat not working (fixed infinite loop in useEffect)
