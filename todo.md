@@ -32,3 +32,12 @@
 - [x] Set up color scheme (coral/red, blue, white)
 - [x] Responsive design
 - [x] Professional minimalist layout
+
+## Interactive Mascot Features
+- [x] Text-to-speech for AI responses (mascot speaks)
+- [x] Speech recognition for voice input from students
+- [x] Multiple mascot poses (waving, thinking, celebrating, talking)
+- [x] Animated transitions between poses
+- [x] Mascot reacts to user interactions
+- [x] Idle animations for the mascot
+- [x] Voice toggle button for accessibility
