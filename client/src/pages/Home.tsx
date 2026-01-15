@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { MessageCircle, GraduationCap, Globe, Users, BookOpen, Phone, Mail, MapPin, ChevronRight, X } from "lucide-react";
+import { MessageCircle, GraduationCap, Globe, BookOpen, Phone, Mail, MapPin, ChevronRight, X } from "lucide-react";
 import ChatBot from "@/components/ChatBot";
-import InteractiveMascot from "@/components/InteractiveMascot";
+import SmartMascot from "@/components/SmartMascot";
 import { motion, AnimatePresence } from "framer-motion";
+import { useMascotAgent } from "@/contexts/MascotAgentContext";
 
 const countries = [
   { name: "Australia", flag: "🇦🇺", image: "https://images.unsplash.com/photo-1523482580672-f109ba8cb9be?w=400&h=300&fit=crop" },
@@ -24,6 +25,17 @@ const stats = [
 
 export default function Home() {
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const { updateUserContext, hideMascot, showMascot } = useMascotAgent();
+
+  // Update context when chat opens/closes
+  useEffect(() => {
+    if (isChatOpen) {
+      updateUserContext({ chatStarted: true });
+      hideMascot();
+    } else {
+      showMascot();
+    }
+  }, [isChatOpen, updateUserContext, hideMascot, showMascot]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -142,7 +154,7 @@ export default function Home() {
                   whileTap={{ scale: 0.95 }}
                 />
                 
-                {/* Speech bubble on hover */}
+                {/* Speech bubble */}
                 <motion.div
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -330,11 +342,8 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* Interactive Mascot - Floating */}
-      <InteractiveMascot 
-        onChatOpen={() => setIsChatOpen(true)} 
-        isVisible={!isChatOpen}
-      />
+      {/* Smart Mascot - Floating Interactive Agent */}
+      <SmartMascot onChatOpen={() => setIsChatOpen(true)} />
 
       {/* Chat Modal */}
       <AnimatePresence>

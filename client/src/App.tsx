@@ -4,6 +4,7 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { MascotAgentProvider } from "./contexts/MascotAgentContext";
 import Home from "./pages/Home";
 import About from "./pages/About";
 import IELTS from "./pages/IELTS";
@@ -32,10 +33,12 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+        <MascotAgentProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </MascotAgentProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

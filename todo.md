@@ -41,3 +41,15 @@
 - [x] Mascot reacts to user interactions
 - [x] Idle animations for the mascot
 - [x] Voice toggle button for accessibility
+
+## Interactive Agent Features
+- [x] Proactive engagement - mascot initiates conversations and offers tips
+- [x] Contextual awareness - remembers user interactions and adapts behavior
+- [x] Personality-driven responses - distinct moods and expressions
+- [x] Physical gestures - points at UI elements, celebrates, shows empathy
+- [x] Smart triggers - appears with suggestions when users seem idle
+- [x] Welcome sequence for new visitors
+- [x] Page-specific tips and guidance
+- [x] Achievement celebrations (e.g., completing a form)
+- [x] Idle detection with helpful prompts
+- [x] Emotion states (happy, curious, excited, supportive)
