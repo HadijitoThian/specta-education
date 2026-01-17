@@ -92,7 +92,11 @@ export default function Home() {
       </nav>
 
       {/* Hero Section with Interactive Mascot */}
-      <section className="pt-32 pb-20 px-4">
+      <section className="pt-32 pb-20 px-4 relative overflow-hidden">
+        {/* Landmarks Background */}
+        <div className="absolute bottom-0 left-0 right-0 h-40 opacity-[0.08] pointer-events-none">
+          <img src="/landmarks-bg.jpg" alt="" className="w-full h-full object-cover object-bottom" />
+        </div>
         <div className="container">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-8">
