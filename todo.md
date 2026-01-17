@@ -60,3 +60,16 @@
 ## Team Section
 - [x] Add team members section to About Us page
 - [x] Add Harianto Tian - Senior Advisor
+
+## Malaysia Universities Feature
+- [x] Research Taylor's University
+- [x] Research Nottingham University Malaysia
+- [x] Research INTI International University
+- [x] Research The One Academy
+- [x] Research Mila University Malaysia
+- [x] Research UCSI University
+- [x] Research Monash University Malaysia
+- [x] Research University of Southampton Malaysia
+- [x] Create Malaysia Universities page with detailed profiles
+- [x] Update AI chatbot with university knowledge
+- [x] Add Malaysia to navigation menu
