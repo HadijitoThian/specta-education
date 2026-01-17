@@ -73,8 +73,17 @@ export default function About() {
       <Navigation currentPage="about" />
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4">
-        <div className="container">
+      <section className="pt-32 pb-20 px-4 relative overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="/about-hero-bg.jpg" 
+            alt="" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-white/95 via-white/90 to-white"></div>
+        </div>
+        <div className="container relative z-10">
           <div className="max-w-3xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full text-primary text-sm font-medium mb-6">
               <Users className="w-4 h-4" />
