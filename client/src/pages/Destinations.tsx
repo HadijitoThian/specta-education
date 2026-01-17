@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Globe, GraduationCap, Building, DollarSign, Phone, Mail, MapPin, MessageCircle, ChevronRight } from "lucide-react";
+import Navigation from "@/components/Navigation";
 
 const destinations = [
   {
@@ -72,36 +73,7 @@ const destinations = [
 export default function Destinations() {
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-border">
-        <div className="container flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2">
-            <img src="/logo.jpeg" alt="SpecTa Education" className="h-10 object-contain" />
-          </Link>
-          <div className="hidden md:flex items-center gap-8">
-            <Link href="/" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Home</Link>
-            <Link href="/about" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">About Us</Link>
-            <Link href="/ielts" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">IELTS</Link>
-            <Link href="/destinations" className="text-sm font-medium text-foreground hover:text-primary transition-colors">Destinations</Link>
-            <Link href="/articles" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Articles</Link>
-            <Link href="/contact" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Contact</Link>
-          </div>
-          <div className="flex items-center gap-3">
-            <a href="https://wa.me/62819668278" target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" size="sm" className="hidden sm:flex items-center gap-2">
-                <Phone className="w-4 h-4" />
-                Contact
-              </Button>
-            </a>
-            <Link href="/">
-              <Button size="sm" className="bg-primary hover:bg-primary/90">
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Chat with AI
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <Navigation currentPage="destinations" />
 
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-4">

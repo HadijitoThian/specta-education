@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { MessageCircle, GraduationCap, Globe, BookOpen, Phone, Mail, MapPin, ChevronRight, X } from "lucide-react";
+import { MessageCircle, GraduationCap, Globe, BookOpen, Phone, Mail, MapPin, ChevronRight, X, ChevronDown } from "lucide-react";
 import ChatBot from "@/components/ChatBot";
 import SmartMascot from "@/components/SmartMascot";
 import { motion, AnimatePresence } from "framer-motion";
@@ -61,8 +61,18 @@ export default function Home() {
             <Link href="/" className="text-sm font-medium text-foreground hover:text-primary transition-colors">Home</Link>
             <Link href="/about" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">About Us</Link>
             <Link href="/ielts" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">IELTS</Link>
-            <Link href="/destinations" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Destinations</Link>
-            <Link href="/malaysia" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Malaysia</Link>
+            <div className="relative group">
+              <button className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
+                Destinations
+                <ChevronDown className="w-3 h-3 transition-transform group-hover:rotate-180" />
+              </button>
+              <div className="absolute top-full left-0 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                <div className="bg-white rounded-lg shadow-lg border border-border py-2 min-w-[180px]">
+                  <Link href="/destinations" className="block px-4 py-2 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">All Destinations</Link>
+                  <Link href="/malaysia" className="block px-4 py-2 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">🇲🇾 Malaysia</Link>
+                </div>
+              </div>
+            </div>
             <Link href="/articles" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Articles</Link>
             <Link href="/contact" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Contact</Link>
           </div>

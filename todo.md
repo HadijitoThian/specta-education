@@ -73,3 +73,6 @@
 - [x] Create Malaysia Universities page with detailed profiles
 - [x] Update AI chatbot with university knowledge
 - [x] Add Malaysia to navigation menu
+
+## Navigation Updates
+- [x] Move Malaysia menu into submenu under Destinations

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import Navigation from "@/components/Navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -407,35 +408,10 @@ export default function Malaysia() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/">
-              <div className="flex items-center gap-3 cursor-pointer">
-                <img src="/specta-logo.png" alt="SpecTa Education" className="h-10 w-auto" />
-                <span className="font-bold text-xl text-gray-800">SpecTa Education</span>
-              </div>
-            </Link>
-            <nav className="hidden md:flex items-center gap-6">
-              <Link href="/"><span className="text-gray-600 hover:text-specta-coral cursor-pointer">Home</span></Link>
-              <Link href="/about"><span className="text-gray-600 hover:text-specta-coral cursor-pointer">About</span></Link>
-              <Link href="/destinations"><span className="text-gray-600 hover:text-specta-coral cursor-pointer">Destinations</span></Link>
-              <Link href="/malaysia"><span className="text-specta-coral font-semibold cursor-pointer">Malaysia</span></Link>
-              <Link href="/ielts"><span className="text-gray-600 hover:text-specta-coral cursor-pointer">IELTS</span></Link>
-              <Link href="/contact"><span className="text-gray-600 hover:text-specta-coral cursor-pointer">Contact</span></Link>
-            </nav>
-            <Link href="/">
-              <Button className="bg-specta-coral hover:bg-specta-coral/90">
-                Talk to AI Advisor
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Navigation currentPage="malaysia" />
 
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-r from-specta-coral to-specta-blue py-20 overflow-hidden">
+      <section className="relative bg-gradient-to-r from-specta-coral to-specta-blue pt-32 pb-20 overflow-hidden">
         <div className="absolute inset-0 bg-black/20"></div>
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-3xl mx-auto text-center text-white">
