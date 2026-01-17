@@ -56,3 +56,7 @@
 
 ## Bug Fixes
 - [x] Fix AI Chat not working (fixed infinite loop in useEffect)
+
+## Team Section
+- [x] Add team members section to About Us page
+- [x] Add Harianto Tian - Senior Advisor

@@ -2,7 +2,18 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, Users, Award, Target, Heart, Globe, Phone, Mail, MapPin, MessageCircle } from "lucide-react";
 
-const team = [
+// Leadership Team - Real team members with photos
+const leadershipTeam = [
+  {
+    name: "Harianto Tian",
+    role: "Senior Advisor",
+    image: "/team-harianto-tian.jpeg",
+    description: "Bringing years of experience in education and business strategy to guide SpecTa Education's vision and growth."
+  }
+];
+
+// Department Teams - Generic roles
+const departmentTeams = [
   {
     name: "Education Counselors",
     role: "Student Guidance",
@@ -156,23 +167,27 @@ export default function About() {
         </div>
       </section>
 
-      {/* Team Section */}
+      {/* Leadership Team Section */}
       <section className="py-20 bg-muted/50">
         <div className="container">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">Our Team</h2>
+            <h2 className="text-3xl font-bold mb-4">Our Leadership</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Dedicated professionals committed to your success
+              Meet the visionary leaders guiding SpecTa Education
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            {team.map((member, index) => (
-              <div key={index} className="bg-card p-8 rounded-xl shadow-sm border border-border text-center">
-                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <GraduationCap className="w-10 h-10 text-primary" />
+          <div className="flex flex-wrap justify-center gap-8">
+            {leadershipTeam.map((member, index) => (
+              <div key={index} className="bg-card p-8 rounded-xl shadow-sm border border-border text-center max-w-sm">
+                <div className="w-32 h-32 mx-auto mb-6 rounded-full overflow-hidden border-4 border-primary/20">
+                  <img 
+                    src={member.image} 
+                    alt={member.name}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <h3 className="text-xl font-semibold mb-1">{member.name}</h3>
-                <p className="text-primary text-sm mb-3">{member.role}</p>
+                <p className="text-primary text-sm font-medium mb-3">{member.role}</p>
                 <p className="text-muted-foreground text-sm">{member.description}</p>
               </div>
             ))}
@@ -180,8 +195,32 @@ export default function About() {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* Department Teams Section */}
       <section className="py-20">
+        <div className="container">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">Our Teams</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Dedicated professionals committed to your success
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            {departmentTeams.map((team, index) => (
+              <div key={index} className="bg-card p-8 rounded-xl shadow-sm border border-border text-center">
+                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <GraduationCap className="w-10 h-10 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold mb-1">{team.name}</h3>
+                <p className="text-primary text-sm mb-3">{team.role}</p>
+                <p className="text-muted-foreground text-sm">{team.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 bg-muted/50">
         <div className="container">
           <div className="bg-gradient-specta rounded-2xl p-8 md:p-12 text-white text-center">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Start Your Journey?</h2>
