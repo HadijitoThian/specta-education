@@ -76,3 +76,5 @@
 
 ## Navigation Updates
 - [x] Move Malaysia menu into submenu under Destinations
+
+- [x] Add Hadi Jito Thian - CEO to leadership team

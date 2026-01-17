@@ -6,6 +6,12 @@ import Navigation from "@/components/Navigation";
 // Leadership Team - Real team members with photos
 const leadershipTeam = [
   {
+    name: "Hadi Jito Thian",
+    role: "Chief Executive Officer",
+    image: "/team-ceo.png",
+    description: "Founder and CEO of SpecTa Education, leading the company's mission to help Indonesian students achieve their study abroad dreams through innovation and AI-powered solutions."
+  },
+  {
     name: "Harianto Tian",
     role: "Senior Advisor",
     image: "/team-harianto-tian.jpeg",
