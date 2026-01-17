@@ -12,6 +12,12 @@ const leadershipTeam = [
     description: "Founder and CEO of SpecTa Education, leading the company's mission to help Indonesian students achieve their study abroad dreams through innovation and AI-powered solutions."
   },
   {
+    name: "Adhitya Irvan Maulana",
+    role: "Chief Operating Officer",
+    image: "/team-coo.jpg",
+    description: "Overseeing daily operations and ensuring excellence in student services and partner relationships."
+  },
+  {
     name: "Harianto Tian",
     role: "Senior Advisor",
     image: "/team-harianto-tian.jpeg",
