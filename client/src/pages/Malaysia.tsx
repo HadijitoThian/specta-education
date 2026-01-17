@@ -420,8 +420,29 @@ export default function Malaysia() {
       <Navigation currentPage="malaysia" />
 
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-r from-specta-coral to-specta-blue pt-32 pb-20 overflow-hidden">
-        <div className="absolute inset-0 bg-black/20"></div>
+      <section className="relative pt-32 pb-20 overflow-hidden">
+        {/* Background Images */}
+        <div className="absolute inset-0">
+          {/* Petronas Towers on the left */}
+          <div className="absolute left-0 top-0 w-1/2 h-full">
+            <img 
+              src="/petronas-towers.jpg" 
+              alt="Petronas Twin Towers" 
+              className="w-full h-full object-cover"
+            />
+          </div>
+          {/* Graduates on the right */}
+          <div className="absolute right-0 top-0 w-1/2 h-full">
+            <img 
+              src="/graduates-celebration.jpg" 
+              alt="Graduates Celebrating" 
+              className="w-full h-full object-cover"
+            />
+          </div>
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-r from-specta-coral/90 via-specta-blue/85 to-specta-coral/90"></div>
+          <div className="absolute inset-0 bg-black/30"></div>
+        </div>
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-3xl mx-auto text-center text-white">
             <Badge className="bg-white/20 text-white mb-4">Partner Universities</Badge>
