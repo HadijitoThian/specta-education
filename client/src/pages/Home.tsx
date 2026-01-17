@@ -93,9 +93,76 @@ export default function Home() {
 
       {/* Hero Section with Interactive Mascot */}
       <section className="pt-32 pb-20 px-4 relative overflow-hidden">
-        {/* Landmarks Background */}
-        <div className="absolute bottom-0 left-0 right-0 h-40 opacity-[0.08] pointer-events-none">
-          <img src="/landmarks-bg.jpg" alt="" className="w-full h-full object-cover object-bottom" />
+        {/* Animated Floating Landmarks Background */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {/* Floating landmark icons */}
+          <motion.div 
+            className="absolute text-6xl opacity-10"
+            style={{ top: '15%', left: '5%' }}
+            animate={{ y: [0, -15, 0], rotate: [0, 5, 0] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          >
+            🗼
+          </motion.div>
+          <motion.div 
+            className="absolute text-5xl opacity-10"
+            style={{ top: '25%', right: '8%' }}
+            animate={{ y: [0, 12, 0], rotate: [0, -3, 0] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+          >
+            🏛️
+          </motion.div>
+          <motion.div 
+            className="absolute text-4xl opacity-10"
+            style={{ bottom: '30%', left: '12%' }}
+            animate={{ y: [0, -10, 0], scale: [1, 1.05, 1] }}
+            transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          >
+            🎡
+          </motion.div>
+          <motion.div 
+            className="absolute text-5xl opacity-10"
+            style={{ bottom: '20%', right: '15%' }}
+            animate={{ y: [0, 15, 0], rotate: [0, -5, 0] }}
+            transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
+          >
+            🗽
+          </motion.div>
+          <motion.div 
+            className="absolute text-4xl opacity-10"
+            style={{ top: '60%', left: '25%' }}
+            animate={{ y: [0, -12, 0], x: [0, 5, 0] }}
+            transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
+          >
+            🏰
+          </motion.div>
+          <motion.div 
+            className="absolute text-5xl opacity-10"
+            style={{ top: '40%', right: '25%' }}
+            animate={{ y: [0, 10, 0], scale: [1, 1.08, 1] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+          >
+            ⛩️
+          </motion.div>
+          <motion.div 
+            className="absolute text-4xl opacity-10"
+            style={{ bottom: '40%', left: '40%' }}
+            animate={{ y: [0, -8, 0], rotate: [0, 3, 0] }}
+            transition={{ duration: 3.8, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+          >
+            🕌
+          </motion.div>
+          <motion.div 
+            className="absolute text-5xl opacity-10"
+            style={{ top: '20%', left: '35%' }}
+            animate={{ y: [0, 14, 0], x: [0, -5, 0] }}
+            transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut", delay: 0.7 }}
+          >
+            🏯
+          </motion.div>
+          {/* Gradient orbs for depth */}
+          <div className="absolute top-20 left-10 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-10 w-80 h-80 bg-coral/5 rounded-full blur-3xl" />
         </div>
         <div className="container">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
