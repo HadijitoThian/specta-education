@@ -26,6 +26,7 @@ interface University {
   name: string;
   shortName: string;
   logo: string;
+  campusImage: string;
   ranking: string;
   rankingDetail: string;
   location: string;
@@ -53,6 +54,7 @@ const universities: University[] = [
     name: "Taylor's University",
     shortName: "Taylor's",
     logo: "/taylors-logo.png",
+    campusImage: "/taylors-campus.jpg",
     ranking: "#284",
     rankingDetail: "QS World University Rankings 2026",
     location: "Subang Jaya, Selangor",
@@ -97,6 +99,7 @@ const universities: University[] = [
     name: "University of Nottingham Malaysia",
     shortName: "Nottingham",
     logo: "/nottingham-logo.png",
+    campusImage: "/nottingham-campus.jpg",
     ranking: "#97",
     rankingDetail: "QS World University Rankings 2026",
     location: "Semenyih, Selangor",
@@ -141,6 +144,7 @@ const universities: University[] = [
     name: "INTI International University",
     shortName: "INTI",
     logo: "/inti-logo.png",
+    campusImage: "/inti-campus.jpg",
     ranking: "#509",
     rankingDetail: "QS World University Rankings 2026",
     location: "Nilai, Negeri Sembilan",
@@ -185,6 +189,7 @@ const universities: University[] = [
     name: "The One Academy",
     shortName: "TOA",
     logo: "/toa-logo.png",
+    campusImage: "/toa-campus.webp",
     ranking: "#1",
     rankingDetail: "World's Top Creative School - Rookies 2024",
     location: "Bandar Sunway, Selangor",
@@ -229,6 +234,7 @@ const universities: University[] = [
     name: "UCSI University",
     shortName: "UCSI",
     logo: "/ucsi-logo.png",
+    campusImage: "/ucsi-campus.webp",
     ranking: "#269",
     rankingDetail: "QS World University Rankings 2026",
     location: "Cheras, Kuala Lumpur",
@@ -273,6 +279,7 @@ const universities: University[] = [
     name: "Monash University Malaysia",
     shortName: "Monash",
     logo: "/monash-logo.png",
+    campusImage: "/monash-campus.jpg",
     ranking: "#36",
     rankingDetail: "QS World University Rankings 2026",
     location: "Bandar Sunway, Selangor",
@@ -317,6 +324,7 @@ const universities: University[] = [
     name: "University of Southampton Malaysia",
     shortName: "Southampton",
     logo: "/southampton-logo.png",
+    campusImage: "/southampton-campus.jpg",
     ranking: "#87",
     rankingDetail: "QS World University Rankings 2026",
     location: "Iskandar Puteri, Johor",
@@ -361,6 +369,7 @@ const universities: University[] = [
     name: "MILA University",
     shortName: "MILA",
     logo: "/mila-logo.png",
+    campusImage: "/mila-campus.jpg",
     ranking: "#414",
     rankingDetail: "QS Asia University Rankings 2026",
     location: "Nilai, Negeri Sembilan",
@@ -459,14 +468,26 @@ export default function Malaysia() {
                 className="cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden group"
                 onClick={() => setSelectedUniversity(uni)}
               >
-                <div className={`h-2 bg-gradient-to-r ${uni.color}`}></div>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge variant="secondary" className="text-xs">
-                      {uni.ranking} {uni.ranking === "#1" ? "Creative" : "QS"}
+                {/* Campus Image */}
+                <div className="relative h-40 overflow-hidden">
+                  <img 
+                    src={uni.campusImage} 
+                    alt={`${uni.name} Campus`}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <Badge className={`bg-gradient-to-r ${uni.color} text-white border-0 text-xs`}>
+                      {uni.ranking} {uni.ranking === "#1" ? "Creative" : "QS World"}
                     </Badge>
-                    <MapPin className="w-4 h-4 text-gray-400" />
                   </div>
+                  <div className="absolute top-3 right-3">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-full p-1.5">
+                      <MapPin className="w-3 h-3 text-gray-600" />
+                    </div>
+                  </div>
+                </div>
+                <CardHeader className="pb-2 pt-4">
                   <CardTitle className="text-lg group-hover:text-specta-coral transition-colors">
                     {uni.shortName}
                   </CardTitle>
@@ -476,7 +497,7 @@ export default function Malaysia() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-gray-600 line-clamp-2 mb-4">
-                    {uni.description.substring(0, 100)}...
+                    {uni.description.substring(0, 80)}...
                   </p>
                   <div className="flex flex-wrap gap-1">
                     {uni.strengths.slice(0, 2).map((strength, idx) => (
@@ -502,27 +523,36 @@ export default function Malaysia() {
             className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div className={`bg-gradient-to-r ${selectedUniversity.color} p-8 text-white relative`}>
+            {/* Modal Header with Campus Image */}
+            <div className="relative h-64 overflow-hidden rounded-t-2xl">
+              <img 
+                src={selectedUniversity.campusImage} 
+                alt={`${selectedUniversity.name} Campus`}
+                className="w-full h-full object-cover"
+              />
+              <div className={`absolute inset-0 bg-gradient-to-t ${selectedUniversity.color} opacity-70`}></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
               <button 
                 onClick={() => setSelectedUniversity(null)}
-                className="absolute top-4 right-4 text-white/80 hover:text-white text-2xl"
+                className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white rounded-full w-10 h-10 flex items-center justify-center text-2xl transition-colors"
               >
                 ×
               </button>
-              <Badge className="bg-white/20 text-white mb-4">
-                {selectedUniversity.ranking} {selectedUniversity.rankingDetail}
-              </Badge>
-              <h2 className="text-3xl font-bold mb-2">{selectedUniversity.name}</h2>
-              <div className="flex items-center gap-4 text-white/90">
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-4 h-4" />
-                  {selectedUniversity.location}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Building2 className="w-4 h-4" />
-                  Est. {selectedUniversity.established}
-                </span>
+              <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
+                <Badge className="bg-white/20 backdrop-blur-sm text-white mb-4 border-0">
+                  {selectedUniversity.ranking} {selectedUniversity.rankingDetail}
+                </Badge>
+                <h2 className="text-3xl font-bold mb-2 drop-shadow-lg">{selectedUniversity.name}</h2>
+                <div className="flex items-center gap-4 text-white/90">
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-4 h-4" />
+                    {selectedUniversity.location}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Building2 className="w-4 h-4" />
+                    Est. {selectedUniversity.established}
+                  </span>
+                </div>
               </div>
             </div>
 
