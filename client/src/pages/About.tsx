@@ -1,15 +1,19 @@
+import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, Users, Award, Target, Heart, Globe, Phone, Mail, MapPin, MessageCircle } from "lucide-react";
+import { GraduationCap, Users, Award, Target, Heart, Globe, BookOpen, FileCheck, ChevronLeft, ChevronRight, MessageCircle, X } from "lucide-react";
 import Navigation from "@/components/Navigation";
+import Footer from "@/components/Footer";
+import ChatBot from "@/components/ChatBot";
+import { motion, AnimatePresence } from "framer-motion";
 
-// Leadership Team - Real team members with photos
+// Leadership Team
 const leadershipTeam = [
   {
     name: "Hadi Jito Thian",
     role: "Chief Executive Officer",
     image: "/team-ceo.png",
-    description: "Founder and CEO of SpecTa Education, leading the company's mission to help Indonesian students achieve their study abroad dreams through innovation and AI-powered solutions."
+    description: "Founder and CEO of SpecTa Education, leading the company's mission to help Indonesian students achieve their study abroad dreams."
   },
   {
     name: "Adhitya Irvan Maulana",
@@ -21,70 +25,122 @@ const leadershipTeam = [
     name: "Harianto Tian",
     role: "Senior Advisor",
     image: "/team-harianto-tian.jpeg",
-    description: "Bringing years of experience in education and business strategy to guide SpecTa Education's vision and growth."
+    description: "Bringing years of experience in education and business strategy to guide SpecTa Education's vision."
   }
 ];
 
-// Department Teams - Generic roles
+// Department Teams with unique icons
 const departmentTeams = [
   {
     name: "Education Counselors",
     role: "Student Guidance",
+    icon: Users,
     description: "Experienced counselors dedicated to helping students find their perfect study abroad destination."
   },
   {
     name: "IELTS Instructors",
     role: "Test Preparation",
+    icon: BookOpen,
     description: "Certified IELTS trainers with proven track records of helping students achieve high scores."
   },
   {
     name: "Visa Specialists",
     role: "Documentation Support",
+    icon: FileCheck,
     description: "Expert visa consultants ensuring smooth application processes for all destinations."
   }
 ];
 
 const values = [
-  {
-    icon: Heart,
-    title: "Student-Centered",
-    description: "Every decision we make puts our students' success and well-being first."
-  },
-  {
-    icon: Award,
-    title: "Excellence",
-    description: "We strive for excellence in every service we provide, from consultation to placement."
-  },
-  {
-    icon: Target,
-    title: "Results-Driven",
-    description: "Our success is measured by our students' achievements and satisfaction."
-  },
-  {
-    icon: Globe,
-    title: "Global Perspective",
-    description: "We connect Indonesian students with world-class educational opportunities."
-  }
+  { icon: Heart, title: "Student-Centered", description: "Every decision we make puts our students' success first." },
+  { icon: Award, title: "Excellence", description: "We strive for excellence in every service we provide." },
+  { icon: Target, title: "Results-Driven", description: "Our success is measured by our students' achievements." },
+  { icon: Globe, title: "Global Perspective", description: "Connecting students with world-class opportunities." }
 ];
 
+// Mission carousel images
+const missionImages = [
+  { src: "/mission-1.jpg", alt: "Diverse students learning together" },
+  { src: "/mission-2.jpg", alt: "International classroom" },
+  { src: "/mission-3.jpg", alt: "Education counseling session" },
+  { src: "/mission-4.jpg", alt: "Graduation celebration" }
+];
+
+// Counting animation component
+function CountUp({ end, suffix = "", duration = 2 }: { end: number; suffix?: string; duration?: number }) {
+  const [count, setCount] = useState(0);
+  const [hasAnimated, setHasAnimated] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !hasAnimated) {
+          setHasAnimated(true);
+          let start = 0;
+          const increment = end / (duration * 60);
+          const timer = setInterval(() => {
+            start += increment;
+            if (start >= end) {
+              setCount(end);
+              clearInterval(timer);
+            } else {
+              setCount(Math.floor(start));
+            }
+          }, 1000 / 60);
+        }
+      },
+      { threshold: 0.5 }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [end, duration, hasAnimated]);
+
+  return <div ref={ref}>{count}{suffix}</div>;
+}
+
 export default function About() {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
+  // Auto-advance carousel
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % missionImages.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % missionImages.length);
+  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + missionImages.length) % missionImages.length);
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation currentPage="about" />
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4 relative overflow-hidden">
-        {/* Background Image */}
+      <motion.section 
+        className="pt-32 pb-20 px-4 relative overflow-hidden"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6 }}
+      >
         <div className="absolute inset-0 z-0">
-          <img 
-            src="/about-hero-bg.jpg" 
-            alt="" 
-            className="w-full h-full object-cover"
-          />
+          <img src="/about-hero-bg.jpg" alt="" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-white/95 via-white/90 to-white"></div>
         </div>
         <div className="container relative z-10">
-          <div className="max-w-3xl mx-auto text-center">
+          <motion.div 
+            className="max-w-3xl mx-auto text-center"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full text-primary text-sm font-medium mb-6">
               <Users className="w-4 h-4" />
               About SpecTa Education
@@ -93,46 +149,96 @@ export default function About() {
               Your Trusted Partner for <span className="text-gradient-specta">Study Abroad</span>
             </h1>
             <p className="text-lg text-muted-foreground">
-              SpecTa Education has been helping Indonesian students achieve their dreams of studying abroad since our founding. With experienced counselors and a proven track record, we guide students through every step of their international education journey.
+              SpecTa Education has been helping Indonesian students achieve their dreams of studying abroad. With experienced counselors and a proven track record, we guide students through every step.
             </p>
-          </div>
+          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
-      {/* Mission Section */}
+      {/* Mission Section with Carousel */}
       <section className="py-20 bg-muted/50">
         <div className="container">
           <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div>
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
               <h2 className="text-3xl font-bold mb-6">Our Mission</h2>
               <p className="text-muted-foreground mb-6">
-                At SpecTa Education, our mission is to empower Indonesian students with access to world-class education opportunities abroad. We believe that every student deserves the chance to pursue their academic dreams, regardless of their background.
+                At SpecTa Education, our mission is to empower Indonesian students with access to world-class education opportunities abroad. We believe every student deserves the chance to pursue their academic dreams.
               </p>
               <p className="text-muted-foreground mb-6">
                 We provide comprehensive support throughout the entire study abroad journey - from initial consultation and university selection to IELTS preparation, visa applications, and pre-departure guidance.
               </p>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-6">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-primary">15+</div>
+                  <div className="text-3xl font-bold text-primary"><CountUp end={15} suffix="+" /></div>
                   <div className="text-sm text-muted-foreground">Years Experience</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-primary">1000+</div>
+                  <div className="text-3xl font-bold text-primary"><CountUp end={1000} suffix="+" /></div>
                   <div className="text-sm text-muted-foreground">Students Placed</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-primary">50+</div>
+                  <div className="text-3xl font-bold text-primary"><CountUp end={50} suffix="+" /></div>
                   <div className="text-sm text-muted-foreground">Partner Universities</div>
                 </div>
               </div>
-            </div>
-            <div className="relative">
-              <img 
-                src="/mascot.png" 
-                alt="SpecTa Mascot" 
-                className="w-full max-w-sm mx-auto"
-              />
-            </div>
+            </motion.div>
+            
+            {/* Dynamic Carousel */}
+            <motion.div 
+              className="relative"
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              <div className="relative rounded-2xl overflow-hidden aspect-[4/3] shadow-xl">
+                <AnimatePresence mode="wait">
+                  <motion.img
+                    key={currentSlide}
+                    src={missionImages[currentSlide].src}
+                    alt={missionImages[currentSlide].alt}
+                    className="w-full h-full object-cover"
+                    initial={{ opacity: 0, scale: 1.1 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.5 }}
+                  />
+                </AnimatePresence>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                
+                {/* Carousel Controls */}
+                <button
+                  onClick={prevSlide}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full shadow-lg transition-all"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={nextSlide}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full shadow-lg transition-all"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+                
+                {/* Dots */}
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                  {missionImages.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentSlide(index)}
+                      className={`w-2 h-2 rounded-full transition-all ${
+                        index === currentSlide ? "bg-white w-6" : "bg-white/50"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -140,21 +246,34 @@ export default function About() {
       {/* Values Section */}
       <section className="py-20">
         <div className="container">
-          <div className="text-center mb-12">
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
             <h2 className="text-3xl font-bold mb-4">Our Values</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               These core values guide everything we do at SpecTa Education
             </p>
-          </div>
+          </motion.div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {values.map((value, index) => (
-              <div key={index} className="text-center p-6">
+              <motion.div 
+                key={index} 
+                className="text-center p-6"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                whileHover={{ y: -5 }}
+              >
                 <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                   <value.icon className="w-8 h-8 text-primary" />
                 </div>
                 <h3 className="text-xl font-semibold mb-2">{value.title}</h3>
                 <p className="text-muted-foreground text-sm">{value.description}</p>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -163,131 +282,124 @@ export default function About() {
       {/* Leadership Team Section */}
       <section className="py-20 bg-muted/50">
         <div className="container">
-          <div className="text-center mb-12">
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
             <h2 className="text-3xl font-bold mb-4">Our Leadership</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               Meet the visionary leaders guiding SpecTa Education
             </p>
-          </div>
+          </motion.div>
           <div className="flex flex-wrap justify-center gap-8">
             {leadershipTeam.map((member, index) => (
-              <div key={index} className="bg-card p-8 rounded-xl shadow-sm border border-border text-center max-w-sm">
+              <motion.div 
+                key={index} 
+                className="bg-card p-8 rounded-xl shadow-sm border border-border text-center max-w-sm"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                whileHover={{ y: -5, boxShadow: "0 10px 40px rgba(0,0,0,0.1)" }}
+              >
                 <div className="w-32 h-32 mx-auto mb-6 rounded-full overflow-hidden border-4 border-primary/20">
-                  <img 
-                    src={member.image} 
-                    alt={member.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={member.image} alt={member.name} className="w-full h-full object-cover" />
                 </div>
                 <h3 className="text-xl font-semibold mb-1">{member.name}</h3>
                 <p className="text-primary text-sm font-medium mb-3">{member.role}</p>
                 <p className="text-muted-foreground text-sm">{member.description}</p>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Department Teams Section */}
+      {/* Department Teams Section with unique icons */}
       <section className="py-20">
         <div className="container">
-          <div className="text-center mb-12">
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
             <h2 className="text-3xl font-bold mb-4">Our Teams</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               Dedicated professionals committed to your success
             </p>
-          </div>
+          </motion.div>
           <div className="grid md:grid-cols-3 gap-8">
             {departmentTeams.map((team, index) => (
-              <div key={index} className="bg-card p-8 rounded-xl shadow-sm border border-border text-center">
+              <motion.div 
+                key={index} 
+                className="bg-card p-8 rounded-xl shadow-sm border border-border text-center"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                whileHover={{ y: -5 }}
+              >
                 <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <GraduationCap className="w-10 h-10 text-primary" />
+                  <team.icon className="w-10 h-10 text-primary" />
                 </div>
                 <h3 className="text-xl font-semibold mb-1">{team.name}</h3>
                 <p className="text-primary text-sm mb-3">{team.role}</p>
                 <p className="text-muted-foreground text-sm">{team.description}</p>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-muted/50">
-        <div className="container">
-          <div className="bg-gradient-specta rounded-2xl p-8 md:p-12 text-white text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Start Your Journey?</h2>
-            <p className="text-white/90 max-w-2xl mx-auto mb-8">
-              Let our experienced team help you achieve your study abroad dreams. Contact us today for a free consultation.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/">
-                <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90">
-                  <MessageCircle className="w-5 h-5 mr-2" />
-                  Chat with SpecTa AI
-                </Button>
-              </Link>
-              <Link href="/contact">
-                <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
-                  Contact Us
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      <Footer />
 
-      {/* Footer */}
-      <footer className="bg-foreground text-background py-16">
-        <div className="container">
-          <div className="grid md:grid-cols-4 gap-12">
-            <div className="space-y-4">
-              <img src="/logo.jpeg" alt="SpecTa Education" className="h-12 object-contain brightness-0 invert" />
-              <p className="text-sm text-background/70">
-                Your trusted partner for international education and study abroad services.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2 text-sm text-background/70">
-                <li><Link href="/about" className="hover:text-background transition-colors">About Us</Link></li>
-                <li><Link href="/ielts" className="hover:text-background transition-colors">IELTS</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">Destinations</Link></li>
-                <li><Link href="/contact" className="hover:text-background transition-colors">Contact</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Destinations</h4>
-              <ul className="space-y-2 text-sm text-background/70">
-                <li><Link href="/destinations" className="hover:text-background transition-colors">Australia</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">United Kingdom</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">USA</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">Canada</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Contact Us</h4>
-              <ul className="space-y-3 text-sm text-background/70">
-                <li className="flex items-start gap-2">
-                  <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
-                  <span>Jl. Kelapa Nias Raya QE1 No. 14, Kelapa Gading, Jakarta Utara</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 shrink-0" />
-                  <a href="tel:+62819668278" className="hover:text-background transition-colors">+62 819 668 278</a>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 shrink-0" />
-                  <a href="mailto:info@spectaeducation.com" className="hover:text-background transition-colors">info@spectaeducation.com</a>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-background/20 mt-12 pt-8 text-center text-sm text-background/50">
-            <p>&copy; {new Date().getFullYear()} SpecTa Education. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      {/* Small Chatbot Button */}
+      <motion.button
+        onClick={() => setIsChatOpen(true)}
+        className="fixed bottom-6 right-6 z-40 bg-primary hover:bg-primary/90 text-white rounded-full p-4 shadow-lg"
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        initial={{ opacity: 0, scale: 0 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 1 }}
+      >
+        <MessageCircle className="w-6 h-6" />
+      </motion.button>
+
+      {/* Chat Modal */}
+      <AnimatePresence>
+        {isChatOpen && (
+          <motion.div 
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div 
+              className="w-full max-w-lg h-[600px] max-h-[80vh] bg-card rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+              initial={{ opacity: 0, scale: 0.9, y: 50 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 50 }}
+            >
+              <div className="flex items-center justify-between p-4 border-b border-border bg-primary text-primary-foreground">
+                <div className="flex items-center gap-3">
+                  <img src="/mascot.png" alt="SpecTa AI" className="w-10 h-10 object-contain" />
+                  <div>
+                    <h3 className="font-semibold">SpecTa AI Assistant</h3>
+                    <p className="text-xs text-primary-foreground/80">Online • Ready to help</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsChatOpen(false)} className="p-2 hover:bg-primary-foreground/10 rounded-full">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <ChatBot />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

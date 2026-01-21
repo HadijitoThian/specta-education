@@ -13,6 +13,7 @@ import Articles from "./pages/Articles";
 import Contact from "./pages/Contact";
 import AdminDashboard from "./pages/AdminDashboard";
 import Malaysia from "./pages/Malaysia";
+import CountryPage from "./pages/CountryPage";
 
 function Router() {
   return (
@@ -21,6 +22,7 @@ function Router() {
       <Route path={"/about"} component={About} />
       <Route path={"/ielts"} component={IELTS} />
       <Route path={"/destinations"} component={Destinations} />
+      <Route path={"/destinations/:slug"} component={CountryPage} />
       <Route path={"/malaysia"} component={Malaysia} />
       <Route path={"/articles"} component={Articles} />
       <Route path={"/contact"} component={Contact} />

@@ -15,6 +15,13 @@
       "when": 1768442376342,
       "tag": "0001_marvelous_captain_flint",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1768972908267,
+      "tag": "0002_yielding_cerise",
+      "breakpoints": true
     }
   ]
 }

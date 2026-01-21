@@ -3,9 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { MessageCircle, GraduationCap, Globe, BookOpen, Phone, Mail, MapPin, ChevronRight, X, ChevronDown } from "lucide-react";
 import ChatBot from "@/components/ChatBot";
-import SmartMascot from "@/components/SmartMascot";
 import { motion, AnimatePresence } from "framer-motion";
-import { useMascotAgent } from "@/contexts/MascotAgentContext";
+import Navigation from "@/components/Navigation";
+import Footer from "@/components/Footer";
 
 const countries = [
   { name: "Australia", flag: "🇦🇺", image: "https://images.unsplash.com/photo-1523482580672-f109ba8cb9be?w=400&h=300&fit=crop" },
@@ -17,29 +17,48 @@ const countries = [
 ];
 
 const stats = [
-  { number: "1,000+", label: "Students Assisted" },
-  { number: "50+", label: "Partner Universities" },
-  { number: "8+", label: "Countries" },
-  { number: "15+", label: "Years Experience" },
+  { number: 1000, suffix: "+", label: "Students Assisted" },
+  { number: 50, suffix: "+", label: "Partner Universities" },
+  { number: 10, suffix: "+", label: "Countries" },
+  { number: 15, suffix: "+", label: "Years Experience" },
 ];
+
+// Counting animation component
+function CountUp({ end, suffix, duration = 2 }: { end: number; suffix: string; duration?: number }) {
+  const [count, setCount] = useState(0);
+  const [hasAnimated, setHasAnimated] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !hasAnimated) {
+          setHasAnimated(true);
+          let start = 0;
+          const increment = end / (duration * 60);
+          const timer = setInterval(() => {
+            start += increment;
+            if (start >= end) {
+              setCount(end);
+              clearInterval(timer);
+            } else {
+              setCount(Math.floor(start));
+            }
+          }, 1000 / 60);
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [end, duration, hasAnimated]);
+
+  return <div ref={ref}>{count}{suffix}</div>;
+}
 
 export default function Home() {
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const { updateUserContext, hideMascot, showMascot } = useMascotAgent();
-  const prevChatOpenRef = useRef(isChatOpen);
-
-  // Update context when chat opens/closes - use ref to prevent infinite loop
-  useEffect(() => {
-    if (isChatOpen !== prevChatOpenRef.current) {
-      prevChatOpenRef.current = isChatOpen;
-      if (isChatOpen) {
-        updateUserContext({ chatStarted: true });
-        hideMascot();
-      } else {
-        showMascot();
-      }
-    }
-  }, [isChatOpen]); // Only depend on isChatOpen, not the functions
 
   const handleOpenChat = () => {
     setIsChatOpen(true);
@@ -49,53 +68,19 @@ export default function Home() {
     setIsChatOpen(false);
   };
 
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-border">
-        <div className="container flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2">
-            <img src="/logo.jpeg" alt="SpecTa Education" className="h-10 object-contain" />
-          </Link>
-          <div className="hidden md:flex items-center gap-8">
-            <Link href="/" className="text-sm font-medium text-foreground hover:text-primary transition-colors">Home</Link>
-            <Link href="/about" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">About Us</Link>
-            <Link href="/ielts" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">IELTS</Link>
-            <div className="relative group">
-              <button className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
-                Destinations
-                <ChevronDown className="w-3 h-3 transition-transform group-hover:rotate-180" />
-              </button>
-              <div className="absolute top-full left-0 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                <div className="bg-white rounded-lg shadow-lg border border-border py-2 min-w-[180px]">
-                  <Link href="/destinations" className="block px-4 py-2 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">All Destinations</Link>
-                  <Link href="/malaysia" className="block px-4 py-2 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">🇲🇾 Malaysia</Link>
-                </div>
-              </div>
-            </div>
-            <Link href="/articles" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Articles</Link>
-            <Link href="/contact" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">Contact</Link>
-          </div>
-          <div className="flex items-center gap-3">
-            <a href="https://wa.me/62819668278" target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" size="sm" className="hidden sm:flex items-center gap-2">
-                <Phone className="w-4 h-4" />
-                Contact
-              </Button>
-            </a>
-            <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={handleOpenChat}>
-              <MessageCircle className="w-4 h-4 mr-2" />
-              Chat with AI
-            </Button>
-          </div>
-        </div>
-      </nav>
+      <Navigation currentPage="home" />
 
-      {/* Hero Section with Interactive Mascot */}
-      <section className="pt-32 pb-20 px-4 relative overflow-hidden">
+      {/* Hero Section with Excited Students */}
+      <section className="pt-28 pb-16 px-4 relative overflow-hidden">
         {/* Animated Floating Landmarks Background */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {/* Floating landmark icons */}
           <motion.div 
             className="absolute text-6xl opacity-10"
             style={{ top: '15%', left: '5%' }}
@@ -128,45 +113,13 @@ export default function Home() {
           >
             🗽
           </motion.div>
-          <motion.div 
-            className="absolute text-4xl opacity-10"
-            style={{ top: '60%', left: '25%' }}
-            animate={{ y: [0, -12, 0], x: [0, 5, 0] }}
-            transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
-          >
-            🏰
-          </motion.div>
-          <motion.div 
-            className="absolute text-5xl opacity-10"
-            style={{ top: '40%', right: '25%' }}
-            animate={{ y: [0, 10, 0], scale: [1, 1.08, 1] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
-          >
-            ⛩️
-          </motion.div>
-          <motion.div 
-            className="absolute text-4xl opacity-10"
-            style={{ bottom: '40%', left: '40%' }}
-            animate={{ y: [0, -8, 0], rotate: [0, 3, 0] }}
-            transition={{ duration: 3.8, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-          >
-            🕌
-          </motion.div>
-          <motion.div 
-            className="absolute text-5xl opacity-10"
-            style={{ top: '20%', left: '35%' }}
-            animate={{ y: [0, 14, 0], x: [0, -5, 0] }}
-            transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut", delay: 0.7 }}
-          >
-            🏯
-          </motion.div>
-          {/* Gradient orbs for depth */}
           <div className="absolute top-20 left-10 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
           <div className="absolute bottom-20 right-10 w-80 h-80 bg-coral/5 rounded-full blur-3xl" />
         </div>
+        
         <div className="container">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
+          <div className="grid lg:grid-cols-2 gap-8 items-center">
+            <div className="space-y-6">
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -198,10 +151,6 @@ export default function Home() {
                 transition={{ duration: 0.5, delay: 0.3 }}
                 className="flex flex-col sm:flex-row gap-4"
               >
-                <Button size="lg" className="bg-primary hover:bg-primary/90" onClick={handleOpenChat}>
-                  <MessageCircle className="w-5 h-5 mr-2" />
-                  Talk to Our AI Assistant
-                </Button>
                 <Link href="/destinations">
                   <Button size="lg" variant="outline">
                     Explore Destinations
@@ -209,55 +158,29 @@ export default function Home() {
                   </Button>
                 </Link>
               </motion.div>
-              
-              {/* Voice interaction hint */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.5 }}
-                className="flex items-center gap-2 text-sm text-muted-foreground"
-              >
-                <span className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-full text-xs">
-                  🎤 Voice enabled
-                </span>
-                <span>Click the mascot or use voice to start chatting!</span>
-              </motion.div>
             </div>
             
-            {/* Hero Mascot - Large animated version */}
+            {/* Excited Students Image */}
             <motion.div 
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.2 }}
               className="relative"
             >
-              <div className="relative z-10 cursor-pointer" onClick={handleOpenChat}>
+              <div className="relative z-10">
                 <motion.img 
-                  src="/mascot.png" 
-                  alt="SpecTa AI Assistant" 
-                  className="w-full max-w-md mx-auto drop-shadow-2xl"
+                  src="/excited-students.jpg" 
+                  alt="Excited students ready to study abroad" 
+                  className="w-full max-w-lg mx-auto rounded-2xl shadow-2xl object-cover"
                   animate={{ 
-                    y: [0, -10, 0],
+                    y: [0, -8, 0],
                   }}
                   transition={{
-                    duration: 3,
+                    duration: 4,
                     repeat: Infinity,
                     ease: "easeInOut"
                   }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
                 />
-                
-                {/* Speech bubble */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 1.5 }}
-                  className="absolute top-0 -right-4 bg-white rounded-2xl shadow-lg px-4 py-3 max-w-[180px]"
-                >
-                  <p className="text-sm font-medium text-foreground">Hi! Click me to chat! 👋</p>
-                  <div className="absolute -bottom-2 left-8 w-4 h-4 bg-white transform rotate-45" />
-                </motion.div>
               </div>
               <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-full blur-3xl -z-10" />
             </motion.div>
@@ -265,7 +188,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats Section */}
+      {/* Stats Section with Counting Animation */}
       <section className="py-16 bg-muted/50">
         <div className="container">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
@@ -278,7 +201,9 @@ export default function Home() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
               >
-                <div className="text-3xl md:text-4xl font-bold text-primary">{stat.number}</div>
+                <div className="text-3xl md:text-4xl font-bold text-primary">
+                  <CountUp end={stat.number} suffix={stat.suffix} />
+                </div>
                 <div className="text-sm text-muted-foreground mt-2">{stat.label}</div>
               </motion.div>
             ))}
@@ -320,6 +245,20 @@ export default function Home() {
               </Link>
             ))}
           </div>
+          {/* More Destinations Button */}
+          <motion.div 
+            className="text-center mt-10"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <Link href="/destinations">
+              <Button size="lg" variant="outline">
+                More Destinations
+                <ChevronRight className="w-5 h-5 ml-2" />
+              </Button>
+            </Link>
+          </motion.div>
         </div>
       </section>
 
@@ -371,73 +310,34 @@ export default function Home() {
             <p className="text-white/90 max-w-2xl mx-auto mb-8">
               Chat with our AI assistant to get personalized guidance on studying abroad. We're here to help you every step of the way.
             </p>
-            <Button 
-              size="lg" 
-              variant="secondary" 
-              className="bg-white text-primary hover:bg-white/90"
-              onClick={handleOpenChat}
-            >
-              <MessageCircle className="w-5 h-5 mr-2" />
-              Chat with SpecTa AI
-            </Button>
+            <Link href="/contact">
+              <Button 
+                size="lg" 
+                variant="secondary" 
+                className="bg-white text-primary hover:bg-white/90"
+              >
+                <Phone className="w-5 h-5 mr-2" />
+                Contact Us
+              </Button>
+            </Link>
           </motion.div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-foreground text-background py-16">
-        <div className="container">
-          <div className="grid md:grid-cols-4 gap-12">
-            <div className="space-y-4">
-              <img src="/logo.jpeg" alt="SpecTa Education" className="h-12 object-contain brightness-0 invert" />
-              <p className="text-sm text-background/70">
-                Your trusted partner for international education and study abroad services.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2 text-sm text-background/70">
-                <li><Link href="/about" className="hover:text-background transition-colors">About Us</Link></li>
-                <li><Link href="/ielts" className="hover:text-background transition-colors">IELTS</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">Destinations</Link></li>
-                <li><Link href="/contact" className="hover:text-background transition-colors">Contact</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Destinations</h4>
-              <ul className="space-y-2 text-sm text-background/70">
-                <li><Link href="/destinations" className="hover:text-background transition-colors">Australia</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">United Kingdom</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">USA</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">Canada</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Contact Us</h4>
-              <ul className="space-y-3 text-sm text-background/70">
-                <li className="flex items-start gap-2">
-                  <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
-                  <span>Jl. Kelapa Nias Raya QE1 No. 14, Kelapa Gading, Jakarta Utara</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 shrink-0" />
-                  <a href="tel:+62819668278" className="hover:text-background transition-colors">+62 819 668 278</a>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 shrink-0" />
-                  <a href="mailto:info@spectaeducation.com" className="hover:text-background transition-colors">info@spectaeducation.com</a>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-background/20 mt-12 pt-8 text-center text-sm text-background/50">
-            <p>&copy; {new Date().getFullYear()} SpecTa Education. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
-      {/* Smart Mascot - Floating Interactive Agent */}
-      <SmartMascot onChatOpen={handleOpenChat} />
+      {/* Small Chatbot Button - Bottom Right */}
+      <motion.button
+        onClick={handleOpenChat}
+        className="fixed bottom-6 right-6 z-40 bg-primary hover:bg-primary/90 text-white rounded-full p-4 shadow-lg"
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        initial={{ opacity: 0, scale: 0 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 1 }}
+      >
+        <MessageCircle className="w-6 h-6" />
+      </motion.button>
 
       {/* Chat Modal */}
       <AnimatePresence>

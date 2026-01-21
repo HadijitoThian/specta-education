@@ -1,97 +1,69 @@
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { BookOpen, CheckCircle, Clock, Users, Award, Phone, Mail, MapPin, MessageCircle, Star } from "lucide-react";
+import { BookOpen, CheckCircle, Clock, Users, Award, Star, ChevronLeft, ChevronRight, MessageCircle, X } from "lucide-react";
 import Navigation from "@/components/Navigation";
+import Footer from "@/components/Footer";
+import ChatBot from "@/components/ChatBot";
+import { motion, AnimatePresence } from "framer-motion";
 
 const features = [
-  {
-    icon: Users,
-    title: "Expert Instructors",
-    description: "Learn from certified IELTS trainers with years of experience and proven success rates."
-  },
-  {
-    icon: BookOpen,
-    title: "Comprehensive Materials",
-    description: "Access to the latest IELTS preparation materials, practice tests, and study guides."
-  },
-  {
-    icon: Clock,
-    title: "Flexible Schedule",
-    description: "Choose from various class schedules that fit your lifestyle - weekdays or weekends."
-  },
-  {
-    icon: Award,
-    title: "Proven Results",
-    description: "Our students consistently achieve band scores of 6.5 and above."
-  }
+  { icon: Users, title: "Expert Instructors", description: "Learn from certified IELTS trainers with years of experience and proven success rates." },
+  { icon: BookOpen, title: "Comprehensive Materials", description: "Access to the latest IELTS preparation materials, practice tests, and study guides." },
+  { icon: Clock, title: "Flexible Schedule", description: "Choose from various class schedules that fit your lifestyle - weekdays or weekends." },
+  { icon: Award, title: "Proven Results", description: "Our students consistently achieve band scores of 6.5 and above." }
 ];
 
 const testimonials = [
-  {
-    name: "Angie Y. A.",
-    score: "8.0",
-    quote: "I received an Overall Score of 8 on my actual IELTS test. If SpecTa teachers can enhance my skills, I don't know why else you should be worried about joining!"
-  },
-  {
-    name: "Nabila Imanina",
-    score: "7.0",
-    quote: "I got 7.0 overall band score from 5.0 on Prediction Test. A very nice place to practice and learn about IELTS in an effective and efficient learning method."
-  },
-  {
-    name: "Irvan Louis",
-    score: "7.0",
-    quote: "Thanks, SpecTa! I got an overall 7! Special thanks to Sir Fred, Ms Onny, Pak Paulus, Pak Al, and Mba Wulan."
-  }
+  { name: "Angie Y. A.", score: "8.0", image: "/testimonial-1.jpg", quote: "I received an Overall Score of 8 on my actual IELTS test. If SpecTa teachers can enhance my skills, I don't know why else you should be worried about joining!" },
+  { name: "Nabila Imanina", score: "7.0", image: "/testimonial-2.jpg", quote: "I got 7.0 overall band score from 5.0 on Prediction Test. A very nice place to practice and learn about IELTS in an effective and efficient learning method." },
+  { name: "Irvan Louis", score: "7.0", image: "/testimonial-3.jpg", quote: "Thanks, SpecTa! I got an overall 7! Special thanks to Sir Fred, Ms Onny, Pak Paulus, Pak Al, and Mba Wulan." },
+  { name: "Sarah Chen", score: "7.5", image: "/testimonial-4.jpg", quote: "The personalized attention and structured approach helped me improve from 6.0 to 7.5 in just 8 weeks. Highly recommend SpecTa!" },
+  { name: "Ahmad Rizky", score: "8.0", image: "/testimonial-5.jpg", quote: "SpecTa's intensive program was exactly what I needed. The mock tests and feedback sessions were invaluable for my preparation." }
 ];
 
 const packages = [
-  {
-    name: "IELTS Basic",
-    duration: "4 Weeks",
-    sessions: "16 Sessions",
-    features: [
-      "All 4 skills covered",
-      "Practice tests included",
-      "Small class size",
-      "Study materials"
-    ]
-  },
-  {
-    name: "IELTS Intensive",
-    duration: "8 Weeks",
-    sessions: "32 Sessions",
-    features: [
-      "All 4 skills covered",
-      "Weekly mock tests",
-      "One-on-one feedback",
-      "Speaking practice",
-      "Writing correction"
-    ],
-    popular: true
-  },
-  {
-    name: "IELTS Private",
-    duration: "Flexible",
-    sessions: "Custom",
-    features: [
-      "Personalized curriculum",
-      "Flexible scheduling",
-      "Focused improvement",
-      "Unlimited questions",
-      "Priority support"
-    ]
-  }
+  { name: "IELTS Basic", duration: "4 Weeks", sessions: "16 Sessions", features: ["All 4 skills covered", "Practice tests included", "Small class size", "Study materials"] },
+  { name: "IELTS Intensive", duration: "8 Weeks", sessions: "32 Sessions", features: ["All 4 skills covered", "Weekly mock tests", "One-on-one feedback", "Speaking practice", "Writing correction"], popular: true },
+  { name: "IELTS Private", duration: "Flexible", sessions: "Custom", features: ["Personalized curriculum", "Flexible scheduling", "Focused improvement", "Unlimited questions", "Priority support"] }
 ];
 
 export default function IELTS() {
+  const [currentTestimonial, setCurrentTestimonial] = useState(0);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const nextTestimonial = () => setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
+  const prevTestimonial = () => setCurrentTestimonial((prev) => (prev - 1 + testimonials.length) % testimonials.length);
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation currentPage="ielts" />
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4 bg-gradient-to-br from-primary/5 to-accent/5">
+      <motion.section 
+        className="pt-32 pb-20 px-4 bg-gradient-to-br from-primary/5 to-accent/5"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6 }}
+      >
         <div className="container">
-          <div className="max-w-3xl mx-auto text-center">
+          <motion.div 
+            className="max-w-3xl mx-auto text-center"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full text-primary text-sm font-medium mb-6">
               <BookOpen className="w-4 h-4" />
               IELTS Preparation
@@ -102,64 +74,89 @@ export default function IELTS() {
             <p className="text-lg text-muted-foreground mb-8">
               Comprehensive IELTS preparation with experienced instructors. Our proven methods have helped thousands of students achieve their target scores.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <motion.div 
+              className="flex flex-col sm:flex-row gap-4 justify-center"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+            >
               <a href="https://wa.me/62819668278?text=Hi,%20I'm%20interested%20in%20IELTS%20preparation" target="_blank" rel="noopener noreferrer">
-                <Button size="lg" className="bg-primary hover:bg-primary/90">
-                  Register for IELTS Class
-                </Button>
+                <Button size="lg" className="bg-primary hover:bg-primary/90">Register for IELTS Class</Button>
               </a>
               <Link href="/">
-                <Button size="lg" variant="outline">
-                  Free IELTS Consultation
-                </Button>
+                <Button size="lg" variant="outline">Free IELTS Consultation</Button>
               </Link>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Features Section */}
       <section className="py-20">
         <div className="container">
-          <div className="text-center mb-12">
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
             <h2 className="text-3xl font-bold mb-4">Why Choose SpecTa IELTS?</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Our IELTS program is designed to help you succeed
-            </p>
-          </div>
+            <p className="text-muted-foreground max-w-2xl mx-auto">Our IELTS program is designed to help you succeed</p>
+          </motion.div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, index) => (
-              <div key={index} className="bg-card p-6 rounded-xl shadow-sm border border-border text-center">
-                <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <feature.icon className="w-7 h-7 text-primary" />
+              <motion.div 
+                key={index} 
+                className="bg-card p-6 rounded-xl shadow-sm border border-border text-center group hover:border-primary hover:shadow-lg transition-all duration-300"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                whileHover={{ y: -5 }}
+              >
+                <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                  <feature.icon className="w-7 h-7 text-primary group-hover:text-white transition-colors" />
                 </div>
                 <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
                 <p className="text-muted-foreground text-sm">{feature.description}</p>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Packages Section */}
+      {/* Packages Section with animations */}
       <section className="py-20 bg-muted/50">
         <div className="container">
-          <div className="text-center mb-12">
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
             <h2 className="text-3xl font-bold mb-4">IELTS Packages</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Choose the package that best fits your needs and schedule
-            </p>
-          </div>
+            <p className="text-muted-foreground max-w-2xl mx-auto">Choose the package that best fits your needs and schedule</p>
+          </motion.div>
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {packages.map((pkg, index) => (
-              <div 
+              <motion.div 
                 key={index} 
-                className={`bg-card p-8 rounded-xl shadow-sm border ${pkg.popular ? 'border-primary ring-2 ring-primary' : 'border-border'} relative`}
+                className={`bg-card p-8 rounded-xl shadow-sm border relative group hover:shadow-xl transition-all duration-300 ${pkg.popular ? 'border-primary ring-2 ring-primary' : 'border-border hover:border-primary'}`}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.15 }}
+                whileHover={{ y: -8, scale: 1.02 }}
               >
                 {pkg.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full">
+                  <motion.div 
+                    className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.5, type: "spring" }}
+                  >
                     Most Popular
-                  </div>
+                  </motion.div>
                 )}
                 <h3 className="text-xl font-bold mb-2">{pkg.name}</h3>
                 <div className="flex items-baseline gap-2 mb-4">
@@ -168,129 +165,192 @@ export default function IELTS() {
                 </div>
                 <ul className="space-y-3 mb-6">
                   {pkg.features.map((feature, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm">
+                    <motion.li 
+                      key={i} 
+                      className="flex items-center gap-2 text-sm"
+                      initial={{ opacity: 0, x: -10 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.3 + i * 0.1 }}
+                    >
                       <CheckCircle className="w-4 h-4 text-green-500" />
                       {feature}
-                    </li>
+                    </motion.li>
                   ))}
                 </ul>
-                <a href="https://wa.me/62819668278?text=Hi,%20I'm%20interested%20in%20the%20IELTS%20" target="_blank" rel="noopener noreferrer">
-                  <Button className={`w-full ${pkg.popular ? 'bg-primary' : ''}`} variant={pkg.popular ? 'default' : 'outline'}>
+                <a href={`https://wa.me/62819668278?text=Hi,%20I'm%20interested%20in%20${pkg.name}`} target="_blank" rel="noopener noreferrer">
+                  <Button className={`w-full group-hover:scale-105 transition-transform ${pkg.popular ? 'bg-primary' : ''}`} variant={pkg.popular ? 'default' : 'outline'}>
                     Get Started
                   </Button>
                 </a>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Testimonials Section */}
+      {/* Testimonials Carousel Section */}
       <section className="py-20">
         <div className="container">
-          <div className="text-center mb-12">
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
             <h2 className="text-3xl font-bold mb-4">Student Success Stories</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Hear from our students who achieved their target IELTS scores
-            </p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <div key={index} className="bg-card p-8 rounded-xl shadow-sm border border-border">
-                <div className="flex items-center gap-1 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  ))}
-                </div>
-                <p className="text-muted-foreground mb-6 italic">"{testimonial.quote}"</p>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-semibold">{testimonial.name}</div>
-                    <div className="text-sm text-muted-foreground">SpecTa Student</div>
+            <p className="text-muted-foreground max-w-2xl mx-auto">Hear from our students who achieved their target IELTS scores</p>
+          </motion.div>
+          
+          {/* Carousel */}
+          <div className="relative max-w-4xl mx-auto">
+            <div className="overflow-hidden rounded-2xl">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentTestimonial}
+                  className="bg-card p-8 md:p-12 rounded-2xl shadow-lg border border-border"
+                  initial={{ opacity: 0, x: 100 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -100 }}
+                  transition={{ duration: 0.4 }}
+                >
+                  <div className="flex flex-col md:flex-row items-center gap-8">
+                    <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary/20 shrink-0">
+                      <img 
+                        src={testimonials[currentTestimonial].image} 
+                        alt={testimonials[currentTestimonial].name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 text-center md:text-left">
+                      <div className="flex items-center justify-center md:justify-start gap-1 mb-4">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                        ))}
+                      </div>
+                      <p className="text-lg text-muted-foreground mb-6 italic">"{testimonials[currentTestimonial].quote}"</p>
+                      <div className="flex items-center justify-center md:justify-between flex-wrap gap-4">
+                        <div>
+                          <div className="font-semibold text-lg">{testimonials[currentTestimonial].name}</div>
+                          <div className="text-sm text-muted-foreground">SpecTa IELTS Student</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">IELTS Score:</span>
+                          <span className="text-3xl font-bold text-primary">{testimonials[currentTestimonial].score}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-2xl font-bold text-primary">{testimonial.score}</div>
-                </div>
-              </div>
-            ))}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* Carousel Controls */}
+            <button
+              onClick={prevTestimonial}
+              className="absolute left-0 md:-left-12 top-1/2 -translate-y-1/2 bg-white hover:bg-primary hover:text-white p-3 rounded-full shadow-lg transition-all"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={nextTestimonial}
+              className="absolute right-0 md:-right-12 top-1/2 -translate-y-1/2 bg-white hover:bg-primary hover:text-white p-3 rounded-full shadow-lg transition-all"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+
+            {/* Dots */}
+            <div className="flex justify-center gap-2 mt-6">
+              {testimonials.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentTestimonial(index)}
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    index === currentTestimonial ? "bg-primary w-6" : "bg-gray-300"
+                  }`}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-20">
+      <motion.section 
+        className="py-20"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true }}
+      >
         <div className="container">
-          <div className="bg-gradient-specta rounded-2xl p-8 md:p-12 text-white text-center">
+          <motion.div 
+            className="bg-gradient-specta rounded-2xl p-8 md:p-12 text-white text-center"
+            whileHover={{ scale: 1.01 }}
+            transition={{ duration: 0.3 }}
+          >
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Ace Your IELTS?</h2>
             <p className="text-white/90 max-w-2xl mx-auto mb-8">
               Join thousands of successful students who achieved their target scores with SpecTa Education.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a href="https://wa.me/62819668278?text=Hi,%20I%20want%20to%20register%20for%20IELTS%20class" target="_blank" rel="noopener noreferrer">
-                <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90">
-                  Register Now
-                </Button>
+                <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90">Register Now</Button>
               </a>
               <Link href="/">
-                <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
-                  Free Consultation
-                </Button>
+                <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">Free Consultation</Button>
               </Link>
             </div>
-          </div>
+          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
-      {/* Footer */}
-      <footer className="bg-foreground text-background py-16">
-        <div className="container">
-          <div className="grid md:grid-cols-4 gap-12">
-            <div className="space-y-4">
-              <img src="/logo.jpeg" alt="SpecTa Education" className="h-12 object-contain brightness-0 invert" />
-              <p className="text-sm text-background/70">
-                Your trusted partner for international education and study abroad services.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2 text-sm text-background/70">
-                <li><Link href="/about" className="hover:text-background transition-colors">About Us</Link></li>
-                <li><Link href="/ielts" className="hover:text-background transition-colors">IELTS</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">Destinations</Link></li>
-                <li><Link href="/contact" className="hover:text-background transition-colors">Contact</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Destinations</h4>
-              <ul className="space-y-2 text-sm text-background/70">
-                <li><Link href="/destinations" className="hover:text-background transition-colors">Australia</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">United Kingdom</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">USA</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">Canada</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Contact Us</h4>
-              <ul className="space-y-3 text-sm text-background/70">
-                <li className="flex items-start gap-2">
-                  <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
-                  <span>Jl. Kelapa Nias Raya QE1 No. 14, Kelapa Gading, Jakarta Utara</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 shrink-0" />
-                  <a href="tel:+62819668278" className="hover:text-background transition-colors">+62 819 668 278</a>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 shrink-0" />
-                  <a href="mailto:info@spectaeducation.com" className="hover:text-background transition-colors">info@spectaeducation.com</a>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-background/20 mt-12 pt-8 text-center text-sm text-background/50">
-            <p>&copy; {new Date().getFullYear()} SpecTa Education. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
+
+      {/* Small Chatbot Button */}
+      <motion.button
+        onClick={() => setIsChatOpen(true)}
+        className="fixed bottom-6 right-6 z-40 bg-primary hover:bg-primary/90 text-white rounded-full p-4 shadow-lg"
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        initial={{ opacity: 0, scale: 0 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 1 }}
+      >
+        <MessageCircle className="w-6 h-6" />
+      </motion.button>
+
+      {/* Chat Modal */}
+      <AnimatePresence>
+        {isChatOpen && (
+          <motion.div 
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div 
+              className="w-full max-w-lg h-[600px] max-h-[80vh] bg-card rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+              initial={{ opacity: 0, scale: 0.9, y: 50 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 50 }}
+            >
+              <div className="flex items-center justify-between p-4 border-b border-border bg-primary text-primary-foreground">
+                <div className="flex items-center gap-3">
+                  <img src="/mascot.png" alt="SpecTa AI" className="w-10 h-10 object-contain" />
+                  <div>
+                    <h3 className="font-semibold">SpecTa AI Assistant</h3>
+                    <p className="text-xs text-primary-foreground/80">Online • Ready to help</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsChatOpen(false)} className="p-2 hover:bg-primary-foreground/10 rounded-full">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <ChatBot />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

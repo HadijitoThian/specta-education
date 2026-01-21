@@ -1,95 +1,111 @@
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Globe, GraduationCap, Building, DollarSign, Phone, Mail, MapPin, MessageCircle, ChevronRight } from "lucide-react";
+import { Globe, GraduationCap, Building, ChevronRight, ChevronLeft, MessageCircle, X } from "lucide-react";
 import Navigation from "@/components/Navigation";
+import Footer from "@/components/Footer";
+import ChatBot from "@/components/ChatBot";
+import { motion, AnimatePresence } from "framer-motion";
 
 const destinations = [
-  {
-    name: "Australia",
-    flag: "🇦🇺",
-    image: "https://images.unsplash.com/photo-1523482580672-f109ba8cb9be?w=800&h=500&fit=crop",
-    description: "World-class universities, vibrant cities, and excellent post-study work opportunities.",
-    universities: ["University of Melbourne", "University of Sydney", "Monash University"],
-    highlights: ["Post-study work visa", "Multicultural environment", "High quality of life"]
-  },
-  {
-    name: "Singapore",
-    flag: "🇸🇬",
-    image: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=800&h=500&fit=crop",
-    description: "Asia's education hub with world-renowned universities and a strategic location.",
-    universities: ["NUS", "NTU", "SMU"],
-    highlights: ["Close to Indonesia", "Safe environment", "Business hub"]
-  },
-  {
-    name: "Malaysia",
-    flag: "🇲🇾",
-    image: "https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=800&h=500&fit=crop",
-    description: "Affordable quality education with cultural similarities and easy adaptation.",
-    universities: ["University of Malaya", "Taylor's University", "Sunway University"],
-    highlights: ["Affordable tuition", "Similar culture", "English medium"]
-  },
-  {
-    name: "United Kingdom",
-    flag: "🇬🇧",
-    image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&h=500&fit=crop",
-    description: "Historic universities with globally recognized degrees and rich cultural experience.",
-    universities: ["Oxford", "Cambridge", "Imperial College"],
-    highlights: ["Prestigious degrees", "1-year Masters", "Graduate visa"]
-  },
-  {
-    name: "USA",
-    flag: "🇺🇸",
-    image: "https://images.unsplash.com/photo-1485738422979-f5c462d49f74?w=800&h=500&fit=crop",
-    description: "Home to the world's top universities with diverse programs and research opportunities.",
-    universities: ["MIT", "Stanford", "Harvard"],
-    highlights: ["Research excellence", "Flexible curriculum", "OPT opportunities"]
-  },
-  {
-    name: "Canada",
-    flag: "🇨🇦",
-    image: "https://images.unsplash.com/photo-1517935706615-2717063c2225?w=800&h=500&fit=crop",
-    description: "Welcoming immigration policies, affordable education, and high quality of life.",
-    universities: ["University of Toronto", "UBC", "McGill"],
-    highlights: ["Immigration pathways", "Affordable fees", "Safe cities"]
-  },
-  {
-    name: "Netherlands",
-    flag: "🇳🇱",
-    image: "https://images.unsplash.com/photo-1534351590666-13e3e96b5017?w=800&h=500&fit=crop",
-    description: "Innovative education system with many English-taught programs in Europe's heart.",
-    universities: ["TU Delft", "University of Amsterdam", "Erasmus University"],
-    highlights: ["English programs", "Central Europe", "Work opportunities"]
-  },
-  {
-    name: "New Zealand",
-    flag: "🇳🇿",
-    image: "https://images.unsplash.com/photo-1469521669194-babb45599def?w=800&h=500&fit=crop",
-    description: "Beautiful landscapes, friendly people, and quality education in a safe environment.",
-    universities: ["University of Auckland", "University of Otago", "Victoria University"],
-    highlights: ["Post-study work", "Beautiful nature", "Friendly culture"]
-  }
+  { name: "Malaysia", flag: "🇲🇾", slug: "malaysia", image: "/petronas-towers.jpg", description: "Affordable quality education with cultural similarities and easy adaptation.", universities: ["Taylor's University", "Monash Malaysia", "UCSI University"], highlights: ["Affordable tuition", "Similar culture", "English medium"] },
+  { name: "Singapore", flag: "🇸🇬", slug: "singapore", image: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=800&h=500&fit=crop", description: "Asia's education hub with world-renowned universities and a strategic location.", universities: ["NUS", "NTU", "SMU"], highlights: ["Close to Indonesia", "Safe environment", "Business hub"] },
+  { name: "China", flag: "🇨🇳", slug: "china", image: "/dest-china.jpg", description: "Emerging global education powerhouse with affordable programs and rich cultural experience.", universities: ["Tsinghua University", "Peking University", "Fudan University"], highlights: ["Affordable fees", "Scholarship opportunities", "Growing economy"] },
+  { name: "United Kingdom", flag: "🇬🇧", slug: "uk", image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&h=500&fit=crop", description: "Historic universities with globally recognized degrees and rich cultural experience.", universities: ["Oxford", "Cambridge", "Imperial College"], highlights: ["Prestigious degrees", "1-year Masters", "Graduate visa"] },
+  { name: "Australia", flag: "🇦🇺", slug: "australia", image: "https://images.unsplash.com/photo-1523482580672-f109ba8cb9be?w=800&h=500&fit=crop", description: "World-class universities, vibrant cities, and excellent post-study work opportunities.", universities: ["University of Melbourne", "University of Sydney", "Monash University"], highlights: ["Post-study work visa", "Multicultural environment", "High quality of life"] },
+  { name: "New Zealand", flag: "🇳🇿", slug: "new-zealand", image: "https://images.unsplash.com/photo-1469521669194-babb45599def?w=800&h=500&fit=crop", description: "Beautiful landscapes, friendly people, and quality education in a safe environment.", universities: ["University of Auckland", "University of Otago", "Victoria University"], highlights: ["Post-study work", "Beautiful nature", "Friendly culture"] },
+  { name: "Canada", flag: "🇨🇦", slug: "canada", image: "https://images.unsplash.com/photo-1517935706615-2717063c2225?w=800&h=500&fit=crop", description: "Welcoming immigration policies, affordable education, and high quality of life.", universities: ["University of Toronto", "UBC", "McGill"], highlights: ["Immigration pathways", "Affordable fees", "Safe cities"] },
+  { name: "USA", flag: "🇺🇸", slug: "usa", image: "https://images.unsplash.com/photo-1485738422979-f5c462d49f74?w=800&h=500&fit=crop", description: "Home to the world's top universities with diverse programs and research opportunities.", universities: ["MIT", "Stanford", "Harvard"], highlights: ["Research excellence", "Flexible curriculum", "OPT opportunities"] },
+  { name: "Ireland", flag: "🇮🇪", slug: "ireland", image: "/dest-ireland.jpg", description: "English-speaking European destination with friendly culture and growing tech industry.", universities: ["Trinity College Dublin", "University College Dublin", "NUI Galway"], highlights: ["English speaking", "Tech hub", "Post-study work"] },
+  { name: "Netherlands", flag: "🇳🇱", slug: "netherlands", image: "https://images.unsplash.com/photo-1534351590666-13e3e96b5017?w=800&h=500&fit=crop", description: "Innovative education system with many English-taught programs in Europe's heart.", universities: ["TU Delft", "University of Amsterdam", "Erasmus University"], highlights: ["English programs", "Central Europe", "Work opportunities"] }
+];
+
+const carouselImages = [
+  { src: "/petronas-towers.jpg", title: "Malaysia" },
+  { src: "https://images.unsplash.com/photo-1523482580672-f109ba8cb9be?w=1200&h=600&fit=crop", title: "Australia" },
+  { src: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1200&h=600&fit=crop", title: "United Kingdom" },
+  { src: "/dest-china.jpg", title: "China" },
+  { src: "/dest-ireland.jpg", title: "Ireland" }
 ];
 
 export default function Destinations() {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % carouselImages.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % carouselImages.length);
+  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + carouselImages.length) % carouselImages.length);
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation currentPage="destinations" />
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4">
-        <div className="container">
-          <div className="max-w-3xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full text-primary text-sm font-medium mb-6">
+      {/* Hero Section with Carousel */}
+      <section className="pt-24 pb-20 px-4 relative overflow-hidden">
+        {/* Background Carousel */}
+        <div className="absolute inset-0 z-0">
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={currentSlide}
+              src={carouselImages[currentSlide].src}
+              alt={carouselImages[currentSlide].title}
+              className="w-full h-full object-cover"
+              initial={{ opacity: 0, scale: 1.1 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.7 }}
+            />
+          </AnimatePresence>
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-background"></div>
+        </div>
+
+        {/* Carousel Controls */}
+        <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/20 hover:bg-white/40 p-3 rounded-full backdrop-blur-sm transition-all">
+          <ChevronLeft className="w-6 h-6 text-white" />
+        </button>
+        <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-white/20 hover:bg-white/40 p-3 rounded-full backdrop-blur-sm transition-all">
+          <ChevronRight className="w-6 h-6 text-white" />
+        </button>
+
+        {/* Dots */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex gap-2">
+          {carouselImages.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentSlide(index)}
+              className={`w-2 h-2 rounded-full transition-all ${index === currentSlide ? "bg-white w-6" : "bg-white/50"}`}
+            />
+          ))}
+        </div>
+
+        <div className="container relative z-10 pt-16">
+          <motion.div 
+            className="max-w-3xl mx-auto text-center"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-white text-sm font-medium mb-6">
               <Globe className="w-4 h-4" />
               Study Abroad Destinations
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Your Perfect <span className="text-gradient-specta">Study Destination</span>
+            <h1 className="text-4xl md:text-5xl font-bold mb-6 text-white">
+              Your Perfect <span className="text-primary">Study Destination</span>
             </h1>
-            <p className="text-lg text-muted-foreground">
+            <p className="text-lg text-white/90">
               Explore top study destinations around the world. We'll help you find the best universities, scholarships, and opportunities that match your goals.
             </p>
-          </div>
+          </motion.div>
         </div>
       </section>
 
@@ -98,19 +114,34 @@ export default function Destinations() {
         <div className="container">
           <div className="space-y-16">
             {destinations.map((destination, index) => (
-              <div key={index} className={`grid md:grid-cols-2 gap-8 items-center ${index % 2 === 1 ? 'md:flex-row-reverse' : ''}`}>
-                <div className={index % 2 === 1 ? 'md:order-2' : ''}>
-                  <div className="relative overflow-hidden rounded-2xl aspect-[16/10]">
-                    <img 
-                      src={destination.image} 
-                      alt={destination.name}
-                      className="w-full h-full object-cover"
-                    />
+              <motion.div 
+                key={index} 
+                className={`grid md:grid-cols-2 gap-8 items-center ${index % 2 === 1 ? 'md:flex-row-reverse' : ''}`}
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+              >
+                <motion.div 
+                  className={index % 2 === 1 ? 'md:order-2' : ''}
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <div className="relative overflow-hidden rounded-2xl aspect-[16/10] shadow-lg">
+                    <img src={destination.image} alt={destination.name} className="w-full h-full object-cover" />
                     <div className="absolute top-4 left-4 text-4xl">{destination.flag}</div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
                   </div>
-                </div>
+                </motion.div>
                 <div className={index % 2 === 1 ? 'md:order-1' : ''}>
-                  <h2 className="text-3xl font-bold mb-4">{destination.name}</h2>
+                  <motion.h2 
+                    className="text-3xl font-bold mb-4"
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                  >
+                    {destination.name}
+                  </motion.h2>
                   <p className="text-muted-foreground mb-6">{destination.description}</p>
                   
                   <div className="space-y-4 mb-6">
@@ -138,88 +169,66 @@ export default function Destinations() {
                     </div>
                   </div>
                   
-                  <Link href="/">
-                    <Button className="bg-primary hover:bg-primary/90">
+                  <Link href={destination.slug === "malaysia" ? "/malaysia" : `/destinations/${destination.slug}`}>
+                    <Button className="bg-primary hover:bg-primary/90 group">
                       Learn More About {destination.name}
-                      <ChevronRight className="w-4 h-4 ml-2" />
+                      <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                     </Button>
                   </Link>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20">
-        <div className="container">
-          <div className="bg-gradient-specta rounded-2xl p-8 md:p-12 text-white text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Not Sure Which Country is Right for You?</h2>
-            <p className="text-white/90 max-w-2xl mx-auto mb-8">
-              Chat with our AI assistant to get personalized recommendations based on your goals, budget, and preferences.
-            </p>
-            <Link href="/">
-              <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90">
-                <MessageCircle className="w-5 h-5 mr-2" />
-                Get Personalized Advice
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
+      <Footer />
 
-      {/* Footer */}
-      <footer className="bg-foreground text-background py-16">
-        <div className="container">
-          <div className="grid md:grid-cols-4 gap-12">
-            <div className="space-y-4">
-              <img src="/logo.jpeg" alt="SpecTa Education" className="h-12 object-contain brightness-0 invert" />
-              <p className="text-sm text-background/70">
-                Your trusted partner for international education and study abroad services.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2 text-sm text-background/70">
-                <li><Link href="/about" className="hover:text-background transition-colors">About Us</Link></li>
-                <li><Link href="/ielts" className="hover:text-background transition-colors">IELTS</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">Destinations</Link></li>
-                <li><Link href="/contact" className="hover:text-background transition-colors">Contact</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Destinations</h4>
-              <ul className="space-y-2 text-sm text-background/70">
-                <li><Link href="/destinations" className="hover:text-background transition-colors">Australia</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">United Kingdom</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">USA</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">Canada</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Contact Us</h4>
-              <ul className="space-y-3 text-sm text-background/70">
-                <li className="flex items-start gap-2">
-                  <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
-                  <span>Jl. Kelapa Nias Raya QE1 No. 14, Kelapa Gading, Jakarta Utara</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 shrink-0" />
-                  <a href="tel:+62819668278" className="hover:text-background transition-colors">+62 819 668 278</a>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 shrink-0" />
-                  <a href="mailto:info@spectaeducation.com" className="hover:text-background transition-colors">info@spectaeducation.com</a>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-background/20 mt-12 pt-8 text-center text-sm text-background/50">
-            <p>&copy; {new Date().getFullYear()} SpecTa Education. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      {/* Small Chatbot Button */}
+      <motion.button
+        onClick={() => setIsChatOpen(true)}
+        className="fixed bottom-6 right-6 z-40 bg-primary hover:bg-primary/90 text-white rounded-full p-4 shadow-lg"
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        initial={{ opacity: 0, scale: 0 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 1 }}
+      >
+        <MessageCircle className="w-6 h-6" />
+      </motion.button>
+
+      {/* Chat Modal */}
+      <AnimatePresence>
+        {isChatOpen && (
+          <motion.div 
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div 
+              className="w-full max-w-lg h-[600px] max-h-[80vh] bg-card rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+              initial={{ opacity: 0, scale: 0.9, y: 50 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 50 }}
+            >
+              <div className="flex items-center justify-between p-4 border-b border-border bg-primary text-primary-foreground">
+                <div className="flex items-center gap-3">
+                  <img src="/mascot.png" alt="SpecTa AI" className="w-10 h-10 object-contain" />
+                  <div>
+                    <h3 className="font-semibold">SpecTa AI Assistant</h3>
+                    <p className="text-xs text-primary-foreground/80">Online • Ready to help</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsChatOpen(false)} className="p-2 hover:bg-primary-foreground/10 rounded-full">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <ChatBot />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

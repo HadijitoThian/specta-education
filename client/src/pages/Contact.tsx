@@ -1,28 +1,38 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Phone, Mail, MapPin, MessageCircle, Clock, Send } from "lucide-react";
-import { useState } from "react";
+import { Phone, Mail, MapPin, MessageCircle, Clock, Send, X } from "lucide-react";
+import { useState, useEffect } from "react";
 import Navigation from "@/components/Navigation";
+import Footer from "@/components/Footer";
+import ChatBot from "@/components/ChatBot";
+import { motion, AnimatePresence } from "framer-motion";
 
 const offices = [
   {
     name: "Head Office - Kelapa Gading",
     address: "Jl. Kelapa Nias Raya QE1 No. 14, Kelapa Gading, Jakarta Utara 14240",
     phone: "+62 819 668 278",
-    hours: "Mon - Fri: 9:00 AM - 6:00 PM, Sat: 9:00 AM - 3:00 PM"
+    hours: "Mon - Fri: 10:00 AM - 6:00 PM, Sat: 10:00 AM - 2:00 PM",
+    image: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=250&fit=crop"
   },
   {
     name: "Branch Office - Gading Serpong",
     address: "Jl. Paramount Boulevard Gading Serpong Pisa Grande A ext. 11, Serpong, Tangerang 15810",
     phone: "+62 811 812 0203",
-    hours: "Mon - Fri: 9:00 AM - 6:00 PM, Sat: 9:00 AM - 3:00 PM"
+    hours: "Mon - Fri: 10:00 AM - 6:00 PM, Sat: 10:00 AM - 2:00 PM",
+    image: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=400&h=250&fit=crop"
   },
   {
     name: "Branch Office - Pantai Indah Kapuk",
     address: "Ruko Galeri Niaga Jl. Pantai Indah Utara II Blok J No. 8 B, PIK",
     phone: "+62 811 812 0820",
-    hours: "Mon - Fri: 9:00 AM - 6:00 PM, Sat: 9:00 AM - 3:00 PM"
+    hours: "Mon - Fri: 10:00 AM - 6:00 PM, Sat: 10:00 AM - 2:00 PM",
+    image: "https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=400&h=250&fit=crop"
   }
+];
+
+const destinations = [
+  "Australia", "Singapore", "Malaysia", "United Kingdom", "USA", "Canada", "China", "Ireland", "New Zealand", "Netherlands"
 ];
 
 export default function Contact() {
@@ -31,14 +41,27 @@ export default function Contact() {
     lastName: "",
     email: "",
     phone: "",
-    destination: "",
+    destinations: [] as string[],
     message: ""
   });
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  const handleDestinationChange = (destination: string) => {
+    setFormData(prev => ({
+      ...prev,
+      destinations: prev.destinations.includes(destination)
+        ? prev.destinations.filter(d => d !== destination)
+        : [...prev.destinations, destination]
+    }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Redirect to WhatsApp with form data
-    const message = `Hi, I'm ${formData.firstName} ${formData.lastName}.\n\nEmail: ${formData.email}\nPhone: ${formData.phone}\nInterested in: ${formData.destination}\n\nMessage: ${formData.message}`;
+    const message = `Hi, I'm ${formData.firstName} ${formData.lastName}.\n\nEmail: ${formData.email}\nPhone: ${formData.phone}\nInterested in: ${formData.destinations.join(", ")}\n\nMessage: ${formData.message}`;
     window.open(`https://wa.me/62819668278?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -49,7 +72,12 @@ export default function Contact() {
       {/* Hero Section */}
       <section className="pt-32 pb-12 px-4">
         <div className="container">
-          <div className="max-w-3xl mx-auto text-center">
+          <motion.div 
+            className="max-w-3xl mx-auto text-center"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full text-primary text-sm font-medium mb-6">
               <MessageCircle className="w-4 h-4" />
               Get in Touch
@@ -60,7 +88,7 @@ export default function Contact() {
             <p className="text-lg text-muted-foreground">
               Have questions about studying abroad? We're here to help! Reach out to us through any of our channels.
             </p>
-          </div>
+          </motion.div>
         </div>
       </section>
 
@@ -69,7 +97,12 @@ export default function Contact() {
         <div className="container">
           <div className="grid lg:grid-cols-2 gap-12">
             {/* Contact Form */}
-            <div className="bg-card p-8 rounded-2xl shadow-sm border border-border">
+            <motion.div 
+              className="bg-card p-8 rounded-2xl shadow-sm border border-border"
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
               <h2 className="text-2xl font-bold mb-6">Send Us a Message</h2>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid sm:grid-cols-2 gap-4">
@@ -115,24 +148,27 @@ export default function Contact() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Preferred Destination</label>
-                  <select
-                    value={formData.destination}
-                    onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                    className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                    required
-                  >
-                    <option value="">Select a destination</option>
-                    <option value="Australia">Australia</option>
-                    <option value="Singapore">Singapore</option>
-                    <option value="Malaysia">Malaysia</option>
-                    <option value="United Kingdom">United Kingdom</option>
-                    <option value="USA">USA</option>
-                    <option value="Canada">Canada</option>
-                    <option value="Netherlands">Netherlands</option>
-                    <option value="New Zealand">New Zealand</option>
-                    <option value="Other">Other</option>
-                  </select>
+                  <label className="block text-sm font-medium mb-3">Preferred Destinations (select all that apply)</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {destinations.map((destination) => (
+                      <label 
+                        key={destination} 
+                        className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
+                          formData.destinations.includes(destination)
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.destinations.includes(destination)}
+                          onChange={() => handleDestinationChange(destination)}
+                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                        />
+                        <span className="text-sm font-medium">{destination}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Message</label>
@@ -149,10 +185,15 @@ export default function Contact() {
                   Send Message via WhatsApp
                 </Button>
               </form>
-            </div>
+            </motion.div>
 
             {/* Contact Info */}
-            <div className="space-y-8">
+            <motion.div 
+              className="space-y-8"
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+            >
               <div>
                 <h2 className="text-2xl font-bold mb-6">Quick Contact</h2>
                 <div className="space-y-4">
@@ -182,109 +223,126 @@ export default function Contact() {
                       <div className="text-muted-foreground">+62 819 668 278</div>
                     </div>
                   </a>
-                </div>
-              </div>
-
-              <div>
-                <h2 className="text-2xl font-bold mb-6">Our Offices</h2>
-                <div className="space-y-4">
-                  {offices.map((office, index) => (
-                    <div key={index} className="p-6 bg-card rounded-xl border border-border">
-                      <h3 className="font-semibold mb-3">{office.name}</h3>
-                      <div className="space-y-2 text-sm text-muted-foreground">
-                        <div className="flex items-start gap-2">
-                          <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
-                          <span>{office.address}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-4 h-4 shrink-0 text-primary" />
-                          <a href={`tel:${office.phone.replace(/\s/g, '')}`} className="hover:text-foreground transition-colors">
-                            {office.phone}
-                          </a>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 shrink-0 text-primary" />
-                          <span>{office.hours}</span>
-                        </div>
-                      </div>
+                  <button 
+                    onClick={() => setIsChatOpen(true)}
+                    className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border hover:border-primary transition-colors w-full text-left"
+                  >
+                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                      <MessageCircle className="w-6 h-6 text-primary" />
                     </div>
-                  ))}
+                    <div>
+                      <div className="font-medium">Prefer to chat with AI Assistant?</div>
+                      <div className="text-muted-foreground">Get instant answers 24/7</div>
+                    </div>
+                  </button>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20">
+      {/* Our Offices */}
+      <section className="py-12 bg-muted/30">
         <div className="container">
-          <div className="bg-gradient-specta rounded-2xl p-8 md:p-12 text-white text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Prefer to Chat Online?</h2>
-            <p className="text-white/90 max-w-2xl mx-auto mb-8">
-              Our AI assistant is available 24/7 to answer your questions and help you get started on your study abroad journey.
-            </p>
-            <Link href="/">
-              <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90">
-                <MessageCircle className="w-5 h-5 mr-2" />
-                Chat with SpecTa AI
-              </Button>
-            </Link>
+          <motion.h2 
+            className="text-3xl font-bold text-center mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            Our <span className="text-gradient-specta">Offices</span>
+          </motion.h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            {offices.map((office, index) => (
+              <motion.div 
+                key={index} 
+                className="bg-card rounded-xl border border-border overflow-hidden hover:shadow-lg transition-shadow"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                whileHover={{ y: -5 }}
+              >
+                <div className="aspect-[16/10] overflow-hidden">
+                  <img 
+                    src={office.image} 
+                    alt={office.name}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                <div className="p-6">
+                  <h3 className="font-semibold text-lg mb-3">{office.name}</h3>
+                  <div className="space-y-3 text-sm text-muted-foreground">
+                    <div className="flex items-start gap-2">
+                      <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
+                      <span>{office.address}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 shrink-0 text-primary" />
+                      <a href={`tel:${office.phone.replace(/\s/g, '')}`} className="hover:text-primary transition-colors">
+                        {office.phone}
+                      </a>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Clock className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
+                      <span>{office.hours}</span>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-foreground text-background py-16">
-        <div className="container">
-          <div className="grid md:grid-cols-4 gap-12">
-            <div className="space-y-4">
-              <img src="/logo.jpeg" alt="SpecTa Education" className="h-12 object-contain brightness-0 invert" />
-              <p className="text-sm text-background/70">
-                Your trusted partner for international education and study abroad services.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2 text-sm text-background/70">
-                <li><Link href="/about" className="hover:text-background transition-colors">About Us</Link></li>
-                <li><Link href="/ielts" className="hover:text-background transition-colors">IELTS</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">Destinations</Link></li>
-                <li><Link href="/contact" className="hover:text-background transition-colors">Contact</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Destinations</h4>
-              <ul className="space-y-2 text-sm text-background/70">
-                <li><Link href="/destinations" className="hover:text-background transition-colors">Australia</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">United Kingdom</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">USA</Link></li>
-                <li><Link href="/destinations" className="hover:text-background transition-colors">Canada</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Contact Us</h4>
-              <ul className="space-y-3 text-sm text-background/70">
-                <li className="flex items-start gap-2">
-                  <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
-                  <span>Jl. Kelapa Nias Raya QE1 No. 14, Kelapa Gading, Jakarta Utara</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 shrink-0" />
-                  <a href="tel:+62819668278" className="hover:text-background transition-colors">+62 819 668 278</a>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 shrink-0" />
-                  <a href="mailto:info@spectaeducation.com" className="hover:text-background transition-colors">info@spectaeducation.com</a>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-background/20 mt-12 pt-8 text-center text-sm text-background/50">
-            <p>&copy; {new Date().getFullYear()} SpecTa Education. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
+
+      {/* Small Chatbot Button */}
+      <motion.button
+        onClick={() => setIsChatOpen(true)}
+        className="fixed bottom-6 right-6 z-40 bg-primary hover:bg-primary/90 text-white rounded-full p-4 shadow-lg"
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        initial={{ opacity: 0, scale: 0 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 1 }}
+      >
+        <MessageCircle className="w-6 h-6" />
+      </motion.button>
+
+      {/* Chat Modal */}
+      <AnimatePresence>
+        {isChatOpen && (
+          <motion.div 
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div 
+              className="w-full max-w-lg h-[600px] max-h-[80vh] bg-card rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+              initial={{ opacity: 0, scale: 0.9, y: 50 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 50 }}
+            >
+              <div className="flex items-center justify-between p-4 border-b border-border bg-primary text-primary-foreground">
+                <div className="flex items-center gap-3">
+                  <img src="/mascot.png" alt="SpecTa AI" className="w-10 h-10 object-contain" />
+                  <div>
+                    <h3 className="font-semibold">SpecTa AI Assistant</h3>
+                    <p className="text-xs text-primary-foreground/80">Online • Ready to help</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsChatOpen(false)} className="p-2 hover:bg-primary-foreground/10 rounded-full">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <ChatBot />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
