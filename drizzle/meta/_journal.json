@@ -36,6 +36,13 @@
       "when": 1770740365406,
       "tag": "0004_new_jean_grey",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1770746277319,
+      "tag": "0005_youthful_tigra",
+      "breakpoints": true
     }
   ]
 }

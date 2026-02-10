@@ -298,3 +298,14 @@
 - [x] Redesign AI chatbot icon to Wall-E style robot with "Ask SpecTa AI" text below
 - [x] Add Quick Apply buttons to university cards on destination/country pages (already present)
 - [x] Fix admin access to applications - verified admin role is set, all applications visible in dashboard
+
+### 22. Counselor Management System
+- [x] Create counselors database table (name, email, phone, specialization, isActive)
+- [x] Add "general_manager" to user role enum (admin, general_manager, user)
+- [x] Build counselor CRUD endpoints (add, edit, remove, getAll)
+- [x] Build Counselors tab in admin dashboard (add/edit/remove counselors)
+- [x] Replace free-text counselor assignment with dropdown of registered counselors
+- [x] Show counselor workload (number of active applications per counselor)
+- [x] General Manager role has same dashboard access as admin (can assign counselors, manage applications)
+- [x] Role-based access: admin + general_manager can access /admin dashboard
+- [x] Update admin procedures to allow general_manager role

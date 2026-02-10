@@ -9,7 +9,7 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  role: mysqlEnum("role", ["user", "admin", "general_manager"]).default("user").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -234,3 +234,21 @@ export const ieltsPracticeResults = mysqlTable("ieltsPracticeResults", {
 
 export type IeltsPracticeResult = typeof ieltsPracticeResults.$inferSelect;
 export type InsertIeltsPracticeResult = typeof ieltsPracticeResults.$inferInsert;
+
+/**
+ * Counselors table - registered counselors for assignment
+ */
+export const counselors = mysqlTable("counselors", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull().unique(),
+  phone: varchar("phone", { length: 50 }),
+  specialization: varchar("specialization", { length: 255 }), // e.g. "UK Universities", "IELTS", "Visa Support"
+  isActive: boolean("isActive").default(true).notNull(),
+  activeApplications: int("activeApplications").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Counselor = typeof counselors.$inferSelect;
+export type InsertCounselor = typeof counselors.$inferInsert;

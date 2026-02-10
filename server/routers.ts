@@ -43,7 +43,13 @@ import {
   createIeltsPracticeResult,
   getAllIeltsPracticeResults,
   getIeltsPracticeResultById,
-  getIeltsPracticeResultsByEmail
+  getIeltsPracticeResultsByEmail,
+  createCounselor,
+  getAllCounselors,
+  getCounselorById,
+  updateCounselor,
+  deleteCounselor,
+  updateCounselorWorkload
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import crypto from "crypto";
@@ -382,7 +388,7 @@ export const appRouter = router({
       }),
 
     getAll: protectedProcedure.query(async ({ ctx }) => {
-      if (ctx.user.role !== 'admin') return { appointments: [] };
+      if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { appointments: [] };
       const apps = await getAllAppointments();
       return { appointments: apps };
     }),
@@ -394,7 +400,7 @@ export const appRouter = router({
         adminNotes: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        if (ctx.user.role !== 'admin') return { success: false };
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { success: false };
         const { id, ...data } = input;
         await updateAppointment(id, data);
         return { success: true };
@@ -572,7 +578,7 @@ Return as JSON:
       }),
 
     getResults: protectedProcedure.query(async ({ ctx }) => {
-      if (ctx.user.role !== 'admin') return { results: [] };
+      if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { results: [] };
       const results = await getAllIeltsPracticeResults();
       return { results };
     }),
@@ -743,7 +749,7 @@ Return as JSON:
 
   admin: router({
     getLeads: protectedProcedure.query(async ({ ctx }) => {
-      if (ctx.user.role !== 'admin') {
+      if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') {
         return { leads: [] };
       }
       const leads = await getAllLeads();
@@ -753,7 +759,7 @@ Return as JSON:
     getLead: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input, ctx }) => {
-        if (ctx.user.role !== 'admin') {
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') {
           return { lead: null };
         }
         const lead = await getLeadById(input.id);
@@ -768,7 +774,7 @@ Return as JSON:
         notes: z.string().optional()
       }))
       .mutation(async ({ input, ctx }) => {
-        if (ctx.user.role !== 'admin') {
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') {
           return { success: false };
         }
         const { id, ...data } = input;
@@ -777,7 +783,7 @@ Return as JSON:
       }),
 
     getConversations: protectedProcedure.query(async ({ ctx }) => {
-      if (ctx.user.role !== 'admin') {
+      if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') {
         return { conversations: [] };
       }
       const conversations = await getAllConversations();
@@ -787,7 +793,7 @@ Return as JSON:
     getConversationMessages: protectedProcedure
       .input(z.object({ conversationId: z.number() }))
       .query(async ({ input, ctx }) => {
-        if (ctx.user.role !== 'admin') {
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') {
           return { messages: [] };
         }
         const messages = await getMessagesByConversationId(input.conversationId);
@@ -795,7 +801,7 @@ Return as JSON:
       }),
 
     getDocuments: protectedProcedure.query(async ({ ctx }) => {
-      if (ctx.user.role !== 'admin') {
+      if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') {
         return { documents: [] };
       }
       const documents = await getAllDocuments();
@@ -805,7 +811,7 @@ Return as JSON:
     getLeadDocuments: protectedProcedure
       .input(z.object({ leadId: z.number() }))
       .query(async ({ input, ctx }) => {
-        if (ctx.user.role !== 'admin') {
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') {
           return { documents: [] };
         }
         const documents = await getDocumentsByLeadId(input.leadId);
@@ -815,7 +821,7 @@ Return as JSON:
     getConversationDocuments: protectedProcedure
       .input(z.object({ conversationId: z.number() }))
       .query(async ({ input, ctx }) => {
-        if (ctx.user.role !== 'admin') {
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') {
           return { documents: [] };
         }
         const documents = await getDocumentsByConversationId(input.conversationId);
@@ -824,7 +830,7 @@ Return as JSON:
 
     // Admin appointment management
     getAppointments: protectedProcedure.query(async ({ ctx }) => {
-      if (ctx.user.role !== 'admin') return { appointments: [] };
+      if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { appointments: [] };
       const apps = await getAllAppointments();
       return { appointments: apps };
     }),
@@ -836,7 +842,7 @@ Return as JSON:
         adminNotes: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        if (ctx.user.role !== 'admin') return { success: false };
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { success: false };
         const { id, ...data } = input;
         await updateAppointment(id, data);
         return { success: true };
@@ -844,7 +850,7 @@ Return as JSON:
 
     // Admin IELTS practice results
     getIeltsPracticeResults: protectedProcedure.query(async ({ ctx }) => {
-      if (ctx.user.role !== 'admin') return { results: [] };
+      if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { results: [] };
       const results = await getAllIeltsPracticeResults();
       return { results };
     }),
@@ -853,7 +859,7 @@ Return as JSON:
     getApplicationNotes: protectedProcedure
       .input(z.object({ applicationId: z.number() }))
       .query(async ({ input, ctx }) => {
-        if (ctx.user.role !== 'admin') return { notes: [] };
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { notes: [] };
         const notes = await getNotesByApplicationId(input.applicationId, false); // all notes
         return { notes };
       }),
@@ -865,7 +871,7 @@ Return as JSON:
         isPublic: z.boolean(),
       }))
       .mutation(async ({ input, ctx }) => {
-        if (ctx.user.role !== 'admin') return { success: false };
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { success: false };
         const note = await createApplicationNote({
           applicationId: input.applicationId,
           authorName: ctx.user.name || 'Admin',
@@ -878,7 +884,7 @@ Return as JSON:
     getApplicationDocuments: protectedProcedure
       .input(z.object({ applicationId: z.number() }))
       .query(async ({ input, ctx }) => {
-        if (ctx.user.role !== 'admin') return { documents: [] };
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { documents: [] };
         const docs = await getDocumentsByApplicationId(input.applicationId);
         return { documents: docs };
       }),
@@ -891,7 +897,7 @@ Return as JSON:
         universityResponse: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        if (ctx.user.role !== 'admin') return { success: false };
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { success: false };
         const { id, ...data } = input;
         
         // If status is changing, update status history
@@ -975,7 +981,7 @@ Return as JSON:
 
     getAll: protectedProcedure
       .query(async ({ ctx }) => {
-        if (ctx.user.role !== 'admin') return { applications: [] };
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { applications: [] };
         const apps = await getAllApplications();
         return { applications: apps };
       }),
@@ -983,7 +989,7 @@ Return as JSON:
     getById: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input, ctx }) => {
-        if (ctx.user.role !== 'admin') return { application: null };
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { application: null };
         const app = await getApplicationById(input.id);
         return { application: app };
       }),
@@ -994,8 +1000,90 @@ Return as JSON:
         status: z.enum(["submitted", "reviewing", "processing", "on_hold", "offer_received", "accepted", "enrolled", "rejected"]),
       }))
       .mutation(async ({ input, ctx }) => {
-        if (ctx.user.role !== 'admin') return { success: false };
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { success: false };
         await updateApplication(input.id, { status: input.status });
+        return { success: true };
+      }),
+  }),
+
+  // Counselor management router
+  counselor: router({
+    getAll: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { counselors: [] };
+      const allCounselors = await getAllCounselors();
+      return { counselors: allCounselors };
+    }),
+
+    getActive: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { counselors: [] };
+      const activeCounselors = await getAllCounselors(true);
+      return { counselors: activeCounselors };
+    }),
+
+    create: protectedProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        email: z.string().email(),
+        phone: z.string().optional(),
+        specialization: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { success: false, counselor: null };
+        const counselor = await createCounselor(input);
+        return { success: true, counselor };
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).optional(),
+        email: z.string().email().optional(),
+        phone: z.string().optional(),
+        specialization: z.string().optional(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { success: false };
+        const { id, ...data } = input;
+        await updateCounselor(id, data);
+        return { success: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { success: false };
+        await deleteCounselor(input.id);
+        return { success: true };
+      }),
+  }),
+
+  // User role management (admin only)
+  userManagement: router({
+    getUsers: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') return { users: [] };
+      const { getDb } = await import("./db");
+      const db = await getDb();
+      if (!db) return { users: [] };
+      const { users: usersTable } = await import("../drizzle/schema");
+      const { desc } = await import("drizzle-orm");
+      const allUsers = await db.select().from(usersTable).orderBy(desc(usersTable.createdAt));
+      return { users: allUsers };
+    }),
+
+    updateRole: protectedProcedure
+      .input(z.object({
+        userId: z.number(),
+        role: z.enum(["user", "admin", "general_manager"]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') return { success: false };
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) return { success: false };
+        const { users: usersTable } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        await db.update(usersTable).set({ role: input.role }).where(eq(usersTable.id, input.userId));
         return { success: true };
       }),
   }),

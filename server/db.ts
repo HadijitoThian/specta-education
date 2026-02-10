@@ -11,7 +11,8 @@ import {
   applicationDocuments, InsertApplicationDocument, ApplicationDocument,
   trackingTokens, InsertTrackingToken, TrackingToken,
   appointments, InsertAppointment, Appointment,
-  ieltsPracticeResults, InsertIeltsPracticeResult, IeltsPracticeResult
+  ieltsPracticeResults, InsertIeltsPracticeResult, IeltsPracticeResult,
+  counselors, InsertCounselor, Counselor
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -409,6 +410,62 @@ export async function getIeltsPracticeResultsByEmail(email: string): Promise<Iel
   return await db.select().from(ieltsPracticeResults)
     .where(eq(ieltsPracticeResults.studentEmail, email))
     .orderBy(desc(ieltsPracticeResults.createdAt));
+}
+
+// Counselor functions
+export async function createCounselor(data: InsertCounselor): Promise<Counselor | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(counselors).values(data);
+  const insertId = result[0].insertId;
+  const created = await db.select().from(counselors).where(eq(counselors.id, insertId)).limit(1);
+  return created[0] || null;
+}
+
+export async function getAllCounselors(activeOnly = false): Promise<Counselor[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  if (activeOnly) {
+    return await db.select().from(counselors)
+      .where(eq(counselors.isActive, true))
+      .orderBy(counselors.name);
+  }
+  return await db.select().from(counselors).orderBy(counselors.name);
+}
+
+export async function getCounselorById(id: number): Promise<Counselor | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.select().from(counselors).where(eq(counselors.id, id)).limit(1);
+  return result[0] || null;
+}
+
+export async function updateCounselor(id: number, data: Partial<InsertCounselor>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(counselors).set(data).where(eq(counselors.id, id));
+}
+
+export async function deleteCounselor(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.delete(counselors).where(eq(counselors.id, id));
+}
+
+export async function updateCounselorWorkload(counselorName: string, increment: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  const result = await db.select().from(counselors).where(eq(counselors.name, counselorName)).limit(1);
+  if (result.length > 0) {
+    const current = result[0].activeApplications || 0;
+    await db.update(counselors).set({ activeApplications: Math.max(0, current + increment) }).where(eq(counselors.id, result[0].id));
+  }
 }
 
 // Generate reference number for applications

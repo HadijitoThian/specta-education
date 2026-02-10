@@ -5,13 +5,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Users, FileText, MessageSquare, Phone, Mail, Globe, 
   Calendar, Clock, ChevronRight, ExternalLink, Loader2,
-  LogOut, Home, CalendarCheck, BookOpen, Search, ClipboardList, Edit, Save, X
+  LogOut, Home, CalendarCheck, BookOpen, Search, ClipboardList, Edit, Save, X,
+  UserPlus, Shield, Briefcase, BarChart3, Trash2, ToggleLeft, ToggleRight
 } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { getLoginUrl } from "@/const";
 
-type TabType = "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts";
+type TabType = "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team";
 
 const APP_STATUS_OPTIONS = [
   "submitted", "reviewing", "processing", "on_hold", 
@@ -29,6 +30,12 @@ const APP_STATUS_COLORS: Record<string, string> = {
   rejected: "bg-red-100 text-red-800",
 };
 
+const SPECIALIZATIONS = [
+  "UK Universities", "USA Universities", "Australia Universities", 
+  "Canada Universities", "China Universities", "Malaysia Universities",
+  "IELTS Preparation", "Visa Support", "Scholarship Advisory", "General Counseling"
+];
+
 export default function AdminDashboard() {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("leads");
@@ -40,35 +47,60 @@ export default function AdminDashboard() {
   const [adminNote, setAdminNote] = useState("");
   const [adminNoteAppId, setAdminNoteAppId] = useState<number | null>(null);
   const [adminNoteIsInternal, setAdminNoteIsInternal] = useState(false);
+  
+  // Counselor form state
+  const [showAddCounselor, setShowAddCounselor] = useState(false);
+  const [counselorName, setCounselorName] = useState("");
+  const [counselorEmail, setCounselorEmail] = useState("");
+  const [counselorPhone, setCounselorPhone] = useState("");
+  const [counselorSpec, setCounselorSpec] = useState("");
+  const [editingCounselorId, setEditingCounselorId] = useState<number | null>(null);
+  
   const utils = trpc.useUtils();
 
+  const isAdminOrGM = user?.role === 'admin' || user?.role === 'general_manager';
+
   const { data: leadsData, isLoading: leadsLoading } = trpc.admin.getLeads.useQuery(undefined, {
-    enabled: isAuthenticated && user?.role === 'admin'
+    enabled: isAuthenticated && isAdminOrGM
   });
 
   const { data: conversationsData, isLoading: conversationsLoading } = trpc.admin.getConversations.useQuery(undefined, {
-    enabled: isAuthenticated && user?.role === 'admin'
+    enabled: isAuthenticated && isAdminOrGM
   });
 
   const { data: documentsData, isLoading: documentsLoading } = trpc.admin.getDocuments.useQuery(undefined, {
-    enabled: isAuthenticated && user?.role === 'admin'
+    enabled: isAuthenticated && isAdminOrGM
   });
 
   const { data: conversationMessages } = trpc.admin.getConversationMessages.useQuery(
     { conversationId: selectedConversationId! },
-    { enabled: !!selectedConversationId && isAuthenticated && user?.role === 'admin' }
+    { enabled: !!selectedConversationId && isAuthenticated && isAdminOrGM }
   );
 
   const { data: appointmentsData, isLoading: appointmentsLoading } = trpc.admin.getAppointments.useQuery(undefined, {
-    enabled: isAuthenticated && user?.role === 'admin' && activeTab === 'appointments'
+    enabled: isAuthenticated && isAdminOrGM && activeTab === 'appointments'
   });
 
   const { data: applicationsData, isLoading: applicationsLoading } = trpc.application.getAll.useQuery(undefined, {
-    enabled: isAuthenticated && user?.role === 'admin' && activeTab === 'applications'
+    enabled: isAuthenticated && isAdminOrGM && activeTab === 'applications'
   });
 
   const { data: ieltsData, isLoading: ieltsLoading } = trpc.admin.getIeltsPracticeResults.useQuery(undefined, {
-    enabled: isAuthenticated && user?.role === 'admin' && activeTab === 'ielts'
+    enabled: isAuthenticated && isAdminOrGM && activeTab === 'ielts'
+  });
+
+  // Counselor queries
+  const { data: counselorsData, isLoading: counselorsLoading } = trpc.counselor.getAll.useQuery(undefined, {
+    enabled: isAuthenticated && isAdminOrGM
+  });
+
+  const { data: activeCounselorsData } = trpc.counselor.getActive.useQuery(undefined, {
+    enabled: isAuthenticated && isAdminOrGM
+  });
+
+  // Team management (admin only)
+  const { data: usersData, isLoading: usersLoading } = trpc.userManagement.getUsers.useQuery(undefined, {
+    enabled: isAuthenticated && user?.role === 'admin' && activeTab === 'team'
   });
 
   const updateLeadMutation = trpc.admin.updateLead.useMutation();
@@ -81,6 +113,7 @@ export default function AdminDashboard() {
     onSuccess: () => {
       setEditingAppId(null);
       utils.application.getAll.invalidate();
+      utils.counselor.getAll.invalidate();
     }
   });
 
@@ -90,6 +123,43 @@ export default function AdminDashboard() {
       setAdminNoteAppId(null);
       utils.application.getAll.invalidate();
     }
+  });
+
+  // Counselor mutations
+  const createCounselorMutation = trpc.counselor.create.useMutation({
+    onSuccess: () => {
+      setShowAddCounselor(false);
+      setCounselorName("");
+      setCounselorEmail("");
+      setCounselorPhone("");
+      setCounselorSpec("");
+      utils.counselor.getAll.invalidate();
+      utils.counselor.getActive.invalidate();
+    }
+  });
+
+  const updateCounselorMutation = trpc.counselor.update.useMutation({
+    onSuccess: () => {
+      setEditingCounselorId(null);
+      setCounselorName("");
+      setCounselorEmail("");
+      setCounselorPhone("");
+      setCounselorSpec("");
+      utils.counselor.getAll.invalidate();
+      utils.counselor.getActive.invalidate();
+    }
+  });
+
+  const deleteCounselorMutation = trpc.counselor.delete.useMutation({
+    onSuccess: () => {
+      utils.counselor.getAll.invalidate();
+      utils.counselor.getActive.invalidate();
+    }
+  });
+
+  // User role mutation (admin only)
+  const updateRoleMutation = trpc.userManagement.updateRole.useMutation({
+    onSuccess: () => utils.userManagement.getUsers.invalidate()
   });
 
   if (loading) {
@@ -116,7 +186,7 @@ export default function AdminDashboard() {
     );
   }
 
-  if (user?.role !== 'admin') {
+  if (!isAdminOrGM) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center p-8">
@@ -164,6 +234,17 @@ export default function AdminDashboard() {
     }
   };
 
+  const getRoleBadge = (role: string) => {
+    switch (role) {
+      case 'admin': return 'bg-red-100 text-red-800';
+      case 'general_manager': return 'bg-purple-100 text-purple-800';
+      case 'user': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const activeCounselors = activeCounselorsData?.counselors || [];
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -174,6 +255,9 @@ export default function AdminDashboard() {
               <img src="/logo.jpeg" alt="SpecTa Education" className="h-10 object-contain" />
             </Link>
             <span className="text-sm font-medium text-muted-foreground">Admin Dashboard</span>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadge(user?.role || 'user')}`}>
+              {user?.role === 'general_manager' ? 'General Manager' : user?.role === 'admin' ? 'Admin' : 'User'}
+            </span>
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">
@@ -189,7 +273,7 @@ export default function AdminDashboard() {
 
       <div className="container py-8">
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
           <div className="bg-card p-4 rounded-xl border border-border">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
@@ -252,7 +336,29 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <div className="text-xl font-bold">{ieltsData?.results?.length || 0}</div>
-                <div className="text-xs text-muted-foreground">IELTS Tests</div>
+                <div className="text-xs text-muted-foreground">IELTS</div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-card p-4 rounded-xl border border-border">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                <Briefcase className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <div className="text-xl font-bold">{counselorsData?.counselors?.length || 0}</div>
+                <div className="text-xs text-muted-foreground">Counselors</div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-card p-4 rounded-xl border border-border">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center">
+                <BarChart3 className="w-5 h-5 text-violet-600" />
+              </div>
+              <div>
+                <div className="text-xl font-bold">{activeCounselors.length}</div>
+                <div className="text-xs text-muted-foreground">Active</div>
               </div>
             </div>
           </div>
@@ -269,6 +375,9 @@ export default function AdminDashboard() {
           <Button variant={activeTab === 'appointments' ? 'default' : 'outline'} onClick={() => setActiveTab('appointments')} size="sm">
             <CalendarCheck className="w-4 h-4 mr-2" /> Appointments
           </Button>
+          <Button variant={activeTab === 'counselors' ? 'default' : 'outline'} onClick={() => setActiveTab('counselors')} size="sm">
+            <Briefcase className="w-4 h-4 mr-2" /> Counselors
+          </Button>
           <Button variant={activeTab === 'ielts' ? 'default' : 'outline'} onClick={() => setActiveTab('ielts')} size="sm">
             <BookOpen className="w-4 h-4 mr-2" /> IELTS Practice
           </Button>
@@ -278,6 +387,11 @@ export default function AdminDashboard() {
           <Button variant={activeTab === 'documents' ? 'default' : 'outline'} onClick={() => setActiveTab('documents')} size="sm">
             <FileText className="w-4 h-4 mr-2" /> Documents
           </Button>
+          {user?.role === 'admin' && (
+            <Button variant={activeTab === 'team' ? 'default' : 'outline'} onClick={() => setActiveTab('team')} size="sm">
+              <Shield className="w-4 h-4 mr-2" /> Team Management
+            </Button>
+          )}
         </div>
 
         {/* Content */}
@@ -393,8 +507,8 @@ export default function AdminDashboard() {
                                 <Calendar className="w-3.5 h-3.5" /> {formatDate(app.createdAt)}
                               </span>
                               {app.assignedCounselor && (
-                                <span className="flex items-center gap-1 text-blue-600">
-                                  Counselor: {app.assignedCounselor}
+                                <span className="flex items-center gap-1 text-blue-600 font-medium">
+                                  <Briefcase className="w-3.5 h-3.5" /> {app.assignedCounselor}
                                 </span>
                               )}
                             </div>
@@ -443,16 +557,45 @@ export default function AdminDashboard() {
                             </div>
                             <div>
                               <label className="text-xs font-medium text-muted-foreground mb-1 block">Assigned Counselor</label>
-                              <input
-                                type="text"
+                              <select
                                 value={editCounselor}
                                 onChange={(e) => setEditCounselor(e.target.value)}
-                                placeholder="Counselor name"
                                 className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background"
-                              />
+                              >
+                                <option value="">-- Select Counselor --</option>
+                                {activeCounselors.map((c) => (
+                                  <option key={c.id} value={c.name}>
+                                    {c.name} {c.specialization ? `(${c.specialization})` : ''} — {c.activeApplications || 0} active
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                           </div>
                         )}
+
+                        {/* Documents links */}
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {app.transcriptUrl && (
+                            <a href={app.transcriptUrl} target="_blank" rel="noopener noreferrer" className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full hover:bg-green-100 flex items-center gap-1">
+                              <FileText className="w-3 h-3" /> Transcript
+                            </a>
+                          )}
+                          {app.passportUrl && (
+                            <a href={app.passportUrl} target="_blank" rel="noopener noreferrer" className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full hover:bg-blue-100 flex items-center gap-1">
+                              <FileText className="w-3 h-3" /> Passport
+                            </a>
+                          )}
+                          {app.ieltsDocUrl && (
+                            <a href={app.ieltsDocUrl} target="_blank" rel="noopener noreferrer" className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded-full hover:bg-purple-100 flex items-center gap-1">
+                              <FileText className="w-3 h-3" /> IELTS Score
+                            </a>
+                          )}
+                          {app.certificateUrl && (
+                            <a href={app.certificateUrl} target="_blank" rel="noopener noreferrer" className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded-full hover:bg-amber-100 flex items-center gap-1">
+                              <FileText className="w-3 h-3" /> Certificate
+                            </a>
+                          )}
+                        </div>
 
                         {/* Universities */}
                         {universities.length > 0 && (
@@ -587,6 +730,197 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* ===== COUNSELORS TAB ===== */}
+          {activeTab === 'counselors' && (
+            <div>
+              {/* Add Counselor Button */}
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <h3 className="font-semibold text-lg">Counselor Management</h3>
+                <Button size="sm" onClick={() => {
+                  setShowAddCounselor(true);
+                  setEditingCounselorId(null);
+                  setCounselorName("");
+                  setCounselorEmail("");
+                  setCounselorPhone("");
+                  setCounselorSpec("");
+                }}>
+                  <UserPlus className="w-4 h-4 mr-2" /> Add Counselor
+                </Button>
+              </div>
+
+              {/* Add/Edit Counselor Form */}
+              {(showAddCounselor || editingCounselorId !== null) && (
+                <div className="p-4 bg-muted/30 border-b border-border">
+                  <h4 className="font-medium mb-3">{editingCounselorId ? 'Edit Counselor' : 'Add New Counselor'}</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Name *</label>
+                      <input
+                        type="text"
+                        value={counselorName}
+                        onChange={(e) => setCounselorName(e.target.value)}
+                        placeholder="Full name"
+                        className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Email *</label>
+                      <input
+                        type="email"
+                        value={counselorEmail}
+                        onChange={(e) => setCounselorEmail(e.target.value)}
+                        placeholder="email@example.com"
+                        className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Phone</label>
+                      <input
+                        type="text"
+                        value={counselorPhone}
+                        onChange={(e) => setCounselorPhone(e.target.value)}
+                        placeholder="+62..."
+                        className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Specialization</label>
+                      <select
+                        value={counselorSpec}
+                        onChange={(e) => setCounselorSpec(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background"
+                      >
+                        <option value="">-- Select --</option>
+                        {SPECIALIZATIONS.map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-4">
+                    {editingCounselorId ? (
+                      <Button size="sm" onClick={() => {
+                        if (counselorName && counselorEmail) {
+                          updateCounselorMutation.mutate({
+                            id: editingCounselorId,
+                            name: counselorName,
+                            email: counselorEmail,
+                            phone: counselorPhone || undefined,
+                            specialization: counselorSpec || undefined,
+                          });
+                        }
+                      }} disabled={updateCounselorMutation.isPending || !counselorName || !counselorEmail}>
+                        <Save className="w-4 h-4 mr-1" /> Update Counselor
+                      </Button>
+                    ) : (
+                      <Button size="sm" onClick={() => {
+                        if (counselorName && counselorEmail) {
+                          createCounselorMutation.mutate({
+                            name: counselorName,
+                            email: counselorEmail,
+                            phone: counselorPhone || undefined,
+                            specialization: counselorSpec || undefined,
+                          });
+                        }
+                      }} disabled={createCounselorMutation.isPending || !counselorName || !counselorEmail}>
+                        <UserPlus className="w-4 h-4 mr-1" /> Add Counselor
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" onClick={() => {
+                      setShowAddCounselor(false);
+                      setEditingCounselorId(null);
+                    }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Counselors List */}
+              {counselorsLoading ? (
+                <div className="p-8 text-center">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                </div>
+              ) : counselorsData?.counselors?.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  No counselors added yet. Click "Add Counselor" to register your team members.
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {counselorsData?.counselors?.map((counselor) => (
+                    <div key={counselor.id} className="p-6 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                              <span className="text-sm font-bold text-primary">
+                                {counselor.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <h3 className="font-semibold">{counselor.name}</h3>
+                              <div className="flex items-center gap-2">
+                                {counselor.specialization && (
+                                  <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                                    {counselor.specialization}
+                                  </span>
+                                )}
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${counselor.isActive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                                  {counselor.isActive ? 'Active' : 'Inactive'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground ml-[52px]">
+                            <a href={`mailto:${counselor.email}`} className="flex items-center gap-1 hover:text-foreground">
+                              <Mail className="w-3.5 h-3.5" /> {counselor.email}
+                            </a>
+                            {counselor.phone && (
+                              <a href={`tel:${counselor.phone}`} className="flex items-center gap-1 hover:text-foreground">
+                                <Phone className="w-3.5 h-3.5" /> {counselor.phone}
+                              </a>
+                            )}
+                            <span className="flex items-center gap-1 font-medium text-indigo-600">
+                              <ClipboardList className="w-3.5 h-3.5" /> {counselor.activeApplications || 0} active applications
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => {
+                            updateCounselorMutation.mutate({
+                              id: counselor.id,
+                              isActive: !counselor.isActive
+                            });
+                          }}>
+                            {counselor.isActive ? <ToggleRight className="w-4 h-4 mr-1 text-green-600" /> : <ToggleLeft className="w-4 h-4 mr-1" />}
+                            {counselor.isActive ? 'Deactivate' : 'Activate'}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => {
+                            setEditingCounselorId(counselor.id);
+                            setShowAddCounselor(false);
+                            setCounselorName(counselor.name);
+                            setCounselorEmail(counselor.email);
+                            setCounselorPhone(counselor.phone || "");
+                            setCounselorSpec(counselor.specialization || "");
+                          }}>
+                            <Edit className="w-4 h-4 mr-1" /> Edit
+                          </Button>
+                          <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700" onClick={() => {
+                            if (confirm(`Are you sure you want to remove ${counselor.name}?`)) {
+                              deleteCounselorMutation.mutate({ id: counselor.id });
+                            }
+                          }}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ===== IELTS PRACTICE TAB ===== */}
           {activeTab === 'ielts' && (
             <div>
@@ -605,7 +939,7 @@ export default function AdminDashboard() {
                       <div className="flex items-start justify-between">
                         <div className="space-y-2">
                           <div className="flex items-center gap-3">
-                            <h3 className="font-semibold">{result.fullName}</h3>
+                            <h3 className="font-semibold">{result.studentName}</h3>
                             <span className="px-2 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-800">
                               {result.section.toUpperCase()}
                             </span>
@@ -616,12 +950,12 @@ export default function AdminDashboard() {
                             )}
                           </div>
                           <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                            <a href={`mailto:${result.email}`} className="flex items-center gap-1 hover:text-foreground">
-                              <Mail className="w-3.5 h-3.5" /> {result.email}
+                            <a href={`mailto:${result.studentEmail}`} className="flex items-center gap-1 hover:text-foreground">
+                              <Mail className="w-3.5 h-3.5" /> {result.studentEmail}
                             </a>
-                            {result.phone && (
-                              <a href={`tel:${result.phone}`} className="flex items-center gap-1 hover:text-foreground">
-                                <Phone className="w-3.5 h-3.5" /> {result.phone}
+                            {result.studentPhone && (
+                              <a href={`tel:${result.studentPhone}`} className="flex items-center gap-1 hover:text-foreground">
+                                <Phone className="w-3.5 h-3.5" /> {result.studentPhone}
                               </a>
                             )}
                             <span className="flex items-center gap-1">
@@ -629,7 +963,7 @@ export default function AdminDashboard() {
                             </span>
                           </div>
                         </div>
-                        <a href={`https://wa.me/${result.phone?.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
+                        <a href={`https://wa.me/${result.studentPhone?.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
                           <Button size="sm" variant="outline">
                             <Phone className="w-4 h-4 mr-1" /> Follow Up
                           </Button>
@@ -733,6 +1067,85 @@ export default function AdminDashboard() {
                           <ExternalLink className="w-4 h-4 mr-1" /> View
                         </Button>
                       </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===== TEAM MANAGEMENT TAB (Admin Only) ===== */}
+          {activeTab === 'team' && user?.role === 'admin' && (
+            <div>
+              <div className="p-4 border-b border-border">
+                <h3 className="font-semibold text-lg">Team Management</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Manage user roles. Users need to log in at least once before they appear here. 
+                  Promote users to <strong>General Manager</strong> to give them full dashboard access.
+                </p>
+              </div>
+              {usersLoading ? (
+                <div className="p-8 text-center">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                </div>
+              ) : usersData?.users?.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  No users found.
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {usersData?.users?.map((u: any) => (
+                    <div key={u.id} className="p-6 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                              <span className="text-sm font-bold text-primary">
+                                {(u.name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <h3 className="font-semibold">{u.name || 'Unnamed User'}</h3>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getRoleBadge(u.role)}`}>
+                                {u.role === 'general_manager' ? 'General Manager' : u.role === 'admin' ? 'Admin' : 'User'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground ml-[52px]">
+                            {u.email && (
+                              <span className="flex items-center gap-1">
+                                <Mail className="w-3.5 h-3.5" /> {u.email}
+                              </span>
+                            )}
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5" /> Joined {formatDate(u.createdAt)}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5" /> Last login {formatDate(u.lastSignedIn)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {u.id !== user?.id && (
+                            <select
+                              value={u.role}
+                              onChange={(e) => {
+                                if (confirm(`Change ${u.name || 'this user'}'s role to ${e.target.value === 'general_manager' ? 'General Manager' : e.target.value}?`)) {
+                                  updateRoleMutation.mutate({ userId: u.id, role: e.target.value as any });
+                                }
+                              }}
+                              className="px-3 py-1 text-sm border border-border rounded-md bg-background"
+                            >
+                              <option value="user">User</option>
+                              <option value="general_manager">General Manager</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                          )}
+                          {u.id === user?.id && (
+                            <span className="text-xs text-muted-foreground italic px-3 py-1">You</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
