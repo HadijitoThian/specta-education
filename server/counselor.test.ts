@@ -33,10 +33,11 @@ describe("counselor management", () => {
   it("admin can create a counselor", async () => {
     const ctx = createContext("admin");
     const caller = appRouter.createCaller(ctx);
+    const uniqueEmail = `sarah-${Date.now()}@specta-test.com`;
 
     const result = await caller.counselor.create({
       name: "Sarah Johnson",
-      email: "sarah@specta.com",
+      email: uniqueEmail,
       phone: "+6281234567890",
       specialization: "UK Universities",
     });
@@ -44,17 +45,18 @@ describe("counselor management", () => {
     expect(result.success).toBe(true);
     expect(result.counselor).toBeTruthy();
     expect(result.counselor?.name).toBe("Sarah Johnson");
-    expect(result.counselor?.email).toBe("sarah@specta.com");
+    expect(result.counselor?.email).toBe(uniqueEmail);
     expect(result.counselor?.specialization).toBe("UK Universities");
   });
 
   it("general manager can create a counselor", async () => {
     const ctx = createContext("general_manager");
     const caller = appRouter.createCaller(ctx);
+    const uniqueEmail = `gm-counselor-${Date.now()}@specta-test.com`;
 
     const result = await caller.counselor.create({
       name: "GM Counselor",
-      email: "gm-counselor@specta.com",
+      email: uniqueEmail,
     });
 
     expect(result.success).toBe(true);
@@ -64,10 +66,11 @@ describe("counselor management", () => {
   it("regular user cannot create a counselor", async () => {
     const ctx = createContext("user");
     const caller = appRouter.createCaller(ctx);
+    const uniqueEmail = `blocked-${Date.now()}@specta-test.com`;
 
     const result = await caller.counselor.create({
       name: "Blocked Counselor",
-      email: "blocked@specta.com",
+      email: uniqueEmail,
     });
 
     expect(result.success).toBe(false);

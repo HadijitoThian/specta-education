@@ -309,3 +309,17 @@
 - [x] General Manager role has same dashboard access as admin (can assign counselors, manage applications)
 - [x] Role-based access: admin + general_manager can access /admin dashboard
 - [x] Update admin procedures to allow general_manager role
+
+### 23. Chatbot Icon Redesign - Baymax Style
+- [x] Redesign floating chatbot icon to Baymax-inspired look (round white face, two connected oval eyes)
+- [x] Add red accent matching SpecTa brand color
+- [x] Change label from "Ask SpecTa AI" to "Ask SpecTa"
+- [x] Keep pulsing animation
+- [x] Update across all pages
+
+### 24. Student Success Stories / Testimonials
+- [x] Research and collect Google Reviews from SpecTa Education branches (PIK, Kelapa Gading, Gading Serpong)
+- [x] Build Student Success Stories section on homepage
+- [x] Display real testimonials with student names, ratings, branch, and highlight tags
+- [x] Show branch ratings (PIK 4.9, Kelapa Gading 4.9, Gading Serpong 5.0)
+- [x] 9 review cards in 3x3 grid with Google Maps link to all 276+ reviews

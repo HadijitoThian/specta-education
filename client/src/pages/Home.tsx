@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { GraduationCap, Globe, BookOpen, Phone, Mail, MapPin, ChevronRight, X, ChevronDown } from "lucide-react";
+import { GraduationCap, Globe, BookOpen, Phone, Mail, MapPin, ChevronRight, X, ChevronDown, Star, Quote } from "lucide-react";
 import ChatBot from "@/components/ChatBot";
 import ChatBotButton from "@/components/ChatBotButton";
 import { motion, AnimatePresence } from "framer-motion";
@@ -299,6 +299,160 @@ export default function Home() {
               </motion.div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Student Success Stories Section - Real Google Reviews */}
+      <section className="py-20">
+        <div className="container">
+          <div className="text-center mb-12">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-500/10 rounded-full text-yellow-600 text-sm font-medium mb-4"
+            >
+              <Star className="w-4 h-4 fill-yellow-500" />
+              Real Student Reviews from Google
+            </motion.div>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Student Success Stories</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Hear from real students who achieved their study abroad dreams with SpecTa Education
+            </p>
+            <div className="flex items-center justify-center gap-6 mt-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">4.9</div>
+                <div className="flex items-center gap-0.5">
+                  {[1,2,3,4,5].map(i => <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />)}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">PIK Branch (74 reviews)</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">4.9</div>
+                <div className="flex items-center gap-0.5">
+                  {[1,2,3,4,5].map(i => <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />)}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">Kelapa Gading (173 reviews)</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">5.0</div>
+                <div className="flex items-center gap-0.5">
+                  {[1,2,3,4,5].map(i => <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />)}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">Gading Serpong (29 reviews)</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Reviews Grid */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              {
+                name: "Jocelyn Lim",
+                branch: "PIK",
+                destination: "Australia (UTS)",
+                text: "I've had the most lovely experience with the team at SpecTa Education! Ms. Fitri has been very supportive this whole time and helped me through the whole process of applying for college at UTS and for my Australian student visa without any problems. I highly recommend this agency if you're looking to study abroad.",
+                highlight: "IELTS + University + Visa"
+              },
+              {
+                name: "Iesha S",
+                branch: "PIK",
+                destination: "Australia (UQ)",
+                text: "SpecTa has been very helpful throughout my university and visa application process. Through their help, I was able to gain admission to UQ and acquire my Australian student visa. Their team was friendly, informative, and always responded quickly to my questions.",
+                highlight: "University of Queensland"
+              },
+              {
+                name: "Jo Yudianto",
+                branch: "Kelapa Gading",
+                destination: "Fully Funded Scholarship",
+                text: "I am deeply grateful to have been awarded a fully funded Postgraduate Scholarship through SpecTa. I extend my sincere appreciation to Ms. Wulan for her unwavering support throughout the preparation and enrollment process.",
+                highlight: "Full Scholarship Winner"
+              },
+              {
+                name: "Amada",
+                branch: "PIK",
+                destination: "China (XJTLU) + Scholarship",
+                text: "Best agency ever!! I didn't even know where I wanted to study when I first visited SpecTa, and now here I am studying in China at XJTLU with a scholarship. They guided me from nothing to everything. All of the teachers are so nice and supportive. Top 10/10!",
+                highlight: "XJTLU + Scholarship"
+              },
+              {
+                name: "Ziyi Sultan Yi",
+                branch: "Gading Serpong",
+                destination: "Netherlands",
+                text: "Specta Education Consultant is amazing! Ms. Jenny is very responsive, friendly, and professional. My study preparation for the Netherlands was completed smoothly in just 2 months. Thank you for the great support and guidance.",
+                highlight: "Netherlands in 2 Months"
+              },
+              {
+                name: "Marjono Suwandi",
+                branch: "PIK",
+                destination: "Australia (UQ) - Parent",
+                text: "I would like to express my heartfelt gratitude for your exceptional support in helping my daughter secure her admission to the University of Queensland, Australia. Specta has proven to be a highly professional agency, guiding us through the process.",
+                highlight: "Parent Testimonial"
+              },
+              {
+                name: "Natalia Gunawan",
+                branch: "Gading Serpong",
+                destination: "Study Abroad",
+                text: "Specta is the right place for those who want to study abroad. They offer an IELTS tutor program that is very flexible and easy to follow, along with other packages. All staff members are also very friendly and helpful. Thank you, Specta.",
+                highlight: "IELTS + Consultation"
+              },
+              {
+                name: "Lubianto Kho",
+                branch: "PIK",
+                destination: "IELTS Preparation",
+                text: "I had a wonderful experience with SpecTa Education for my IELTS preparation. The environment is superb, supportive, and fun. My teacher, Ms Yunita, has been nothing but encouraging throughout my learning journey.",
+                highlight: "IELTS Success"
+              },
+              {
+                name: "Jesslyn",
+                branch: "Kelapa Gading",
+                destination: "Australia",
+                text: "Big Thanks to SpecTa Education. When my Brother said he wanted to take his education to Australia, honestly it was confusing for me as I have zero prior knowledge. But SpecTa helped a lot! From his IELTS trial, scouting suitable campus, to VISA.",
+                highlight: "Full Service Support"
+              }
+            ].map((review, index) => (
+              <motion.div
+                key={index}
+                className="bg-card p-6 rounded-xl border border-border shadow-sm hover:shadow-md transition-all relative"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: index * 0.05 }}
+                whileHover={{ y: -3 }}
+              >
+                <Quote className="absolute top-4 right-4 w-8 h-8 text-primary/10" />
+                <div className="flex items-center gap-0.5 mb-3">
+                  {[1,2,3,4,5].map(i => <Star key={i} className="w-3.5 h-3.5 fill-yellow-500 text-yellow-500" />)}
+                </div>
+                <p className="text-sm text-muted-foreground mb-4 line-clamp-4">"{review.text}"</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-sm">{review.name}</div>
+                    <div className="text-xs text-muted-foreground">{review.branch} Branch</div>
+                  </div>
+                  <span className="text-[10px] font-medium bg-primary/10 text-primary px-2 py-1 rounded-full">{review.highlight}</span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Google Reviews Badge */}
+          <motion.div
+            className="text-center mt-10"
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <a
+              href="https://www.google.com/maps/search/SpecTa+Education"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+              View all 276+ reviews on Google Maps
+            </a>
+          </motion.div>
         </div>
       </section>
 
