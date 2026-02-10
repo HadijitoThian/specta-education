@@ -366,3 +366,7 @@
 - [x] Update Home page promo banner to promote SpecTa Play hub
 - [x] Update /quiz route to still work (redirect or keep)
 - [x] Write tests for persona generation
+
+### 29. Navigation Cleanup
+- [x] Remove Contact button with phone icon from desktop navigation (next to Quick Apply)
+- [x] Remove Contact button with phone icon from mobile navigation

@@ -1,6 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Phone, ChevronDown, Menu, X, Gamepad2 } from "lucide-react";
+import { ChevronDown, Menu, X, Gamepad2 } from "lucide-react";
 import { useState, useEffect } from "react";
 
 interface NavigationProps {
@@ -119,12 +118,6 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
           <button onClick={() => handleNavClick("/apply")} className="px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-pink-200 transition-all">
             Quick Apply
           </button>
-          <a href="https://wa.me/62819668278" target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Phone className="w-4 h-4" />
-              Contact
-            </Button>
-          </a>
         </div>
 
         {/* Mobile Menu Button */}
@@ -206,12 +199,6 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
               <button onClick={() => handleNavClick("/apply")} className="block w-full py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg text-sm font-semibold text-center hover:shadow-lg transition-all">
                 Quick Apply
               </button>
-              <a href="https://wa.me/62819668278" target="_blank" rel="noopener noreferrer" className="block">
-                <Button variant="outline" size="sm" className="w-full flex items-center justify-center gap-2">
-                  <Phone className="w-4 h-4" />
-                  Contact Us
-                </Button>
-              </a>
             </div>
           </div>
         </div>
