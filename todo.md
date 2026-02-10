@@ -347,3 +347,8 @@
 - [x] Remove speaker labels ("Speaker A:", "Speaker B:") from listening scripts
 - [x] Make listening test more realistic like real IELTS test (concise 150-200 word dialogues with specific details)
 - [x] Use English voice for clear audio playback
+
+### 27. Fix IELTS Reading Passage Display
+- [x] Update AI prompt to not include HTML tags in reading passage
+- [x] Add HTML tag sanitizer on frontend for reading passage
+- [x] Render passage with proper paragraph breaks using newlines

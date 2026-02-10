@@ -303,9 +303,29 @@ export default function IELTSPractice() {
           {selectedSection === "reading" && (
             <div className="space-y-6">
               <div className="bg-white rounded-2xl shadow-lg p-8">
-                <h2 className="text-xl font-bold text-gray-900 mb-2">{(questionData as any).title}</h2>
+                <h2 className="text-xl font-bold text-gray-900 mb-4">{((questionData as any).title || "").replace(/<[^>]*>/g, "")}</h2>
                 <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed bg-gray-50 p-6 rounded-xl">
-                  {(questionData as any).passage}
+                  {(() => {
+                    const raw = (questionData as any).passage || "";
+                    // Strip all HTML tags
+                    const cleaned = raw.replace(/<[^>]*>/g, "");
+                    // Split by double newlines or multiple newlines for paragraphs
+                    const paragraphs = cleaned.split(/\n\n+/).filter((p: string) => p.trim());
+                    if (paragraphs.length <= 1) {
+                      // If no paragraph breaks found, try splitting by sentences (every ~3-4 sentences)
+                      const sentences = cleaned.split(/(?<=[.!?])\s+/);
+                      const chunks: string[] = [];
+                      for (let i = 0; i < sentences.length; i += 4) {
+                        chunks.push(sentences.slice(i, i + 4).join(" "));
+                      }
+                      return chunks.map((chunk: string, idx: number) => (
+                        <p key={idx} className="mb-4 last:mb-0 text-[15px] leading-7">{chunk.trim()}</p>
+                      ));
+                    }
+                    return paragraphs.map((para: string, idx: number) => (
+                      <p key={idx} className="mb-4 last:mb-0 text-[15px] leading-7">{para.trim()}</p>
+                    ));
+                  })()}
                 </div>
               </div>
 

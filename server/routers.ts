@@ -430,9 +430,11 @@ Create a passage of about 300-400 words on an academic topic (science, history, 
 2. Questions 5-6: True/False/Not Given
 3. Questions 7-8: Short answer (1-3 words)
 
+IMPORTANT: The passage must be PLAIN TEXT ONLY. Do NOT include any HTML tags like <p>, <h2>, </p>, <br>, etc. Use \n\n (double newline) to separate paragraphs. The passage should have 3-4 clear paragraphs separated by double newlines.
+
 Return as JSON:
 {
-  "passage": "the reading passage text",
+  "passage": "First paragraph text.\n\nSecond paragraph text.\n\nThird paragraph text.",
   "title": "passage title",
   "questions": [
     { "id": 1, "type": "multiple_choice", "question": "...", "options": ["A) ...", "B) ...", "C) ...", "D) ..."], "correctAnswer": "A" },
