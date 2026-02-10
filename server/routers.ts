@@ -458,22 +458,24 @@ Return as JSON:
     "conclusion": "brief outline"
   }
 }`,
-          listening: `Generate IELTS Listening practice tips and a simulated exercise. Difficulty: ${difficulty}.
+          listening: `Generate a realistic IELTS Listening Section 1 practice exercise. Difficulty: ${difficulty}.
 
-Since we cannot play audio, create a text-based listening comprehension exercise that simulates IELTS Listening Section 1 (a conversation). Provide the transcript and questions.
+Create a natural-sounding conversation (like a real IELTS recording) between two people. This will be read aloud by text-to-speech, so write it as natural flowing dialogue WITHOUT any speaker labels (no "Speaker A:", "Speaker B:", "Man:", "Woman:" etc.). Instead, write it as a continuous natural conversation where the speakers alternate naturally. Include realistic details like names, dates, phone numbers, addresses, and prices that students must catch.
+
+IMPORTANT: The transcript must be pure dialogue text only — no labels, no stage directions, no brackets. Just the words that would be spoken aloud, alternating between the two speakers naturally. Keep it concise (150-200 words) so the audio plays quickly.
 
 Return as JSON:
 {
-  "scenario": "description of the listening scenario",
-  "transcript": "Full conversation transcript between two speakers (Speaker A and Speaker B), about 200-300 words",
+  "scenario": "Brief description of the scenario (e.g., 'A student calling to enquire about a language course')",
+  "transcript": "Pure dialogue text without any speaker labels. Just natural flowing conversation.",
   "questions": [
-    { "id": 1, "type": "fill_blank", "question": "The caller's name is ___", "correctAnswer": "answer" },
+    { "id": 1, "type": "fill_blank", "question": "The caller's surname is ___", "correctAnswer": "answer" },
     { "id": 2, "type": "multiple_choice", "question": "...", "options": ["A) ...", "B) ...", "C) ..."], "correctAnswer": "B" }
   ],
   "tips": ["listening tip 1", "listening tip 2", "listening tip 3"]
 }
 
-Create exactly 6 questions mixing fill-in-the-blank and multiple choice.`,
+Create exactly 6 questions mixing fill-in-the-blank and multiple choice. Questions should test specific details from the conversation (names, numbers, dates, times, prices).`,
           speaking: `Generate IELTS Speaking practice questions for all 3 parts. Difficulty: ${difficulty}.
 
 Return as JSON:

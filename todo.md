@@ -340,3 +340,10 @@
 - [x] Add quiz CTA on destinations page
 - [x] Add "Country Quiz" to navigation menu with sparkle highlight
 - [x] Confetti animation on result reveal (built into quiz results page)
+
+### 26. Navigation & IELTS Listening Fixes
+- [x] Hide Articles button from navigation (keep /articles route for SEO)
+- [x] Fix IELTS Listening TTS - make speech faster (rate 1.1)
+- [x] Remove speaker labels ("Speaker A:", "Speaker B:") from listening scripts
+- [x] Make listening test more realistic like real IELTS test (concise 150-200 word dialogues with specific details)
+- [x] Use English voice for clear audio playback

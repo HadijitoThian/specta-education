@@ -99,9 +99,6 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
           <button onClick={() => handleNavClick("/compare")} className={`text-sm font-medium transition-colors ${isActive("compare") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             Compare
           </button>
-          <button onClick={() => handleNavClick("/articles")} className={`text-sm font-medium transition-colors ${isActive("articles") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
-            Articles
-          </button>
           <button onClick={() => handleNavClick("/contact")} className={`text-sm font-medium transition-colors ${isActive("contact") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             Contact
           </button>
@@ -190,9 +187,6 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             </div>
             <button onClick={() => handleNavClick("/compare")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
               Compare Universities
-            </button>
-            <button onClick={() => handleNavClick("/articles")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
-              Articles
             </button>
             <button onClick={() => handleNavClick("/contact")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
               Contact

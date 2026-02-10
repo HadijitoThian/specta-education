@@ -10,7 +10,7 @@ type Phase = "register" | "select" | "practice" | "scoring" | "results";
 const SECTIONS = [
   { id: "reading" as Section, label: "Reading", icon: BookOpen, color: "from-emerald-500 to-teal-600", bgLight: "bg-emerald-50", textColor: "text-emerald-700", description: "Academic passage with comprehension questions", time: "15 min", questions: "8 questions" },
   { id: "writing" as Section, label: "Writing", icon: PenTool, color: "from-blue-500 to-indigo-600", bgLight: "bg-blue-50", textColor: "text-blue-700", description: "Task 2 essay with AI scoring on all 4 criteria", time: "40 min", questions: "1 essay" },
-  { id: "listening" as Section, label: "Listening", icon: Headphones, color: "from-purple-500 to-violet-600", bgLight: "bg-purple-50", textColor: "text-purple-700", description: "Audio-based comprehension with text-to-speech", time: "10 min", questions: "6 questions" },
+  { id: "listening" as Section, label: "Listening", icon: Headphones, color: "from-purple-500 to-violet-600", bgLight: "bg-purple-50", textColor: "text-purple-700", description: "Realistic IELTS Section 1 conversation with audio playback", time: "10 min", questions: "6 questions" },
   { id: "speaking" as Section, label: "Speaking", icon: Mic, color: "from-orange-500 to-red-500", bgLight: "bg-orange-50", textColor: "text-orange-700", description: "All 3 parts with sample answers & tips", time: "15 min", questions: "3 parts" },
 ];
 
@@ -31,22 +31,24 @@ export default function IELTSPractice() {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
+    utterance.rate = 1.1; // Natural IELTS listening speed
     utterance.pitch = 1;
     utterance.lang = 'en-GB';
-    // Try to pick a British English voice
+    // Try to pick a clear English voice
     const voices = window.speechSynthesis.getVoices();
-    const britishVoice = voices.find(v => v.lang === 'en-GB') || voices.find(v => v.lang.startsWith('en'));
-    if (britishVoice) utterance.voice = britishVoice;
+    const englishVoice = voices.find(v => v.lang === 'en-GB' && v.name.includes('Female')) 
+      || voices.find(v => v.lang === 'en-GB') 
+      || voices.find(v => v.lang.startsWith('en'));
+    if (englishVoice) utterance.voice = englishVoice;
     
     utterance.onstart = () => { setIsPlaying(true); setAudioProgress(0); };
     utterance.onend = () => { setIsPlaying(false); setAudioProgress(100); setPlayCount(c => c + 1); };
     utterance.onpause = () => setIsPlaying(false);
     utterance.onresume = () => setIsPlaying(true);
     
-    // Simulate progress
+    // Simulate progress based on faster rate
     const words = text.split(/\s+/).length;
-    const estimatedDuration = (words / 2.5) * 1000; // ~2.5 words/sec at 0.9 rate
+    const estimatedDuration = (words / 3.2) * 1000; // ~3.2 words/sec at 1.1 rate
     let startTime = Date.now();
     const progressInterval = setInterval(() => {
       if (!window.speechSynthesis.speaking) { clearInterval(progressInterval); return; }
