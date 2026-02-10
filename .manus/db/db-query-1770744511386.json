@@ -1,0 +1,21 @@
+{
+  "query": "SELECT * FROM users;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT * FROM users;",
+  "rows": [
+    {
+      "id": "1",
+      "openId": "NBhoM6gPqobHciGX6Ktdh4",
+      "name": "Hadi Jito Thian",
+      "email": "hjthian@gmail.com",
+      "loginMethod": "google",
+      "role": "admin",
+      "createdAt": "2026-01-15 02:17:49",
+      "updatedAt": "2026-02-10 15:39:09",
+      "lastSignedIn": "2026-02-10 15:39:09"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\topenId\tname\temail\tloginMethod\trole\tcreatedAt\tupdatedAt\tlastSignedIn\n1\tNBhoM6gPqobHciGX6Ktdh4\tHadi Jito Thian\thjthian@gmail.com\tgoogle\tadmin\t2026-01-15 02:17:49\t2026-02-10 15:39:09\t2026-02-10 15:39:09\n",
+  "stderr": "",
+  "execution_time_ms": 1524
+}

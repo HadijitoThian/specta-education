@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { MessageCircle, GraduationCap, Globe, BookOpen, Phone, Mail, MapPin, ChevronRight, X, ChevronDown } from "lucide-react";
+import { GraduationCap, Globe, BookOpen, Phone, Mail, MapPin, ChevronRight, X, ChevronDown } from "lucide-react";
 import ChatBot from "@/components/ChatBot";
+import ChatBotButton from "@/components/ChatBotButton";
 import { motion, AnimatePresence } from "framer-motion";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -330,18 +331,8 @@ export default function Home() {
 
       <Footer />
 
-      {/* Small Chatbot Button - Bottom Right */}
-      <motion.button
-        onClick={handleOpenChat}
-        className="fixed bottom-6 right-6 z-40 bg-primary hover:bg-primary/90 text-white rounded-full p-4 shadow-lg"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        initial={{ opacity: 0, scale: 0 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 1 }}
-      >
-        <MessageCircle className="w-6 h-6" />
-      </motion.button>
+      {/* Wall-E Style Chatbot Button */}
+      <ChatBotButton onClick={handleOpenChat} />
 
       {/* Chat Modal */}
       <AnimatePresence>

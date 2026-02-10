@@ -1,0 +1,7 @@
+Homepage bottom check:
+- The Wall-E chatbot button (element 36) is visible at the bottom-right corner
+- It shows a small icon with what appears to be the robot face
+- The "Ask SpecTa AI" text appears above the button
+- The button has a pulsing animation ring around it
+- It looks like the Wall-E SVG is rendering correctly with the yellow body and binocular eyes
+- The green antenna light is pulsing

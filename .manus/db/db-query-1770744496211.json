@@ -1,0 +1,49 @@
+{
+  "query": "SHOW TABLES;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SHOW TABLES;",
+  "rows": [
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "__drizzle_migrations"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "applicationDocuments"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "applicationNotes"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "applications"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "appointments"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "conversations"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "documents"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "ieltsPracticeResults"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "leads"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "messages"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "trackingTokens"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "users"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "whatsappMessages"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ\n__drizzle_migrations\napplicationDocuments\napplicationNotes\napplications\nappointments\nconversations\ndocuments\nieltsPracticeResults\nleads\nmessages\ntrackingTokens\nusers\nwhatsappMessages\n",
+  "stderr": "",
+  "execution_time_ms": 1537
+}

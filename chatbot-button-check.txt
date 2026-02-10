@@ -1,0 +1,5 @@
+Homepage check - Feb 10, 2026:
+- The chatbot button is visible at bottom-right (element 50)
+- It appears to be a small icon - need to scroll down to see it better
+- The button is showing but appears to be the old style or very small
+- Need to check if the Wall-E SVG is rendering correctly

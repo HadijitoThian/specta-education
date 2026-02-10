@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import Navigation from "@/components/Navigation";
-import { BookOpen, PenTool, Headphones, Mic, Clock, AlertTriangle, ArrowLeft, ArrowRight, CheckCircle, Star, Loader2, User, Mail, Phone, RefreshCw } from "lucide-react";
+import { BookOpen, PenTool, Headphones, Mic, Clock, AlertTriangle, ArrowLeft, ArrowRight, CheckCircle, Star, Loader2, User, Mail, Phone, RefreshCw, Play, Pause, Volume2, RotateCcw } from "lucide-react";
 import { Streamdown } from "streamdown";
 
 type Section = "reading" | "writing" | "listening" | "speaking";
@@ -10,7 +10,7 @@ type Phase = "register" | "select" | "practice" | "scoring" | "results";
 const SECTIONS = [
   { id: "reading" as Section, label: "Reading", icon: BookOpen, color: "from-emerald-500 to-teal-600", bgLight: "bg-emerald-50", textColor: "text-emerald-700", description: "Academic passage with comprehension questions", time: "15 min", questions: "8 questions" },
   { id: "writing" as Section, label: "Writing", icon: PenTool, color: "from-blue-500 to-indigo-600", bgLight: "bg-blue-50", textColor: "text-blue-700", description: "Task 2 essay with AI scoring on all 4 criteria", time: "40 min", questions: "1 essay" },
-  { id: "listening" as Section, label: "Listening", icon: Headphones, color: "from-purple-500 to-violet-600", bgLight: "bg-purple-50", textColor: "text-purple-700", description: "Transcript-based comprehension exercise", time: "10 min", questions: "6 questions" },
+  { id: "listening" as Section, label: "Listening", icon: Headphones, color: "from-purple-500 to-violet-600", bgLight: "bg-purple-50", textColor: "text-purple-700", description: "Audio-based comprehension with text-to-speech", time: "10 min", questions: "6 questions" },
   { id: "speaking" as Section, label: "Speaking", icon: Mic, color: "from-orange-500 to-red-500", bgLight: "bg-orange-50", textColor: "text-orange-700", description: "All 3 parts with sample answers & tips", time: "15 min", questions: "3 parts" },
 ];
 
@@ -22,6 +22,66 @@ export default function IELTSPractice() {
   const [essayText, setEssayText] = useState("");
   const [speakingAnswers, setSpeakingAnswers] = useState<Record<string, string>>({});
   const [resultData, setResultData] = useState<any>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioProgress, setAudioProgress] = useState(0);
+  const [playCount, setPlayCount] = useState(0);
+  const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  const playAudio = useCallback((text: string) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
+    utterance.lang = 'en-GB';
+    // Try to pick a British English voice
+    const voices = window.speechSynthesis.getVoices();
+    const britishVoice = voices.find(v => v.lang === 'en-GB') || voices.find(v => v.lang.startsWith('en'));
+    if (britishVoice) utterance.voice = britishVoice;
+    
+    utterance.onstart = () => { setIsPlaying(true); setAudioProgress(0); };
+    utterance.onend = () => { setIsPlaying(false); setAudioProgress(100); setPlayCount(c => c + 1); };
+    utterance.onpause = () => setIsPlaying(false);
+    utterance.onresume = () => setIsPlaying(true);
+    
+    // Simulate progress
+    const words = text.split(/\s+/).length;
+    const estimatedDuration = (words / 2.5) * 1000; // ~2.5 words/sec at 0.9 rate
+    let startTime = Date.now();
+    const progressInterval = setInterval(() => {
+      if (!window.speechSynthesis.speaking) { clearInterval(progressInterval); return; }
+      const elapsed = Date.now() - startTime;
+      setAudioProgress(Math.min(95, (elapsed / estimatedDuration) * 100));
+    }, 200);
+    
+    speechRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
+  }, []);
+
+  const pauseAudio = useCallback(() => {
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.pause();
+      setIsPlaying(false);
+    }
+  }, []);
+
+  const resumeAudio = useCallback(() => {
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+      setIsPlaying(true);
+    }
+  }, []);
+
+  const stopAudio = useCallback(() => {
+    window.speechSynthesis.cancel();
+    setIsPlaying(false);
+    setAudioProgress(0);
+  }, []);
+
+  // Cleanup speech on unmount or section change
+  useEffect(() => {
+    return () => { window.speechSynthesis?.cancel(); };
+  }, [selectedSection]);
 
   const generateMutation = trpc.ieltsPractice.generateQuestions.useMutation();
   const scoreMutation = trpc.ieltsPractice.scoreAnswers.useMutation();
@@ -357,15 +417,73 @@ export default function IELTSPractice() {
                 <h2 className="text-xl font-bold text-gray-900 mb-2">Listening Practice</h2>
                 <p className="text-sm text-gray-500 mb-4">{(questionData as any).scenario}</p>
                 
-                <div className="bg-purple-50 rounded-xl p-6 mb-4">
-                  <h3 className="font-bold text-purple-900 mb-3">Transcript</h3>
-                  <div className="text-sm text-purple-800 leading-relaxed whitespace-pre-line">
-                    {(questionData as any).transcript}
+                {/* Audio Player */}
+                <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-6 mb-4 border border-purple-100">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-lg">
+                      <Headphones className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-purple-900">Audio Recording</h3>
+                      <p className="text-xs text-purple-600">Listen carefully — you can replay up to 2 times (played {playCount}/2)</p>
+                    </div>
                   </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="w-full bg-purple-200 rounded-full h-2 mb-4">
+                    <div 
+                      className="bg-gradient-to-r from-purple-500 to-violet-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${audioProgress}%` }}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    {!isPlaying ? (
+                      <button
+                        onClick={() => {
+                          if (playCount >= 2 && audioProgress === 100) return;
+                          if (window.speechSynthesis.paused) { resumeAudio(); }
+                          else { playAudio((questionData as any).transcript); }
+                        }}
+                        disabled={playCount >= 2 && audioProgress === 100}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-violet-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-violet-700 disabled:opacity-50 shadow-md transition-all"
+                      >
+                        <Play className="w-4 h-4" /> {audioProgress > 0 && audioProgress < 100 ? 'Resume' : 'Play Audio'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={pauseAudio}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 shadow-md transition-all"
+                      >
+                        <Pause className="w-4 h-4" /> Pause
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { stopAudio(); playAudio((questionData as any).transcript); }}
+                      disabled={playCount >= 2}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-white border border-purple-200 text-purple-700 rounded-lg text-sm hover:bg-purple-50 disabled:opacity-50 transition-all"
+                    >
+                      <RotateCcw className="w-4 h-4" /> Replay
+                    </button>
+                    <div className="flex items-center gap-1 ml-auto text-purple-600">
+                      <Volume2 className="w-4 h-4" />
+                      <span className="text-xs font-medium">British English</span>
+                    </div>
+                  </div>
+                  
+                  {playCount >= 2 && audioProgress === 100 && (
+                    <p className="text-xs text-purple-600 mt-3 font-medium">You've used both listening attempts. Answer the questions below.</p>
+                  )}
+                </div>
+
+                {/* Instructions - no transcript shown */}
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                  <p className="text-sm text-amber-800 font-medium">Instructions:</p>
+                  <p className="text-sm text-amber-700 mt-1">Listen to the audio carefully and answer the questions below. You may play the audio up to 2 times, just like in the real IELTS test. The transcript is hidden — focus on listening!</p>
                 </div>
 
                 {(questionData as any).tips && (
-                  <div className="bg-gray-50 rounded-xl p-4">
+                  <div className="bg-gray-50 rounded-xl p-4 mt-4">
                     <p className="text-sm font-medium text-gray-700 mb-2">Listening Tips:</p>
                     {(questionData as any).tips.map((tip: string, i: number) => (
                       <p key={i} className="text-sm text-gray-500">• {tip}</p>

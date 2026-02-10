@@ -1,0 +1,8 @@
+Admin Dashboard Applications tab check:
+- Shows 4 Applications in the stats bar
+- All 4 applications are visible including hadijitothian's application
+- Each application shows: name, reference number, status, email, phone, date, university/program
+- Edit button and Add Note button available for each application
+- hadijitothian's application shows: SPECTA-2026-0003, submitted status, UNSW Computer Science & IT
+- The admin CAN see all applications, documents, and can edit/assign counselors
+- The issue Hadi reported might have been because the data hadn't loaded yet or he was on the Leads tab

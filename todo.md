@@ -292,3 +292,9 @@
 - [x] Admin can update status, add public/internal notes, assign counselor
 - [x] Admin status change triggers notification
 - [x] Add "Track Application" to navigation
+
+### 21. Bug Fixes & Improvements - February 2026 (Batch 2)
+- [x] Fix IELTS Listening test - add audio playback (TTS) instead of showing conversation script
+- [x] Redesign AI chatbot icon to Wall-E style robot with "Ask SpecTa AI" text below
+- [x] Add Quick Apply buttons to university cards on destination/country pages (already present)
+- [x] Fix admin access to applications - verified admin role is set, all applications visible in dashboard
