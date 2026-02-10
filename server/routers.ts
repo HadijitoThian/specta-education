@@ -51,7 +51,9 @@ import {
   deleteCounselor,
   updateCounselorWorkload,
   createQuizResult,
-  getAllQuizResults
+  getAllQuizResults,
+  createPersonaResult,
+  getAllPersonaResults
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import crypto from "crypto";
@@ -1205,6 +1207,137 @@ Rules:
     getAll: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { results: [] };
       const results = await getAllQuizResults();
+      return { results };
+    }),
+  }),
+
+  // "My Study Abroad Persona" Generator
+  persona: router({
+    generate: publicProcedure
+      .input(z.object({
+        answers: z.array(z.object({
+          questionId: z.number(),
+          questionText: z.string(),
+          answer: z.string(),
+        })),
+      }))
+      .mutation(async ({ input }) => {
+        try {
+          const answersText = input.answers.map(a => `${a.questionText}: ${a.answer}`).join('\n');
+
+          const response = await invokeLLM({
+            messages: [
+              {
+                role: 'system',
+                content: `You are a creative personality analyst for SpecTa Education, an Indonesian study abroad consultancy. Based on a student's quick personality answers, generate a fun and shareable "Study Abroad Persona" card.
+
+You MUST respond with valid JSON matching this exact structure:
+{
+  "personaName": "The Adventurous Foodie Scholar",
+  "emoji": "single emoji that represents the persona",
+  "tagline": "A fun one-liner about this persona (max 15 words)",
+  "traits": ["Curious", "Food-driven", "Social", "Adaptable"],
+  "idealCountry": "Australia",
+  "idealCountryFlag": "emoji flag",
+  "idealCountryReason": "Why this country matches their persona (1-2 sentences, fun tone)",
+  "spiritUniversity": "University of Melbourne",
+  "spiritUniReason": "Why this university matches (1 sentence, fun tone)",
+  "studyStyle": "A fun description of how they study (1 sentence)",
+  "socialStyle": "A fun description of their social life abroad (1 sentence)",
+  "survivalTip": "A funny/useful survival tip for them abroad (1 sentence)",
+  "bestBuddy": "The Library Ninja",
+  "worstEnemy": "The Homesick Procrastinator",
+  "packingEssential": "One quirky item they must pack (e.g., 'A rice cooker and 5kg of Indomie')",
+  "futureHeadline": "A fun fake newspaper headline about them in 5 years (e.g., 'Indonesian Student Opens Best Nasi Goreng Restaurant in Melbourne')",
+  "colorTheme": "one of: rose, amber, emerald, blue, violet, orange, cyan, fuchsia, indigo, teal"
+}
+
+Rules:
+- Make persona names creative, fun, and memorable (like RPG character classes)
+- Traits should be 4 personality adjectives
+- Keep everything fun, positive, and relatable to Indonesian students
+- The ideal country should genuinely match their answers
+- Spirit university should be a real university in the ideal country
+- Make the future headline funny and aspirational
+- The packing essential should be culturally relevant and humorous
+- Best buddy and worst enemy should be other fun persona names`
+              },
+              {
+                role: 'user',
+                content: `Here are the student's answers:\n\n${answersText}\n\nGenerate their Study Abroad Persona card.`
+              }
+            ],
+            response_format: {
+              type: 'json_schema',
+              json_schema: {
+                name: 'persona_result',
+                strict: true,
+                schema: {
+                  type: 'object',
+                  properties: {
+                    personaName: { type: 'string' },
+                    emoji: { type: 'string' },
+                    tagline: { type: 'string' },
+                    traits: { type: 'array', items: { type: 'string' } },
+                    idealCountry: { type: 'string' },
+                    idealCountryFlag: { type: 'string' },
+                    idealCountryReason: { type: 'string' },
+                    spiritUniversity: { type: 'string' },
+                    spiritUniReason: { type: 'string' },
+                    studyStyle: { type: 'string' },
+                    socialStyle: { type: 'string' },
+                    survivalTip: { type: 'string' },
+                    bestBuddy: { type: 'string' },
+                    worstEnemy: { type: 'string' },
+                    packingEssential: { type: 'string' },
+                    futureHeadline: { type: 'string' },
+                    colorTheme: { type: 'string' }
+                  },
+                  required: ['personaName', 'emoji', 'tagline', 'traits', 'idealCountry', 'idealCountryFlag', 'idealCountryReason', 'spiritUniversity', 'spiritUniReason', 'studyStyle', 'socialStyle', 'survivalTip', 'bestBuddy', 'worstEnemy', 'packingEssential', 'futureHeadline', 'colorTheme'],
+                  additionalProperties: false
+                }
+              }
+            }
+          });
+
+          const content = response.choices?.[0]?.message?.content;
+          if (!content) throw new Error('No response from AI');
+
+          const parsed = JSON.parse(content as string);
+          return { success: true, persona: parsed };
+        } catch (error) {
+          console.error('Persona generation error:', error);
+          return { success: false, persona: null };
+        }
+      }),
+
+    saveResult: publicProcedure
+      .input(z.object({
+        studentName: z.string().optional(),
+        studentEmail: z.string().email().optional(),
+        answers: z.string(),
+        personaName: z.string(),
+        personaData: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        try {
+          const result = await createPersonaResult(input);
+          if (input.studentEmail) {
+            await notifyOwner({
+              title: '🎭 New Persona Generated',
+              content: `${input.studentName || 'A student'} (${input.studentEmail}) generated their Study Abroad Persona: "${input.personaName}".`,
+            });
+          }
+          return { success: true, result };
+        } catch (error) {
+          console.error('Save persona result error:', error);
+          return { success: false, result: null };
+        }
+      }),
+
+    getAll: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { results: [] };
+      const results = await getAllPersonaResults();
       return { results };
     }),
   }),

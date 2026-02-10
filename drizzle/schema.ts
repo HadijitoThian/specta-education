@@ -269,3 +269,19 @@ export const quizResults = mysqlTable("quizResults", {
 
 export type QuizResult = typeof quizResults.$inferSelect;
 export type InsertQuizResult = typeof quizResults.$inferInsert;
+
+/**
+ * Persona Results table - stores "My Study Abroad Persona" generator results
+ */
+export const personaResults = mysqlTable("personaResults", {
+  id: int("id").autoincrement().primaryKey(),
+  studentName: varchar("studentName", { length: 255 }),
+  studentEmail: varchar("studentEmail", { length: 320 }),
+  answers: text("answers").notNull(), // JSON: array of {questionId, answer}
+  personaName: varchar("personaName", { length: 255 }).notNull(),
+  personaData: text("personaData").notNull(), // JSON: full persona card data
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type PersonaResult = typeof personaResults.$inferSelect;
+export type InsertPersonaResult = typeof personaResults.$inferInsert;

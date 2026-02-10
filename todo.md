@@ -352,3 +352,17 @@
 - [x] Update AI prompt to not include HTML tags in reading passage
 - [x] Add HTML tag sanitizer on frontend for reading passage
 - [x] Render passage with proper paragraph breaks using newlines
+
+### 28. SpecTa Play Hub & Study Abroad Persona Generator
+- [x] Create unified SpecTa Play landing page at /play with two game cards
+- [x] Build "My Study Abroad Persona" generator with 5 visual tap questions
+- [x] AI-powered persona generation (persona name, traits, ideal country, spirit university, tagline)
+- [x] Beautiful shareable persona result card designed for Instagram Stories
+- [x] "Share My Persona" button that downloads image card
+- [x] Cross-promotion between Quiz and Persona on results pages
+- [x] Backend tRPC procedure for persona generation with AI
+- [x] Lead capture (optional name/email) before showing persona results
+- [x] Update navigation: rename "Country Quiz" to "SpecTa Play" with game icon
+- [x] Update Home page promo banner to promote SpecTa Play hub
+- [x] Update /quiz route to still work (redirect or keep)
+- [x] Write tests for persona generation

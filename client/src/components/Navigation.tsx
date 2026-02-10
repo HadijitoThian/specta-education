@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Phone, ChevronDown, Menu, X } from "lucide-react";
+import { Phone, ChevronDown, Menu, X, Gamepad2 } from "lucide-react";
 import { useState, useEffect } from "react";
 
 interface NavigationProps {
@@ -105,8 +105,9 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
           <button onClick={() => handleNavClick("/track")} className={`text-sm font-medium transition-colors ${isActive("track") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             Track
           </button>
-          <button onClick={() => handleNavClick("/quiz")} className={`text-sm font-medium transition-colors flex items-center gap-1 ${isActive("quiz") ? "text-primary" : "text-purple-600 hover:text-purple-700"}`}>
-            <span>✨</span> Country Quiz
+          <button onClick={() => handleNavClick("/play")} className={`text-sm font-medium transition-colors flex items-center gap-1.5 ${isActive("play") ? "text-primary" : "text-purple-600 hover:text-purple-700"}`}>
+            <Gamepad2 className="w-4 h-4" />
+            <span>SpecTa Play</span>
           </button>
         </div>
         
@@ -194,8 +195,9 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             <button onClick={() => handleNavClick("/track")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
               Track Application
             </button>
-            <button onClick={() => handleNavClick("/quiz")} className="block w-full text-left text-sm font-medium text-purple-600 hover:text-purple-700">
-              ✨ Country Quiz
+            <button onClick={() => handleNavClick("/play")} className="block w-full text-left text-sm font-medium text-purple-600 hover:text-purple-700 flex items-center gap-2">
+              <Gamepad2 className="w-4 h-4" />
+              SpecTa Play
             </button>
             <div className="pt-4 border-t border-border space-y-3">
               <button onClick={() => handleNavClick("/book")} className="block w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg text-sm font-semibold text-center hover:shadow-lg transition-all">

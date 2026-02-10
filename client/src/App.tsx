@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, Redirect } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { MascotAgentProvider } from "./contexts/MascotAgentContext";
@@ -20,6 +20,8 @@ import BookConsultation from "./pages/BookConsultation";
 import IELTSPractice from "./pages/IELTSPractice";
 import TrackApplication from "./pages/TrackApplication";
 import Quiz from "./pages/Quiz";
+import Persona from "./pages/Persona";
+import Play from "./pages/Play";
 
 function Router() {
   return (
@@ -38,7 +40,11 @@ function Router() {
       <Route path={"/book"} component={BookConsultation} />
       <Route path={"/track"} component={TrackApplication} />
       <Route path={"/track/:token"} component={TrackApplication} />
-      <Route path={"/quiz"} component={Quiz} />
+      <Route path={"/play"} component={Play} />
+      <Route path={"/play/quiz"} component={Quiz} />
+      <Route path={"/play/persona"} component={Persona} />
+      {/* Keep old /quiz route as redirect for SEO */}
+      <Route path={"/quiz"}>{() => <Redirect to="/play/quiz" />}</Route>
       <Route path={"/admin"} component={AdminDashboard} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />

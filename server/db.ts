@@ -13,7 +13,8 @@ import {
   appointments, InsertAppointment, Appointment,
   ieltsPracticeResults, InsertIeltsPracticeResult, IeltsPracticeResult,
   counselors, InsertCounselor, Counselor,
-  quizResults, InsertQuizResult, QuizResult
+  quizResults, InsertQuizResult, QuizResult,
+  personaResults, InsertPersonaResult, PersonaResult
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -484,6 +485,23 @@ export async function getAllQuizResults(): Promise<QuizResult[]> {
   if (!db) return [];
 
   return db.select().from(quizResults).orderBy(desc(quizResults.createdAt));
+}
+
+// Persona Results helpers
+export async function createPersonaResult(data: InsertPersonaResult): Promise<PersonaResult | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  await db.insert(personaResults).values(data);
+  const result = await db.select().from(personaResults).orderBy(desc(personaResults.id)).limit(1);
+  return result[0] || null;
+}
+
+export async function getAllPersonaResults(): Promise<PersonaResult[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select().from(personaResults).orderBy(desc(personaResults.createdAt));
 }
 
 // Generate reference number for applications
