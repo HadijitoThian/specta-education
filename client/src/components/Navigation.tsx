@@ -105,10 +105,16 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
           <button onClick={() => handleNavClick("/contact")} className={`text-sm font-medium transition-colors ${isActive("contact") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             Contact
           </button>
+          <button onClick={() => handleNavClick("/track")} className={`text-sm font-medium transition-colors ${isActive("track") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
+            Track
+          </button>
         </div>
         
         {/* Desktop CTA Buttons */}
         <div className="hidden lg:flex items-center gap-3">
+          <button onClick={() => handleNavClick("/book")} className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-blue-200 transition-all">
+            Book Consultation
+          </button>
           <button onClick={() => handleNavClick("/apply")} className="px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-pink-200 transition-all">
             Quick Apply
           </button>
@@ -188,7 +194,13 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             <button onClick={() => handleNavClick("/contact")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
               Contact
             </button>
+            <button onClick={() => handleNavClick("/track")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
+              Track Application
+            </button>
             <div className="pt-4 border-t border-border space-y-3">
+              <button onClick={() => handleNavClick("/book")} className="block w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg text-sm font-semibold text-center hover:shadow-lg transition-all">
+                Book Consultation
+              </button>
               <button onClick={() => handleNavClick("/apply")} className="block w-full py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg text-sm font-semibold text-center hover:shadow-lg transition-all">
                 Quick Apply
               </button>

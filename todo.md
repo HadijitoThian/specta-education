@@ -248,3 +248,47 @@
 ### 17. Compare Page Redesign
 - [x] More attractive UI/UX for compare page
 - [x] Better visual design and layout
+
+### 18. Appointment Booking System
+- [x] Create appointments database table (name, email, phone, date, time, type, status, notes)
+- [x] Build booking server endpoints (create, getAll, getById, updateStatus, getAvailableSlots)
+- [x] Build /book page with date picker, time slot selection, and booking form
+- [x] Show available slots (Mon-Fri 10AM-6PM, Sat 10AM-2PM)
+- [x] Booking confirmation with details
+- [x] Add appointments tab to admin dashboard
+- [x] Admin can approve/reject/reschedule bookings
+- [x] Notify admin on new booking
+- [x] Add "Book Consultation" to navigation
+
+### 19. IELTS AI Practice Test
+- [x] Create ielts_practice_results database table
+- [x] Build AI-powered question generation for Reading section
+- [x] Build AI-powered question generation for Writing section
+- [x] Build AI-powered question generation for Listening tips section
+- [x] Build AI-powered question generation for Speaking prompts section
+- [x] Build /ielts/practice page with section selection
+- [x] Build practice test UI with timer and progress tracking
+- [x] AI scoring and feedback for completed tests
+- [x] Show results with band score estimation and improvement tips
+- [x] Collect student name/email/phone before test (lead generation)
+- [x] Notify admin when student completes a practice test
+- [x] Warning: do not reload page during test
+
+### 20. Application Tracker Portal (Magic Link)
+- [x] Add referenceNumber, assignedCounselor, statusHistory columns to applications table
+- [x] Create applicationNotes table (applicationId, authorName, content, isPublic)
+- [x] Create applicationDocuments table (applicationId, fileName, fileUrl, fileKey, documentType, uploadedBy)
+- [x] Create trackingTokens table (applicationId, token, email, expiresAt)
+- [x] Expand application status enum (submitted, reviewing, processing, on_hold, offer_received, accepted, enrolled, rejected)
+- [x] Generate reference number on application submit (SPECTA-2026-XXXXX)
+- [x] Build magic link generation and email lookup endpoint
+- [x] Build /track page with email input form
+- [x] Build /track/:token page with application dashboard
+- [x] Application dashboard: status progress bar, timeline, documents, notes
+- [x] Student can upload additional documents from tracker
+- [x] Student can add messages/notes from tracker
+- [x] Update Quick Apply confirmation to show reference number + tracking link
+- [x] Add Applications tab to admin dashboard with status management
+- [x] Admin can update status, add public/internal notes, assign counselor
+- [x] Admin status change triggers notification
+- [x] Add "Track Application" to navigation

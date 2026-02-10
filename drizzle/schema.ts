@@ -113,9 +113,11 @@ export type InsertWhatsAppMessage = typeof whatsappMessages.$inferInsert;
 
 /**
  * Applications table - student university applications with document uploads
+ * Enhanced with tracking fields for Application Tracker Portal
  */
 export const applications = mysqlTable("applications", {
   id: int("id").autoincrement().primaryKey(),
+  referenceNumber: varchar("referenceNumber", { length: 20 }).unique(),
   fullName: varchar("fullName", { length: 255 }).notNull(),
   email: varchar("email", { length: 320 }).notNull(),
   phone: varchar("phone", { length: 50 }).notNull(),
@@ -132,10 +134,103 @@ export const applications = mysqlTable("applications", {
   certificateUrl: text("certificateUrl"),
   certificateKey: varchar("certificateKey", { length: 500 }),
   additionalNotes: text("additionalNotes"),
-  status: mysqlEnum("status", ["submitted", "reviewing", "processing", "accepted", "rejected"]).default("submitted").notNull(),
+  assignedCounselor: varchar("assignedCounselor", { length: 255 }),
+  universityResponse: text("universityResponse"),
+  statusHistory: text("statusHistory"), // JSON array of {status, timestamp, note}
+  status: mysqlEnum("status", ["submitted", "reviewing", "processing", "on_hold", "offer_received", "accepted", "enrolled", "rejected"]).default("submitted").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
 export type Application = typeof applications.$inferSelect;
 export type InsertApplication = typeof applications.$inferInsert;
+
+/**
+ * Application notes - counselor and student notes on applications
+ */
+export const applicationNotes = mysqlTable("applicationNotes", {
+  id: int("id").autoincrement().primaryKey(),
+  applicationId: int("applicationId").notNull(),
+  authorName: varchar("authorName", { length: 255 }).notNull(),
+  content: text("content").notNull(),
+  isPublic: boolean("isPublic").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ApplicationNote = typeof applicationNotes.$inferSelect;
+export type InsertApplicationNote = typeof applicationNotes.$inferInsert;
+
+/**
+ * Application documents - flexible document management per application
+ */
+export const applicationDocuments = mysqlTable("applicationDocuments", {
+  id: int("id").autoincrement().primaryKey(),
+  applicationId: int("applicationId").notNull(),
+  fileName: varchar("fileName", { length: 255 }).notNull(),
+  fileType: varchar("fileType", { length: 100 }).notNull(),
+  fileUrl: text("fileUrl").notNull(),
+  fileKey: varchar("fileKey", { length: 500 }).notNull(),
+  documentType: mysqlEnum("documentType", ["transcript", "passport", "ielts", "certificate", "offer_letter", "visa", "other"]).default("other").notNull(),
+  uploadedBy: mysqlEnum("uploadedBy", ["student", "counselor"]).default("student").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ApplicationDocument = typeof applicationDocuments.$inferSelect;
+export type InsertApplicationDocument = typeof applicationDocuments.$inferInsert;
+
+/**
+ * Tracking tokens - magic link tokens for student application tracking
+ */
+export const trackingTokens = mysqlTable("trackingTokens", {
+  id: int("id").autoincrement().primaryKey(),
+  applicationId: int("applicationId").notNull(),
+  token: varchar("token", { length: 128 }).notNull().unique(),
+  email: varchar("email", { length: 320 }).notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type TrackingToken = typeof trackingTokens.$inferSelect;
+export type InsertTrackingToken = typeof trackingTokens.$inferInsert;
+
+/**
+ * Appointments table - consultation booking system
+ */
+export const appointments = mysqlTable("appointments", {
+  id: int("id").autoincrement().primaryKey(),
+  fullName: varchar("fullName", { length: 255 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  phone: varchar("phone", { length: 50 }).notNull(),
+  date: varchar("date", { length: 20 }).notNull(), // YYYY-MM-DD format
+  timeSlot: varchar("timeSlot", { length: 20 }).notNull(), // e.g. "10:00", "14:30"
+  consultationType: mysqlEnum("consultationType", ["general", "ielts", "university", "visa", "scholarship"]).default("general").notNull(),
+  preferredCountry: varchar("preferredCountry", { length: 100 }),
+  notes: text("notes"),
+  status: mysqlEnum("status", ["pending", "confirmed", "completed", "cancelled", "rescheduled"]).default("pending").notNull(),
+  adminNotes: text("adminNotes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Appointment = typeof appointments.$inferSelect;
+export type InsertAppointment = typeof appointments.$inferInsert;
+
+/**
+ * IELTS Practice Results - stores student practice test results
+ */
+export const ieltsPracticeResults = mysqlTable("ieltsPracticeResults", {
+  id: int("id").autoincrement().primaryKey(),
+  studentName: varchar("studentName", { length: 255 }).notNull(),
+  studentEmail: varchar("studentEmail", { length: 320 }).notNull(),
+  studentPhone: varchar("studentPhone", { length: 50 }),
+  section: mysqlEnum("section", ["reading", "writing", "listening", "speaking"]).notNull(),
+  questions: text("questions").notNull(), // JSON: the questions asked
+  answers: text("answers").notNull(), // JSON: student's answers
+  score: varchar("score", { length: 10 }), // Band score estimation
+  aiFeedback: text("aiFeedback"), // AI-generated feedback
+  timeTaken: int("timeTaken"), // seconds
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type IeltsPracticeResult = typeof ieltsPracticeResults.$inferSelect;
+export type InsertIeltsPracticeResult = typeof ieltsPracticeResults.$inferInsert;

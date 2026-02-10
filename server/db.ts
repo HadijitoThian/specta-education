@@ -1,11 +1,17 @@
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, gte, lte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { 
   InsertUser, users, 
   conversations, InsertConversation, Conversation,
   messages, InsertMessage, Message,
   leads, InsertLead, Lead,
-  documents, InsertDocument, Document
+  documents, InsertDocument, Document,
+  applications, InsertApplication, Application,
+  applicationNotes, InsertApplicationNote, ApplicationNote,
+  applicationDocuments, InsertApplicationDocument, ApplicationDocument,
+  trackingTokens, InsertTrackingToken, TrackingToken,
+  appointments, InsertAppointment, Appointment,
+  ieltsPracticeResults, InsertIeltsPracticeResult, IeltsPracticeResult
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -210,8 +216,6 @@ export async function getAllDocuments(): Promise<Document[]> {
 }
 
 // Application functions
-import { applications, InsertApplication, Application } from "../drizzle/schema";
-
 export async function createApplication(data: InsertApplication): Promise<Application | null> {
   const db = await getDb();
   if (!db) return null;
@@ -237,9 +241,183 @@ export async function getApplicationById(id: number): Promise<Application | null
   return result[0] || null;
 }
 
+export async function getApplicationByReference(referenceNumber: string): Promise<Application | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.select().from(applications).where(eq(applications.referenceNumber, referenceNumber)).limit(1);
+  return result[0] || null;
+}
+
+export async function getApplicationsByEmail(email: string): Promise<Application[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(applications).where(eq(applications.email, email)).orderBy(desc(applications.createdAt));
+}
+
 export async function updateApplication(id: number, data: Partial<InsertApplication>): Promise<void> {
   const db = await getDb();
   if (!db) return;
 
   await db.update(applications).set(data).where(eq(applications.id, id));
+}
+
+// Application Notes functions
+export async function createApplicationNote(data: InsertApplicationNote): Promise<ApplicationNote | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(applicationNotes).values(data);
+  const insertId = result[0].insertId;
+  const created = await db.select().from(applicationNotes).where(eq(applicationNotes.id, insertId)).limit(1);
+  return created[0] || null;
+}
+
+export async function getNotesByApplicationId(applicationId: number, publicOnly = false): Promise<ApplicationNote[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  if (publicOnly) {
+    return await db.select().from(applicationNotes)
+      .where(and(eq(applicationNotes.applicationId, applicationId), eq(applicationNotes.isPublic, true)))
+      .orderBy(desc(applicationNotes.createdAt));
+  }
+  return await db.select().from(applicationNotes)
+    .where(eq(applicationNotes.applicationId, applicationId))
+    .orderBy(desc(applicationNotes.createdAt));
+}
+
+// Application Documents functions
+export async function createApplicationDocument(data: InsertApplicationDocument): Promise<ApplicationDocument | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(applicationDocuments).values(data);
+  const insertId = result[0].insertId;
+  const created = await db.select().from(applicationDocuments).where(eq(applicationDocuments.id, insertId)).limit(1);
+  return created[0] || null;
+}
+
+export async function getDocumentsByApplicationId(applicationId: number): Promise<ApplicationDocument[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(applicationDocuments)
+    .where(eq(applicationDocuments.applicationId, applicationId))
+    .orderBy(desc(applicationDocuments.createdAt));
+}
+
+// Tracking Token functions
+export async function createTrackingToken(data: InsertTrackingToken): Promise<TrackingToken | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(trackingTokens).values(data);
+  const insertId = result[0].insertId;
+  const created = await db.select().from(trackingTokens).where(eq(trackingTokens.id, insertId)).limit(1);
+  return created[0] || null;
+}
+
+export async function getTrackingTokenByToken(token: string): Promise<TrackingToken | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.select().from(trackingTokens).where(eq(trackingTokens.token, token)).limit(1);
+  return result[0] || null;
+}
+
+export async function deleteExpiredTokens(): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.delete(trackingTokens).where(lte(trackingTokens.expiresAt, new Date()));
+}
+
+// Appointment functions
+export async function createAppointment(data: InsertAppointment): Promise<Appointment | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(appointments).values(data);
+  const insertId = result[0].insertId;
+  const created = await db.select().from(appointments).where(eq(appointments.id, insertId)).limit(1);
+  return created[0] || null;
+}
+
+export async function getAllAppointments(): Promise<Appointment[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(appointments).orderBy(desc(appointments.createdAt));
+}
+
+export async function getAppointmentById(id: number): Promise<Appointment | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.select().from(appointments).where(eq(appointments.id, id)).limit(1);
+  return result[0] || null;
+}
+
+export async function getAppointmentsByDate(date: string): Promise<Appointment[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(appointments)
+    .where(and(eq(appointments.date, date), eq(appointments.status, "confirmed")))
+    .orderBy(appointments.timeSlot);
+}
+
+export async function updateAppointment(id: number, data: Partial<InsertAppointment>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(appointments).set(data).where(eq(appointments.id, id));
+}
+
+// IELTS Practice Results functions
+export async function createIeltsPracticeResult(data: InsertIeltsPracticeResult): Promise<IeltsPracticeResult | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(ieltsPracticeResults).values(data);
+  const insertId = result[0].insertId;
+  const created = await db.select().from(ieltsPracticeResults).where(eq(ieltsPracticeResults.id, insertId)).limit(1);
+  return created[0] || null;
+}
+
+export async function getAllIeltsPracticeResults(): Promise<IeltsPracticeResult[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(ieltsPracticeResults).orderBy(desc(ieltsPracticeResults.createdAt));
+}
+
+export async function getIeltsPracticeResultById(id: number): Promise<IeltsPracticeResult | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.select().from(ieltsPracticeResults).where(eq(ieltsPracticeResults.id, id)).limit(1);
+  return result[0] || null;
+}
+
+export async function getIeltsPracticeResultsByEmail(email: string): Promise<IeltsPracticeResult[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(ieltsPracticeResults)
+    .where(eq(ieltsPracticeResults.studentEmail, email))
+    .orderBy(desc(ieltsPracticeResults.createdAt));
+}
+
+// Generate reference number for applications
+export async function generateReferenceNumber(): Promise<string> {
+  const db = await getDb();
+  if (!db) return `SPECTA-${new Date().getFullYear()}-00001`;
+
+  const year = new Date().getFullYear();
+  const allApps = await db.select().from(applications).orderBy(desc(applications.id)).limit(1);
+  const nextId = allApps.length > 0 ? allApps[0].id + 1 : 1;
+  return `SPECTA-${year}-${String(nextId).padStart(5, '0')}`;
 }

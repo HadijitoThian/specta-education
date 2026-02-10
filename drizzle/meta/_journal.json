@@ -29,6 +29,13 @@
       "when": 1770734310062,
       "tag": "0003_sudden_chamber",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1770740365406,
+      "tag": "0004_new_jean_grey",
+      "breakpoints": true
     }
   ]
 }

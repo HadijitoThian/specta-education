@@ -24,9 +24,29 @@ import {
   createApplication,
   getAllApplications,
   getApplicationById,
-  updateApplication
+  getApplicationByReference,
+  getApplicationsByEmail,
+  updateApplication,
+  generateReferenceNumber,
+  createApplicationNote,
+  getNotesByApplicationId,
+  createApplicationDocument,
+  getDocumentsByApplicationId,
+  createTrackingToken,
+  getTrackingTokenByToken,
+  deleteExpiredTokens,
+  createAppointment,
+  getAllAppointments,
+  getAppointmentById,
+  getAppointmentsByDate,
+  updateAppointment,
+  createIeltsPracticeResult,
+  getAllIeltsPracticeResults,
+  getIeltsPracticeResultById,
+  getIeltsPracticeResultsByEmail
 } from "./db";
 import { notifyOwner } from "./_core/notification";
+import crypto from "crypto";
 
 const SYSTEM_PROMPT = `You are SpecTa, a friendly AI education consultant for SpecTa Education (Indonesian study abroad consultancy). Be warm, helpful, and knowledgeable.
 
@@ -100,7 +120,6 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const { sessionId, message, conversationHistory } = input;
 
-        // Get or create conversation
         let conversation = await getConversationBySessionId(sessionId);
         if (!conversation) {
           conversation = await createConversation({ sessionId });
@@ -110,14 +129,12 @@ export const appRouter = router({
           return { success: false, message: "Failed to create conversation" };
         }
 
-        // Save user message
         await createMessage({
           conversationId: conversation.id,
           role: "user",
           content: message
         });
 
-        // Prepare messages for LLM
         const llmMessages = [
           { role: "system" as const, content: SYSTEM_PROMPT },
           ...conversationHistory.filter(m => m.role !== "system").map(m => ({
@@ -134,13 +151,11 @@ export const appRouter = router({
           const rawContent = response.choices[0]?.message?.content;
           let assistantMessage = typeof rawContent === 'string' ? rawContent : "I apologize, I'm having trouble responding. Please try again.";
 
-          // Check for contact info in response
           const contactMatch = assistantMessage.match(/<CONTACT_INFO>([\s\S]*?)<\/CONTACT_INFO>/);
           if (contactMatch) {
             try {
               const contactInfo = JSON.parse(contactMatch[1]);
               
-              // Update conversation with contact info
               await updateConversation(sessionId, {
                 studentName: contactInfo.name || undefined,
                 studentEmail: contactInfo.email || undefined,
@@ -150,7 +165,6 @@ export const appRouter = router({
                 status: contactInfo.phone ? "lead_captured" : "active"
               });
 
-              // Create lead if phone number provided
               if (contactInfo.phone) {
                 const lead = await createLead({
                   conversationId: conversation.id,
@@ -162,7 +176,6 @@ export const appRouter = router({
                   status: "new"
                 });
 
-                // Notify owner about new lead
                 if (lead) {
                   await notifyOwner({
                     title: "New Lead from SpecTa AI",
@@ -171,14 +184,12 @@ export const appRouter = router({
                 }
               }
 
-              // Remove the contact info block from the message
               assistantMessage = assistantMessage.replace(/<CONTACT_INFO>[\s\S]*?<\/CONTACT_INFO>/, '').trim();
             } catch (e) {
               console.error("Failed to parse contact info:", e);
             }
           }
 
-          // Save assistant message
           await createMessage({
             conversationId: conversation.id,
             role: "assistant",
@@ -200,13 +211,12 @@ export const appRouter = router({
         sessionId: z.string(),
         fileName: z.string(),
         fileType: z.string(),
-        fileData: z.string(), // base64
+        fileData: z.string(),
         documentType: z.enum(["passport", "transcript", "certificate", "other"])
       }))
       .mutation(async ({ input }) => {
         const { sessionId, fileName, fileType, fileData, documentType } = input;
 
-        // Get conversation
         let conversation = await getConversationBySessionId(sessionId);
         if (!conversation) {
           conversation = await createConversation({ sessionId });
@@ -217,16 +227,10 @@ export const appRouter = router({
         }
 
         try {
-          // Convert base64 to buffer
           const buffer = Buffer.from(fileData, 'base64');
-          
-          // Generate unique file key
           const fileKey = `documents/${sessionId}/${nanoid()}-${fileName}`;
-          
-          // Upload to S3
           const { url } = await storagePut(fileKey, buffer, fileType);
 
-          // Save document record
           const document = await createDocument({
             conversationId: conversation.id,
             fileName,
@@ -236,7 +240,6 @@ export const appRouter = router({
             documentType
           });
 
-          // Update conversation status
           await updateConversation(sessionId, {
             status: "documents_uploaded"
           });
@@ -321,6 +324,423 @@ export const appRouter = router({
       })
   }),
 
+  // ==========================================
+  // APPOINTMENT BOOKING SYSTEM
+  // ==========================================
+  appointment: router({
+    getAvailableSlots: publicProcedure
+      .input(z.object({ date: z.string() }))
+      .query(async ({ input }) => {
+        const { date } = input;
+        const dayOfWeek = new Date(date).getDay();
+        
+        // Define available time slots
+        // Mon-Fri: 10:00 - 18:00, Sat: 10:00 - 14:00, Sun: closed
+        let allSlots: string[] = [];
+        if (dayOfWeek === 0) {
+          return { slots: [], closed: true };
+        } else if (dayOfWeek === 6) {
+          allSlots = ["10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30"];
+        } else {
+          allSlots = [
+            "10:00", "10:30", "11:00", "11:30", "12:00", "12:30",
+            "13:00", "13:30", "14:00", "14:30", "15:00", "15:30",
+            "16:00", "16:30", "17:00", "17:30"
+          ];
+        }
+
+        // Get booked slots for this date
+        const bookedAppointments = await getAppointmentsByDate(date);
+        const bookedSlots = bookedAppointments.map(a => a.timeSlot);
+        
+        const availableSlots = allSlots.filter(slot => !bookedSlots.includes(slot));
+        return { slots: availableSlots, closed: false };
+      }),
+
+    book: publicProcedure
+      .input(z.object({
+        fullName: z.string().min(1),
+        email: z.string().email(),
+        phone: z.string().min(1),
+        date: z.string(),
+        timeSlot: z.string(),
+        consultationType: z.enum(["general", "ielts", "university", "visa", "scholarship"]),
+        preferredCountry: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const appointment = await createAppointment(input);
+        
+        if (appointment) {
+          await notifyOwner({
+            title: `New Booking: ${input.fullName}`,
+            content: `Consultation Booking\n\nName: ${input.fullName}\nEmail: ${input.email}\nPhone: ${input.phone}\nDate: ${input.date}\nTime: ${input.timeSlot}\nType: ${input.consultationType}\nCountry: ${input.preferredCountry || 'Not specified'}\nNotes: ${input.notes || 'None'}`
+          });
+        }
+
+        return { success: true, appointment };
+      }),
+
+    getAll: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') return { appointments: [] };
+      const apps = await getAllAppointments();
+      return { appointments: apps };
+    }),
+
+    updateStatus: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["pending", "confirmed", "completed", "cancelled", "rescheduled"]),
+        adminNotes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') return { success: false };
+        const { id, ...data } = input;
+        await updateAppointment(id, data);
+        return { success: true };
+      }),
+  }),
+
+  // ==========================================
+  // IELTS AI PRACTICE TEST
+  // ==========================================
+  ieltsPractice: router({
+    generateQuestions: publicProcedure
+      .input(z.object({
+        section: z.enum(["reading", "writing", "listening", "speaking"]),
+        difficulty: z.enum(["beginner", "intermediate", "advanced"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { section, difficulty = "intermediate" } = input;
+
+        const prompts: Record<string, string> = {
+          reading: `Generate an IELTS Academic Reading practice test passage and questions. Difficulty: ${difficulty}.
+
+Create a passage of about 300-400 words on an academic topic (science, history, technology, or social studies). Then create exactly 8 questions in this format:
+
+1. Questions 1-4: Multiple choice (A, B, C, D) - test comprehension
+2. Questions 5-6: True/False/Not Given
+3. Questions 7-8: Short answer (1-3 words)
+
+Return as JSON:
+{
+  "passage": "the reading passage text",
+  "title": "passage title",
+  "questions": [
+    { "id": 1, "type": "multiple_choice", "question": "...", "options": ["A) ...", "B) ...", "C) ...", "D) ..."], "correctAnswer": "A" },
+    { "id": 5, "type": "true_false_notgiven", "question": "...", "correctAnswer": "True" },
+    { "id": 7, "type": "short_answer", "question": "...", "correctAnswer": "answer text" }
+  ]
+}`,
+          writing: `Generate an IELTS Academic Writing Task 2 practice question. Difficulty: ${difficulty}.
+
+Create a thought-provoking essay question on a common IELTS topic (education, technology, environment, health, society). Include clear instructions.
+
+Return as JSON:
+{
+  "taskType": "Task 2 - Essay",
+  "question": "the essay question/prompt",
+  "topic": "topic category",
+  "instructions": "You should write at least 250 words. Give reasons for your answer and include relevant examples from your own knowledge or experience.",
+  "tips": ["tip 1", "tip 2", "tip 3"],
+  "sampleOutline": {
+    "introduction": "brief outline",
+    "body1": "brief outline",
+    "body2": "brief outline",
+    "conclusion": "brief outline"
+  }
+}`,
+          listening: `Generate IELTS Listening practice tips and a simulated exercise. Difficulty: ${difficulty}.
+
+Since we cannot play audio, create a text-based listening comprehension exercise that simulates IELTS Listening Section 1 (a conversation). Provide the transcript and questions.
+
+Return as JSON:
+{
+  "scenario": "description of the listening scenario",
+  "transcript": "Full conversation transcript between two speakers (Speaker A and Speaker B), about 200-300 words",
+  "questions": [
+    { "id": 1, "type": "fill_blank", "question": "The caller's name is ___", "correctAnswer": "answer" },
+    { "id": 2, "type": "multiple_choice", "question": "...", "options": ["A) ...", "B) ...", "C) ..."], "correctAnswer": "B" }
+  ],
+  "tips": ["listening tip 1", "listening tip 2", "listening tip 3"]
+}
+
+Create exactly 6 questions mixing fill-in-the-blank and multiple choice.`,
+          speaking: `Generate IELTS Speaking practice questions for all 3 parts. Difficulty: ${difficulty}.
+
+Return as JSON:
+{
+  "part1": {
+    "topic": "topic name",
+    "questions": ["question 1", "question 2", "question 3", "question 4"]
+  },
+  "part2": {
+    "topic": "Describe...",
+    "cueCard": "Describe [topic]. You should say:\\n- point 1\\n- point 2\\n- point 3\\nand explain why/how...",
+    "followUp": ["follow up question 1", "follow up question 2"]
+  },
+  "part3": {
+    "topic": "discussion topic related to Part 2",
+    "questions": ["abstract question 1", "abstract question 2", "abstract question 3"]
+  },
+  "tips": ["speaking tip 1", "speaking tip 2", "speaking tip 3"],
+  "sampleAnswer": "A brief sample answer for the Part 2 cue card (about 150 words)"
+}`
+        };
+
+        try {
+          const response = await invokeLLM({
+            messages: [
+              { role: "system" as const, content: "You are an expert IELTS instructor. Generate practice test content that closely mimics real IELTS exam difficulty and format. Always return valid JSON." },
+              { role: "user" as const, content: prompts[section] }
+            ],
+            response_format: { type: "json_object" as const }
+          });
+
+          const content = response.choices[0]?.message?.content;
+          if (typeof content === 'string') {
+            const parsed = JSON.parse(content);
+            return { success: true, data: parsed, section };
+          }
+          return { success: false, error: "Failed to generate questions" };
+        } catch (error) {
+          console.error("IELTS practice error:", error);
+          return { success: false, error: "Failed to generate practice questions. Please try again." };
+        }
+      }),
+
+    scoreAnswers: publicProcedure
+      .input(z.object({
+        section: z.enum(["reading", "writing", "listening", "speaking"]),
+        questions: z.string(), // JSON
+        answers: z.string(), // JSON
+        studentName: z.string(),
+        studentEmail: z.string().email(),
+        studentPhone: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { section, questions, answers, studentName, studentEmail, studentPhone } = input;
+
+        let scoringPrompt = "";
+        if (section === "reading" || section === "listening") {
+          scoringPrompt = `Score these IELTS ${section} answers. Questions and correct answers:\n${questions}\n\nStudent answers:\n${answers}\n\nReturn JSON: { "correctCount": number, "totalQuestions": number, "bandScore": "estimated band", "feedback": "detailed feedback on performance", "questionResults": [{ "id": number, "correct": boolean, "studentAnswer": "...", "correctAnswer": "...", "explanation": "..." }] }`;
+        } else if (section === "writing") {
+          scoringPrompt = `Score this IELTS Writing Task 2 response.\n\nQuestion: ${questions}\n\nStudent's essay:\n${answers}\n\nScore using IELTS Writing criteria and return JSON: { "bandScore": "overall band", "criteria": { "taskResponse": { "band": "x.x", "feedback": "..." }, "coherenceCohesion": { "band": "x.x", "feedback": "..." }, "lexicalResource": { "band": "x.x", "feedback": "..." }, "grammaticalRange": { "band": "x.x", "feedback": "..." } }, "overallFeedback": "detailed improvement suggestions", "strengths": ["strength 1", "strength 2"], "improvements": ["area 1", "area 2"] }`;
+        } else {
+          scoringPrompt = `Evaluate these IELTS Speaking responses.\n\nQuestions: ${questions}\n\nStudent's responses:\n${answers}\n\nScore using IELTS Speaking criteria and return JSON: { "bandScore": "overall band", "criteria": { "fluencyCoherence": { "band": "x.x", "feedback": "..." }, "lexicalResource": { "band": "x.x", "feedback": "..." }, "grammaticalRange": { "band": "x.x", "feedback": "..." }, "pronunciation": { "band": "x.x", "feedback": "..." } }, "overallFeedback": "detailed improvement suggestions", "strengths": ["strength 1"], "improvements": ["area 1"] }`;
+        }
+
+        try {
+          const response = await invokeLLM({
+            messages: [
+              { role: "system" as const, content: "You are an expert IELTS examiner. Score accurately and provide constructive feedback. Always return valid JSON." },
+              { role: "user" as const, content: scoringPrompt }
+            ],
+            response_format: { type: "json_object" as const }
+          });
+
+          const content = response.choices[0]?.message?.content;
+          if (typeof content === 'string') {
+            const parsed = JSON.parse(content);
+            
+            // Save result to database
+            const result = await createIeltsPracticeResult({
+              studentName,
+              studentEmail,
+              studentPhone: studentPhone || null,
+              section,
+              questions,
+              answers,
+              score: parsed.bandScore || null,
+              aiFeedback: content,
+              timeTaken: null,
+            });
+
+            // Notify admin
+            await notifyOwner({
+              title: `IELTS Practice Completed: ${studentName}`,
+              content: `Student: ${studentName}\nEmail: ${studentEmail}\nPhone: ${studentPhone || 'N/A'}\nSection: ${section}\nEstimated Band: ${parsed.bandScore || 'N/A'}`
+            });
+
+            return { success: true, data: parsed, resultId: result?.id };
+          }
+          return { success: false, error: "Failed to score answers" };
+        } catch (error) {
+          console.error("IELTS scoring error:", error);
+          return { success: false, error: "Failed to score your answers. Please try again." };
+        }
+      }),
+
+    getResults: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') return { results: [] };
+      const results = await getAllIeltsPracticeResults();
+      return { results };
+    }),
+
+    getResultById: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const result = await getIeltsPracticeResultById(input.id);
+        return { result };
+      }),
+  }),
+
+  // ==========================================
+  // APPLICATION TRACKER PORTAL
+  // ==========================================
+  tracker: router({
+    requestMagicLink: publicProcedure
+      .input(z.object({ email: z.string().email() }))
+      .mutation(async ({ input }) => {
+        const { email } = input;
+        
+        // Find applications by email
+        const apps = await getApplicationsByEmail(email);
+        if (apps.length === 0) {
+          return { success: false, error: "No applications found for this email address." };
+        }
+
+        // Clean up expired tokens
+        await deleteExpiredTokens();
+
+        // Generate tokens for each application
+        const tokens: { applicationId: number; token: string; referenceNumber: string | null }[] = [];
+        for (const app of apps) {
+          const token = crypto.randomBytes(48).toString('hex');
+          const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+          
+          await createTrackingToken({
+            applicationId: app.id,
+            token,
+            email,
+            expiresAt,
+          });
+
+          tokens.push({
+            applicationId: app.id,
+            token,
+            referenceNumber: app.referenceNumber,
+          });
+        }
+
+        return { 
+          success: true, 
+          message: `We found ${apps.length} application(s). Your tracking links are ready.`,
+          applications: tokens.map(t => ({
+            referenceNumber: t.referenceNumber,
+            trackingToken: t.token,
+          }))
+        };
+      }),
+
+    getByToken: publicProcedure
+      .input(z.object({ token: z.string() }))
+      .query(async ({ input }) => {
+        const tokenRecord = await getTrackingTokenByToken(input.token);
+        if (!tokenRecord) {
+          return { success: false, error: "Invalid or expired tracking link." };
+        }
+
+        if (new Date() > tokenRecord.expiresAt) {
+          return { success: false, error: "This tracking link has expired. Please request a new one." };
+        }
+
+        const application = await getApplicationById(tokenRecord.applicationId);
+        if (!application) {
+          return { success: false, error: "Application not found." };
+        }
+
+        const notes = await getNotesByApplicationId(application.id, true); // public only
+        const documents = await getDocumentsByApplicationId(application.id);
+
+        return { 
+          success: true, 
+          application: {
+            id: application.id,
+            referenceNumber: application.referenceNumber,
+            fullName: application.fullName,
+            email: application.email,
+            selectedUniversities: application.selectedUniversities,
+            status: application.status,
+            statusHistory: application.statusHistory,
+            assignedCounselor: application.assignedCounselor,
+            createdAt: application.createdAt,
+            updatedAt: application.updatedAt,
+          },
+          notes: notes.map(n => ({
+            id: n.id,
+            authorName: n.authorName,
+            content: n.content,
+            createdAt: n.createdAt,
+          })),
+          documents: documents.map(d => ({
+            id: d.id,
+            fileName: d.fileName,
+            documentType: d.documentType,
+            uploadedBy: d.uploadedBy,
+            createdAt: d.createdAt,
+          })),
+        };
+      }),
+
+    addStudentNote: publicProcedure
+      .input(z.object({
+        token: z.string(),
+        content: z.string().min(1),
+      }))
+      .mutation(async ({ input }) => {
+        const tokenRecord = await getTrackingTokenByToken(input.token);
+        if (!tokenRecord || new Date() > tokenRecord.expiresAt) {
+          return { success: false, error: "Invalid or expired tracking link." };
+        }
+
+        const application = await getApplicationById(tokenRecord.applicationId);
+        if (!application) {
+          return { success: false, error: "Application not found." };
+        }
+
+        const note = await createApplicationNote({
+          applicationId: application.id,
+          authorName: application.fullName,
+          content: input.content,
+          isPublic: true,
+        });
+
+        return { success: true, note };
+      }),
+
+    uploadStudentDocument: publicProcedure
+      .input(z.object({
+        token: z.string(),
+        fileName: z.string(),
+        fileData: z.string(),
+        fileType: z.string(),
+        documentType: z.enum(["transcript", "passport", "ielts", "certificate", "offer_letter", "visa", "other"]),
+      }))
+      .mutation(async ({ input }) => {
+        const tokenRecord = await getTrackingTokenByToken(input.token);
+        if (!tokenRecord || new Date() > tokenRecord.expiresAt) {
+          return { success: false, error: "Invalid or expired tracking link." };
+        }
+
+        const buffer = Buffer.from(input.fileData, 'base64');
+        const fileKey = `app-docs/${tokenRecord.applicationId}/${nanoid()}-${input.fileName}`;
+        const { url } = await storagePut(fileKey, buffer, input.fileType);
+
+        const doc = await createApplicationDocument({
+          applicationId: tokenRecord.applicationId,
+          fileName: input.fileName,
+          fileType: input.fileType,
+          fileUrl: url,
+          fileKey,
+          documentType: input.documentType,
+          uploadedBy: "student",
+        });
+
+        return { success: true, document: doc };
+      }),
+  }),
+
   admin: router({
     getLeads: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== 'admin') {
@@ -400,7 +820,97 @@ export const appRouter = router({
         }
         const documents = await getDocumentsByConversationId(input.conversationId);
         return { documents };
-      })
+      }),
+
+    // Admin appointment management
+    getAppointments: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') return { appointments: [] };
+      const apps = await getAllAppointments();
+      return { appointments: apps };
+    }),
+
+    updateAppointmentStatus: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["pending", "confirmed", "completed", "cancelled", "rescheduled"]),
+        adminNotes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') return { success: false };
+        const { id, ...data } = input;
+        await updateAppointment(id, data);
+        return { success: true };
+      }),
+
+    // Admin IELTS practice results
+    getIeltsPracticeResults: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') return { results: [] };
+      const results = await getAllIeltsPracticeResults();
+      return { results };
+    }),
+
+    // Admin application management (enhanced)
+    getApplicationNotes: protectedProcedure
+      .input(z.object({ applicationId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') return { notes: [] };
+        const notes = await getNotesByApplicationId(input.applicationId, false); // all notes
+        return { notes };
+      }),
+
+    addApplicationNote: protectedProcedure
+      .input(z.object({
+        applicationId: z.number(),
+        content: z.string().min(1),
+        isPublic: z.boolean(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') return { success: false };
+        const note = await createApplicationNote({
+          applicationId: input.applicationId,
+          authorName: ctx.user.name || 'Admin',
+          content: input.content,
+          isPublic: input.isPublic,
+        });
+        return { success: true, note };
+      }),
+
+    getApplicationDocuments: protectedProcedure
+      .input(z.object({ applicationId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') return { documents: [] };
+        const docs = await getDocumentsByApplicationId(input.applicationId);
+        return { documents: docs };
+      }),
+
+    updateApplicationFull: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["submitted", "reviewing", "processing", "on_hold", "offer_received", "accepted", "enrolled", "rejected"]).optional(),
+        assignedCounselor: z.string().optional(),
+        universityResponse: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') return { success: false };
+        const { id, ...data } = input;
+        
+        // If status is changing, update status history
+        if (data.status) {
+          const app = await getApplicationById(id);
+          if (app) {
+            const history = app.statusHistory ? JSON.parse(app.statusHistory) : [];
+            history.push({
+              status: data.status,
+              timestamp: new Date().toISOString(),
+              updatedBy: ctx.user.name || 'Admin',
+            });
+            (data as any).statusHistory = JSON.stringify(history);
+          }
+        }
+
+        await updateApplication(id, data);
+        return { success: true };
+      }),
   }),
 
   application: router({
@@ -411,7 +921,7 @@ export const appRouter = router({
         phone: z.string().min(1),
         currentSchool: z.string().optional(),
         educationLevel: z.string().optional(),
-        selectedUniversities: z.string(), // JSON string
+        selectedUniversities: z.string(),
         ieltsScore: z.string().optional(),
         transcriptUrl: z.string().optional(),
         transcriptKey: z.string().optional(),
@@ -424,22 +934,35 @@ export const appRouter = router({
         additionalNotes: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
-        const application = await createApplication(input);
+        // Generate reference number
+        const referenceNumber = await generateReferenceNumber();
+        
+        const applicationData = {
+          ...input,
+          referenceNumber,
+          statusHistory: JSON.stringify([{
+            status: "submitted",
+            timestamp: new Date().toISOString(),
+            updatedBy: "System",
+          }]),
+        };
+
+        const application = await createApplication(applicationData);
         if (application) {
           const unis = JSON.parse(input.selectedUniversities);
           const uniNames = unis.map((u: any) => `${u.university} (${u.country})`).join(", ");
           await notifyOwner({
             title: `New Application: ${input.fullName}`,
-            content: `Student: ${input.fullName}\nEmail: ${input.email}\nPhone: ${input.phone}\nSchool: ${input.currentSchool || 'N/A'}\nApplying to: ${uniNames}\nIELTS: ${input.ieltsScore || 'N/A'}`
+            content: `Reference: ${referenceNumber}\nStudent: ${input.fullName}\nEmail: ${input.email}\nPhone: ${input.phone}\nSchool: ${input.currentSchool || 'N/A'}\nApplying to: ${uniNames}\nIELTS: ${input.ieltsScore || 'N/A'}`
           });
         }
-        return { success: true, application };
+        return { success: true, application, referenceNumber };
       }),
 
     uploadDocument: publicProcedure
       .input(z.object({
         fileName: z.string(),
-        fileData: z.string(), // base64
+        fileData: z.string(),
         fileType: z.string(),
         documentType: z.string(),
       }))
@@ -468,7 +991,7 @@ export const appRouter = router({
     updateStatus: protectedProcedure
       .input(z.object({
         id: z.number(),
-        status: z.enum(["submitted", "reviewing", "processing", "accepted", "rejected"]),
+        status: z.enum(["submitted", "reviewing", "processing", "on_hold", "offer_received", "accepted", "enrolled", "rejected"]),
       }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') return { success: false };

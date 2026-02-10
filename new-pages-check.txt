@@ -1,0 +1,9 @@
+All 3 new pages verified in browser:
+
+1. Book Consultation (/book) - Working. Shows 3-step wizard: Type selection (General, University, IELTS, Visa, Scholarship), Date & Time, Details. Clean UI with step indicator.
+
+2. IELTS Practice (/ielts/practice) - Working. Shows registration form first (name, email, phone). After registration, students select section and get AI-generated questions.
+
+3. Track Application (/track) - Working. Shows email input with "Find My Applications" button. Note about 24-hour magic link validity. Clean, simple interface.
+
+All pages have proper navigation with all links visible.

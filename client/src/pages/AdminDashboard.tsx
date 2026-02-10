@@ -5,19 +5,42 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Users, FileText, MessageSquare, Phone, Mail, Globe, 
   Calendar, Clock, ChevronRight, ExternalLink, Loader2,
-  LogOut, Home
+  LogOut, Home, CalendarCheck, BookOpen, Search, ClipboardList, Edit, Save, X
 } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { getLoginUrl } from "@/const";
 
-type TabType = "leads" | "conversations" | "documents";
+type TabType = "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts";
+
+const APP_STATUS_OPTIONS = [
+  "submitted", "reviewing", "processing", "on_hold", 
+  "offer_received", "accepted", "enrolled", "rejected"
+];
+
+const APP_STATUS_COLORS: Record<string, string> = {
+  submitted: "bg-blue-100 text-blue-800",
+  reviewing: "bg-yellow-100 text-yellow-800",
+  processing: "bg-indigo-100 text-indigo-800",
+  on_hold: "bg-orange-100 text-orange-800",
+  offer_received: "bg-green-100 text-green-800",
+  accepted: "bg-emerald-100 text-emerald-800",
+  enrolled: "bg-teal-100 text-teal-800",
+  rejected: "bg-red-100 text-red-800",
+};
 
 export default function AdminDashboard() {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("leads");
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
+  const [editingAppId, setEditingAppId] = useState<number | null>(null);
+  const [editStatus, setEditStatus] = useState("");
+  const [editCounselor, setEditCounselor] = useState("");
+  const [adminNote, setAdminNote] = useState("");
+  const [adminNoteAppId, setAdminNoteAppId] = useState<number | null>(null);
+  const [adminNoteIsInternal, setAdminNoteIsInternal] = useState(false);
+  const utils = trpc.useUtils();
 
   const { data: leadsData, isLoading: leadsLoading } = trpc.admin.getLeads.useQuery(undefined, {
     enabled: isAuthenticated && user?.role === 'admin'
@@ -36,7 +59,38 @@ export default function AdminDashboard() {
     { enabled: !!selectedConversationId && isAuthenticated && user?.role === 'admin' }
   );
 
+  const { data: appointmentsData, isLoading: appointmentsLoading } = trpc.admin.getAppointments.useQuery(undefined, {
+    enabled: isAuthenticated && user?.role === 'admin' && activeTab === 'appointments'
+  });
+
+  const { data: applicationsData, isLoading: applicationsLoading } = trpc.application.getAll.useQuery(undefined, {
+    enabled: isAuthenticated && user?.role === 'admin' && activeTab === 'applications'
+  });
+
+  const { data: ieltsData, isLoading: ieltsLoading } = trpc.admin.getIeltsPracticeResults.useQuery(undefined, {
+    enabled: isAuthenticated && user?.role === 'admin' && activeTab === 'ielts'
+  });
+
   const updateLeadMutation = trpc.admin.updateLead.useMutation();
+
+  const updateAppointmentMutation = trpc.admin.updateAppointmentStatus.useMutation({
+    onSuccess: () => utils.admin.getAppointments.invalidate()
+  });
+
+  const updateApplicationMutation = trpc.admin.updateApplicationFull.useMutation({
+    onSuccess: () => {
+      setEditingAppId(null);
+      utils.application.getAll.invalidate();
+    }
+  });
+
+  const addAdminNoteMutation = trpc.admin.addApplicationNote.useMutation({
+    onSuccess: () => {
+      setAdminNote("");
+      setAdminNoteAppId(null);
+      utils.application.getAll.invalidate();
+    }
+  });
 
   if (loading) {
     return (
@@ -100,6 +154,16 @@ export default function AdminDashboard() {
     }
   };
 
+  const getAppointmentStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'confirmed': return 'bg-green-100 text-green-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      case 'completed': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -125,69 +189,100 @@ export default function AdminDashboard() {
 
       <div className="container py-8">
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-card p-6 rounded-xl border border-border">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Users className="w-6 h-6 text-primary" />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          <div className="bg-card p-4 rounded-xl border border-border">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <div className="text-2xl font-bold">{leadsData?.leads?.length || 0}</div>
-                <div className="text-sm text-muted-foreground">Total Leads</div>
+                <div className="text-xl font-bold">{leadsData?.leads?.length || 0}</div>
+                <div className="text-xs text-muted-foreground">Leads</div>
               </div>
             </div>
           </div>
-          <div className="bg-card p-6 rounded-xl border border-border">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center">
-                <MessageSquare className="w-6 h-6 text-accent" />
+          <div className="bg-card p-4 rounded-xl border border-border">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
+                <MessageSquare className="w-5 h-5 text-accent" />
               </div>
               <div>
-                <div className="text-2xl font-bold">{conversationsData?.conversations?.length || 0}</div>
-                <div className="text-sm text-muted-foreground">Conversations</div>
+                <div className="text-xl font-bold">{conversationsData?.conversations?.length || 0}</div>
+                <div className="text-xs text-muted-foreground">Chats</div>
               </div>
             </div>
           </div>
-          <div className="bg-card p-6 rounded-xl border border-border">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <FileText className="w-6 h-6 text-green-600" />
+          <div className="bg-card p-4 rounded-xl border border-border">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <FileText className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold">{documentsData?.documents?.length || 0}</div>
-                <div className="text-sm text-muted-foreground">Documents</div>
+                <div className="text-xl font-bold">{documentsData?.documents?.length || 0}</div>
+                <div className="text-xs text-muted-foreground">Docs</div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-card p-4 rounded-xl border border-border">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <CalendarCheck className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <div className="text-xl font-bold">{appointmentsData?.appointments?.length || 0}</div>
+                <div className="text-xs text-muted-foreground">Bookings</div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-card p-4 rounded-xl border border-border">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                <ClipboardList className="w-5 h-5 text-indigo-600" />
+              </div>
+              <div>
+                <div className="text-xl font-bold">{applicationsData?.applications?.length || 0}</div>
+                <div className="text-xs text-muted-foreground">Applications</div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-card p-4 rounded-xl border border-border">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <div className="text-xl font-bold">{ieltsData?.results?.length || 0}</div>
+                <div className="text-xs text-muted-foreground">IELTS Tests</div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          <Button 
-            variant={activeTab === 'leads' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('leads')}
-          >
-            <Users className="w-4 h-4 mr-2" />
-            Leads
+        <div className="flex flex-wrap gap-2 mb-6">
+          <Button variant={activeTab === 'leads' ? 'default' : 'outline'} onClick={() => setActiveTab('leads')} size="sm">
+            <Users className="w-4 h-4 mr-2" /> Leads
           </Button>
-          <Button 
-            variant={activeTab === 'conversations' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('conversations')}
-          >
-            <MessageSquare className="w-4 h-4 mr-2" />
-            Conversations
+          <Button variant={activeTab === 'applications' ? 'default' : 'outline'} onClick={() => setActiveTab('applications')} size="sm">
+            <ClipboardList className="w-4 h-4 mr-2" /> Applications
           </Button>
-          <Button 
-            variant={activeTab === 'documents' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('documents')}
-          >
-            <FileText className="w-4 h-4 mr-2" />
-            Documents
+          <Button variant={activeTab === 'appointments' ? 'default' : 'outline'} onClick={() => setActiveTab('appointments')} size="sm">
+            <CalendarCheck className="w-4 h-4 mr-2" /> Appointments
+          </Button>
+          <Button variant={activeTab === 'ielts' ? 'default' : 'outline'} onClick={() => setActiveTab('ielts')} size="sm">
+            <BookOpen className="w-4 h-4 mr-2" /> IELTS Practice
+          </Button>
+          <Button variant={activeTab === 'conversations' ? 'default' : 'outline'} onClick={() => setActiveTab('conversations')} size="sm">
+            <MessageSquare className="w-4 h-4 mr-2" /> Conversations
+          </Button>
+          <Button variant={activeTab === 'documents' ? 'default' : 'outline'} onClick={() => setActiveTab('documents')} size="sm">
+            <FileText className="w-4 h-4 mr-2" /> Documents
           </Button>
         </div>
 
         {/* Content */}
         <div className="bg-card rounded-xl border border-border overflow-hidden">
+          {/* ===== LEADS TAB ===== */}
           {activeTab === 'leads' && (
             <div>
               {leadsLoading ? (
@@ -213,47 +308,33 @@ export default function AdminDashboard() {
                           <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                             {lead.studentPhone && (
                               <a href={`tel:${lead.studentPhone}`} className="flex items-center gap-1 hover:text-foreground">
-                                <Phone className="w-4 h-4" />
-                                {lead.studentPhone}
+                                <Phone className="w-4 h-4" /> {lead.studentPhone}
                               </a>
                             )}
                             {lead.studentEmail && (
                               <a href={`mailto:${lead.studentEmail}`} className="flex items-center gap-1 hover:text-foreground">
-                                <Mail className="w-4 h-4" />
-                                {lead.studentEmail}
+                                <Mail className="w-4 h-4" /> {lead.studentEmail}
                               </a>
                             )}
                             {lead.preferredCountry && (
                               <span className="flex items-center gap-1">
-                                <Globe className="w-4 h-4" />
-                                {lead.preferredCountry}
+                                <Globe className="w-4 h-4" /> {lead.preferredCountry}
                               </span>
                             )}
                             <span className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4" />
-                              {formatDate(lead.createdAt)}
+                              <Calendar className="w-4 h-4" /> {formatDate(lead.createdAt)}
                             </span>
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <a 
-                            href={`https://wa.me/${lead.studentPhone?.replace(/\D/g, '')}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                          >
+                          <a href={`https://wa.me/${lead.studentPhone?.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
                             <Button size="sm" variant="outline">
-                              <Phone className="w-4 h-4 mr-1" />
-                              WhatsApp
+                              <Phone className="w-4 h-4 mr-1" /> WhatsApp
                             </Button>
                           </a>
                           <select
                             value={lead.status}
-                            onChange={(e) => {
-                              updateLeadMutation.mutate({
-                                id: lead.id,
-                                status: e.target.value as any
-                              });
-                            }}
+                            onChange={(e) => updateLeadMutation.mutate({ id: lead.id, status: e.target.value as any })}
                             className="px-3 py-1 text-sm border border-border rounded-md bg-background"
                           >
                             <option value="new">New</option>
@@ -271,9 +352,299 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* ===== APPLICATIONS TAB ===== */}
+          {activeTab === 'applications' && (
+            <div>
+              {applicationsLoading ? (
+                <div className="p-8 text-center">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                </div>
+              ) : applicationsData?.applications?.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  No applications yet. Applications will appear here when students submit Quick Apply forms.
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {applicationsData?.applications?.map((app) => {
+                    const universities = (() => { try { return JSON.parse(app.selectedUniversities); } catch { return []; } })();
+                    const isEditing = editingAppId === app.id;
+                    
+                    return (
+                      <div key={app.id} className="p-6 hover:bg-muted/50 transition-colors">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <div className="flex items-center gap-3 mb-1">
+                              <h3 className="font-semibold text-lg">{app.fullName}</h3>
+                              <span className="font-mono text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                                {app.referenceNumber || `#${app.id}`}
+                              </span>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${APP_STATUS_COLORS[app.status] || 'bg-gray-100 text-gray-800'}`}>
+                                {app.status.replace(/_/g, ' ')}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                              <a href={`mailto:${app.email}`} className="flex items-center gap-1 hover:text-foreground">
+                                <Mail className="w-3.5 h-3.5" /> {app.email}
+                              </a>
+                              <a href={`tel:${app.phone}`} className="flex items-center gap-1 hover:text-foreground">
+                                <Phone className="w-3.5 h-3.5" /> {app.phone}
+                              </a>
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5" /> {formatDate(app.createdAt)}
+                              </span>
+                              {app.assignedCounselor && (
+                                <span className="flex items-center gap-1 text-blue-600">
+                                  Counselor: {app.assignedCounselor}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            {isEditing ? (
+                              <>
+                                <Button size="sm" onClick={() => {
+                                  updateApplicationMutation.mutate({
+                                    id: app.id,
+                                    status: editStatus as any,
+                                    assignedCounselor: editCounselor || undefined
+                                  });
+                                }} disabled={updateApplicationMutation.isPending}>
+                                  <Save className="w-4 h-4 mr-1" /> Save
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => setEditingAppId(null)}>
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <Button size="sm" variant="outline" onClick={() => {
+                                setEditingAppId(app.id);
+                                setEditStatus(app.status);
+                                setEditCounselor(app.assignedCounselor || "");
+                              }}>
+                                <Edit className="w-4 h-4 mr-1" /> Edit
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        {isEditing && (
+                          <div className="bg-muted/50 rounded-lg p-4 mb-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
+                              <select
+                                value={editStatus}
+                                onChange={(e) => setEditStatus(e.target.value)}
+                                className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background"
+                              >
+                                {APP_STATUS_OPTIONS.map(s => (
+                                  <option key={s} value={s}>{s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-muted-foreground mb-1 block">Assigned Counselor</label>
+                              <input
+                                type="text"
+                                value={editCounselor}
+                                onChange={(e) => setEditCounselor(e.target.value)}
+                                placeholder="Counselor name"
+                                className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Universities */}
+                        {universities.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            {universities.map((uni: any, i: number) => (
+                              <span key={i} className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
+                                {uni.university || uni.name} {uni.program ? `· ${uni.program}` : ''}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Add Note */}
+                        {adminNoteAppId === app.id ? (
+                          <div className="bg-muted/30 rounded-lg p-3 mt-2">
+                            <div className="flex gap-2 mb-2">
+                              <input
+                                type="text"
+                                value={adminNote}
+                                onChange={(e) => setAdminNote(e.target.value)}
+                                placeholder="Write a note..."
+                                className="flex-1 px-3 py-2 text-sm border border-border rounded-md bg-background"
+                              />
+                              <Button size="sm" onClick={() => {
+                                if (adminNote.trim()) {
+                                  addAdminNoteMutation.mutate({
+                                    applicationId: app.id,
+                                    content: adminNote.trim(),
+                                    isPublic: !adminNoteIsInternal
+                                  });
+                                }
+                              }} disabled={addAdminNoteMutation.isPending}>
+                                Send
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => setAdminNoteAppId(null)}>
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <input
+                                type="checkbox"
+                                checked={adminNoteIsInternal}
+                                onChange={(e) => setAdminNoteIsInternal(e.target.checked)}
+                                className="rounded"
+                              />
+                              Internal note (not visible to student)
+                            </label>
+                          </div>
+                        ) : (
+                          <Button size="sm" variant="ghost" className="text-xs" onClick={() => {
+                            setAdminNoteAppId(app.id);
+                            setAdminNote("");
+                            setAdminNoteIsInternal(false);
+                          }}>
+                            <MessageSquare className="w-3.5 h-3.5 mr-1" /> Add Note
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===== APPOINTMENTS TAB ===== */}
+          {activeTab === 'appointments' && (
+            <div>
+              {appointmentsLoading ? (
+                <div className="p-8 text-center">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                </div>
+              ) : appointmentsData?.appointments?.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  No appointments yet. Bookings will appear here when students schedule consultations.
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {appointmentsData?.appointments?.map((apt) => (
+                    <div key={apt.id} className="p-6 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <h3 className="font-semibold">{apt.fullName}</h3>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAppointmentStatusColor(apt.status)}`}>
+                              {apt.status}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5" /> {new Date(apt.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5" /> {apt.timeSlot}
+                            </span>
+                            <span className="flex items-center gap-1 bg-muted px-2 py-0.5 rounded text-xs">
+                              {apt.consultationType}
+                            </span>
+                            <a href={`mailto:${apt.email}`} className="flex items-center gap-1 hover:text-foreground">
+                              <Mail className="w-3.5 h-3.5" /> {apt.email}
+                            </a>
+                            <a href={`tel:${apt.phone}`} className="flex items-center gap-1 hover:text-foreground">
+                              <Phone className="w-3.5 h-3.5" /> {apt.phone}
+                            </a>
+                          </div>
+                          {apt.notes && (
+                            <p className="text-sm text-muted-foreground italic">"{apt.notes}"</p>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <a href={`https://wa.me/${apt.phone?.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
+                            <Button size="sm" variant="outline">
+                              <Phone className="w-4 h-4 mr-1" /> WhatsApp
+                            </Button>
+                          </a>
+                          <select
+                            value={apt.status}
+                            onChange={(e) => updateAppointmentMutation.mutate({ id: apt.id, status: e.target.value as any })}
+                            className="px-3 py-1 text-sm border border-border rounded-md bg-background"
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===== IELTS PRACTICE TAB ===== */}
+          {activeTab === 'ielts' && (
+            <div>
+              {ieltsLoading ? (
+                <div className="p-8 text-center">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                </div>
+              ) : ieltsData?.results?.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  No IELTS practice results yet. Results will appear here when students complete practice tests.
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {ieltsData?.results?.map((result: any) => (
+                    <div key={result.id} className="p-6 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <h3 className="font-semibold">{result.fullName}</h3>
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-800">
+                              {result.section.toUpperCase()}
+                            </span>
+                            {result.score !== null && (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Score: {result.score}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                            <a href={`mailto:${result.email}`} className="flex items-center gap-1 hover:text-foreground">
+                              <Mail className="w-3.5 h-3.5" /> {result.email}
+                            </a>
+                            {result.phone && (
+                              <a href={`tel:${result.phone}`} className="flex items-center gap-1 hover:text-foreground">
+                                <Phone className="w-3.5 h-3.5" /> {result.phone}
+                              </a>
+                            )}
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5" /> {formatDate(result.createdAt)}
+                            </span>
+                          </div>
+                        </div>
+                        <a href={`https://wa.me/${result.phone?.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="outline">
+                            <Phone className="w-4 h-4 mr-1" /> Follow Up
+                          </Button>
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===== CONVERSATIONS TAB ===== */}
           {activeTab === 'conversations' && (
             <div className="grid md:grid-cols-2 divide-x divide-border">
-              {/* Conversations List */}
               <div>
                 {conversationsLoading ? (
                   <div className="p-8 text-center">
@@ -296,16 +667,10 @@ export default function AdminDashboard() {
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <div className="font-medium">
-                                {conv.studentName || 'Anonymous'}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {conv.preferredCountry || 'No country selected'}
-                              </div>
+                              <div className="font-medium">{conv.studentName || 'Anonymous'}</div>
+                              <div className="text-sm text-muted-foreground">{conv.preferredCountry || 'No country selected'}</div>
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              {formatDate(conv.createdAt)}
-                            </div>
+                            <div className="text-xs text-muted-foreground">{formatDate(conv.createdAt)}</div>
                           </div>
                         </button>
                       ))}
@@ -313,28 +678,15 @@ export default function AdminDashboard() {
                   </ScrollArea>
                 )}
               </div>
-
-              {/* Messages */}
               <div>
                 {selectedConversationId ? (
                   <ScrollArea className="h-[500px] p-4">
                     <div className="space-y-4">
                       {conversationMessages?.messages?.map((msg, index) => (
-                        <div
-                          key={index}
-                          className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div
-                            className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                              msg.role === 'user'
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted'
-                            }`}
-                          >
+                        <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[80%] rounded-lg px-4 py-2 ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                             <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                            <p className="text-xs opacity-70 mt-1">
-                              {formatDate(msg.createdAt)}
-                            </p>
+                            <p className="text-xs opacity-70 mt-1">{formatDate(msg.createdAt)}</p>
                           </div>
                         </div>
                       ))}
@@ -349,6 +701,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* ===== DOCUMENTS TAB ===== */}
           {activeTab === 'documents' && (
             <div>
               {documentsLoading ? (
@@ -377,8 +730,7 @@ export default function AdminDashboard() {
                       </div>
                       <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
                         <Button size="sm" variant="outline">
-                          <ExternalLink className="w-4 h-4 mr-1" />
-                          View
+                          <ExternalLink className="w-4 h-4 mr-1" /> View
                         </Button>
                       </a>
                     </div>

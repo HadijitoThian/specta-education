@@ -16,6 +16,9 @@ import Malaysia from "./pages/Malaysia";
 import CountryPage from "./pages/CountryPage";
 import Compare from "./pages/Compare";
 import Apply from "./pages/Apply";
+import BookConsultation from "./pages/BookConsultation";
+import IELTSPractice from "./pages/IELTSPractice";
+import TrackApplication from "./pages/TrackApplication";
 
 function Router() {
   return (
@@ -23,6 +26,7 @@ function Router() {
       <Route path={"/"} component={Home} />
       <Route path={"/about"} component={About} />
       <Route path={"/ielts"} component={IELTS} />
+      <Route path={"/ielts/practice"} component={IELTSPractice} />
       <Route path={"/destinations"} component={Destinations} />
       <Route path={"/destinations/:slug"} component={CountryPage} />
       <Route path={"/malaysia"} component={Malaysia} />
@@ -30,6 +34,9 @@ function Router() {
       <Route path={"/contact"} component={Contact} />
       <Route path={"/compare"} component={Compare} />
       <Route path={"/apply"} component={Apply} />
+      <Route path={"/book"} component={BookConsultation} />
+      <Route path={"/track"} component={TrackApplication} />
+      <Route path={"/track/:token"} component={TrackApplication} />
       <Route path={"/admin"} component={AdminDashboard} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
