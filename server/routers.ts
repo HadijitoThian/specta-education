@@ -49,7 +49,9 @@ import {
   getCounselorById,
   updateCounselor,
   deleteCounselor,
-  updateCounselorWorkload
+  updateCounselorWorkload,
+  createQuizResult,
+  getAllQuizResults
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import crypto from "crypto";
@@ -1056,6 +1058,151 @@ Return as JSON:
         await deleteCounselor(input.id);
         return { success: true };
       }),
+  }),
+
+  // "Which Country Fits You?" Quiz
+  quiz: router({
+    analyze: publicProcedure
+      .input(z.object({
+        answers: z.array(z.object({
+          questionId: z.number(),
+          questionText: z.string(),
+          answer: z.string(),
+        })),
+      }))
+      .mutation(async ({ input }) => {
+        try {
+          const answersText = input.answers.map(a => `${a.questionText}: ${a.answer}`).join('\n');
+
+          const response = await invokeLLM({
+            messages: [
+              {
+                role: 'system',
+                content: `You are an expert education consultant for SpecTa Education, an Indonesian study abroad consultancy. Based on a student's quiz answers, analyze their preferences and match them with the best study abroad destinations.
+
+You MUST respond with valid JSON matching this exact structure:
+{
+  "countries": [
+    {
+      "country": "Country Name",
+      "flag": "emoji flag",
+      "matchPercentage": 92,
+      "tagline": "Short catchy reason why this country fits",
+      "reasons": ["Reason 1", "Reason 2", "Reason 3"],
+      "universities": [
+        { "name": "University Name", "program": "Recommended program", "tuitionRange": "$X-$Y/year" }
+      ],
+      "monthlyCost": "$X-$Y",
+      "popularMajors": ["Major 1", "Major 2"],
+      "funFact": "An interesting or fun fact about studying in this country"
+    }
+  ]
+}
+
+Available countries: Australia, United Kingdom, USA, Canada, China, Malaysia, Singapore, Ireland, Netherlands, New Zealand.
+
+Rules:
+- Return exactly 5 countries ranked by match percentage (highest first)
+- Match percentages should range from 60-98 (never 100)
+- Consider budget, lifestyle, weather, career goals, IELTS readiness, and cultural preferences
+- Recommend 2-3 universities per country that are realistic for Indonesian students
+- Include a mix of top-ranked and accessible universities
+- Make taglines fun and engaging
+- Fun facts should be relatable to students`
+              },
+              {
+                role: 'user',
+                content: `Here are the student's quiz answers:\n\n${answersText}\n\nAnalyze these preferences and return the top 5 matching countries with details.`
+              }
+            ],
+            response_format: {
+              type: 'json_schema',
+              json_schema: {
+                name: 'quiz_results',
+                strict: true,
+                schema: {
+                  type: 'object',
+                  properties: {
+                    countries: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          country: { type: 'string' },
+                          flag: { type: 'string' },
+                          matchPercentage: { type: 'integer' },
+                          tagline: { type: 'string' },
+                          reasons: { type: 'array', items: { type: 'string' } },
+                          universities: {
+                            type: 'array',
+                            items: {
+                              type: 'object',
+                              properties: {
+                                name: { type: 'string' },
+                                program: { type: 'string' },
+                                tuitionRange: { type: 'string' }
+                              },
+                              required: ['name', 'program', 'tuitionRange'],
+                              additionalProperties: false
+                            }
+                          },
+                          monthlyCost: { type: 'string' },
+                          popularMajors: { type: 'array', items: { type: 'string' } },
+                          funFact: { type: 'string' }
+                        },
+                        required: ['country', 'flag', 'matchPercentage', 'tagline', 'reasons', 'universities', 'monthlyCost', 'popularMajors', 'funFact'],
+                        additionalProperties: false
+                      }
+                    }
+                  },
+                  required: ['countries'],
+                  additionalProperties: false
+                }
+              }
+            }
+          });
+
+          const content = response.choices?.[0]?.message?.content;
+          if (!content) throw new Error('No response from AI');
+
+          const parsed = JSON.parse(content as string);
+          return { success: true, results: parsed.countries };
+        } catch (error) {
+          console.error('Quiz analysis error:', error);
+          return { success: false, results: [] };
+        }
+      }),
+
+    saveResult: publicProcedure
+      .input(z.object({
+        studentName: z.string().optional(),
+        studentEmail: z.string().email().optional(),
+        studentPhone: z.string().optional(),
+        answers: z.string(), // JSON string
+        matchedCountries: z.string(), // JSON string
+        topMatch: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        try {
+          const result = await createQuizResult(input);
+          if (input.studentEmail) {
+            await notifyOwner({
+              title: '🎯 New Quiz Completed',
+              content: `${input.studentName || 'A student'} (${input.studentEmail}) completed the Country Quiz. Top match: ${input.topMatch}.`,
+            });
+          }
+          return { success: true, result };
+        } catch (error) {
+          console.error('Save quiz result error:', error);
+          return { success: false, result: null };
+        }
+      }),
+
+    getAll: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return { results: [] };
+      const results = await getAllQuizResults();
+      return { results };
+    }),
   }),
 
   // User role management (admin only)

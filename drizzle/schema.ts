@@ -252,3 +252,20 @@ export const counselors = mysqlTable("counselors", {
 
 export type Counselor = typeof counselors.$inferSelect;
 export type InsertCounselor = typeof counselors.$inferInsert;
+
+/**
+ * Quiz Results table - stores "Which Country Fits You?" quiz results
+ */
+export const quizResults = mysqlTable("quizResults", {
+  id: int("id").autoincrement().primaryKey(),
+  studentName: varchar("studentName", { length: 255 }),
+  studentEmail: varchar("studentEmail", { length: 320 }),
+  studentPhone: varchar("studentPhone", { length: 50 }),
+  answers: text("answers").notNull(), // JSON: array of {questionId, answer}
+  matchedCountries: text("matchedCountries").notNull(), // JSON: array of {country, matchPercentage, universities}
+  topMatch: varchar("topMatch", { length: 100 }).notNull(), // Top matched country
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type QuizResult = typeof quizResults.$inferSelect;
+export type InsertQuizResult = typeof quizResults.$inferInsert;

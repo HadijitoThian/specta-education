@@ -108,6 +108,9 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
           <button onClick={() => handleNavClick("/track")} className={`text-sm font-medium transition-colors ${isActive("track") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             Track
           </button>
+          <button onClick={() => handleNavClick("/quiz")} className={`text-sm font-medium transition-colors flex items-center gap-1 ${isActive("quiz") ? "text-primary" : "text-purple-600 hover:text-purple-700"}`}>
+            <span>✨</span> Country Quiz
+          </button>
         </div>
         
         {/* Desktop CTA Buttons */}
@@ -196,6 +199,9 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             </button>
             <button onClick={() => handleNavClick("/track")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
               Track Application
+            </button>
+            <button onClick={() => handleNavClick("/quiz")} className="block w-full text-left text-sm font-medium text-purple-600 hover:text-purple-700">
+              ✨ Country Quiz
             </button>
             <div className="pt-4 border-t border-border space-y-3">
               <button onClick={() => handleNavClick("/book")} className="block w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg text-sm font-semibold text-center hover:shadow-lg transition-all">

@@ -54,7 +54,7 @@ const universities: University[] = [
     name: "Taylor's University",
     shortName: "Taylor's",
     logo: "/taylors-logo.png",
-    campusImage: "/taylors-campus.jpg",
+    campusImage: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/AAkMQonwpGTFfxlx.jpg",
     ranking: "#284",
     rankingDetail: "QS World University Rankings 2026",
     location: "Subang Jaya, Selangor",

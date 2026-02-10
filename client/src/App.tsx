@@ -19,6 +19,7 @@ import Apply from "./pages/Apply";
 import BookConsultation from "./pages/BookConsultation";
 import IELTSPractice from "./pages/IELTSPractice";
 import TrackApplication from "./pages/TrackApplication";
+import Quiz from "./pages/Quiz";
 
 function Router() {
   return (
@@ -37,6 +38,7 @@ function Router() {
       <Route path={"/book"} component={BookConsultation} />
       <Route path={"/track"} component={TrackApplication} />
       <Route path={"/track/:token"} component={TrackApplication} />
+      <Route path={"/quiz"} component={Quiz} />
       <Route path={"/admin"} component={AdminDashboard} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />

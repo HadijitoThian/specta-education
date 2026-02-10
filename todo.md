@@ -323,3 +323,20 @@
 - [x] Display real testimonials with student names, ratings, branch, and highlight tags
 - [x] Show branch ratings (PIK 4.9, Kelapa Gading 4.9, Gading Serpong 5.0)
 - [x] 9 review cards in 3x3 grid with Google Maps link to all 276+ reviews
+
+### 25. "Which Country Fits You?" Interactive Quiz
+- [x] Create quizResults database table (answers, matchedCountries, name, email, phone)
+- [x] Build quiz server endpoint with AI-powered country matching
+- [x] Build /quiz page with animated card-swipe UI
+- [x] 10 fun personality-style questions with visual answer options
+- [x] Progress bar showing quiz completion
+- [x] AI analysis of answers to score and rank countries
+- [x] Beautiful result card with top 3 matching countries and match percentages
+- [x] Recommended universities for each matched country
+- [x] Share result button (downloadable image)
+- [x] Optional lead capture (name/email) before showing results
+- [x] Store quiz results in database for analytics
+- [x] Add quiz promotion banner on homepage
+- [x] Add quiz CTA on destinations page
+- [x] Add "Country Quiz" to navigation menu with sparkle highlight
+- [x] Confetti animation on result reveal (built into quiz results page)

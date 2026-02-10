@@ -12,7 +12,8 @@ import {
   trackingTokens, InsertTrackingToken, TrackingToken,
   appointments, InsertAppointment, Appointment,
   ieltsPracticeResults, InsertIeltsPracticeResult, IeltsPracticeResult,
-  counselors, InsertCounselor, Counselor
+  counselors, InsertCounselor, Counselor,
+  quizResults, InsertQuizResult, QuizResult
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -466,6 +467,23 @@ export async function updateCounselorWorkload(counselorName: string, increment: 
     const current = result[0].activeApplications || 0;
     await db.update(counselors).set({ activeApplications: Math.max(0, current + increment) }).where(eq(counselors.id, result[0].id));
   }
+}
+
+// Quiz Results helpers
+export async function createQuizResult(data: InsertQuizResult): Promise<QuizResult | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  await db.insert(quizResults).values(data);
+  const result = await db.select().from(quizResults).orderBy(desc(quizResults.id)).limit(1);
+  return result[0] || null;
+}
+
+export async function getAllQuizResults(): Promise<QuizResult[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select().from(quizResults).orderBy(desc(quizResults.createdAt));
 }
 
 // Generate reference number for applications

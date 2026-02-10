@@ -210,7 +210,7 @@ export default function ChatBot() {
               >
                 {message.role === "assistant" && (
                   <div className="size-8 shrink-0 mt-1 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center">
-                    <img src="/mascot.png" alt="SpecTa" className="w-full h-full object-cover" />
+                    <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png" alt="SpecTa" className="w-full h-full object-cover" />
                   </div>
                 )}
 
@@ -244,7 +244,7 @@ export default function ChatBot() {
             {(chatMutation.isPending || isUploading) && (
               <div className="flex items-start gap-3">
                 <div className="size-8 shrink-0 mt-1 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center">
-                  <img src="/mascot.png" alt="SpecTa" className="w-full h-full object-cover" />
+                  <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png" alt="SpecTa" className="w-full h-full object-cover" />
                 </div>
                 <div className="rounded-lg bg-muted px-4 py-2.5">
                   <Loader2 className="size-4 animate-spin text-muted-foreground" />

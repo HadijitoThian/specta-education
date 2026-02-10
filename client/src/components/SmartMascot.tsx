@@ -12,14 +12,14 @@ interface SmartMascotProps {
 
 // Mascot images for different emotions
 const emotionImages: Record<MascotEmotion, string> = {
-  neutral: "/mascot.png",
-  happy: "/mascot.png",
-  excited: "/mascot-celebrating.png",
-  curious: "/mascot-thinking.png",
-  supportive: "/mascot.png",
-  celebrating: "/mascot-celebrating.png",
-  thinking: "/mascot-thinking.png",
-  waving: "/mascot-waving.png"
+  neutral: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png",
+  happy: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png",
+  excited: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/mHfcoLTVeHOgtyJc.png",
+  curious: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/mZzfiMupcbdtczPP.png",
+  supportive: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png",
+  celebrating: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/mHfcoLTVeHOgtyJc.png",
+  thinking: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/mZzfiMupcbdtczPP.png",
+  waving: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/CaSUALRPwpkQDDyz.png"
 };
 
 // Animation variants for different emotions
@@ -259,7 +259,7 @@ export default function SmartMascot({ onChatOpen, className }: SmartMascotProps)
             alt="SpecTa AI Assistant"
             className="w-20 h-20 object-contain drop-shadow-lg"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = "/mascot.png";
+              (e.target as HTMLImageElement).src = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png";
             }}
           />
         </motion.div>

@@ -319,7 +319,7 @@ export default function Contact() {
             >
               <div className="flex items-center justify-between p-4 border-b border-border bg-primary text-primary-foreground">
                 <div className="flex items-center gap-3">
-                  <img src="/mascot.png" alt="SpecTa AI" className="w-10 h-10 object-contain" />
+                  <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png" alt="SpecTa AI" className="w-10 h-10 object-contain" />
                   <div>
                     <h3 className="font-semibold">SpecTa AI Assistant</h3>
                     <p className="text-xs text-primary-foreground/80">Online • Ready to help</p>

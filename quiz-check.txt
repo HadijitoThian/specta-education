@@ -1,0 +1,6 @@
+Homepage observations:
+- Baymax-style chatbot icon visible in bottom-right with "Ask SpecTa" text - looks great, round white face with oval eyes
+- "Country Quiz" link visible in navigation with sparkle emoji, highlighted in purple
+- Navigation has: Home, About Us, IELTS, Destinations, Compare, Articles, Contact, Track, Country Quiz, Book Consultation, Quick Apply, Contact
+- Dev server running with 0 TypeScript errors
+- Need to check the quiz page itself and write tests

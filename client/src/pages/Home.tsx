@@ -302,6 +302,35 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Country Quiz Promo Banner */}
+      <section className="py-12">
+        <div className="container">
+          <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 rounded-3xl p-8 md:p-12 relative overflow-hidden">
+            {/* Floating emojis */}
+            <div className="absolute top-4 left-8 text-4xl opacity-20 animate-bounce" style={{ animationDelay: '0s' }}>🌏</div>
+            <div className="absolute top-6 right-12 text-3xl opacity-20 animate-bounce" style={{ animationDelay: '0.5s' }}>✈️</div>
+            <div className="absolute bottom-4 left-1/4 text-3xl opacity-20 animate-bounce" style={{ animationDelay: '1s' }}>🎓</div>
+            <div className="absolute bottom-6 right-1/4 text-4xl opacity-20 animate-bounce" style={{ animationDelay: '1.5s' }}>🌟</div>
+            
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="text-center md:text-left">
+                <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-4 py-1.5 mb-4">
+                  <span className="text-yellow-300">✨</span>
+                  <span className="text-white/90 text-sm font-medium">2-Minute Fun Quiz</span>
+                </div>
+                <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">Not Sure Where to Study?</h3>
+                <p className="text-white/80 text-lg max-w-md">Take our fun quiz and let AI match you with your perfect study abroad destination!</p>
+              </div>
+              <Link href="/quiz">
+                <button className="bg-white text-indigo-600 font-bold text-lg px-8 py-4 rounded-2xl hover:bg-yellow-300 hover:text-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 whitespace-nowrap">
+                  Take the Quiz →
+                </button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Student Success Stories Section - Real Google Reviews */}
       <section className="py-20">
         <div className="container">
@@ -507,7 +536,7 @@ export default function Home() {
               <div className="flex items-center justify-between p-4 border-b border-border bg-primary text-primary-foreground">
                 <div className="flex items-center gap-3">
                   <motion.img 
-                    src="/mascot.png" 
+                    src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png" 
                     alt="SpecTa AI" 
                     className="w-10 h-10 object-contain"
                     animate={{ rotate: [0, 5, -5, 0] }}

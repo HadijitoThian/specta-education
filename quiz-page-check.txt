@@ -1,0 +1,8 @@
+Quiz page looks great:
+- Beautiful gradient background (purple to pink to orange)
+- Floating animated emojis (globe, graduation cap, airplane, star)
+- Clean white card with "Which Country Fits You?" heading
+- Country flag badges (Australia, UK, USA, Canada, China, Malaysia, Singapore, Ireland, Netherlands, New Zealand)
+- "Start the Quiz" button
+- "No sign-up required - Results in seconds" text
+- Full-screen immersive experience, no navigation bar (intentional for focus)
