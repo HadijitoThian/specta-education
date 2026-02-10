@@ -74,6 +74,24 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
                 <button onClick={() => handleNavClick("/destinations/singapore")} className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
                   🇸🇬 Singapore
                 </button>
+                <button onClick={() => handleNavClick("/destinations/china")} className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
+                  🇨🇳 China
+                </button>
+                <button onClick={() => handleNavClick("/destinations/usa")} className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
+                  🇺🇸 USA
+                </button>
+                <button onClick={() => handleNavClick("/destinations/canada")} className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
+                  🇨🇦 Canada
+                </button>
+                <button onClick={() => handleNavClick("/destinations/ireland")} className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
+                  🇮🇪 Ireland
+                </button>
+                <button onClick={() => handleNavClick("/destinations/new-zealand")} className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
+                  🇳🇿 New Zealand
+                </button>
+                <button onClick={() => handleNavClick("/destinations/netherlands")} className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
+                  🇳🇱 Netherlands
+                </button>
               </div>
             </div>
           </div>
@@ -135,6 +153,24 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
               </button>
               <button onClick={() => handleNavClick("/destinations/singapore")} className="block w-full text-left text-sm text-muted-foreground hover:text-primary pl-4">
                 🇸🇬 Singapore
+              </button>
+              <button onClick={() => handleNavClick("/destinations/china")} className="block w-full text-left text-sm text-muted-foreground hover:text-primary pl-4">
+                🇨🇳 China
+              </button>
+              <button onClick={() => handleNavClick("/destinations/usa")} className="block w-full text-left text-sm text-muted-foreground hover:text-primary pl-4">
+                🇺🇸 USA
+              </button>
+              <button onClick={() => handleNavClick("/destinations/canada")} className="block w-full text-left text-sm text-muted-foreground hover:text-primary pl-4">
+                🇨🇦 Canada
+              </button>
+              <button onClick={() => handleNavClick("/destinations/ireland")} className="block w-full text-left text-sm text-muted-foreground hover:text-primary pl-4">
+                🇮🇪 Ireland
+              </button>
+              <button onClick={() => handleNavClick("/destinations/new-zealand")} className="block w-full text-left text-sm text-muted-foreground hover:text-primary pl-4">
+                🇳🇿 New Zealand
+              </button>
+              <button onClick={() => handleNavClick("/destinations/netherlands")} className="block w-full text-left text-sm text-muted-foreground hover:text-primary pl-4">
+                🇳🇱 Netherlands
               </button>
             </div>
             <button onClick={() => handleNavClick("/articles")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">

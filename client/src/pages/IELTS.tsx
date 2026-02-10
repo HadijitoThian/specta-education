@@ -1,17 +1,34 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { BookOpen, CheckCircle, Clock, Users, Award, Star, ChevronLeft, ChevronRight, MessageCircle, X } from "lucide-react";
+import { BookOpen, CheckCircle, Clock, Users, Award, Star, ChevronLeft, ChevronRight, MessageCircle, X, Shield, Monitor, GraduationCap, UserCheck, RefreshCw, CalendarCheck, FileText, Headphones } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import ChatBot from "@/components/ChatBot";
 import { motion, AnimatePresence } from "framer-motion";
 
-const features = [
-  { icon: Users, title: "Expert Instructors", description: "Learn from certified IELTS trainers with years of experience and proven success rates." },
-  { icon: BookOpen, title: "Comprehensive Materials", description: "Access to the latest IELTS preparation materials, practice tests, and study guides." },
-  { icon: Clock, title: "Flexible Schedule", description: "Choose from various class schedules that fit your lifestyle - weekdays or weekends." },
-  { icon: Award, title: "Proven Results", description: "Our students consistently achieve band scores of 6.5 and above." }
+const ieltsTypes = [
+  {
+    icon: GraduationCap,
+    title: "IELTS Academic Test",
+    description: "Used for academic purposes as entry requirements to educational institutions abroad — from Diploma, Bachelor's, Master's to Doctoral programs.",
+    color: "from-blue-500 to-blue-600"
+  },
+  {
+    icon: FileText,
+    title: "IELTS General Training",
+    description: "Used to meet immigration requirements in various countries for work purposes, temporary and permanent residence permits, and citizenship abroad.",
+    color: "from-emerald-500 to-emerald-600"
+  }
+];
+
+const benefits = [
+  { icon: CalendarCheck, title: "Start Anytime", description: "Start the IELTS Preparation Course anytime you want, without waiting for a certain quota to join." },
+  { icon: Clock, title: "Flexible Time", description: "Choose to join IELTS Preparation Classes with more flexible scheduling options." },
+  { icon: Award, title: "Guaranteed Score", description: "Get your target IELTS Overall Band score — and we guarantee it." },
+  { icon: Shield, title: "Money-back Guarantee", description: "If you are unable to achieve your target score, we will give 100% cashback." },
+  { icon: Monitor, title: "Online & Offline Class", description: "Join classes both online and offline — choose the format that works best for you." },
+  { icon: UserCheck, title: "Experienced Teachers", description: "Our teachers have mentored more than 6,000 students for their successful IELTS tests since 2005." }
 ];
 
 const testimonials = [
@@ -23,9 +40,95 @@ const testimonials = [
 ];
 
 const packages = [
-  { name: "IELTS Basic", duration: "4 Weeks", sessions: "16 Sessions", features: ["All 4 skills covered", "Practice tests included", "Small class size", "Study materials"] },
-  { name: "IELTS Intensive", duration: "8 Weeks", sessions: "32 Sessions", features: ["All 4 skills covered", "Weekly mock tests", "One-on-one feedback", "Speaking practice", "Writing correction"], popular: true },
-  { name: "IELTS Private", duration: "Flexible", sessions: "Custom", features: ["Personalized curriculum", "Flexible scheduling", "Focused improvement", "Unlimited questions", "Priority support"] }
+  {
+    name: "VIP / Guarantee Program",
+    highlight: "Best Value",
+    sessions: "80 Sessions",
+    duration: "Up to 2 Years",
+    features: [
+      "80 Sessions Classes",
+      "Flexible Schedule",
+      "Online/Offline/Combined Classes",
+      "2 Assessments",
+      "FREE Access to SpecTa Education Learning Portal",
+      "Extra Study Duration Up To 2 Years",
+      "Guaranteed Score",
+      "Money Back Guarantee"
+    ],
+    popular: true,
+    color: "primary"
+  },
+  {
+    name: "80 Sessions Program",
+    highlight: null,
+    sessions: "80 Sessions",
+    duration: "4 Months",
+    features: [
+      "80 Sessions Classes",
+      "Flexible Schedule",
+      "Online/Offline/Combined Classes",
+      "1 Assessment",
+      "4 Months Study Duration"
+    ],
+    popular: false,
+    color: "blue"
+  },
+  {
+    name: "40 Sessions Program",
+    highlight: null,
+    sessions: "40 Sessions",
+    duration: "2 Months",
+    features: [
+      "40 Sessions Classes",
+      "Flexible Schedule",
+      "Online/Offline/Combined Classes",
+      "2 Months Study Duration"
+    ],
+    popular: false,
+    color: "indigo"
+  },
+  {
+    name: "Short Course Program",
+    highlight: "Quick Start",
+    sessions: "20 Sessions",
+    duration: "2 Weeks",
+    features: [
+      "20 Sessions Classes",
+      "Flexible Schedule",
+      "Online/Offline/Combined Classes",
+      "2 Weeks Study Duration"
+    ],
+    popular: false,
+    color: "violet"
+  },
+  {
+    name: "Private Program",
+    highlight: "1-on-1",
+    sessions: "Min. 10 Hours",
+    duration: "Flexible",
+    features: [
+      "Minimum 10 Hours Sessions (1-2 Hours per Session)",
+      "One on One Class Set Up",
+      "Flexible Schedule",
+      "Online/Offline/Combined Classes"
+    ],
+    popular: false,
+    color: "rose"
+  },
+  {
+    name: "English Prediction Test (EPT)",
+    highlight: "Mock Test",
+    sessions: "Per Test",
+    duration: "Flexible",
+    features: [
+      "IELTS Prediction Test / Mock Test",
+      "Listening, Reading, Writing, Speaking",
+      "Online/Offline Test Available",
+      "Affordable Price"
+    ],
+    popular: false,
+    color: "amber"
+  }
 ];
 
 export default function IELTS() {
@@ -71,8 +174,11 @@ export default function IELTS() {
             <h1 className="text-4xl md:text-5xl font-bold mb-6">
               Achieve Your Target <span className="text-gradient-specta">IELTS Score</span>
             </h1>
-            <p className="text-lg text-muted-foreground mb-8">
-              Comprehensive IELTS preparation with experienced instructors. Our proven methods have helped thousands of students achieve their target scores.
+            <p className="text-lg text-muted-foreground mb-4">
+              Comprehensive IELTS preparation with experienced instructors since 2005. Our proven methods have helped more than 6,000 students achieve their target scores.
+            </p>
+            <p className="text-base text-primary font-semibold mb-8">
+              Score Guarantee with 100% Money-Back Guarantee
             </p>
             <motion.div 
               className="flex flex-col sm:flex-row gap-4 justify-center"
@@ -91,7 +197,7 @@ export default function IELTS() {
         </div>
       </motion.section>
 
-      {/* Features Section */}
+      {/* IELTS Test Types Section */}
       <section className="py-20">
         <div className="container">
           <motion.div 
@@ -100,11 +206,45 @@ export default function IELTS() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-3xl font-bold mb-4">Why Choose SpecTa IELTS?</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">Our IELTS program is designed to help you succeed</p>
+            <h2 className="text-3xl font-bold mb-4">IELTS Tests</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">Choose the right IELTS test based on your purpose</p>
           </motion.div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature, index) => (
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {ieltsTypes.map((type, index) => (
+              <motion.div 
+                key={index}
+                className="bg-card p-8 rounded-2xl shadow-sm border border-border group hover:shadow-xl hover:border-primary transition-all duration-300"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.15 }}
+                whileHover={{ y: -5 }}
+              >
+                <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${type.color} flex items-center justify-center mb-6`}>
+                  <type.icon className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold mb-3">{type.title}</h3>
+                <p className="text-muted-foreground leading-relaxed">{type.description}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Why Choose SpecTa Section */}
+      <section className="py-20 bg-muted/50">
+        <div className="container">
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="text-3xl font-bold mb-4">Why Choose SpecTa?</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">Benefits of IELTS preparation at SpecTa Education</p>
+          </motion.div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {benefits.map((benefit, index) => (
               <motion.div 
                 key={index} 
                 className="bg-card p-6 rounded-xl shadow-sm border border-border text-center group hover:border-primary hover:shadow-lg transition-all duration-300"
@@ -115,18 +255,18 @@ export default function IELTS() {
                 whileHover={{ y: -5 }}
               >
                 <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary group-hover:text-white transition-all duration-300">
-                  <feature.icon className="w-7 h-7 text-primary group-hover:text-white transition-colors" />
+                  <benefit.icon className="w-7 h-7 text-primary group-hover:text-white transition-colors" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
-                <p className="text-muted-foreground text-sm">{feature.description}</p>
+                <h3 className="text-lg font-semibold mb-2">{benefit.title}</h3>
+                <p className="text-muted-foreground text-sm">{benefit.description}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Packages Section with animations */}
-      <section className="py-20 bg-muted/50">
+      {/* IELTS Preparation Programs Section */}
+      <section className="py-20">
         <div className="container">
           <motion.div 
             className="text-center mb-12"
@@ -134,10 +274,10 @@ export default function IELTS() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-3xl font-bold mb-4">IELTS Packages</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">Choose the package that best fits your needs and schedule</p>
+            <h2 className="text-3xl font-bold mb-4">IELTS Preparation Programs</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">Choose the program that best fits your needs, schedule, and target score</p>
           </motion.div>
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
             {packages.map((pkg, index) => (
               <motion.div 
                 key={index} 
@@ -145,40 +285,45 @@ export default function IELTS() {
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.15 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
                 whileHover={{ y: -8, scale: 1.02 }}
               >
-                {pkg.popular && (
+                {pkg.highlight && (
                   <motion.div 
-                    className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full"
+                    className={`absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 text-xs font-medium rounded-full ${
+                      pkg.popular 
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'bg-muted text-muted-foreground border border-border'
+                    }`}
                     initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.5, type: "spring" }}
+                    whileInView={{ scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.3 + index * 0.1, type: "spring" }}
                   >
-                    Most Popular
+                    {pkg.highlight}
                   </motion.div>
                 )}
-                <h3 className="text-xl font-bold mb-2">{pkg.name}</h3>
-                <div className="flex items-baseline gap-2 mb-4">
-                  <span className="text-2xl font-bold text-primary">{pkg.duration}</span>
-                  <span className="text-muted-foreground">• {pkg.sessions}</span>
+                <h3 className="text-xl font-bold mb-2 mt-1">{pkg.name}</h3>
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className="text-2xl font-bold text-primary">{pkg.sessions}</span>
                 </div>
+                <div className="text-sm text-muted-foreground mb-5">Duration: {pkg.duration}</div>
                 <ul className="space-y-3 mb-6">
                   {pkg.features.map((feature, i) => (
                     <motion.li 
                       key={i} 
-                      className="flex items-center gap-2 text-sm"
+                      className="flex items-start gap-2 text-sm"
                       initial={{ opacity: 0, x: -10 }}
                       whileInView={{ opacity: 1, x: 0 }}
                       viewport={{ once: true }}
-                      transition={{ delay: 0.3 + i * 0.1 }}
+                      transition={{ delay: 0.3 + i * 0.08 }}
                     >
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                      {feature}
+                      <CheckCircle className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                      <span>{feature}</span>
                     </motion.li>
                   ))}
                 </ul>
-                <a href={`https://wa.me/62819668278?text=Hi,%20I'm%20interested%20in%20${pkg.name}`} target="_blank" rel="noopener noreferrer">
+                <a href={`https://wa.me/62819668278?text=Hi,%20I'm%20interested%20in%20the%20${encodeURIComponent(pkg.name)}`} target="_blank" rel="noopener noreferrer">
                   <Button className={`w-full group-hover:scale-105 transition-transform ${pkg.popular ? 'bg-primary' : ''}`} variant={pkg.popular ? 'default' : 'outline'}>
                     Get Started
                   </Button>
@@ -190,7 +335,7 @@ export default function IELTS() {
       </section>
 
       {/* Testimonials Carousel Section */}
-      <section className="py-20">
+      <section className="py-20 bg-muted/50">
         <div className="container">
           <motion.div 
             className="text-center mb-12"
@@ -220,6 +365,9 @@ export default function IELTS() {
                         src={testimonials[currentTestimonial].image} 
                         alt={testimonials[currentTestimonial].name}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(testimonials[currentTestimonial].name)}&size=128&background=E91E63&color=fff`;
+                        }}
                       />
                     </div>
                     <div className="flex-1 text-center md:text-left">
@@ -290,7 +438,7 @@ export default function IELTS() {
           >
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Ace Your IELTS?</h2>
             <p className="text-white/90 max-w-2xl mx-auto mb-8">
-              Join thousands of successful students who achieved their target scores with SpecTa Education.
+              Join more than 6,000 successful students who achieved their target scores with SpecTa Education since 2005. Score guaranteed with money-back guarantee!
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a href="https://wa.me/62819668278?text=Hi,%20I%20want%20to%20register%20for%20IELTS%20class" target="_blank" rel="noopener noreferrer">

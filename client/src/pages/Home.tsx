@@ -8,12 +8,16 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 
 const countries = [
-  { name: "Australia", flag: "🇦🇺", image: "https://images.unsplash.com/photo-1523482580672-f109ba8cb9be?w=400&h=300&fit=crop" },
-  { name: "Singapore", flag: "🇸🇬", image: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=400&h=300&fit=crop" },
-  { name: "Malaysia", flag: "🇲🇾", image: "https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=400&h=300&fit=crop" },
-  { name: "United Kingdom", flag: "🇬🇧", image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&h=300&fit=crop" },
-  { name: "USA", flag: "🇺🇸", image: "https://images.unsplash.com/photo-1485738422979-f5c462d49f74?w=400&h=300&fit=crop" },
-  { name: "Canada", flag: "🇨🇦", image: "https://images.unsplash.com/photo-1517935706615-2717063c2225?w=400&h=300&fit=crop" },
+  { name: "Malaysia", flag: "🇲🇾", slug: "/malaysia", image: "https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=400&h=300&fit=crop" },
+  { name: "Singapore", flag: "🇸🇬", slug: "/destinations/singapore", image: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=400&h=300&fit=crop" },
+  { name: "Australia", flag: "🇦🇺", slug: "/destinations/australia", image: "https://images.unsplash.com/photo-1523482580672-f109ba8cb9be?w=400&h=300&fit=crop" },
+  { name: "United Kingdom", flag: "🇬🇧", slug: "/destinations/united-kingdom", image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&h=300&fit=crop" },
+  { name: "China", flag: "🇨🇳", slug: "/destinations/china", image: "https://images.unsplash.com/photo-1508804185872-d7badad00f7d?w=400&h=300&fit=crop" },
+  { name: "USA", flag: "🇺🇸", slug: "/destinations/usa", image: "https://images.unsplash.com/photo-1485738422979-f5c462d49f74?w=400&h=300&fit=crop" },
+  { name: "Canada", flag: "🇨🇦", slug: "/destinations/canada", image: "https://images.unsplash.com/photo-1517935706615-2717063c2225?w=400&h=300&fit=crop" },
+  { name: "Ireland", flag: "🇮🇪", slug: "/destinations/ireland", image: "https://images.unsplash.com/photo-1590089415225-401ed6f9db8e?w=400&h=300&fit=crop" },
+  { name: "New Zealand", flag: "🇳🇿", slug: "/destinations/new-zealand", image: "https://images.unsplash.com/photo-1469521669194-babb45599def?w=400&h=300&fit=crop" },
+  { name: "Netherlands", flag: "🇳🇱", slug: "/destinations/netherlands", image: "https://images.unsplash.com/photo-1534351590666-13e3e96b5017?w=400&h=300&fit=crop" },
 ];
 
 const stats = [
@@ -220,9 +224,9 @@ export default function Home() {
               Choose from top countries like Australia, the USA, Canada, the UK, and more. We'll help you find the best universities, scholarships, and opportunities.
             </p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {countries.map((country, index) => (
-              <Link key={index} href="/destinations">
+              <Link key={index} href={country.slug}>
                 <motion.div 
                   className="group relative overflow-hidden rounded-xl aspect-[4/3] cursor-pointer"
                   initial={{ opacity: 0, y: 20 }}

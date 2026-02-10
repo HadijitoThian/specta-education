@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useParams } from "wouter";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, Building, DollarSign, Briefcase, Globe, ChevronRight, MessageCircle, X, ArrowLeft } from "lucide-react";
+import { GraduationCap, Building, DollarSign, Briefcase, Globe, ChevronRight, MessageCircle, X, ArrowLeft, MapPin, Calendar, FileText, Heart, Users, Landmark, BookOpen, Home as HomeIcon, Award } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import ChatBot from "@/components/ChatBot";
@@ -12,57 +12,85 @@ const countryData: Record<string, any> = {
     name: "Singapore",
     flag: "🇸🇬",
     heroImage: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=1200&h=600&fit=crop",
-    description: "Singapore is Asia's premier education hub, home to world-renowned universities and a strategic gateway to global opportunities.",
+    description: "Singapore is Asia's premier education hub, offering world-class private institutions with internationally recognized degrees. Its strategic location, safety, and multicultural environment make it an ideal study destination for Indonesian students.",
     stats: [
-      { label: "Universities", value: "6+" },
+      { label: "Private Institutions", value: "20+" },
       { label: "International Students", value: "75,000+" },
-      { label: "Global Ranking", value: "Top 15" },
-      { label: "Graduate Employment", value: "94%" }
+      { label: "Flight from Jakarta", value: "~2 Hours" },
+      { label: "Graduate Employment", value: "90%+" }
     ],
     universities: [
-      { name: "National University of Singapore (NUS)", ranking: "#8 World", programs: ["Engineering", "Business", "Computing", "Medicine"] },
-      { name: "Nanyang Technological University (NTU)", ranking: "#26 World", programs: ["Engineering", "Science", "Business", "Art & Design"] },
-      { name: "Singapore Management University (SMU)", ranking: "Top Business School", programs: ["Business", "Law", "Economics", "IT"] }
+      { name: "Curtin Singapore", ranking: "Curtin University #183 World (QS)", programs: ["Business", "Mass Communication", "Accounting", "Marketing", "Logistics & Supply Chain", "Management"], description: "Australian university campus in Singapore offering quality degrees at lower costs." },
+      { name: "James Cook University (JCU) Singapore", ranking: "JCU #461 World (QS)", programs: ["Business", "IT", "Psychology", "Education", "Aquaculture", "Tourism & Hospitality", "Environmental Science"], description: "Australia's first university to establish a campus in Singapore, offering identical degrees." },
+      { name: "PSB Academy", ranking: "Partner: Coventry, La Trobe, Newcastle", programs: ["Engineering", "Business", "IT", "Life Sciences", "Media & Communications", "Sport & Exercise Science"], description: "One of Singapore's largest private institutions, partnered with top Australian and UK universities." },
+      { name: "Raffles Design Institute", ranking: "Top Design School in Asia", programs: ["Fashion Design", "Interior Design", "Graphic Design", "Product Design", "Jewellery Design", "Visual Communication"], description: "Premier design institution with industry-connected programs and creative studios." },
+      { name: "Management Development Institute of Singapore (MDIS)", ranking: "Est. 1956 - Oldest PEI", programs: ["Business", "Engineering", "Fashion Design", "Health Sciences", "IT", "Media & Communications", "Psychology", "Tourism & Hospitality"], description: "Singapore's oldest not-for-profit professional institute with university partners worldwide." },
+      { name: "Kaplan Singapore", ranking: "Partner: Murdoch, UCD, Northumbria", programs: ["Business", "Accounting & Finance", "Banking", "IT", "Communication", "Law", "Psychology", "Hospitality & Tourism"], description: "Part of Kaplan Inc., one of the world's largest education providers, offering diverse pathways." },
+      { name: "Singapore Institute of Management (SIM)", ranking: "Partner: UOL, Birmingham, RMIT", programs: ["Business", "IT", "Social Sciences", "Arts", "Communication", "Economics", "Data Science"], description: "Singapore's largest private education institution with over 18,000 students and global university partners." },
+      { name: "ERC Institute", ranking: "Partner: Greenwich, Wolverhampton", programs: ["Business", "Accounting & Finance", "Hospitality & Tourism", "Engineering"], description: "Offers affordable pathways to UK university degrees in the heart of Singapore." },
+      { name: "Dimensions International College", ranking: "EduTrust Certified", programs: ["Business", "Hospitality & Tourism", "Early Childhood Education", "English Language"], description: "Focused on hospitality and business education with practical training opportunities." },
+      { name: "Nanyang Institute of Management", ranking: "EduTrust Certified", programs: ["Business", "Hospitality & Tourism", "Logistics", "Early Childhood Education"], description: "Offers diploma and degree programs with strong industry connections in Singapore." }
     ],
     whyStudy: [
-      { icon: GraduationCap, title: "World-Class Education", desc: "Home to globally ranked universities with cutting-edge research facilities" },
-      { icon: Briefcase, title: "Career Opportunities", desc: "Strong job market with connections to multinational companies" },
-      { icon: Globe, title: "Strategic Location", desc: "Gateway to Asia with excellent connectivity to Indonesia" },
-      { icon: DollarSign, title: "Scholarships Available", desc: "Various scholarship programs for international students" }
+      { icon: MapPin, title: "Close to Indonesia", desc: "Just a 2-hour flight from Jakarta, making it easy to visit home" },
+      { icon: Briefcase, title: "Career Opportunities", desc: "Strong job market with connections to multinational companies in Asia" },
+      { icon: Globe, title: "Multicultural Hub", desc: "Diverse population with significant Chinese, Malay, and Indian communities" },
+      { icon: DollarSign, title: "Affordable Private Education", desc: "Lower tuition than Australia/UK with same degree recognition" }
     ],
-    requirements: ["Academic transcripts", "English proficiency (IELTS/TOEFL)", "Statement of Purpose", "Letters of recommendation"],
-    intakes: ["August (Main)", "January (Some programs)"]
+    costOfLiving: {
+      tuition: "SGD 15,000 - 35,000/year",
+      accommodation: "SGD 500 - 1,500/month",
+      food: "SGD 300 - 500/month",
+      transport: "SGD 80 - 120/month"
+    },
+    visaInfo: "Student's Pass required. Apply through ICA (Immigration & Checkpoints Authority). Processing time: 2-4 weeks.",
+    scholarships: ["ASEAN Scholarships", "Institution-specific merit scholarships", "Early bird discounts", "Sibling discounts"],
+    requirements: ["Academic transcripts (SMA/SMK)", "English proficiency (IELTS 5.5-6.5 or equivalent)", "Passport copy", "Passport-sized photos", "Statement of Purpose"],
+    intakes: ["January", "April/May", "July/August", "October (varies by institution)"]
   },
   china: {
     name: "China",
     flag: "🇨🇳",
-    heroImage: "/dest-china.jpg",
-    description: "China offers world-class education at affordable prices, with rich cultural experiences and growing global influence.",
+    heroImage: "https://images.unsplash.com/photo-1547981609-4b6bfe67ca0b?w=1200&h=600&fit=crop",
+    description: "China offers world-class education at affordable prices, with rich cultural experiences and growing global influence. The Chinese Government Scholarship (CSC) makes it one of the most accessible destinations for international students.",
     stats: [
       { label: "Universities", value: "2,900+" },
       { label: "International Students", value: "500,000+" },
-      { label: "Scholarship Programs", value: "CSC & More" },
-      { label: "English Programs", value: "Growing" }
+      { label: "CSC Scholarships", value: "Full Coverage" },
+      { label: "English Programs", value: "500+" }
     ],
     universities: [
-      { name: "Tsinghua University", ranking: "#12 World", programs: ["Engineering", "Science", "Business", "Architecture"] },
-      { name: "Peking University", ranking: "#14 World", programs: ["Humanities", "Science", "Law", "Medicine"] },
-      { name: "Fudan University", ranking: "#31 World", programs: ["Business", "Medicine", "Journalism", "Economics"] }
+      { name: "Tsinghua University", ranking: "#12 World (QS 2025)", programs: ["Engineering", "Computer Science", "Business", "Architecture", "Science"], description: "China's top university, known as the 'MIT of China' with world-leading engineering programs." },
+      { name: "Peking University", ranking: "#14 World (QS 2025)", programs: ["Humanities", "Science", "Law", "Medicine", "Economics", "International Relations"], description: "China's oldest national university with exceptional liberal arts and sciences programs." },
+      { name: "Fudan University", ranking: "#31 World (QS 2025)", programs: ["Business", "Medicine", "Journalism", "Economics", "International Relations", "Computer Science"], description: "Shanghai's premier university with strong international programs and research output." },
+      { name: "Zhejiang University", ranking: "#38 World (QS 2025)", programs: ["Engineering", "Computer Science", "Business", "Agriculture", "Medicine"], description: "One of China's oldest and most prestigious universities in beautiful Hangzhou." },
+      { name: "Shanghai Jiao Tong University", ranking: "#45 World (QS 2025)", programs: ["Engineering", "Business", "Medicine", "Computer Science", "Naval Architecture"], description: "Leading research university with strong industry connections and innovation." },
+      { name: "Wuhan University", ranking: "#194 World (QS 2025)", programs: ["Law", "Remote Sensing", "Philosophy", "Chemistry", "Biology"], description: "Known for its beautiful campus and strong humanities and science programs." },
+      { name: "Xiamen University", ranking: "#392 World (QS 2025)", programs: ["Economics", "Chemistry", "Marine Science", "Business", "Law"], description: "Coastal university known for its stunning campus and strong economics programs." },
+      { name: "Beijing Language and Culture University (BLCU)", ranking: "Top for Chinese Language", programs: ["Chinese Language", "International Economics", "Translation", "Computer Science"], description: "The premier institution for learning Chinese language, popular with international students." }
     ],
     whyStudy: [
-      { icon: DollarSign, title: "Affordable Education", desc: "Lower tuition fees compared to Western countries" },
-      { icon: GraduationCap, title: "CSC Scholarships", desc: "Chinese Government Scholarship covers tuition and living expenses" },
-      { icon: Globe, title: "Cultural Experience", desc: "Immerse in one of the world's oldest civilizations" },
-      { icon: Briefcase, title: "Growing Economy", desc: "Opportunities in the world's second-largest economy" }
+      { icon: DollarSign, title: "Affordable Education", desc: "Tuition as low as $2,000-5,000/year, much cheaper than Western countries" },
+      { icon: GraduationCap, title: "CSC Scholarships", desc: "Chinese Government Scholarship covers tuition, accommodation, and living stipend" },
+      { icon: Globe, title: "Cultural Experience", desc: "Immerse in one of the world's oldest and richest civilizations" },
+      { icon: Briefcase, title: "Growing Economy", desc: "Career opportunities in the world's second-largest economy" }
     ],
-    requirements: ["Academic transcripts", "HSK (for Chinese programs) or IELTS", "Health certificate", "No criminal record"],
+    costOfLiving: {
+      tuition: "CNY 15,000 - 40,000/year ($2,000 - $5,500)",
+      accommodation: "CNY 800 - 2,000/month ($110 - $275)",
+      food: "CNY 1,000 - 2,000/month ($140 - $275)",
+      transport: "CNY 200 - 400/month ($28 - $55)"
+    },
+    visaInfo: "X1 Visa (study >180 days) or X2 Visa (study <180 days). Apply at Chinese Embassy. Processing: 1-2 weeks.",
+    scholarships: ["Chinese Government Scholarship (CSC) - Full ride", "Confucius Institute Scholarship", "Provincial Government Scholarships", "University-specific scholarships", "Belt and Road Scholarship"],
+    requirements: ["Academic transcripts", "HSK (for Chinese programs) or IELTS (for English programs)", "Health certificate", "No criminal record certificate", "Passport copy"],
     intakes: ["September (Main)", "March (Some programs)"]
   },
   uk: {
     name: "United Kingdom",
     flag: "🇬🇧",
     heroImage: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1200&h=600&fit=crop",
-    description: "The UK offers prestigious education with centuries of academic excellence and globally recognized qualifications.",
+    description: "The UK offers prestigious education with centuries of academic excellence and globally recognized qualifications. With a 1-year Master's program and the Graduate Route visa, it's one of the most efficient paths to a world-class degree.",
     stats: [
       { label: "Universities", value: "160+" },
       { label: "International Students", value: "600,000+" },
@@ -70,24 +98,37 @@ const countryData: Record<string, any> = {
       { label: "Master's Duration", value: "1 Year" }
     ],
     universities: [
-      { name: "University of Oxford", ranking: "#1 World", programs: ["All disciplines"] },
-      { name: "University of Cambridge", ranking: "#2 World", programs: ["All disciplines"] },
-      { name: "Imperial College London", ranking: "#6 World", programs: ["Science", "Engineering", "Medicine", "Business"] }
+      { name: "University of Oxford", ranking: "#3 World (QS 2025)", programs: ["All disciplines", "PPE", "Medicine", "Law", "Engineering"], description: "The world's oldest English-speaking university with unmatched academic prestige." },
+      { name: "University of Cambridge", ranking: "#5 World (QS 2025)", programs: ["All disciplines", "Natural Sciences", "Engineering", "Mathematics"], description: "World-renowned for research excellence and the collegiate system." },
+      { name: "Imperial College London", ranking: "#2 World (QS 2025)", programs: ["Science", "Engineering", "Medicine", "Business"], description: "London's leading STEM-focused university with cutting-edge research facilities." },
+      { name: "University College London (UCL)", ranking: "#9 World (QS 2025)", programs: ["Architecture", "Education", "Law", "Medicine", "Engineering", "Arts"], description: "London's largest university with a global outlook and diverse student body." },
+      { name: "University of Edinburgh", ranking: "#27 World (QS 2025)", programs: ["Medicine", "AI & Data Science", "Law", "Business", "Veterinary"], description: "Scotland's premier university in a historic and vibrant city." },
+      { name: "University of Manchester", ranking: "#34 World (QS 2025)", programs: ["Business", "Engineering", "Computer Science", "Medicine", "Arts"], description: "Russell Group university known for research impact and graduate employability." },
+      { name: "King's College London", ranking: "#40 World (QS 2025)", programs: ["Law", "Medicine", "Humanities", "Social Sciences", "Nursing"], description: "Central London university with strong health sciences and humanities programs." },
+      { name: "University of Warwick", ranking: "#69 World (QS 2025)", programs: ["Business", "Economics", "Engineering", "Mathematics", "Theatre"], description: "Known for its business school and strong industry connections." }
     ],
     whyStudy: [
       { icon: GraduationCap, title: "Prestigious Degrees", desc: "Globally recognized qualifications from historic institutions" },
-      { icon: Building, title: "1-Year Masters", desc: "Complete your postgraduate degree in just one year" },
-      { icon: Briefcase, title: "Graduate Route Visa", desc: "Stay and work for 2 years after graduation" },
-      { icon: Globe, title: "Cultural Diversity", desc: "Multicultural environment with students from around the world" }
+      { icon: Building, title: "1-Year Masters", desc: "Complete your postgraduate degree in just one year, saving time and money" },
+      { icon: Briefcase, title: "Graduate Route Visa", desc: "Stay and work for 2 years after graduation (3 years for PhD)" },
+      { icon: Globe, title: "Cultural Diversity", desc: "Multicultural environment with students from 150+ countries" }
     ],
-    requirements: ["Academic transcripts", "IELTS (6.0-7.0)", "Personal statement", "References"],
+    costOfLiving: {
+      tuition: "£12,000 - £38,000/year",
+      accommodation: "£500 - £1,200/month",
+      food: "£200 - £400/month",
+      transport: "£50 - £150/month"
+    },
+    visaInfo: "Student Visa (Tier 4). Apply online with CAS from university. Processing: 3-4 weeks.",
+    scholarships: ["Chevening Scholarship (fully funded)", "Commonwealth Scholarship", "GREAT Scholarships", "University-specific scholarships", "Indonesia Endowment Fund (LPDP)"],
+    requirements: ["Academic transcripts", "IELTS (6.0-7.0 depending on program)", "Personal statement", "References (2)", "Passport copy"],
     intakes: ["September (Main)", "January (Some programs)"]
   },
   australia: {
     name: "Australia",
     flag: "🇦🇺",
     heroImage: "https://images.unsplash.com/photo-1523482580672-f109ba8cb9be?w=1200&h=600&fit=crop",
-    description: "Australia offers world-class education, beautiful landscapes, and excellent post-study work opportunities.",
+    description: "Australia offers world-class education, beautiful landscapes, and excellent post-study work opportunities. With 7 of the world's top 100 universities and a welcoming multicultural society, it's a top choice for international students.",
     stats: [
       { label: "Universities", value: "43" },
       { label: "International Students", value: "750,000+" },
@@ -95,24 +136,37 @@ const countryData: Record<string, any> = {
       { label: "Quality of Life", value: "Top 10" }
     ],
     universities: [
-      { name: "University of Melbourne", ranking: "#14 World", programs: ["Arts", "Science", "Business", "Engineering"] },
-      { name: "University of Sydney", ranking: "#19 World", programs: ["All disciplines"] },
-      { name: "Monash University", ranking: "#42 World", programs: ["Business", "Engineering", "Medicine", "IT"] }
+      { name: "University of Melbourne", ranking: "#13 World (QS 2025)", programs: ["Arts", "Science", "Business", "Engineering", "Medicine", "Law", "Education"], description: "Australia's #1 university with the distinctive Melbourne Model of broad-based education." },
+      { name: "University of New South Wales (UNSW)", ranking: "#19 World (QS 2025)", programs: ["Engineering", "Business", "Law", "Medicine", "Art & Design", "Science"], description: "Sydney-based powerhouse known for engineering, technology, and business excellence." },
+      { name: "University of Sydney", ranking: "#18 World (QS 2025)", programs: ["All disciplines", "Architecture", "Veterinary", "Music", "Pharmacy"], description: "Australia's first university with a stunning campus and comprehensive programs." },
+      { name: "Australian National University (ANU)", ranking: "#30 World (QS 2025)", programs: ["Political Science", "International Relations", "Science", "Engineering", "Law"], description: "Located in Canberra, Australia's capital, with strong research focus and government connections." },
+      { name: "Monash University", ranking: "#37 World (QS 2025)", programs: ["Business", "Engineering", "Medicine", "IT", "Pharmacy", "Education"], description: "Australia's largest university with campuses in Malaysia and South Africa." },
+      { name: "University of Queensland (UQ)", ranking: "#40 World (QS 2025)", programs: ["Business", "Engineering", "Science", "Agriculture", "Veterinary", "Tourism"], description: "Brisbane-based university known for research excellence and beautiful campus." },
+      { name: "University of Western Australia (UWA)", ranking: "#77 World (QS 2025)", programs: ["Engineering", "Mining", "Agriculture", "Marine Science", "Business"], description: "Perth-based Group of Eight university with strong mining and resources programs." },
+      { name: "University of Adelaide", ranking: "#89 World (QS 2025)", programs: ["Wine & Food Science", "Engineering", "Health Sciences", "Arts", "Business"], description: "South Australia's premier university with unique programs in wine science and agriculture." }
     ],
     whyStudy: [
-      { icon: Briefcase, title: "Post-Study Work Visa", desc: "Work 2-4 years after graduation depending on qualification" },
-      { icon: Globe, title: "Multicultural Society", desc: "Welcoming environment for international students" },
-      { icon: GraduationCap, title: "Research Excellence", desc: "Leading research institutions with modern facilities" },
-      { icon: Building, title: "High Quality of Life", desc: "Safe cities with excellent healthcare and lifestyle" }
+      { icon: Briefcase, title: "Post-Study Work Visa", desc: "Work 2-4 years after graduation depending on qualification level" },
+      { icon: Globe, title: "Multicultural Society", desc: "Welcoming environment with large Indonesian community" },
+      { icon: GraduationCap, title: "Research Excellence", desc: "7 of the world's top 100 universities (Group of Eight)" },
+      { icon: Building, title: "High Quality of Life", desc: "Safe cities, excellent healthcare, and outdoor lifestyle" }
     ],
-    requirements: ["Academic transcripts", "IELTS (6.0-7.0)", "Statement of Purpose", "Financial proof"],
+    costOfLiving: {
+      tuition: "AUD 20,000 - 50,000/year",
+      accommodation: "AUD 800 - 2,000/month",
+      food: "AUD 400 - 700/month",
+      transport: "AUD 50 - 150/month"
+    },
+    visaInfo: "Student Visa (Subclass 500). Apply online through ImmiAccount. Processing: 4-8 weeks.",
+    scholarships: ["Australia Awards Scholarship (fully funded)", "Destination Australia", "Research Training Program", "University-specific scholarships", "LPDP (Indonesian Government)"],
+    requirements: ["Academic transcripts", "IELTS (6.0-7.0)", "Statement of Purpose", "Financial proof (GTE)", "Health insurance (OSHC)"],
     intakes: ["February (Main)", "July (Second intake)"]
   },
   "new-zealand": {
     name: "New Zealand",
     flag: "🇳🇿",
     heroImage: "https://images.unsplash.com/photo-1469521669194-babb45599def?w=1200&h=600&fit=crop",
-    description: "New Zealand offers quality education in a safe, beautiful environment with excellent post-study work opportunities.",
+    description: "New Zealand offers quality education in a safe, beautiful environment with excellent post-study work opportunities. All 8 universities are ranked in the world's top 500, and the country is known for its welcoming culture.",
     stats: [
       { label: "Universities", value: "8" },
       { label: "International Students", value: "100,000+" },
@@ -120,24 +174,35 @@ const countryData: Record<string, any> = {
       { label: "Safety Ranking", value: "Top 5" }
     ],
     universities: [
-      { name: "University of Auckland", ranking: "#68 World", programs: ["All disciplines"] },
-      { name: "University of Otago", ranking: "#206 World", programs: ["Medicine", "Science", "Business"] },
-      { name: "Victoria University of Wellington", ranking: "#241 World", programs: ["Law", "Humanities", "Science"] }
+      { name: "University of Auckland", ranking: "#68 World (QS 2025)", programs: ["All disciplines", "Engineering", "Business", "Medicine", "Arts"], description: "New Zealand's highest-ranked university with comprehensive programs in Auckland." },
+      { name: "University of Otago", ranking: "#206 World (QS 2025)", programs: ["Medicine", "Dentistry", "Science", "Business", "Health Sciences"], description: "New Zealand's oldest university, known for its medical school in Dunedin." },
+      { name: "Victoria University of Wellington", ranking: "#241 World (QS 2025)", programs: ["Law", "Humanities", "Science", "Architecture", "Public Policy"], description: "Located in the capital city with strong connections to government and policy." },
+      { name: "University of Canterbury", ranking: "#256 World (QS 2025)", programs: ["Engineering", "Science", "Business", "Education", "Forestry"], description: "Christchurch-based university known for engineering and Antarctic research." },
+      { name: "Massey University", ranking: "#239 World (QS 2025)", programs: ["Agriculture", "Veterinary", "Aviation", "Creative Arts", "Business"], description: "New Zealand's only university offering veterinary science and aviation programs." },
+      { name: "University of Waikato", ranking: "#235 World (QS 2025)", programs: ["Business", "Computing", "Education", "Law", "Maori Studies"], description: "Hamilton-based university with strong business and computing programs." }
     ],
     whyStudy: [
-      { icon: Globe, title: "Beautiful Environment", desc: "Stunning landscapes and outdoor lifestyle" },
-      { icon: Briefcase, title: "Work Rights", desc: "Work while studying and after graduation" },
-      { icon: GraduationCap, title: "Quality Education", desc: "All universities ranked in top 500 globally" },
-      { icon: Building, title: "Safe & Friendly", desc: "One of the safest countries for students" }
+      { icon: Globe, title: "Beautiful Environment", desc: "Stunning landscapes and outdoor lifestyle in a safe country" },
+      { icon: Briefcase, title: "Work Rights", desc: "Work 20 hours/week during study and full-time during breaks" },
+      { icon: GraduationCap, title: "Quality Education", desc: "All 8 universities ranked in the world's top 500" },
+      { icon: Building, title: "Safe & Friendly", desc: "One of the safest and most peaceful countries in the world" }
     ],
-    requirements: ["Academic transcripts", "IELTS (6.0-6.5)", "Statement of Purpose", "Financial proof"],
+    costOfLiving: {
+      tuition: "NZD 22,000 - 40,000/year",
+      accommodation: "NZD 800 - 1,500/month",
+      food: "NZD 300 - 500/month",
+      transport: "NZD 50 - 150/month"
+    },
+    visaInfo: "Student Visa required. Apply online through Immigration New Zealand. Processing: 4-6 weeks.",
+    scholarships: ["New Zealand Scholarships", "University-specific scholarships", "New Zealand Excellence Awards", "ASEAN Scholarships"],
+    requirements: ["Academic transcripts", "IELTS (6.0-6.5)", "Statement of Purpose", "Financial proof", "Health & character certificates"],
     intakes: ["February (Main)", "July (Second intake)"]
   },
   canada: {
     name: "Canada",
     flag: "🇨🇦",
     heroImage: "https://images.unsplash.com/photo-1517935706615-2717063c2225?w=1200&h=600&fit=crop",
-    description: "Canada offers affordable education, welcoming immigration policies, and excellent quality of life.",
+    description: "Canada offers affordable education, welcoming immigration policies, and excellent quality of life. With clear pathways to permanent residency and a 3-year post-graduation work permit, it's one of the most popular destinations for international students.",
     stats: [
       { label: "Universities", value: "100+" },
       { label: "International Students", value: "800,000+" },
@@ -145,49 +210,74 @@ const countryData: Record<string, any> = {
       { label: "Work Permit", value: "3 Years" }
     ],
     universities: [
-      { name: "University of Toronto", ranking: "#21 World", programs: ["All disciplines"] },
-      { name: "University of British Columbia", ranking: "#34 World", programs: ["Science", "Business", "Engineering"] },
-      { name: "McGill University", ranking: "#30 World", programs: ["Medicine", "Law", "Arts", "Science"] }
+      { name: "University of Toronto", ranking: "#21 World (QS 2025)", programs: ["All disciplines", "Engineering", "Business", "Medicine", "AI"], description: "Canada's top university with three campuses and world-leading research." },
+      { name: "University of British Columbia (UBC)", ranking: "#34 World (QS 2025)", programs: ["Science", "Business", "Engineering", "Forestry", "Arts"], description: "Vancouver-based university with a stunning campus and strong research programs." },
+      { name: "McGill University", ranking: "#29 World (QS 2025)", programs: ["Medicine", "Law", "Arts", "Science", "Engineering", "Music"], description: "Montreal's premier English-language university with a global reputation." },
+      { name: "University of Alberta", ranking: "#96 World (QS 2025)", programs: ["Engineering", "Science", "Business", "Education", "Medicine"], description: "Edmonton-based university known for petroleum engineering and AI research." },
+      { name: "University of Waterloo", ranking: "#115 World (QS 2025)", programs: ["Computer Science", "Engineering", "Mathematics", "Business", "Pharmacy"], description: "Canada's #1 co-op university with the largest co-operative education program in the world." },
+      { name: "University of Montreal", ranking: "#111 World (QS 2025)", programs: ["AI & Machine Learning", "Medicine", "Law", "Science", "Arts"], description: "French-language university that is a global leader in AI research (Mila Institute)." },
+      { name: "McMaster University", ranking: "#152 World (QS 2025)", programs: ["Health Sciences", "Engineering", "Business", "Science", "Humanities"], description: "Known for its innovative problem-based learning approach in health sciences." }
     ],
     whyStudy: [
-      { icon: Globe, title: "Immigration Pathways", desc: "Clear pathways to permanent residency after graduation" },
-      { icon: DollarSign, title: "Affordable Fees", desc: "Lower tuition compared to US and UK" },
+      { icon: Globe, title: "Immigration Pathways", desc: "Clear pathways to permanent residency through Express Entry after graduation" },
+      { icon: DollarSign, title: "Affordable Fees", desc: "Lower tuition compared to US and UK with high-quality education" },
       { icon: Briefcase, title: "PGWP", desc: "Post-Graduation Work Permit up to 3 years" },
-      { icon: Building, title: "Safe Cities", desc: "High quality of life and multicultural environment" }
+      { icon: Building, title: "Safe Cities", desc: "High quality of life, universal healthcare, and multicultural environment" }
     ],
-    requirements: ["Academic transcripts", "IELTS (6.0-6.5)", "Statement of Purpose", "Financial proof"],
+    costOfLiving: {
+      tuition: "CAD 15,000 - 40,000/year",
+      accommodation: "CAD 800 - 1,500/month",
+      food: "CAD 300 - 500/month",
+      transport: "CAD 80 - 150/month"
+    },
+    visaInfo: "Study Permit required. Apply online through IRCC. Processing: 8-12 weeks.",
+    scholarships: ["Vanier Canada Graduate Scholarships", "Ontario Trillium Scholarship", "University-specific scholarships", "LPDP (Indonesian Government)"],
+    requirements: ["Academic transcripts", "IELTS (6.0-6.5)", "Statement of Purpose", "Financial proof", "Medical exam (if required)"],
     intakes: ["September (Main)", "January", "May (Some programs)"]
   },
   usa: {
     name: "United States",
     flag: "🇺🇸",
     heroImage: "https://images.unsplash.com/photo-1485738422979-f5c462d49f74?w=1200&h=600&fit=crop",
-    description: "The USA is home to the world's top universities with unparalleled research opportunities and diverse programs.",
+    description: "The USA is home to the world's top universities with unparalleled research opportunities, diverse programs, and a flexible liberal arts education system. With OPT work authorization and a vast alumni network, it opens doors to global careers.",
     stats: [
       { label: "Universities", value: "4,000+" },
       { label: "International Students", value: "1M+" },
       { label: "OPT Duration", value: "1-3 Years" },
-      { label: "Nobel Laureates", value: "Most" }
+      { label: "Nobel Laureates", value: "Most in World" }
     ],
     universities: [
-      { name: "Massachusetts Institute of Technology", ranking: "#1 World", programs: ["Engineering", "Science", "Business"] },
-      { name: "Stanford University", ranking: "#3 World", programs: ["All disciplines"] },
-      { name: "Harvard University", ranking: "#4 World", programs: ["All disciplines"] }
+      { name: "Massachusetts Institute of Technology (MIT)", ranking: "#1 World (QS 2025)", programs: ["Engineering", "Computer Science", "Business", "Science", "Architecture"], description: "The world's #1 university for technology, engineering, and innovation." },
+      { name: "Stanford University", ranking: "#6 World (QS 2025)", programs: ["All disciplines", "Computer Science", "Business", "Engineering", "Medicine"], description: "Silicon Valley's university, known for entrepreneurship and tech innovation." },
+      { name: "Harvard University", ranking: "#4 World (QS 2025)", programs: ["All disciplines", "Business", "Law", "Medicine", "Government"], description: "The world's most prestigious university with unmatched resources and alumni network." },
+      { name: "California Institute of Technology (Caltech)", ranking: "#10 World (QS 2025)", programs: ["Physics", "Engineering", "Computer Science", "Chemistry", "Biology"], description: "Small but mighty — world leader in science and engineering research." },
+      { name: "University of California, Berkeley", ranking: "#12 World (QS 2025)", programs: ["Engineering", "Computer Science", "Business", "Law", "Public Policy"], description: "Public university powerhouse in the San Francisco Bay Area." },
+      { name: "Columbia University", ranking: "#7 World (QS 2025)", programs: ["Business", "Journalism", "Law", "International Affairs", "Arts"], description: "Ivy League university in New York City with strong professional schools." },
+      { name: "University of Michigan", ranking: "#33 World (QS 2025)", programs: ["Engineering", "Business", "Medicine", "Public Policy", "Arts"], description: "Top public university with excellent research and a vibrant campus life." },
+      { name: "New York University (NYU)", ranking: "#38 World (QS 2025)", programs: ["Business", "Arts", "Law", "Film", "Social Sciences"], description: "Global university with campuses in NYC, Abu Dhabi, and Shanghai." }
     ],
     whyStudy: [
-      { icon: GraduationCap, title: "Research Excellence", desc: "World's leading research institutions and facilities" },
-      { icon: Building, title: "Flexible Curriculum", desc: "Liberal arts approach allows exploration of interests" },
-      { icon: Briefcase, title: "OPT Opportunities", desc: "Work in your field for 1-3 years after graduation" },
-      { icon: Globe, title: "Global Network", desc: "Alumni networks spanning every industry worldwide" }
+      { icon: GraduationCap, title: "Research Excellence", desc: "World's leading research institutions with cutting-edge facilities" },
+      { icon: Building, title: "Flexible Curriculum", desc: "Liberal arts approach allows exploration before choosing a major" },
+      { icon: Briefcase, title: "OPT Opportunities", desc: "Work in your field for 1-3 years after graduation (3 years for STEM)" },
+      { icon: Globe, title: "Global Network", desc: "Alumni networks spanning every industry and country worldwide" }
     ],
-    requirements: ["Academic transcripts", "TOEFL/IELTS", "SAT/GRE/GMAT", "Essays", "Recommendations"],
+    costOfLiving: {
+      tuition: "$20,000 - $60,000/year",
+      accommodation: "$800 - $2,500/month",
+      food: "$300 - $600/month",
+      transport: "$50 - $200/month"
+    },
+    visaInfo: "F-1 Student Visa. Apply at US Embassy after receiving I-20 from university. Processing: 2-4 weeks.",
+    scholarships: ["Fulbright Scholarship (fully funded)", "University merit scholarships", "Need-based financial aid", "LPDP (Indonesian Government)", "EducationUSA advising"],
+    requirements: ["Academic transcripts", "SAT/ACT (undergraduate) or GRE/GMAT (graduate)", "TOEFL/IELTS", "Essays/Personal statement", "Letters of recommendation", "Financial proof"],
     intakes: ["Fall (August/September)", "Spring (January)"]
   },
   ireland: {
     name: "Ireland",
     flag: "🇮🇪",
-    heroImage: "/dest-ireland.jpg",
-    description: "Ireland offers English-speaking education in Europe with a friendly culture and growing tech industry.",
+    heroImage: "https://images.unsplash.com/photo-1590089415225-401ed6f9db8e?w=1200&h=600&fit=crop",
+    description: "Ireland offers English-speaking education in Europe with a friendly culture and a booming tech industry. As the European headquarters for many global tech companies, Ireland provides excellent career opportunities after graduation.",
     stats: [
       { label: "Universities", value: "9" },
       { label: "International Students", value: "35,000+" },
@@ -195,24 +285,35 @@ const countryData: Record<string, any> = {
       { label: "Tech Companies", value: "1,000+" }
     ],
     universities: [
-      { name: "Trinity College Dublin", ranking: "#81 World", programs: ["All disciplines"] },
-      { name: "University College Dublin", ranking: "#126 World", programs: ["Business", "Engineering", "Arts"] },
-      { name: "NUI Galway", ranking: "#270 World", programs: ["Science", "Arts", "Medicine"] }
+      { name: "Trinity College Dublin", ranking: "#81 World (QS 2025)", programs: ["All disciplines", "Computer Science", "Business", "Law", "Medicine"], description: "Ireland's oldest and most prestigious university, founded in 1592." },
+      { name: "University College Dublin (UCD)", ranking: "#126 World (QS 2025)", programs: ["Business", "Engineering", "Architecture", "Veterinary", "Agriculture"], description: "Ireland's largest university with a modern campus and global outlook." },
+      { name: "National University of Ireland, Galway (NUIG)", ranking: "#270 World (QS 2025)", programs: ["Science", "Arts", "Medicine", "Engineering", "Business"], description: "Located on Ireland's west coast with strong research in marine science and biomedical." },
+      { name: "University College Cork (UCC)", ranking: "#292 World (QS 2025)", programs: ["Food Science", "Pharmacy", "Law", "Business", "Medicine"], description: "Known for food science research and a vibrant student city." },
+      { name: "Dublin City University (DCU)", ranking: "#421 World (QS 2025)", programs: ["Business", "Engineering", "Computing", "Communications", "Education"], description: "Modern university with strong industry links and innovative programs." },
+      { name: "University of Limerick (UL)", ranking: "#426 World (QS 2025)", programs: ["Engineering", "Business", "Health Sciences", "Education", "Arts"], description: "Known for its co-operative education program and beautiful riverside campus." }
     ],
     whyStudy: [
-      { icon: Globe, title: "English Speaking", desc: "Study in English in the heart of Europe" },
-      { icon: Briefcase, title: "Tech Hub", desc: "European headquarters of Google, Facebook, Apple, and more" },
-      { icon: Building, title: "Stay Back Option", desc: "Work for 2 years after graduation" },
-      { icon: GraduationCap, title: "Quality Education", desc: "Globally recognized Irish qualifications" }
+      { icon: Globe, title: "English Speaking", desc: "Study in English in the heart of Europe with a friendly culture" },
+      { icon: Briefcase, title: "Tech Hub of Europe", desc: "European headquarters of Google, Meta, Apple, Microsoft, and more" },
+      { icon: Building, title: "Stay Back Option", desc: "Work for 2 years after graduation under the Third Level Graduate Scheme" },
+      { icon: GraduationCap, title: "Quality Education", desc: "Globally recognized Irish qualifications with strong research output" }
     ],
-    requirements: ["Academic transcripts", "IELTS (6.0-6.5)", "Statement of Purpose", "Financial proof"],
+    costOfLiving: {
+      tuition: "€10,000 - €25,000/year",
+      accommodation: "€500 - €1,200/month",
+      food: "€200 - €400/month",
+      transport: "€50 - €120/month"
+    },
+    visaInfo: "Study Visa (Stamp 2). Apply at Irish Embassy. Processing: 4-8 weeks.",
+    scholarships: ["Government of Ireland Scholarships", "University-specific scholarships", "Science Foundation Ireland", "LPDP (Indonesian Government)"],
+    requirements: ["Academic transcripts", "IELTS (6.0-6.5)", "Statement of Purpose", "Financial proof", "Health insurance"],
     intakes: ["September (Main)", "January (Some programs)"]
   },
   netherlands: {
     name: "Netherlands",
     flag: "🇳🇱",
     heroImage: "https://images.unsplash.com/photo-1534351590666-13e3e96b5017?w=1200&h=600&fit=crop",
-    description: "The Netherlands offers innovative education with many English-taught programs in the heart of Europe.",
+    description: "The Netherlands offers innovative education with many English-taught programs in the heart of Europe. Known for its problem-based learning approach and high quality of life, it's an increasingly popular destination for international students.",
     stats: [
       { label: "Universities", value: "55+" },
       { label: "English Programs", value: "2,100+" },
@@ -220,17 +321,28 @@ const countryData: Record<string, any> = {
       { label: "EU Access", value: "Schengen" }
     ],
     universities: [
-      { name: "TU Delft", ranking: "#47 World", programs: ["Engineering", "Architecture", "Design"] },
-      { name: "University of Amsterdam", ranking: "#53 World", programs: ["Arts", "Science", "Business"] },
-      { name: "Erasmus University Rotterdam", ranking: "#176 World", programs: ["Business", "Economics", "Medicine"] }
+      { name: "TU Delft", ranking: "#47 World (QS 2025)", programs: ["Engineering", "Architecture", "Design", "Aerospace", "Computer Science"], description: "Europe's leading technical university, known for engineering and design excellence." },
+      { name: "University of Amsterdam", ranking: "#53 World (QS 2025)", programs: ["Arts", "Science", "Business", "Social Sciences", "Communication"], description: "Amsterdam's premier university with a vibrant international community." },
+      { name: "Erasmus University Rotterdam", ranking: "#176 World (QS 2025)", programs: ["Business", "Economics", "Medicine", "Law", "Social Sciences"], description: "Known for its world-renowned Rotterdam School of Management (RSM)." },
+      { name: "Leiden University", ranking: "#122 World (QS 2025)", programs: ["Law", "Humanities", "Science", "Medicine", "Social Sciences"], description: "The Netherlands' oldest university with a strong tradition in law and humanities." },
+      { name: "Utrecht University", ranking: "#107 World (QS 2025)", programs: ["Science", "Veterinary", "Humanities", "Medicine", "Geosciences"], description: "One of Europe's largest universities with strong research output." },
+      { name: "Wageningen University", ranking: "#151 World (QS 2025)", programs: ["Agriculture", "Food Science", "Environmental Science", "Biology", "Nutrition"], description: "World #1 in Agriculture & Forestry, leading in food and environmental research." }
     ],
     whyStudy: [
-      { icon: Globe, title: "English Programs", desc: "Over 2,100 programs taught entirely in English" },
-      { icon: Building, title: "Central Europe", desc: "Easy access to other European countries" },
-      { icon: Briefcase, title: "Orientation Year", desc: "Stay for 1 year after graduation to find work" },
-      { icon: GraduationCap, title: "Innovative Education", desc: "Problem-based learning and practical approach" }
+      { icon: Globe, title: "English Programs", desc: "Over 2,100 programs taught entirely in English — no Dutch required" },
+      { icon: Building, title: "Central Europe", desc: "Easy access to other European countries by train or budget flights" },
+      { icon: Briefcase, title: "Orientation Year", desc: "Stay for 1 year after graduation to find work (Zoekjaar)" },
+      { icon: GraduationCap, title: "Innovative Education", desc: "Problem-based learning and practical approach to education" }
     ],
-    requirements: ["Academic transcripts", "IELTS (6.0-6.5)", "Motivation letter", "CV"],
+    costOfLiving: {
+      tuition: "€8,000 - €20,000/year",
+      accommodation: "€400 - €900/month",
+      food: "€200 - €350/month",
+      transport: "€50 - €100/month"
+    },
+    visaInfo: "MVV (Entry Visa) + Residence Permit. University assists with application. Processing: 4-8 weeks.",
+    scholarships: ["Holland Scholarship", "Orange Tulip Scholarship", "Erasmus Mundus", "University-specific scholarships", "StuNed (for Indonesians)"],
+    requirements: ["Academic transcripts", "IELTS (6.0-6.5)", "Motivation letter", "CV", "Financial proof"],
     intakes: ["September (Main)", "February (Some programs)"]
   }
 };
@@ -299,14 +411,14 @@ export default function CountryPage() {
             {country.stats.map((stat: any, index: number) => (
               <motion.div 
                 key={index}
-                className="text-center p-6 bg-card rounded-xl shadow-sm"
+                className="text-center p-6 bg-card rounded-xl shadow-sm border border-border"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
               >
                 <div className="text-3xl font-bold text-primary mb-2">{stat.value}</div>
-                <div className="text-muted-foreground">{stat.label}</div>
+                <div className="text-muted-foreground text-sm">{stat.label}</div>
               </motion.div>
             ))}
           </div>
@@ -328,13 +440,16 @@ export default function CountryPage() {
             {country.whyStudy.map((item: any, index: number) => (
               <motion.div 
                 key={index}
-                className="p-6 bg-card rounded-xl shadow-sm hover:shadow-md transition-shadow"
+                className="p-6 bg-card rounded-xl shadow-sm border border-border hover:shadow-md hover:border-primary transition-all duration-300"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
+                whileHover={{ y: -5 }}
               >
-                <item.icon className="w-10 h-10 text-primary mb-4" />
+                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4">
+                  <item.icon className="w-6 h-6 text-primary" />
+                </div>
                 <h3 className="font-semibold mb-2">{item.title}</h3>
                 <p className="text-sm text-muted-foreground">{item.desc}</p>
               </motion.div>
@@ -343,32 +458,46 @@ export default function CountryPage() {
         </div>
       </section>
 
-      {/* Top Universities */}
+      {/* Universities / Institutions */}
       <section className="py-16 bg-muted/30">
         <div className="container">
-          <motion.h2 
-            className="text-3xl font-bold text-center mb-12"
+          <motion.div
+            className="text-center mb-12"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
           >
-            Top Universities
-          </motion.h2>
-          <div className="grid md:grid-cols-3 gap-6">
+            <h2 className="text-3xl font-bold mb-4">
+              {slug === 'singapore' ? 'Partner Institutions' : 'Top Universities'}
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              {slug === 'singapore' 
+                ? 'Explore our partner private institutions in Singapore offering internationally recognized degrees'
+                : `Discover top universities in ${country.name} for your study abroad journey`
+              }
+            </p>
+          </motion.div>
+          <div className="grid md:grid-cols-2 gap-6">
             {country.universities.map((uni: any, index: number) => (
               <motion.div 
                 key={index}
-                className="p-6 bg-card rounded-xl shadow-sm"
+                className="p-6 bg-card rounded-xl shadow-sm border border-border hover:shadow-lg hover:border-primary/50 transition-all duration-300"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
+                transition={{ delay: index * 0.08 }}
+                whileHover={{ y: -3 }}
               >
-                <h3 className="font-semibold text-lg mb-2">{uni.name}</h3>
-                <p className="text-primary text-sm mb-4">{uni.ranking}</p>
+                <div className="flex items-start justify-between mb-3">
+                  <h3 className="font-semibold text-lg flex-1">{uni.name}</h3>
+                </div>
+                <p className="text-primary text-sm font-medium mb-2">{uni.ranking}</p>
+                {uni.description && (
+                  <p className="text-muted-foreground text-sm mb-4">{uni.description}</p>
+                )}
                 <div className="flex flex-wrap gap-2">
                   {uni.programs.map((prog: string, i: number) => (
-                    <span key={i} className="px-2 py-1 bg-muted rounded text-xs">{prog}</span>
+                    <span key={i} className="px-2.5 py-1 bg-primary/5 text-primary border border-primary/10 rounded-full text-xs font-medium">{prog}</span>
                   ))}
                 </div>
               </motion.div>
@@ -377,40 +506,125 @@ export default function CountryPage() {
         </div>
       </section>
 
-      {/* Requirements & Intakes */}
+      {/* Cost of Living */}
+      {country.costOfLiving && (
+        <section className="py-16">
+          <div className="container">
+            <motion.h2 
+              className="text-3xl font-bold text-center mb-12"
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+            >
+              Cost of Living
+            </motion.h2>
+            <div className="grid md:grid-cols-4 gap-6 max-w-4xl mx-auto">
+              {Object.entries(country.costOfLiving).map(([key, value]: [string, any], index: number) => (
+                <motion.div
+                  key={key}
+                  className="p-6 bg-card rounded-xl shadow-sm border border-border text-center"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                    {key === 'tuition' && <GraduationCap className="w-5 h-5 text-primary" />}
+                    {key === 'accommodation' && <HomeIcon className="w-5 h-5 text-primary" />}
+                    {key === 'food' && <Heart className="w-5 h-5 text-primary" />}
+                    {key === 'transport' && <MapPin className="w-5 h-5 text-primary" />}
+                  </div>
+                  <h4 className="font-semibold capitalize mb-2">{key}</h4>
+                  <p className="text-sm text-primary font-medium">{value}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Scholarships */}
+      {country.scholarships && (
+        <section className="py-16 bg-muted/30">
+          <div className="container">
+            <div className="grid md:grid-cols-2 gap-12 max-w-5xl mx-auto">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+              >
+                <h3 className="text-2xl font-bold mb-6 flex items-center gap-3">
+                  <Award className="w-7 h-7 text-primary" />
+                  Scholarships Available
+                </h3>
+                <ul className="space-y-3">
+                  {country.scholarships.map((scholarship: string, index: number) => (
+                    <li key={index} className="flex items-center gap-3 p-3 bg-card rounded-lg border border-border">
+                      <ChevronRight className="w-5 h-5 text-primary shrink-0" />
+                      <span className="text-sm">{scholarship}</span>
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+              >
+                <h3 className="text-2xl font-bold mb-6 flex items-center gap-3">
+                  <FileText className="w-7 h-7 text-primary" />
+                  Visa Information
+                </h3>
+                <div className="p-6 bg-card rounded-xl border border-border mb-6">
+                  <p className="text-muted-foreground text-sm leading-relaxed">{country.visaInfo}</p>
+                </div>
+                <h3 className="text-2xl font-bold mb-6 flex items-center gap-3">
+                  <Calendar className="w-7 h-7 text-primary" />
+                  Intake Periods
+                </h3>
+                <ul className="space-y-3">
+                  {country.intakes.map((intake: string, index: number) => (
+                    <li key={index} className="flex items-center gap-3 p-3 bg-card rounded-lg border border-border">
+                      <ChevronRight className="w-5 h-5 text-primary shrink-0" />
+                      <span className="text-sm">{intake}</span>
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Requirements */}
       <section className="py-16">
         <div className="container">
-          <div className="grid md:grid-cols-2 gap-12">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-            >
-              <h3 className="text-2xl font-bold mb-6">Entry Requirements</h3>
-              <ul className="space-y-3">
-                {country.requirements.map((req: string, index: number) => (
-                  <li key={index} className="flex items-center gap-3">
-                    <ChevronRight className="w-5 h-5 text-primary" />
-                    <span>{req}</span>
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-            >
-              <h3 className="text-2xl font-bold mb-6">Intake Periods</h3>
-              <ul className="space-y-3">
-                {country.intakes.map((intake: string, index: number) => (
-                  <li key={index} className="flex items-center gap-3">
-                    <ChevronRight className="w-5 h-5 text-primary" />
-                    <span>{intake}</span>
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
+          <motion.h2 
+            className="text-3xl font-bold text-center mb-12"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+          >
+            Entry Requirements
+          </motion.h2>
+          <div className="max-w-3xl mx-auto">
+            <div className="grid sm:grid-cols-2 gap-4">
+              {country.requirements.map((req: string, index: number) => (
+                <motion.div
+                  key={index}
+                  className="flex items-center gap-3 p-4 bg-card rounded-xl border border-border"
+                  initial={{ opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.08 }}
+                >
+                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+                    <span className="text-primary font-semibold text-sm">{index + 1}</span>
+                  </div>
+                  <span className="text-sm">{req}</span>
+                </motion.div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -420,14 +634,21 @@ export default function CountryPage() {
         <div className="container text-center">
           <h2 className="text-3xl font-bold text-white mb-4">Ready to Study in {country.name}?</h2>
           <p className="text-white/90 mb-8 max-w-2xl mx-auto">
-            Our education counselors are ready to help you with university selection, application, visa, and more.
+            Our education counselors are ready to help you with university selection, application, visa, and more. Get your FREE consultation today!
           </p>
-          <Link href="/contact">
-            <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90">
-              Get Free Consultation
-              <ChevronRight className="w-5 h-5 ml-2" />
-            </Button>
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href={`https://wa.me/62819668278?text=Hi,%20I'm%20interested%20in%20studying%20in%20${encodeURIComponent(country.name)}`} target="_blank" rel="noopener noreferrer">
+              <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90">
+                WhatsApp Consultation
+                <ChevronRight className="w-5 h-5 ml-2" />
+              </Button>
+            </a>
+            <Link href="/contact">
+              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
+                Contact Us
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
 
