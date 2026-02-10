@@ -11,7 +11,7 @@ const countries = [
   { name: "Malaysia", flag: "🇲🇾", slug: "/malaysia", image: "https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=400&h=300&fit=crop" },
   { name: "Singapore", flag: "🇸🇬", slug: "/destinations/singapore", image: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=400&h=300&fit=crop" },
   { name: "Australia", flag: "🇦🇺", slug: "/destinations/australia", image: "https://images.unsplash.com/photo-1523482580672-f109ba8cb9be?w=400&h=300&fit=crop" },
-  { name: "United Kingdom", flag: "🇬🇧", slug: "/destinations/united-kingdom", image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&h=300&fit=crop" },
+  { name: "United Kingdom", flag: "🇬🇧", slug: "/destinations/uk", image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&h=300&fit=crop" },
   { name: "China", flag: "🇨🇳", slug: "/destinations/china", image: "https://images.unsplash.com/photo-1508804185872-d7badad00f7d?w=400&h=300&fit=crop" },
   { name: "USA", flag: "🇺🇸", slug: "/destinations/usa", image: "https://images.unsplash.com/photo-1485738422979-f5c462d49f74?w=400&h=300&fit=crop" },
   { name: "Canada", flag: "🇨🇦", slug: "/destinations/canada", image: "https://images.unsplash.com/photo-1517935706615-2717063c2225?w=400&h=300&fit=crop" },

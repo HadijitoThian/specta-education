@@ -14,6 +14,7 @@ import Contact from "./pages/Contact";
 import AdminDashboard from "./pages/AdminDashboard";
 import Malaysia from "./pages/Malaysia";
 import CountryPage from "./pages/CountryPage";
+import Compare from "./pages/Compare";
 
 function Router() {
   return (
@@ -26,6 +27,7 @@ function Router() {
       <Route path={"/malaysia"} component={Malaysia} />
       <Route path={"/articles"} component={Articles} />
       <Route path={"/contact"} component={Contact} />
+      <Route path={"/compare"} component={Compare} />
       <Route path={"/admin"} component={AdminDashboard} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />

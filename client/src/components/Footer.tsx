@@ -39,7 +39,7 @@ export default function Footer() {
               <li><Link href="/malaysia" className="hover:text-background transition-colors">🇲🇾 Malaysia</Link></li>
               <li><Link href="/destinations/singapore" className="hover:text-background transition-colors">🇸🇬 Singapore</Link></li>
               <li><Link href="/destinations/australia" className="hover:text-background transition-colors">🇦🇺 Australia</Link></li>
-              <li><Link href="/destinations/united-kingdom" className="hover:text-background transition-colors">🇬🇧 United Kingdom</Link></li>
+              <li><Link href="/destinations/uk" className="hover:text-background transition-colors">🇬🇧 United Kingdom</Link></li>
               <li><Link href="/destinations/china" className="hover:text-background transition-colors">🇨🇳 China</Link></li>
               <li><Link href="/destinations/usa" className="hover:text-background transition-colors">🇺🇸 USA</Link></li>
               <li><Link href="/destinations/canada" className="hover:text-background transition-colors">🇨🇦 Canada</Link></li>

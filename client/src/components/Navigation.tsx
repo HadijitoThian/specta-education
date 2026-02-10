@@ -68,7 +68,7 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
                 <button onClick={() => handleNavClick("/destinations/australia")} className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
                   🇦🇺 Australia
                 </button>
-                <button onClick={() => handleNavClick("/destinations/united-kingdom")} className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
+                <button onClick={() => handleNavClick("/destinations/uk")} className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
                   🇬🇧 United Kingdom
                 </button>
                 <button onClick={() => handleNavClick("/destinations/singapore")} className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
@@ -96,6 +96,9 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             </div>
           </div>
           
+          <button onClick={() => handleNavClick("/compare")} className={`text-sm font-medium transition-colors ${isActive("compare") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
+            Compare
+          </button>
           <button onClick={() => handleNavClick("/articles")} className={`text-sm font-medium transition-colors ${isActive("articles") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             Articles
           </button>
@@ -148,7 +151,7 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
               <button onClick={() => handleNavClick("/destinations/australia")} className="block w-full text-left text-sm text-muted-foreground hover:text-primary pl-4">
                 🇦🇺 Australia
               </button>
-              <button onClick={() => handleNavClick("/destinations/united-kingdom")} className="block w-full text-left text-sm text-muted-foreground hover:text-primary pl-4">
+              <button onClick={() => handleNavClick("/destinations/uk")} className="block w-full text-left text-sm text-muted-foreground hover:text-primary pl-4">
                 🇬🇧 United Kingdom
               </button>
               <button onClick={() => handleNavClick("/destinations/singapore")} className="block w-full text-left text-sm text-muted-foreground hover:text-primary pl-4">
@@ -173,6 +176,9 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
                 🇳🇱 Netherlands
               </button>
             </div>
+            <button onClick={() => handleNavClick("/compare")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
+              Compare Universities
+            </button>
             <button onClick={() => handleNavClick("/articles")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
               Articles
             </button>

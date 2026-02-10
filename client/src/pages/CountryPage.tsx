@@ -467,8 +467,12 @@ export default function CountryPage() {
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
           >
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full text-primary text-sm font-medium mb-4">
+              <GraduationCap className="w-4 h-4" />
+              {slug === 'singapore' ? 'Private Institutions' : 'World-Class Universities'}
+            </div>
             <h2 className="text-3xl font-bold mb-4">
-              {slug === 'singapore' ? 'Partner Institutions' : 'Top Universities'}
+              {slug === 'singapore' ? 'Our Partner Institutions' : `Top Universities in ${country.name}`}
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               {slug === 'singapore' 
@@ -477,31 +481,86 @@ export default function CountryPage() {
               }
             </p>
           </motion.div>
-          <div className="grid md:grid-cols-2 gap-6">
-            {country.universities.map((uni: any, index: number) => (
-              <motion.div 
-                key={index}
-                className="p-6 bg-card rounded-xl shadow-sm border border-border hover:shadow-lg hover:border-primary/50 transition-all duration-300"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.08 }}
-                whileHover={{ y: -3 }}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <h3 className="font-semibold text-lg flex-1">{uni.name}</h3>
-                </div>
-                <p className="text-primary text-sm font-medium mb-2">{uni.ranking}</p>
-                {uni.description && (
-                  <p className="text-muted-foreground text-sm mb-4">{uni.description}</p>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  {uni.programs.map((prog: string, i: number) => (
-                    <span key={i} className="px-2.5 py-1 bg-primary/5 text-primary border border-primary/10 rounded-full text-xs font-medium">{prog}</span>
-                  ))}
-                </div>
-              </motion.div>
-            ))}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {country.universities.map((uni: any, index: number) => {
+              const rankMatch = uni.ranking.match(/#(\d+)/);
+              const rankNum = rankMatch ? parseInt(rankMatch[1]) : null;
+              const isTopRanked = rankNum !== null && rankNum <= 50;
+              const isTop100 = rankNum !== null && rankNum <= 100;
+              return (
+                <motion.div 
+                  key={index}
+                  className="group relative bg-card rounded-2xl shadow-sm border border-border overflow-hidden hover:shadow-xl transition-all duration-500"
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.06, duration: 0.5 }}
+                  whileHover={{ y: -8 }}
+                >
+                  {/* Top gradient accent bar */}
+                  <div className={`h-1.5 w-full ${
+                    isTopRanked ? 'bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500' :
+                    isTop100 ? 'bg-gradient-to-r from-primary via-primary/80 to-primary/60' :
+                    'bg-gradient-to-r from-muted-foreground/30 to-muted-foreground/10'
+                  }`} />
+                  
+                  <div className="p-6">
+                    {/* Ranking Badge */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 pr-3">
+                        <h3 className="font-bold text-base leading-tight group-hover:text-primary transition-colors duration-300">{uni.name}</h3>
+                      </div>
+                      {rankNum ? (
+                        <div className={`shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-xl ${
+                          isTopRanked ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white shadow-lg shadow-amber-200/50' :
+                          isTop100 ? 'bg-gradient-to-br from-primary to-primary/80 text-white shadow-lg shadow-primary/20' :
+                          'bg-muted text-muted-foreground'
+                        }`}>
+                          <span className="text-[10px] font-medium leading-none opacity-80">QS</span>
+                          <span className="text-lg font-bold leading-none">#{rankNum}</span>
+                        </div>
+                      ) : (
+                        <div className="shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-primary/10 text-primary">
+                          <Award className="w-5 h-5" />
+                          <span className="text-[9px] font-medium leading-none mt-0.5">Top</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Ranking text */}
+                    <p className="text-xs font-medium text-primary/70 mb-3">{uni.ranking}</p>
+
+                    {/* Description */}
+                    {uni.description && (
+                      <p className="text-muted-foreground text-sm mb-4 line-clamp-2 group-hover:line-clamp-none transition-all duration-300">{uni.description}</p>
+                    )}
+
+                    {/* Programs */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {uni.programs.slice(0, 4).map((prog: string, i: number) => (
+                        <span key={i} className="px-2.5 py-1 bg-primary/5 text-primary border border-primary/10 rounded-lg text-xs font-medium group-hover:bg-primary/10 transition-colors">{prog}</span>
+                      ))}
+                      {uni.programs.length > 4 && (
+                        <span className="px-2.5 py-1 bg-muted text-muted-foreground rounded-lg text-xs font-medium">+{uni.programs.length - 4} more</span>
+                      )}
+                    </div>
+
+                    {/* Hover CTA */}
+                    <div className="mt-4 pt-4 border-t border-border opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <a 
+                        href={`https://wa.me/62819668278?text=Hi,%20I'm%20interested%20in%20${encodeURIComponent(uni.name)}%20in%20${encodeURIComponent(country.name)}`}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 w-full py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Inquire About This University
+                      </a>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
