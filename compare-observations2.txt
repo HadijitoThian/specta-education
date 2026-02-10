@@ -1,0 +1,7 @@
+Compare page - after selecting University of Melbourne:
+- Card shows with colored initials "UO" (fallback since clearbit logo didn't load)
+- Shows university name, country with pin icon, QS ranking badge, type, and tuition
+- The card looks clean with white background, shadow, and rounded corners
+- "Add University" dashed card shows next to it for adding more
+- Search panel collapsed after selection
+- Need to add more universities to see the program selection and compare button

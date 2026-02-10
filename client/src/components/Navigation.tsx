@@ -107,8 +107,11 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
           </button>
         </div>
         
-        {/* Desktop CTA Button */}
+        {/* Desktop CTA Buttons */}
         <div className="hidden lg:flex items-center gap-3">
+          <button onClick={() => handleNavClick("/apply")} className="px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-pink-200 transition-all">
+            Quick Apply
+          </button>
           <a href="https://wa.me/62819668278" target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm" className="flex items-center gap-2">
               <Phone className="w-4 h-4" />
@@ -185,7 +188,10 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             <button onClick={() => handleNavClick("/contact")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
               Contact
             </button>
-            <div className="pt-4 border-t border-border">
+            <div className="pt-4 border-t border-border space-y-3">
+              <button onClick={() => handleNavClick("/apply")} className="block w-full py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg text-sm font-semibold text-center hover:shadow-lg transition-all">
+                Quick Apply
+              </button>
               <a href="https://wa.me/62819668278" target="_blank" rel="noopener noreferrer" className="block">
                 <Button variant="outline" size="sm" className="w-full flex items-center justify-center gap-2">
                   <Phone className="w-4 h-4" />

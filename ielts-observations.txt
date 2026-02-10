@@ -1,0 +1,11 @@
+IELTS page observations:
+- Hero section: Beautiful pink-to-purple gradient with "Achieve Your Target IELTS Score" heading
+- Right side shows score improvement card (5.0 → 7.0+) with skill progress bars
+- "#1 in Jakarta" floating badge
+- "Score Guarantee" and "100% Money-Back" badges
+- Two CTA buttons: "Register for IELTS Class" and "Free Consultation"
+- Stats bar: 6,000+ Students, 19+ Years, 7.0+ Average Score, 100% Money-Back
+- "Choose Your IELTS Test" section visible
+- Chat button in bottom right corner
+- The page looks very attractive and professional
+- All CTAs go directly to WhatsApp

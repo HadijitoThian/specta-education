@@ -1,0 +1,23 @@
+CREATE TABLE `applications` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`fullName` varchar(255) NOT NULL,
+	`email` varchar(320) NOT NULL,
+	`phone` varchar(50) NOT NULL,
+	`currentSchool` varchar(255),
+	`educationLevel` varchar(100),
+	`selectedUniversities` text NOT NULL,
+	`ieltsScore` varchar(20),
+	`transcriptUrl` text,
+	`transcriptKey` varchar(500),
+	`passportUrl` text,
+	`passportKey` varchar(500),
+	`ieltsDocUrl` text,
+	`ieltsDocKey` varchar(500),
+	`certificateUrl` text,
+	`certificateKey` varchar(500),
+	`additionalNotes` text,
+	`status` enum('submitted','reviewing','processing','accepted','rejected') NOT NULL DEFAULT 'submitted',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `applications_id` PRIMARY KEY(`id`)
+);

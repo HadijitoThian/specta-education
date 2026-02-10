@@ -1,0 +1,7 @@
+Compare page observations:
+- Hero section looks great with purple gradient and "Compare Universities" heading
+- University logos showing as colored initials (fallback working - clearbit logos may not load for all)
+- Search and filter working
+- University list shows all expanded universities for all countries
+- Need to check: logo images loading, selecting universities, program selection
+- The page uses light theme (bg-white/gray-50) which looks clean

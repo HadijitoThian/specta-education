@@ -110,3 +110,32 @@ export const whatsappMessages = mysqlTable("whatsappMessages", {
 
 export type WhatsAppMessage = typeof whatsappMessages.$inferSelect;
 export type InsertWhatsAppMessage = typeof whatsappMessages.$inferInsert;
+
+/**
+ * Applications table - student university applications with document uploads
+ */
+export const applications = mysqlTable("applications", {
+  id: int("id").autoincrement().primaryKey(),
+  fullName: varchar("fullName", { length: 255 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  phone: varchar("phone", { length: 50 }).notNull(),
+  currentSchool: varchar("currentSchool", { length: 255 }),
+  educationLevel: varchar("educationLevel", { length: 100 }),
+  selectedUniversities: text("selectedUniversities").notNull(), // JSON array of {university, country, program}
+  ieltsScore: varchar("ieltsScore", { length: 20 }),
+  transcriptUrl: text("transcriptUrl"),
+  transcriptKey: varchar("transcriptKey", { length: 500 }),
+  passportUrl: text("passportUrl"),
+  passportKey: varchar("passportKey", { length: 500 }),
+  ieltsDocUrl: text("ieltsDocUrl"),
+  ieltsDocKey: varchar("ieltsDocKey", { length: 500 }),
+  certificateUrl: text("certificateUrl"),
+  certificateKey: varchar("certificateKey", { length: 500 }),
+  additionalNotes: text("additionalNotes"),
+  status: mysqlEnum("status", ["submitted", "reviewing", "processing", "accepted", "rejected"]).default("submitted").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Application = typeof applications.$inferSelect;
+export type InsertApplication = typeof applications.$inferInsert;

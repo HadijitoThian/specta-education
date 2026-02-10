@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Link, useParams } from "wouter";
+import { Link, useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, Building, DollarSign, Briefcase, Globe, ChevronRight, MessageCircle, X, ArrowLeft, MapPin, Calendar, FileText, Heart, Users, Landmark, BookOpen, Home as HomeIcon, Award } from "lucide-react";
+import { GraduationCap, Building, DollarSign, Briefcase, Globe, ChevronRight, MessageCircle, X, ArrowLeft, MapPin, Calendar, FileText, Heart, Users, Landmark, BookOpen, Home as HomeIcon, Award, Send } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import ChatBot from "@/components/ChatBot";
@@ -65,9 +65,21 @@ const countryData: Record<string, any> = {
       { name: "Fudan University", ranking: "#31 World (QS 2025)", programs: ["Business", "Medicine", "Journalism", "Economics", "International Relations", "Computer Science"], description: "Shanghai's premier university with strong international programs and research output." },
       { name: "Zhejiang University", ranking: "#38 World (QS 2025)", programs: ["Engineering", "Computer Science", "Business", "Agriculture", "Medicine"], description: "One of China's oldest and most prestigious universities in beautiful Hangzhou." },
       { name: "Shanghai Jiao Tong University", ranking: "#45 World (QS 2025)", programs: ["Engineering", "Business", "Medicine", "Computer Science", "Naval Architecture"], description: "Leading research university with strong industry connections and innovation." },
-      { name: "Wuhan University", ranking: "#194 World (QS 2025)", programs: ["Law", "Remote Sensing", "Philosophy", "Chemistry", "Biology"], description: "Known for its beautiful campus and strong humanities and science programs." },
-      { name: "Xiamen University", ranking: "#392 World (QS 2025)", programs: ["Economics", "Chemistry", "Marine Science", "Business", "Law"], description: "Coastal university known for its stunning campus and strong economics programs." },
-      { name: "Beijing Language and Culture University (BLCU)", ranking: "Top for Chinese Language", programs: ["Chinese Language", "International Economics", "Translation", "Computer Science"], description: "The premier institution for learning Chinese language, popular with international students." }
+      { name: "Nanjing University", ranking: "#73 World (QS 2025)", programs: ["Science", "Humanities", "Engineering", "Business", "Computer Science"], description: "One of China's oldest universities with strong science and humanities programs in historic Nanjing." },
+      { name: "Tongji University", ranking: "#192 World (QS 2025)", programs: ["Architecture", "Engineering", "Urban Planning", "Business", "Design"], description: "Shanghai university famous for architecture and engineering, with strong German academic ties." },
+      { name: "Wuhan University", ranking: "#194 World (QS 2025)", programs: ["Law", "Remote Sensing", "Philosophy", "Chemistry", "Biology"], description: "Known for its beautiful cherry blossom campus and strong humanities and science programs." },
+      { name: "Huazhong University of Science and Technology", ranking: "#199 World (QS 2025)", programs: ["Engineering", "Medicine", "Computer Science", "Business", "Optics"], description: "Wuhan-based tech university known as 'Forest University' with strong engineering and medical programs." },
+      { name: "Sun Yat-sen University", ranking: "#211 World (QS 2025)", programs: ["Business", "Medicine", "Engineering", "Social Sciences", "Marine Science"], description: "Guangzhou university with strong medical school and connections to Southeast Asia." },
+      { name: "Beijing Normal University", ranking: "#249 World (QS 2025)", programs: ["Education", "Psychology", "Chinese Language", "Environmental Science", "Arts"], description: "China's top university for education and teacher training, popular with international students." },
+      { name: "Xiamen University", ranking: "#392 World (QS 2025)", programs: ["Economics", "Chemistry", "Marine Science", "Business", "Law"], description: "Coastal university with stunning campus, strong economics programs, and campus in Malaysia." },
+      { name: "Beijing Language and Culture University (BLCU)", ranking: "Top for Chinese Language", programs: ["Chinese Language", "International Economics", "Translation", "Computer Science"], description: "The premier institution for learning Chinese language, most popular with international students." },
+      { name: "Shanghai University", ranking: "#436 World (QS 2025)", programs: ["Business", "Film", "Engineering", "Fine Arts", "Computer Science"], description: "Modern Shanghai university with affordable tuition and growing international reputation." },
+      { name: "Jinan University", ranking: "#501-550 World (QS 2025)", programs: ["Business", "Journalism", "Medicine", "Economics", "Chinese Language"], description: "Guangzhou university known for overseas Chinese education, very popular with Southeast Asian students." },
+      { name: "East China Normal University", ranking: "#451 World (QS 2025)", programs: ["Education", "Psychology", "Geography", "Software Engineering", "Business"], description: "Shanghai-based university with strong education programs and beautiful campus near the city center." },
+      { name: "Nanjing University of Science and Technology", ranking: "#601-650 World (QS 2025)", programs: ["Engineering", "Computer Science", "Business", "Design", "Science"], description: "Strong engineering university in Nanjing with affordable tuition and CSC scholarship opportunities." },
+      { name: "Guangzhou University", ranking: "#701-750 World (QS 2025)", programs: ["Business", "Engineering", "Education", "Tourism", "Computer Science"], description: "Affordable Guangzhou university with strong support for international students and proximity to Hong Kong." },
+      { name: "Zhejiang Normal University", ranking: "#801-850 World (QS 2025)", programs: ["Education", "Chinese Language", "Business", "Computer Science", "Arts"], description: "Popular with Indonesian students for Chinese language programs and affordable living in Jinhua city." },
+      { name: "Kunming University of Science and Technology", ranking: "#901-950 World (QS 2025)", programs: ["Engineering", "Mining", "Business", "Environmental Science", "Architecture"], description: "Yunnan province university with very affordable living costs and close cultural ties to Southeast Asia." }
     ],
     whyStudy: [
       { icon: DollarSign, title: "Affordable Education", desc: "Tuition as low as $2,000-5,000/year, much cheaper than Western countries" },
@@ -105,7 +117,19 @@ const countryData: Record<string, any> = {
       { name: "University of Edinburgh", ranking: "#27 World (QS 2025)", programs: ["Medicine", "AI & Data Science", "Law", "Business", "Veterinary"], description: "Scotland's premier university in a historic and vibrant city." },
       { name: "University of Manchester", ranking: "#34 World (QS 2025)", programs: ["Business", "Engineering", "Computer Science", "Medicine", "Arts"], description: "Russell Group university known for research impact and graduate employability." },
       { name: "King's College London", ranking: "#40 World (QS 2025)", programs: ["Law", "Medicine", "Humanities", "Social Sciences", "Nursing"], description: "Central London university with strong health sciences and humanities programs." },
-      { name: "University of Warwick", ranking: "#69 World (QS 2025)", programs: ["Business", "Economics", "Engineering", "Mathematics", "Theatre"], description: "Known for its business school and strong industry connections." }
+      { name: "University of Warwick", ranking: "#69 World (QS 2025)", programs: ["Business", "Economics", "Engineering", "Mathematics", "Theatre"], description: "Known for its business school and strong industry connections." },
+      { name: "University of Leeds", ranking: "#75 World (QS 2025)", programs: ["Business", "Engineering", "Medicine", "Arts", "Communication"], description: "Russell Group university with a large international student community and vibrant city life." },
+      { name: "University of Birmingham", ranking: "#84 World (QS 2025)", programs: ["Business", "Engineering", "Computer Science", "Medicine", "Law"], description: "Red brick university with strong employability and a welcoming international community." },
+      { name: "University of Nottingham", ranking: "#100 World (QS 2025)", programs: ["Business", "Engineering", "Pharmacy", "Law", "Education"], description: "Popular with Asian students, with campuses in Malaysia and China as well." },
+      { name: "University of Sheffield", ranking: "#105 World (QS 2025)", programs: ["Engineering", "Architecture", "Business", "Journalism", "Computer Science"], description: "Known for engineering excellence and one of the most affordable student cities in the UK." },
+      { name: "University of Exeter", ranking: "#153 World (QS 2025)", programs: ["Business", "Engineering", "Biosciences", "Law", "Psychology"], description: "Russell Group university with a beautiful campus and strong student satisfaction." },
+      { name: "Newcastle University", ranking: "#110 World (QS 2025)", programs: ["Business", "Engineering", "Architecture", "Medicine", "Marine Science"], description: "Friendly city with affordable living costs and a strong international student support system." },
+      { name: "University of Liverpool", ranking: "#176 World (QS 2025)", programs: ["Business", "Engineering", "Architecture", "Medicine", "Computer Science"], description: "Russell Group university with a large Indonesian student community and vibrant culture." },
+      { name: "Coventry University", ranking: "#571 World (QS 2025)", programs: ["Business", "Engineering", "Design", "Health Sciences", "Computing"], description: "Modern university known for practical, career-focused education and affordable tuition." },
+      { name: "University of the West of England (UWE Bristol)", ranking: "#601-650 World (QS 2025)", programs: ["Business", "Engineering", "Architecture", "Health Sciences", "Creative Industries"], description: "Practice-oriented university in Bristol with strong industry partnerships." },
+      { name: "De Montfort University (DMU)", ranking: "#801-850 World (QS 2025)", programs: ["Business", "Engineering", "Art & Design", "Computing", "Law"], description: "Leicester-based university popular with international students, known for creative programs." },
+      { name: "University of Hertfordshire", ranking: "#701-750 World (QS 2025)", programs: ["Business", "Engineering", "Computer Science", "Pharmacy", "Animation"], description: "Close to London with lower living costs, popular with Indonesian and Asian students." },
+      { name: "University of Greenwich", ranking: "#801-850 World (QS 2025)", programs: ["Business", "Engineering", "Architecture", "Computing", "Education"], description: "London university with affordable fees and a beautiful historic campus." }
     ],
     whyStudy: [
       { icon: GraduationCap, title: "Prestigious Degrees", desc: "Globally recognized qualifications from historic institutions" },
@@ -143,7 +167,19 @@ const countryData: Record<string, any> = {
       { name: "Monash University", ranking: "#37 World (QS 2025)", programs: ["Business", "Engineering", "Medicine", "IT", "Pharmacy", "Education"], description: "Australia's largest university with campuses in Malaysia and South Africa." },
       { name: "University of Queensland (UQ)", ranking: "#40 World (QS 2025)", programs: ["Business", "Engineering", "Science", "Agriculture", "Veterinary", "Tourism"], description: "Brisbane-based university known for research excellence and beautiful campus." },
       { name: "University of Western Australia (UWA)", ranking: "#77 World (QS 2025)", programs: ["Engineering", "Mining", "Agriculture", "Marine Science", "Business"], description: "Perth-based Group of Eight university with strong mining and resources programs." },
-      { name: "University of Adelaide", ranking: "#89 World (QS 2025)", programs: ["Wine & Food Science", "Engineering", "Health Sciences", "Arts", "Business"], description: "South Australia's premier university with unique programs in wine science and agriculture." }
+      { name: "University of Adelaide", ranking: "#89 World (QS 2025)", programs: ["Wine & Food Science", "Engineering", "Health Sciences", "Arts", "Business"], description: "South Australia's premier university with unique programs in wine science and agriculture." },
+      { name: "University of Technology Sydney (UTS)", ranking: "#88 World (QS 2025)", programs: ["Business", "IT", "Engineering", "Design", "Communication", "Nursing"], description: "Modern Sydney university with industry-focused programs and strong employability outcomes." },
+      { name: "Macquarie University", ranking: "#167 World (QS 2025)", programs: ["Business", "Accounting", "Linguistics", "IT", "Media", "Psychology"], description: "Located in Sydney's tech hub with strong accounting and business programs popular with Asian students." },
+      { name: "RMIT University", ranking: "#140 World (QS 2025)", programs: ["Business", "Design", "Engineering", "IT", "Architecture", "Fashion"], description: "Melbourne-based university known for design, technology, and enterprise programs with a Vietnam campus." },
+      { name: "Deakin University", ranking: "#233 World (QS 2025)", programs: ["Business", "IT", "Engineering", "Nursing", "Education", "Sport Science"], description: "Flexible study options with campuses in Melbourne and Geelong, popular with international students." },
+      { name: "Griffith University", ranking: "#243 World (QS 2025)", programs: ["Business", "Tourism & Hospitality", "Engineering", "Health", "Criminology", "Music"], description: "Gold Coast and Brisbane campuses with strong tourism and hospitality programs." },
+      { name: "La Trobe University", ranking: "#217 World (QS 2025)", programs: ["Business", "Health Sciences", "IT", "Engineering", "Agriculture", "Biosciences"], description: "Melbourne university with affordable fees and strong health sciences programs." },
+      { name: "Curtin University", ranking: "#183 World (QS 2025)", programs: ["Business", "Engineering", "Mining", "IT", "Health Sciences", "Architecture"], description: "Perth-based with campuses in Singapore and Malaysia, popular with Indonesian students." },
+      { name: "Swinburne University of Technology", ranking: "#285 World (QS 2025)", programs: ["Business", "IT", "Engineering", "Design", "Film & Animation", "Science"], description: "Melbourne university with strong industry partnerships and practical learning approach." },
+      { name: "University of Wollongong", ranking: "#162 World (QS 2025)", programs: ["Engineering", "IT", "Business", "Law", "Education", "Science"], description: "Coastal city south of Sydney with affordable living and strong engineering programs." },
+      { name: "Western Sydney University", ranking: "#461 World (QS 2025)", programs: ["Business", "IT", "Engineering", "Health Sciences", "Education", "Law"], description: "Affordable Sydney university with strong community focus and growing international reputation." },
+      { name: "University of Tasmania", ranking: "#293 World (QS 2025)", programs: ["Marine Science", "Business", "IT", "Engineering", "Agriculture", "Health"], description: "Affordable living in beautiful Tasmania with unique marine and Antarctic research programs." },
+      { name: "Victoria University", ranking: "#601-650 World (QS 2025)", programs: ["Business", "IT", "Engineering", "Sport Science", "Education", "Health"], description: "Melbourne university with block model learning and affordable tuition for international students." }
     ],
     whyStudy: [
       { icon: Briefcase, title: "Post-Study Work Visa", desc: "Work 2-4 years after graduation depending on qualification level" },
@@ -216,7 +252,20 @@ const countryData: Record<string, any> = {
       { name: "University of Alberta", ranking: "#96 World (QS 2025)", programs: ["Engineering", "Science", "Business", "Education", "Medicine"], description: "Edmonton-based university known for petroleum engineering and AI research." },
       { name: "University of Waterloo", ranking: "#115 World (QS 2025)", programs: ["Computer Science", "Engineering", "Mathematics", "Business", "Pharmacy"], description: "Canada's #1 co-op university with the largest co-operative education program in the world." },
       { name: "University of Montreal", ranking: "#111 World (QS 2025)", programs: ["AI & Machine Learning", "Medicine", "Law", "Science", "Arts"], description: "French-language university that is a global leader in AI research (Mila Institute)." },
-      { name: "McMaster University", ranking: "#152 World (QS 2025)", programs: ["Health Sciences", "Engineering", "Business", "Science", "Humanities"], description: "Known for its innovative problem-based learning approach in health sciences." }
+      { name: "McMaster University", ranking: "#152 World (QS 2025)", programs: ["Health Sciences", "Engineering", "Business", "Science", "Humanities"], description: "Known for its innovative problem-based learning approach in health sciences." },
+      { name: "University of Ottawa", ranking: "#203 World (QS 2025)", programs: ["Business", "Engineering", "Law", "Health Sciences", "Social Sciences"], description: "Bilingual university in Canada's capital with strong government and policy connections." },
+      { name: "Simon Fraser University (SFU)", ranking: "#318 World (QS 2025)", programs: ["Business", "Computing", "Engineering", "Communication", "Health Sciences"], description: "Vancouver-area university with strong co-op programs and beautiful mountain campus." },
+      { name: "York University", ranking: "#353 World (QS 2025)", programs: ["Business", "Law", "Arts", "Engineering", "Health"], description: "Toronto university with Schulich School of Business, popular with international students." },
+      { name: "Concordia University", ranking: "#551-600 World (QS 2025)", programs: ["Business", "Engineering", "Fine Arts", "Computer Science", "Communication"], description: "Montreal English-language university with affordable tuition and strong arts programs." },
+      { name: "Ryerson University (Toronto Metropolitan)", ranking: "#801-850 World (QS 2025)", programs: ["Business", "Engineering", "Media", "Design", "Hospitality"], description: "Toronto downtown university focused on career-oriented programs and entrepreneurship." },
+      { name: "University of Manitoba", ranking: "#601-650 World (QS 2025)", programs: ["Business", "Engineering", "Agriculture", "Science", "Health Sciences"], description: "Affordable prairie university with strong engineering and agriculture programs." },
+      { name: "University of Saskatchewan", ranking: "#461 World (QS 2025)", programs: ["Agriculture", "Engineering", "Science", "Business", "Veterinary"], description: "Research-intensive university with affordable living costs in Saskatoon." },
+      { name: "Carleton University", ranking: "#601-650 World (QS 2025)", programs: ["Business", "Engineering", "Journalism", "Public Affairs", "Computer Science"], description: "Ottawa-based university known for journalism and international affairs programs." },
+      { name: "University of Victoria", ranking: "#322 World (QS 2025)", programs: ["Business", "Engineering", "Law", "Science", "Education"], description: "Beautiful Victoria BC campus with strong co-op programs and mild climate." },
+      { name: "Seneca College", ranking: "Top College", programs: ["Business", "IT", "Aviation", "Health Sciences", "Creative Arts"], description: "Toronto's largest college offering diplomas and degrees with strong industry connections." },
+      { name: "George Brown College", ranking: "Top College", programs: ["Hospitality", "Business", "Health Sciences", "Design", "Construction"], description: "Downtown Toronto college popular with international students for hospitality and culinary programs." },
+      { name: "Conestoga College", ranking: "Top College", programs: ["Engineering Technology", "Business", "IT", "Health Sciences", "Trades"], description: "Ontario college with excellent pathway programs to university and high employment rates." },
+      { name: "Centennial College", ranking: "Top College", programs: ["Business", "Engineering Technology", "Communication", "Hospitality", "Health Sciences"], description: "Toronto's first community college with diverse programs and strong international student support." }
     ],
     whyStudy: [
       { icon: Globe, title: "Immigration Pathways", desc: "Clear pathways to permanent residency through Express Entry after graduation" },
@@ -250,11 +299,23 @@ const countryData: Record<string, any> = {
       { name: "Massachusetts Institute of Technology (MIT)", ranking: "#1 World (QS 2025)", programs: ["Engineering", "Computer Science", "Business", "Science", "Architecture"], description: "The world's #1 university for technology, engineering, and innovation." },
       { name: "Stanford University", ranking: "#6 World (QS 2025)", programs: ["All disciplines", "Computer Science", "Business", "Engineering", "Medicine"], description: "Silicon Valley's university, known for entrepreneurship and tech innovation." },
       { name: "Harvard University", ranking: "#4 World (QS 2025)", programs: ["All disciplines", "Business", "Law", "Medicine", "Government"], description: "The world's most prestigious university with unmatched resources and alumni network." },
-      { name: "California Institute of Technology (Caltech)", ranking: "#10 World (QS 2025)", programs: ["Physics", "Engineering", "Computer Science", "Chemistry", "Biology"], description: "Small but mighty — world leader in science and engineering research." },
       { name: "University of California, Berkeley", ranking: "#12 World (QS 2025)", programs: ["Engineering", "Computer Science", "Business", "Law", "Public Policy"], description: "Public university powerhouse in the San Francisco Bay Area." },
       { name: "Columbia University", ranking: "#7 World (QS 2025)", programs: ["Business", "Journalism", "Law", "International Affairs", "Arts"], description: "Ivy League university in New York City with strong professional schools." },
       { name: "University of Michigan", ranking: "#33 World (QS 2025)", programs: ["Engineering", "Business", "Medicine", "Public Policy", "Arts"], description: "Top public university with excellent research and a vibrant campus life." },
-      { name: "New York University (NYU)", ranking: "#38 World (QS 2025)", programs: ["Business", "Arts", "Law", "Film", "Social Sciences"], description: "Global university with campuses in NYC, Abu Dhabi, and Shanghai." }
+      { name: "New York University (NYU)", ranking: "#38 World (QS 2025)", programs: ["Business", "Arts", "Law", "Film", "Social Sciences"], description: "Global university with campuses in NYC, Abu Dhabi, and Shanghai." },
+      { name: "University of Illinois Urbana-Champaign", ranking: "#64 World (QS 2025)", programs: ["Engineering", "Computer Science", "Business", "Agriculture", "Education"], description: "Top public university with one of the largest international student populations in the US." },
+      { name: "Boston University", ranking: "#93 World (QS 2025)", programs: ["Business", "Engineering", "Communication", "Law", "Public Health"], description: "Private research university in Boston with strong international student community." },
+      { name: "Purdue University", ranking: "#99 World (QS 2025)", programs: ["Engineering", "Computer Science", "Agriculture", "Business", "Aviation"], description: "Known as the 'Cradle of Astronauts' with top engineering programs and affordable tuition." },
+      { name: "University of Southern California (USC)", ranking: "#116 World (QS 2025)", programs: ["Business", "Film", "Engineering", "Communication", "Architecture"], description: "LA-based university with the largest international student body among US private universities." },
+      { name: "Arizona State University (ASU)", ranking: "#179 World (QS 2025)", programs: ["Business", "Engineering", "Computer Science", "Design", "Sustainability"], description: "Most innovative university in the US (US News), with strong support for international students." },
+      { name: "University of Florida", ranking: "#167 World (QS 2025)", programs: ["Business", "Engineering", "Computer Science", "Agriculture", "Health Sciences"], description: "Top public university in Florida with affordable tuition and warm climate." },
+      { name: "Northeastern University", ranking: "#187 World (QS 2025)", programs: ["Business", "Engineering", "Computer Science", "Health Sciences", "Design"], description: "Known for co-op programs that integrate work experience with study, popular with Asian students." },
+      { name: "University of Minnesota", ranking: "#195 World (QS 2025)", programs: ["Business", "Engineering", "IT", "Health Sciences", "Agriculture"], description: "Large public research university with affordable tuition and strong STEM programs." },
+      { name: "Indiana University Bloomington", ranking: "#312 World (QS 2025)", programs: ["Business", "Music", "Public Affairs", "Education", "Computer Science"], description: "Known for Kelley School of Business, popular with Indonesian students for its welcoming community." },
+      { name: "University of South Florida", ranking: "#418 World (QS 2025)", programs: ["Business", "Engineering", "Marine Science", "Health Sciences", "Education"], description: "Tampa-based university with affordable living costs and growing research reputation." },
+      { name: "San Francisco State University", ranking: "#1001-1200 World (QS 2025)", programs: ["Business", "Engineering", "Computer Science", "Cinema", "Design"], description: "Affordable California university in the heart of San Francisco with diverse student body." },
+      { name: "University of Bridgeport", ranking: "Regionally Ranked", programs: ["Business", "Engineering", "Computer Science", "Design", "Health Sciences"], description: "Small private university in Connecticut with high acceptance rate and strong international support." },
+      { name: "Full Sail University", ranking: "Specialized", programs: ["Film", "Game Design", "Music Production", "Animation", "Digital Marketing"], description: "Florida-based creative university specializing in entertainment, media, and technology fields." }
     ],
     whyStudy: [
       { icon: GraduationCap, title: "Research Excellence", desc: "World's leading research institutions with cutting-edge facilities" },
@@ -352,6 +413,7 @@ export default function CountryPage() {
   const slug = params.slug as string;
   const country = countryData[slug];
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -546,15 +608,22 @@ export default function CountryPage() {
                     </div>
 
                     {/* Hover CTA */}
-                    <div className="mt-4 pt-4 border-t border-border opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="mt-4 pt-4 border-t border-border opacity-0 group-hover:opacity-100 transition-opacity duration-300 space-y-2">
+                      <button 
+                        onClick={() => setLocation(`/apply?country=${encodeURIComponent(slug)}&university=${encodeURIComponent(uni.name)}`)}
+                        className="flex items-center justify-center gap-2 w-full py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg text-sm font-medium hover:shadow-lg hover:shadow-pink-200 transition-all"
+                      >
+                        <Send className="w-4 h-4" />
+                        Quick Apply
+                      </button>
                       <a 
                         href={`https://wa.me/62819668278?text=Hi,%20I'm%20interested%20in%20${encodeURIComponent(uni.name)}%20in%20${encodeURIComponent(country.name)}`}
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 w-full py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+                        className="flex items-center justify-center gap-2 w-full py-2.5 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition-colors"
                       >
                         <MessageCircle className="w-4 h-4" />
-                        Inquire About This University
+                        WhatsApp Inquiry
                       </a>
                     </div>
                   </div>
@@ -702,11 +771,11 @@ export default function CountryPage() {
                 <ChevronRight className="w-5 h-5 ml-2" />
               </Button>
             </a>
-            <Link href="/contact">
+            <a href="https://wa.me/62819668278?text=Hi,%20I'm%20interested%20in%20studying%20abroad.%20Can%20you%20help%20me?" target="_blank" rel="noopener noreferrer">
               <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
-                Contact Us
+                Chat on WhatsApp
               </Button>
-            </Link>
+            </a>
           </div>
         </div>
       </section>

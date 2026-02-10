@@ -20,7 +20,11 @@ import {
   getAllConversations,
   getDocumentsByConversationId,
   getDocumentsByLeadId,
-  getAllDocuments
+  getAllDocuments,
+  createApplication,
+  getAllApplications,
+  getApplicationById,
+  updateApplication
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 
@@ -283,16 +287,21 @@ export const appRouter = router({
           type: z.string(),
           tuition: z.string(),
           programs: z.array(z.string())
-        }))
+        })),
+        selectedProgram: z.string().optional()
       }))
       .mutation(async ({ input }) => {
-        const { universities } = input;
+        const { universities, selectedProgram } = input;
 
         const uniList = universities.map(u => 
           `- ${u.name} (${u.country}, QS ${u.ranking}, ${u.type}, Tuition: ${u.tuition}, Programs: ${u.programs.join(', ')})`
         ).join('\n');
 
-        const comparisonPrompt = `You are an expert education consultant. Compare these universities for a prospective student:\n\n${uniList}\n\nProvide a detailed comparison covering:\n1. **Rankings & Reputation** - Compare global standings and academic reputation\n2. **Cost Analysis** - Tuition fees, living costs, and value for money\n3. **Programs & Strengths** - Key academic strengths and unique programs\n4. **Career Prospects** - Graduate employability and industry connections\n5. **Student Life** - Campus experience, location, and culture\n6. **Recommendation** - Who each university is best suited for\n\nFormat your response with clear headings and be specific with data. Keep it concise but informative.`;
+        const programContext = selectedProgram 
+          ? `\n\nThe student is specifically interested in: **${selectedProgram}**. Focus the comparison on this program/major across the universities, including program rankings, curriculum quality, research opportunities, and career outcomes specific to this field.`
+          : '';
+
+        const comparisonPrompt = `You are an expert education consultant. Compare these universities for a prospective student:\n\n${uniList}${programContext}\n\nProvide a detailed comparison covering:\n1. **Rankings & Reputation** - Compare global standings and academic reputation${selectedProgram ? ` (especially for ${selectedProgram})` : ''}\n2. **Cost Analysis** - Tuition fees, living costs, and value for money\n3. **Programs & Strengths** - Key academic strengths and unique programs${selectedProgram ? ` with focus on ${selectedProgram}` : ''}\n4. **Career Prospects** - Graduate employability and industry connections${selectedProgram ? ` for ${selectedProgram} graduates` : ''}\n5. **Student Life** - Campus experience, location, and culture\n6. **Recommendation** - Who each university is best suited for\n\nFormat your response with clear headings and be specific with data. Keep it concise but informative.`;
 
         try {
           const response = await invokeLLM({
@@ -392,7 +401,81 @@ export const appRouter = router({
         const documents = await getDocumentsByConversationId(input.conversationId);
         return { documents };
       })
-  })
+  }),
+
+  application: router({
+    submit: publicProcedure
+      .input(z.object({
+        fullName: z.string().min(1),
+        email: z.string().email(),
+        phone: z.string().min(1),
+        currentSchool: z.string().optional(),
+        educationLevel: z.string().optional(),
+        selectedUniversities: z.string(), // JSON string
+        ieltsScore: z.string().optional(),
+        transcriptUrl: z.string().optional(),
+        transcriptKey: z.string().optional(),
+        passportUrl: z.string().optional(),
+        passportKey: z.string().optional(),
+        ieltsDocUrl: z.string().optional(),
+        ieltsDocKey: z.string().optional(),
+        certificateUrl: z.string().optional(),
+        certificateKey: z.string().optional(),
+        additionalNotes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const application = await createApplication(input);
+        if (application) {
+          const unis = JSON.parse(input.selectedUniversities);
+          const uniNames = unis.map((u: any) => `${u.university} (${u.country})`).join(", ");
+          await notifyOwner({
+            title: `New Application: ${input.fullName}`,
+            content: `Student: ${input.fullName}\nEmail: ${input.email}\nPhone: ${input.phone}\nSchool: ${input.currentSchool || 'N/A'}\nApplying to: ${uniNames}\nIELTS: ${input.ieltsScore || 'N/A'}`
+          });
+        }
+        return { success: true, application };
+      }),
+
+    uploadDocument: publicProcedure
+      .input(z.object({
+        fileName: z.string(),
+        fileData: z.string(), // base64
+        fileType: z.string(),
+        documentType: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const buffer = Buffer.from(input.fileData, 'base64');
+        const fileKey = `applications/${nanoid()}-${input.fileName}`;
+        const { url } = await storagePut(fileKey, buffer, input.fileType);
+        return { success: true, url, fileKey };
+      }),
+
+    getAll: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') return { applications: [] };
+        const apps = await getAllApplications();
+        return { applications: apps };
+      }),
+
+    getById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') return { application: null };
+        const app = await getApplicationById(input.id);
+        return { application: app };
+      }),
+
+    updateStatus: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["submitted", "reviewing", "processing", "accepted", "rejected"]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') return { success: false };
+        await updateApplication(input.id, { status: input.status });
+        return { success: true };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

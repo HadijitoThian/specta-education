@@ -314,16 +314,16 @@ export default function Home() {
             <p className="text-white/90 max-w-2xl mx-auto mb-8">
               Chat with our AI assistant to get personalized guidance on studying abroad. We're here to help you every step of the way.
             </p>
-            <Link href="/contact">
+            <a href="https://wa.me/62819668278?text=Hi,%20I'm%20interested%20in%20studying%20abroad.%20Can%20you%20help%20me?" target="_blank" rel="noopener noreferrer">
               <Button 
                 size="lg" 
                 variant="secondary" 
                 className="bg-white text-primary hover:bg-white/90"
               >
                 <Phone className="w-5 h-5 mr-2" />
-                Contact Us
+                Chat on WhatsApp
               </Button>
-            </Link>
+            </a>
           </motion.div>
         </div>
       </section>

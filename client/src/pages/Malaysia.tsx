@@ -766,11 +766,11 @@ export default function Malaysia() {
                 Chat with AI Advisor
               </Button>
             </Link>
-            <Link href="/contact">
+            <a href="https://wa.me/62819668278?text=Hi,%20I'm%20interested%20in%20studying%20in%20Malaysia.%20Can%20I%20book%20a%20free%20consultation?" target="_blank" rel="noopener noreferrer">
               <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
                 Book Free Consultation
               </Button>
-            </Link>
+            </a>
           </div>
         </div>
       </section>

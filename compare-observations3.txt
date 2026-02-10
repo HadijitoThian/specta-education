@@ -1,0 +1,7 @@
+Compare page with 2 universities selected:
+- Both cards showing with colored initials (UO for Melbourne, TU for Taylor's)
+- Program/Major selection section visible with pills: General Comparison, Business & Management, Computer Science & IT, Engineering, Medicine & Health, Law, Arts & Design, Architecture, Accounting & Finance, Data Science & AI, Psychology, Hospitality & Tourism, Media & Communication
+- "General Comparison" is highlighted in indigo (selected by default)
+- "Compare with AI" button visible at bottom
+- Third "Add University" slot available
+- The page looks great with the gradient hero and clean card design

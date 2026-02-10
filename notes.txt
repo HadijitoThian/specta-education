@@ -1,0 +1,11 @@
+Current state observations:
+- Homepage looks good, no errors
+- TypeScript: 0 errors
+- LSP: no errors
+- Dev server running
+- Need to check Compare and IELTS pages in browser
+- Need to also check CountryPage Quick Apply button
+- Need to also update CTA WhatsApp links to go directly to WhatsApp (not to a new page)
+- Need to update the server router to include selectedProgram in the compare prompt
+- Need to update todo.md
+- Need to write tests

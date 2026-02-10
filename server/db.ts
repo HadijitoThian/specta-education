@@ -208,3 +208,38 @@ export async function getAllDocuments(): Promise<Document[]> {
 
   return await db.select().from(documents).orderBy(desc(documents.createdAt));
 }
+
+// Application functions
+import { applications, InsertApplication, Application } from "../drizzle/schema";
+
+export async function createApplication(data: InsertApplication): Promise<Application | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(applications).values(data);
+  const insertId = result[0].insertId;
+  const created = await db.select().from(applications).where(eq(applications.id, insertId)).limit(1);
+  return created[0] || null;
+}
+
+export async function getAllApplications(): Promise<Application[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(applications).orderBy(desc(applications.createdAt));
+}
+
+export async function getApplicationById(id: number): Promise<Application | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.select().from(applications).where(eq(applications.id, id)).limit(1);
+  return result[0] || null;
+}
+
+export async function updateApplication(id: number, data: Partial<InsertApplication>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(applications).set(data).where(eq(applications.id, id));
+}

@@ -213,3 +213,38 @@
 - [x] Add AI analysis to provide personalized recommendations
 - [x] Create backend tRPC procedure for AI comparison
 - [x] Add comparison tool to navigation menu
+
+### 12. WhatsApp CTA Fix
+- [x] Fix WhatsApp CTA buttons to direct link (no intermediate page) - Already using direct wa.me links
+- [x] Apply to all pages with WhatsApp buttons - All verified
+
+### 13. Expand University Lists (~20 per country)
+- [x] Australia - Expand to ~20 universities including accessible ones for Asian students
+- [x] UK - Expand to ~20 universities including accessible ones for Asian students
+- [x] China - Expand to ~20 universities including accessible ones for Asian students
+- [x] USA - Expand to ~20 universities including accessible ones for Asian students
+- [x] Canada - Expand to ~20 universities including accessible ones for Asian students
+
+### 14. Quick Apply Feature
+- [x] Build Quick Apply button for each university
+- [x] Pre-filled application form with university name
+- [x] Upload transcripts
+- [x] Upload passport (if any)
+- [x] Upload IELTS score (if any)
+- [x] Upload certificates
+- [x] Fields: name, phone, email, current school/university, program applying for
+- [x] Support multiple program/university applications
+- [x] Store applications in database
+
+### 15. AI Comparison Improvements
+- [x] Add major/program field for comparison
+- [x] Replace country flags with university logos in comparison cards
+- [x] More attractive UI/UX for comparison page
+
+### 16. IELTS Page Redesign
+- [x] More attractive UI/UX for IELTS preparation page
+- [x] Better visual hierarchy and layout
+
+### 17. Compare Page Redesign
+- [x] More attractive UI/UX for compare page
+- [x] Better visual design and layout
