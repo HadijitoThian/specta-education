@@ -555,3 +555,28 @@
 - [x] AI analysis sections: RIASEC analysis, MI analysis, cross-analysis, study tips
 - [x] Entry point card on SpecTa Play page
 - [x] Route: /play/aptitude
+
+### 55. Bug Fix: Multiselect Questions (Q2 Subjects & Q3 Hobbies)
+- [x] Built MultiSelectChip component for chip-style selection
+- [x] Added handleMultiSelectAnswer function for toggle behavior
+- [x] Q2 (subjects) now renders clickable multiselect chips
+- [x] Q3 (hobbies) now renders clickable multiselect chips
+- [x] isCurrentAnswered updated to check multiselect has at least 1 selection
+
+### 56. Lead Capture Before Test (Mandatory)
+- [x] Moved lead capture to BEFORE the test (after intro, before section 1)
+- [x] Name, email, phone are all mandatory (with red asterisk)
+- [x] Clear notice: "Hasil lengkap tes bakat AI akan dikirim ke email kamu"
+- [x] Button disabled until all 3 fields are filled
+
+### 57. Send Results to Email Instead of On-Screen
+- [x] Created sendAptitudeResultsEmail function in email.ts
+- [x] Beautiful HTML email with all sections (personality, RIASEC, MI, majors, career, parent summary)
+- [x] Email sent automatically after AI analysis completes
+- [x] Show "emailSent" confirmation page instead of full results on screen
+- [x] Confirmation page has WhatsApp CTA and retake option
+
+### 58. Replace Homepage Banner with Tes Bakat AI
+- [x] Replaced SpecTa Play Promo Banner with Tes Bakat AI promotion
+- [x] Teal/emerald gradient with AI-Powered badge
+- [x] CTA links to /play/aptitude

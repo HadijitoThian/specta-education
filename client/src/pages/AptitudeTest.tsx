@@ -16,7 +16,7 @@ import {
 } from "../../../shared/aptitudeQuestions";
 
 type Lang = "id" | "en";
-type Phase = "intro" | "section1" | "section2" | "section3" | "leadCapture" | "analyzing" | "results";
+type Phase = "intro" | "leadCapture" | "section1" | "section2" | "section3" | "analyzing" | "emailSent" | "results";
 
 // Scoring helpers
 function computeRiasecScores(answers: Record<string, number>) {
@@ -89,6 +89,27 @@ function LikertScale({ value, onChange, labels }: { value: number | undefined; o
         </button>
       ))}
     </div>
+  );
+}
+
+// Multi-select chip component
+function MultiSelectChip({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full border-2 transition-all duration-200 text-sm font-medium ${
+        selected
+          ? "border-teal-500 bg-teal-50 text-teal-700 shadow-sm"
+          : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+      }`}
+    >
+      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+        selected ? "border-teal-500 bg-teal-500" : "border-gray-300"
+      }`}>
+        {selected && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+      </div>
+      {label}
+    </button>
   );
 }
 
@@ -266,6 +287,19 @@ export default function AptitudeTest() {
     setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }));
   };
 
+  const handleMultiSelectAnswer = (value: string) => {
+    if (!currentQuestion) return;
+    const current = (answers[currentQuestion.id] as string) || "";
+    const selected = current ? current.split(",") : [];
+    if (selected.includes(value)) {
+      const updated = selected.filter((v) => v !== value);
+      setAnswers((prev) => ({ ...prev, [currentQuestion.id]: updated.join(",") }));
+    } else {
+      const updated = [...selected, value];
+      setAnswers((prev) => ({ ...prev, [currentQuestion.id]: updated.join(",") }));
+    }
+  };
+
   const handleNext = () => {
     if (currentQ < sectionQuestions.length - 1) {
       setCurrentQ((prev) => prev + 1);
@@ -278,7 +312,8 @@ export default function AptitudeTest() {
         setPhase("section3");
         setCurrentQ(0);
       } else if (phase === "section3") {
-        setPhase("leadCapture");
+        // All done, submit directly (lead info already captured)
+        handleSubmit();
       }
     }
   };
@@ -293,9 +328,8 @@ export default function AptitudeTest() {
       } else if (phase === "section3") {
         setPhase("section2");
         setCurrentQ(miQuestions.length - 1);
-      } else if (phase === "leadCapture") {
-        setPhase("section3");
-        setCurrentQ(personalQuestions.length - 1);
+      } else if (phase === "section1") {
+        setPhase("leadCapture");
       }
     }
   };
@@ -309,10 +343,19 @@ export default function AptitudeTest() {
     const hollandCode = getHollandCode(riasecScores);
     const topMi = getTopN(miScores, 3);
 
-    // Personal answers
-    const personalAnswers: Record<string, string> = {};
+    // Personal answers (convert multiselect comma-separated to arrays)
+    const personalAnswers: Record<string, string | string[]> = {};
     for (const q of personalQuestions) {
-      if (answers[q.id]) personalAnswers[q.id] = answers[q.id] as string;
+      if (answers[q.id]) {
+        const val = answers[q.id] as string;
+        if (q.type === "multiselect" && val.includes(",")) {
+          personalAnswers[q.id] = val.split(",");
+        } else if (q.type === "multiselect") {
+          personalAnswers[q.id] = val ? [val] : [];
+        } else {
+          personalAnswers[q.id] = val;
+        }
+      }
     }
 
     try {
@@ -359,19 +402,10 @@ export default function AptitudeTest() {
         hollandCode,
       });
 
-      setPhase("results");
+      setPhase("emailSent");
     } catch {
-      // On error, still show results with scores only
-      setAiResult({
-        personalitySnapshot: lang === "id" ? "Profil unik kamu sudah terlihat!" : "Your unique profile is ready!",
-        majorRecommendations: [],
-        careerOutlook: [],
-        parentSummary: "",
-        riasecScores,
-        miScores,
-        hollandCode,
-      });
-      setPhase("results");
+      // On error, still show email sent confirmation
+      setPhase("emailSent");
     }
   };
 
@@ -380,11 +414,19 @@ export default function AptitudeTest() {
     setCurrentQ(0);
     setAiResult(null);
     setLeadInfo({ name: "", email: "", phone: "" });
-    setPhase("intro");
+    setPhase("leadCapture");
     window.scrollTo(0, 0);
   };
 
-  const isCurrentAnswered = currentQuestion ? answers[currentQuestion.id] !== undefined : false;
+  const isCurrentAnswered = currentQuestion ? (() => {
+    const val = answers[currentQuestion.id];
+    if (val === undefined) return false;
+    // For multiselect, check that at least one option is selected
+    if ("type" in currentQuestion && (currentQuestion as any).type === "multiselect") {
+      return typeof val === "string" && val.length > 0;
+    }
+    return true;
+  })() : false;
 
   // ========== INTRO PHASE ==========
   if (phase === "intro") {
@@ -456,7 +498,7 @@ export default function AptitudeTest() {
               </div>
 
               <button
-                onClick={() => setPhase("section1")}
+                onClick={() => setPhase("leadCapture")}
                 className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-semibold px-8 py-4 rounded-2xl text-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
               >
                 {uiLabels.startButton[lang]} →
@@ -573,6 +615,28 @@ export default function AptitudeTest() {
                   </div>
                 )}
 
+                {"type" in currentQuestion && (currentQuestion as any).type === "multiselect" && "options" in currentQuestion && (
+                  <div className="mt-4">
+                    <p className="text-xs text-gray-400 mb-3">
+                      {lang === "id" ? "Pilih beberapa yang sesuai (ketuk untuk memilih/batal)" : "Select all that apply (tap to select/deselect)"}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {((currentQuestion as any).options || []).map((opt: any) => {
+                        const currentVal = (answers[currentQuestion.id] as string) || "";
+                        const selectedArr = currentVal ? currentVal.split(",") : [];
+                        return (
+                          <MultiSelectChip
+                            key={opt.value}
+                            label={opt.label[lang]}
+                            selected={selectedArr.includes(opt.value)}
+                            onClick={() => handleMultiSelectAnswer(opt.value)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {"type" in currentQuestion && (currentQuestion as any).type === "text" && (
                   <textarea
                     value={(answers[currentQuestion.id] as string) || ""}
@@ -630,8 +694,9 @@ export default function AptitudeTest() {
     );
   }
 
-  // ========== LEAD CAPTURE PHASE ==========
+  // ========== LEAD CAPTURE PHASE (BEFORE TEST) ==========
   if (phase === "leadCapture") {
+    const isFormValid = leadInfo.name.trim() && leadInfo.email.trim() && leadInfo.phone.trim();
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
         <motion.div
@@ -641,14 +706,18 @@ export default function AptitudeTest() {
         >
           <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
             <div className="text-center mb-6">
-              <div className="text-4xl mb-3">🎉</div>
-              <h2 className="text-2xl font-bold text-gray-900">{uiLabels.leadCaptureTitle[lang]}</h2>
-              <p className="text-sm text-gray-500 mt-2">{uiLabels.leadCaptureSubtitle[lang]}</p>
+              <div className="text-4xl mb-3">📝</div>
+              <h2 className="text-2xl font-bold text-gray-900">{lang === "id" ? "Sebelum Mulai" : "Before We Start"}</h2>
+              <p className="text-sm text-gray-500 mt-2">{lang === "id" ? "Isi data kamu dulu ya! Hasil tes akan dikirim ke email kamu setelah selesai." : "Fill in your details first! Results will be sent to your email after completion."}</p>
+            </div>
+
+            <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 mb-6 text-center">
+              <span className="text-teal-700 text-sm font-medium">📧 {lang === "id" ? "Hasil lengkap tes bakat AI akan dikirim ke email kamu" : "Complete AI aptitude results will be sent to your email"}</span>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">{uiLabels.leadCaptureName[lang]}</label>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">{uiLabels.leadCaptureName[lang]} <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={leadInfo.name}
@@ -658,7 +727,7 @@ export default function AptitudeTest() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">{uiLabels.leadCaptureEmail[lang]}</label>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">{uiLabels.leadCaptureEmail[lang]} <span className="text-red-500">*</span></label>
                 <input
                   type="email"
                   value={leadInfo.email}
@@ -668,7 +737,7 @@ export default function AptitudeTest() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">{uiLabels.leadCapturePhone[lang]}</label>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">{uiLabels.leadCapturePhone[lang]} <span className="text-red-500">*</span></label>
                 <input
                   type="tel"
                   value={leadInfo.phone}
@@ -680,27 +749,18 @@ export default function AptitudeTest() {
             </div>
 
             <button
-              onClick={handleSubmit}
-              disabled={!leadInfo.name || !leadInfo.email}
+              onClick={() => setPhase("section1")}
+              disabled={!isFormValid}
               className={`w-full mt-6 font-semibold py-3.5 rounded-xl text-sm transition-all ${
-                leadInfo.name && leadInfo.email
+                isFormValid
                   ? "bg-gradient-to-r from-teal-500 to-emerald-500 text-white hover:shadow-lg"
                   : "bg-gray-100 text-gray-400 cursor-not-allowed"
               }`}
             >
-              {uiLabels.leadCaptureButton[lang]} →
+              {uiLabels.startButton[lang]} →
             </button>
 
-            <button
-              onClick={() => {
-                handleSubmit();
-              }}
-              className="block mx-auto mt-3 text-xs text-gray-400 hover:text-gray-600"
-            >
-              {lang === "id" ? "Lewati, langsung lihat hasil" : "Skip, view results directly"}
-            </button>
-
-            <button onClick={handleBack} className="block mx-auto mt-2 text-xs text-gray-400 hover:text-gray-600">
+            <button onClick={() => setPhase("intro")} className="block mx-auto mt-3 text-xs text-gray-400 hover:text-gray-600">
               ← {uiLabels.backButton[lang]}
             </button>
           </div>
@@ -743,6 +803,72 @@ export default function AptitudeTest() {
                 {msg}
               </motion.p>
             ))}
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // ========== EMAIL SENT CONFIRMATION PHASE ==========
+  if (phase === "emailSent") {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="max-w-md w-full text-center"
+        >
+          <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+            <div className="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <span className="text-4xl">📧</span>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">
+              {lang === "id" ? "Hasil Sudah Dikirim!" : "Results Sent!"}
+            </h2>
+            <p className="text-gray-600 mb-2">
+              {lang === "id"
+                ? `Hai ${leadInfo.name}! Hasil lengkap tes bakat AI kamu sudah dikirim ke:`
+                : `Hi ${leadInfo.name}! Your complete AI aptitude results have been sent to:`}
+            </p>
+            <p className="text-teal-600 font-semibold text-lg mb-6">{leadInfo.email}</p>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-left">
+              <p className="text-amber-800 text-sm">
+                {lang === "id"
+                  ? "💡 Cek folder inbox atau spam kamu ya. Email berisi profil kepribadian, rekomendasi jurusan, prospek karir, dan ringkasan untuk orang tua."
+                  : "💡 Check your inbox or spam folder. The email contains your personality profile, major recommendations, career outlook, and parent summary."}
+              </p>
+            </div>
+
+            <div className="bg-gradient-to-br from-red-500 to-rose-500 rounded-xl p-6 text-white mb-6">
+              <h3 className="font-bold mb-2">{lang === "id" ? "Mau konsultasi lebih lanjut?" : "Want further consultation?"}</h3>
+              <p className="text-white/80 text-sm mb-4">{lang === "id" ? "Tim SpecTa siap bantu kamu memilih jurusan dan universitas yang tepat!" : "The SpecTa team is ready to help you choose the right major and university!"}</p>
+              <a
+                href="https://wa.me/6281287878055?text=Hi%20SpecTa!%20Saya%20baru%20selesai%20Tes%20Bakat%20AI%20dan%20ingin%20konsultasi%20lebih%20lanjut!"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-white text-red-600 font-semibold px-6 py-3 rounded-xl hover:shadow-lg transition-all text-sm"
+              >
+                <MessageCircle className="w-4 h-4" />
+                {lang === "id" ? "Chat via WhatsApp" : "Chat via WhatsApp"}
+              </a>
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-3">
+              <button
+                onClick={handleRetake}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-800 text-sm font-medium px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                <RotateCcw className="w-4 h-4" />
+                {uiLabels.retakeButton[lang]}
+              </button>
+              <button
+                onClick={() => setLocation("/play")}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-800 text-sm font-medium px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                ← {lang === "id" ? "Kembali ke SpecTa Play" : "Back to SpecTa Play"}
+              </button>
+            </div>
           </div>
         </motion.div>
       </div>

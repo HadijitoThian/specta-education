@@ -81,7 +81,7 @@ import {
   getAllAptitudeResults
 } from "./db";
 import { notifyOwner } from "./_core/notification";
-import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail } from "./email";
+import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail } from "./email";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
@@ -2223,6 +2223,17 @@ IMPORTANT:
           title: "New Aptitude Test Completed",
           content: `${input.studentName} (${input.studentEmail}) completed the aptitude test. Holland Code: ${hollandCode}. Top majors: ${(aiAnalysis.recommendedMajors || []).map((m: any) => m.name).join(", ")}.`,
         }).catch(() => {});
+
+        // 8. Send results to student's email
+        sendAptitudeResultsEmail({
+          to: input.studentEmail,
+          studentName: input.studentName,
+          language: input.language,
+          hollandCode,
+          riasecScores,
+          miScores,
+          aiAnalysis,
+        }).catch((err) => console.error("[Aptitude] Failed to send results email:", err));
 
         return {
           success: true,
