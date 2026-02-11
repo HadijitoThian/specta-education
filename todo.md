@@ -467,3 +467,8 @@
 - [x] Staff Auth router (login, me, changePassword, logout)
 - [x] Staff Management router (getAll, create, update, resetPassword, delete)
 - [x] 21 vitest tests for staff auth, management, and admin delete operations
+
+### 45. Bug Fix: Staff Login Not Working in Production
+- [x] Fix "Dynamic require of jsonwebtoken is not supported" error - replaced require() with jose (SignJWT/jwtVerify)
+- [x] Verify staff accounts exist (7 accounts confirmed in database)
+- [x] Test staff login works end-to-end

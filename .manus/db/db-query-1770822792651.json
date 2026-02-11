@@ -1,0 +1,73 @@
+{
+  "query": "SELECT id, name, email, role, mustChangePassword, isActive, lastLoginAt FROM staffAccounts;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT id, name, email, role, mustChangePassword, isActive, lastLoginAt FROM staffAccounts;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Adhitya",
+      "email": "adhitya@spectaeducation.com",
+      "role": "admin",
+      "mustChangePassword": "1",
+      "isActive": "1",
+      "lastLoginAt": "NULL"
+    },
+    {
+      "id": "2",
+      "name": "Fitriana",
+      "email": "fitriana@spectaeducation.com",
+      "role": "counselor",
+      "mustChangePassword": "1",
+      "isActive": "1",
+      "lastLoginAt": "NULL"
+    },
+    {
+      "id": "3",
+      "name": "Nezwa",
+      "email": "nezwa@spectaeducation.com",
+      "role": "counselor",
+      "mustChangePassword": "1",
+      "isActive": "1",
+      "lastLoginAt": "NULL"
+    },
+    {
+      "id": "4",
+      "name": "Jenny",
+      "email": "jenny@spectaeducation.com",
+      "role": "counselor",
+      "mustChangePassword": "1",
+      "isActive": "1",
+      "lastLoginAt": "NULL"
+    },
+    {
+      "id": "5",
+      "name": "Intar",
+      "email": "intar@spectaeducation.com",
+      "role": "counselor",
+      "mustChangePassword": "1",
+      "isActive": "1",
+      "lastLoginAt": "NULL"
+    },
+    {
+      "id": "6",
+      "name": "Wulandari",
+      "email": "wulan@spectaeducation.com",
+      "role": "counselor",
+      "mustChangePassword": "1",
+      "isActive": "1",
+      "lastLoginAt": "2026-02-11 15:10:03"
+    },
+    {
+      "id": "60001",
+      "name": "hadijito thian",
+      "email": "hadijitothian@gmail.com",
+      "role": "counselor",
+      "mustChangePassword": "1",
+      "isActive": "1",
+      "lastLoginAt": "2026-02-11 15:12:17"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\tmustChangePassword\tisActive\tlastLoginAt\n1\tAdhitya\tadhitya@spectaeducation.com\tadmin\t1\t1\tNULL\n2\tFitriana\tfitriana@spectaeducation.com\tcounselor\t1\t1\tNULL\n3\tNezwa\tnezwa@spectaeducation.com\tcounselor\t1\t1\tNULL\n4\tJenny\tjenny@spectaeducation.com\tcounselor\t1\t1\tNULL\n5\tIntar\tintar@spectaeducation.com\tcounselor\t1\t1\tNULL\n6\tWulandari\twulan@spectaeducation.com\tcounselor\t1\t1\t2026-02-11 15:10:03\n60001\thadijito thian\thadijitothian@gmail.com\tcounselor\t1\t1\t2026-02-11 15:12:17\n",
+  "stderr": "",
+  "execution_time_ms": 1576
+}

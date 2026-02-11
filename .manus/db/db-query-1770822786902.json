@@ -1,0 +1,94 @@
+{
+  "query": "SELECT * FROM staffAccounts LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT * FROM staffAccounts LIMIT 10;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Adhitya",
+      "email": "adhitya@spectaeducation.com",
+      "passwordHash": "$2b$10$02OcW.3tuWmHrc7gJ4bsgu18kUEb8zi0b0B4J2lVXTjjqubFO2Nia",
+      "role": "admin",
+      "mustChangePassword": "1",
+      "isActive": "1",
+      "lastLoginAt": "NULL",
+      "createdAt": "2026-02-11 12:31:04",
+      "updatedAt": "2026-02-11 12:31:47"
+    },
+    {
+      "id": "2",
+      "name": "Fitriana",
+      "email": "fitriana@spectaeducation.com",
+      "passwordHash": "$2b$10$5eMf1e0KobP4SiHqpBt6wOtmeWZylX9v.AP2wjx75NtubwLcnJkM.",
+      "role": "counselor",
+      "mustChangePassword": "1",
+      "isActive": "1",
+      "lastLoginAt": "NULL",
+      "createdAt": "2026-02-11 12:31:35",
+      "updatedAt": "2026-02-11 12:31:35"
+    },
+    {
+      "id": "3",
+      "name": "Nezwa",
+      "email": "nezwa@spectaeducation.com",
+      "passwordHash": "$2b$10$5WUdvwFJ0EqShJd.WyfkZOaEMBvOswn.3YA5TsAiS.ZkQqPZ86KMS",
+      "role": "counselor",
+      "mustChangePassword": "1",
+      "isActive": "1",
+      "lastLoginAt": "NULL",
+      "createdAt": "2026-02-11 12:32:13",
+      "updatedAt": "2026-02-11 12:32:13"
+    },
+    {
+      "id": "4",
+      "name": "Jenny",
+      "email": "jenny@spectaeducation.com",
+      "passwordHash": "$2b$10$KUWrRehon8y11icNQs73ZerSwYw/P3aNwVzjJMoOjwDyJx2IN9wja",
+      "role": "counselor",
+      "mustChangePassword": "1",
+      "isActive": "1",
+      "lastLoginAt": "NULL",
+      "createdAt": "2026-02-11 12:32:34",
+      "updatedAt": "2026-02-11 12:32:34"
+    },
+    {
+      "id": "5",
+      "name": "Intar",
+      "email": "intar@spectaeducation.com",
+      "passwordHash": "$2b$10$a8wiyJZ99t20frmF90J1BOlcSmv7j0ESOT8L/8WqKl8KjovV5XOvK",
+      "role": "counselor",
+      "mustChangePassword": "1",
+      "isActive": "1",
+      "lastLoginAt": "NULL",
+      "createdAt": "2026-02-11 12:33:24",
+      "updatedAt": "2026-02-11 12:33:24"
+    },
+    {
+      "id": "6",
+      "name": "Wulandari",
+      "email": "wulan@spectaeducation.com",
+      "passwordHash": "$2b$10$Osi0m7xvC92GqWeJN99X/u7O7ye/kVxNOJZrdS3jmm2aI6VBALPN.",
+      "role": "counselor",
+      "mustChangePassword": "1",
+      "isActive": "1",
+      "lastLoginAt": "2026-02-11 15:10:03",
+      "createdAt": "2026-02-11 12:33:46",
+      "updatedAt": "2026-02-11 15:10:02"
+    },
+    {
+      "id": "60001",
+      "name": "hadijito thian",
+      "email": "hadijitothian@gmail.com",
+      "passwordHash": "$2b$10$eYmaI3dLh2M3Sh5Ph5NejOMhEX2yKMX4PFdMwt9JmMii1LZJ8MUiS",
+      "role": "counselor",
+      "mustChangePassword": "1",
+      "isActive": "1",
+      "lastLoginAt": "2026-02-11 15:12:17",
+      "createdAt": "2026-02-11 15:03:11",
+      "updatedAt": "2026-02-11 15:12:16"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\tpasswordHash\trole\tmustChangePassword\tisActive\tlastLoginAt\tcreatedAt\tupdatedAt\n1\tAdhitya\tadhitya@spectaeducation.com\t$2b$10$02OcW.3tuWmHrc7gJ4bsgu18kUEb8zi0b0B4J2lVXTjjqubFO2Nia\tadmin\t1\t1\tNULL\t2026-02-11 12:31:04\t2026-02-11 12:31:47\n2\tFitriana\tfitriana@spectaeducation.com\t$2b$10$5eMf1e0KobP4SiHqpBt6wOtmeWZylX9v.AP2wjx75NtubwLcnJkM.\tcounselor\t1\t1\tNULL\t2026-02-11 12:31:35\t2026-02-11 12:31:35\n3\tNezwa\tnezwa@spectaeducation.com\t$2b$10$5WUdvwFJ0EqShJd.WyfkZOaEMBvOswn.3YA5TsAiS.ZkQqPZ86KMS\tcounselor\t1\t1\tNULL\t2026-02-11 12:32:13\t2026-02-11 12:32:13\n4\tJenny\tjenny@spectaeducation.com\t$2b$10$KUWrRehon8y11icNQs73ZerSwYw/P3aNwVzjJMoOjwDyJx2IN9wja\tcounselor\t1\t1\tNULL\t2026-02-11 12:32:34\t2026-02-11 12:32:34\n5\tIntar\tintar@spectaeducation.com\t$2b$10$a8wiyJZ99t20frmF90J1BOlcSmv7j0ESOT8L/8WqKl8KjovV5XOvK\tcounselor\t1\t1\tNULL\t2026-02-11 12:33:24\t2026-02-11 12:33:24\n6\tWulandari\twulan@spectaeducation.com\t$2b$10$Osi0m7xvC92GqWeJN99X/u7O7ye/kVxNOJZrdS3jmm2aI6VBALPN.\tcounselor\t1\t1\t2026-02-11 15:10:03\t2026-02-11 12:33:46\t2026-02-11 15:10:02\n60001\thadijito thian\thadijitothian@gmail.com\t$2b$10$eYmaI3dLh2M3Sh5Ph5NejOMhEX2yKMX4PFdMwt9JmMii1LZJ8MUiS\tcounselor\t1\t1\t2026-02-11 15:12:17\t2026-02-11 15:03:11\t2026-02-11 15:12:16\n",
+  "stderr": "",
+  "execution_time_ms": 1607
+}

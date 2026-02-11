@@ -76,6 +76,7 @@ import { notifyOwner } from "./_core/notification";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail } from "./email";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
+import { SignJWT, jwtVerify } from "jose";
 
 const SYSTEM_PROMPT = `You are SpecTa, a friendly AI education consultant for SpecTa Education (Indonesian study abroad consultancy). Be warm, helpful, and knowledgeable.
 
@@ -1547,13 +1548,12 @@ Rules:
         }
         // Update last login
         await updateStaffAccount(staff.id, { lastLoginAt: new Date() } as any);
-        // Set session cookie using JWT
-        const jwt = require("jsonwebtoken") as any;
-        const token = jwt.sign(
-          { staffId: staff.id, email: staff.email, role: staff.role, name: staff.name },
-          process.env.JWT_SECRET || "secret",
-          { expiresIn: "7d" }
-        );
+        // Set session cookie using JWT (jose)
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const token = await new SignJWT({ staffId: staff.id, email: staff.email, role: staff.role, name: staff.name })
+          .setProtectedHeader({ alg: "HS256" })
+          .setExpirationTime("7d")
+          .sign(secretKey);
         ctx.res.cookie("staff_token", token, { path: "/", httpOnly: true, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
         return {
           success: true,
@@ -1566,9 +1566,9 @@ Rules:
       const match = cookieHeader.match(/staff_token=([^;]+)/);
       if (!match) return { staff: null };
       try {
-        const jwt = require("jsonwebtoken") as any;
-        const decoded = jwt.verify(match[1], process.env.JWT_SECRET || "secret") as any;
-        const staff = await getStaffAccountById(decoded.staffId);
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const { payload: decoded } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        const staff = await getStaffAccountById(decoded.staffId as number);
         if (!staff || !staff.isActive) return { staff: null };
         return {
           staff: { id: staff.id, name: staff.name, email: staff.email, role: staff.role, mustChangePassword: staff.mustChangePassword },
@@ -1588,9 +1588,9 @@ Rules:
         const match = cookieHeader.match(/staff_token=([^;]+)/);
         if (!match) return { success: false, error: "Not authenticated" };
         try {
-          const jwt = require("jsonwebtoken") as any;
-          const decoded = jwt.verify(match[1], process.env.JWT_SECRET || "secret") as any;
-          const staff = await getStaffAccountById(decoded.staffId);
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          const { payload: decoded } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+          const staff = await getStaffAccountById(decoded.staffId as number);
           if (!staff) return { success: false, error: "Account not found" };
           const valid = await bcrypt.compare(input.currentPassword, staff.passwordHash);
           if (!valid) return { success: false, error: "Current password is incorrect" };
