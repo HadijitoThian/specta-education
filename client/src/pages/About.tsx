@@ -19,13 +19,13 @@ const leadershipTeam = [
   {
     name: "Adhitya Irvan Maulana",
     role: "Chief Operating Officer",
-    image: "/team-coo.jpg",
+    image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/ixmfLjNLHxyqCXzT.jpg",
     description: "Overseeing daily operations and ensuring excellence in student services and partner relationships."
   },
   {
     name: "Harianto Tian",
     role: "Senior Advisor",
-    image: "/team-harianto-tian.jpeg",
+    image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/GyBuWooHvGHZgRVJ.jpeg",
     description: "Bringing years of experience in education and business strategy to guide SpecTa Education's vision."
   }
 ];
@@ -62,9 +62,9 @@ const values = [
 // Mission carousel images
 const missionImages = [
   { src: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/VVzPvoNHvKuenjJC.jpg", alt: "Diverse students learning together" },
-  { src: "/mission-2.jpg", alt: "International classroom" },
-  { src: "/mission-3.jpg", alt: "Education counseling session" },
-  { src: "/mission-4.jpg", alt: "Graduation celebration" }
+  { src: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/nCaOEbPxJfKYRtpD.jpg", alt: "International classroom" },
+  { src: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/ExFyNRXdbJhSwWpR.jpg", alt: "Education counseling session" },
+  { src: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/WttGGxbUvvuiLuiQ.jpg", alt: "Graduation celebration" }
 ];
 
 // Counting animation component
@@ -132,7 +132,7 @@ export default function About() {
         transition={{ duration: 0.6 }}
       >
         <div className="absolute inset-0 z-0">
-          <img src="/about-hero-bg.jpg" alt="" className="w-full h-full object-cover" />
+          <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/XFSKFfBDnwuNIcYC.jpg" alt="" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-white/95 via-white/90 to-white"></div>
         </div>
         <div className="container relative z-10">

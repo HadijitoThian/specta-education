@@ -57,11 +57,25 @@ import {
   createScholarshipLead,
   getAllScholarshipLeads,
   updateScholarshipLead,
-  getAllApplicationDocuments
+  getAllApplicationDocuments,
+  createStaffAccount,
+  getAllStaffAccounts,
+  getStaffAccountByEmail,
+  getStaffAccountById,
+  updateStaffAccount,
+  deleteStaffAccount,
+  deleteApplication,
+  deleteDocument,
+  deleteApplicationDocument,
+  deleteLead,
+  deleteAppointment,
+  deleteScholarshipLead,
+  deleteConversation
 } from "./db";
 import { notifyOwner } from "./_core/notification";
-import { sendEmail, sendDocumentNotificationEmail } from "./email";
+import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail } from "./email";
 import crypto from "crypto";
+import bcrypt from "bcryptjs";
 
 const SYSTEM_PROMPT = `You are SpecTa, a friendly AI education consultant for SpecTa Education (Indonesian study abroad consultancy). Be warm, helpful, and knowledgeable.
 
@@ -1509,6 +1523,252 @@ Rules:
         if (input.status) updateData.status = input.status;
         if (input.adminNotes !== undefined) updateData.adminNotes = input.adminNotes;
         await updateScholarshipLead(input.id, updateData as any);
+        return { success: true };
+      }),
+  }),
+
+  // ==========================================
+  // STAFF ACCOUNT MANAGEMENT
+  // ==========================================
+  staffAuth: router({
+    login: publicProcedure
+      .input(z.object({
+        email: z.string().email(),
+        password: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const staff = await getStaffAccountByEmail(input.email);
+        if (!staff || !staff.isActive) {
+          return { success: false, error: "Invalid email or password" };
+        }
+        const valid = await bcrypt.compare(input.password, staff.passwordHash);
+        if (!valid) {
+          return { success: false, error: "Invalid email or password" };
+        }
+        // Update last login
+        await updateStaffAccount(staff.id, { lastLoginAt: new Date() } as any);
+        // Set session cookie using JWT
+        const jwt = require("jsonwebtoken") as any;
+        const token = jwt.sign(
+          { staffId: staff.id, email: staff.email, role: staff.role, name: staff.name },
+          process.env.JWT_SECRET || "secret",
+          { expiresIn: "7d" }
+        );
+        ctx.res.cookie("staff_token", token, { path: "/", httpOnly: true, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
+        return {
+          success: true,
+          staff: { id: staff.id, name: staff.name, email: staff.email, role: staff.role, mustChangePassword: staff.mustChangePassword },
+        };
+      }),
+
+    me: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { staff: null };
+      try {
+        const jwt = require("jsonwebtoken") as any;
+        const decoded = jwt.verify(match[1], process.env.JWT_SECRET || "secret") as any;
+        const staff = await getStaffAccountById(decoded.staffId);
+        if (!staff || !staff.isActive) return { staff: null };
+        return {
+          staff: { id: staff.id, name: staff.name, email: staff.email, role: staff.role, mustChangePassword: staff.mustChangePassword },
+        };
+      } catch {
+        return { staff: null };
+      }
+    }),
+
+    changePassword: publicProcedure
+      .input(z.object({
+        currentPassword: z.string(),
+        newPassword: z.string().min(6),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        try {
+          const jwt = require("jsonwebtoken") as any;
+          const decoded = jwt.verify(match[1], process.env.JWT_SECRET || "secret") as any;
+          const staff = await getStaffAccountById(decoded.staffId);
+          if (!staff) return { success: false, error: "Account not found" };
+          const valid = await bcrypt.compare(input.currentPassword, staff.passwordHash);
+          if (!valid) return { success: false, error: "Current password is incorrect" };
+          const newHash = await bcrypt.hash(input.newPassword, 10);
+          await updateStaffAccount(staff.id, { passwordHash: newHash, mustChangePassword: false } as any);
+          return { success: true };
+        } catch {
+          return { success: false, error: "Authentication error" };
+        }
+      }),
+
+    logout: publicProcedure.mutation(async ({ ctx }) => {
+      ctx.res.clearCookie("staff_token", { path: "/" });
+      return { success: true };
+    }),
+  }),
+
+  // ==========================================
+  // STAFF MANAGEMENT (Admin only)
+  // ==========================================
+  staffManagement: router({
+    getAll: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") return { staff: [] };
+      const allStaff = await getAllStaffAccounts();
+      return {
+        staff: allStaff.map(s => ({
+          id: s.id,
+          name: s.name,
+          email: s.email,
+          role: s.role,
+          isActive: s.isActive,
+          mustChangePassword: s.mustChangePassword,
+          lastLoginAt: s.lastLoginAt,
+          createdAt: s.createdAt,
+        })),
+      };
+    }),
+
+    create: protectedProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        email: z.string().email(),
+        password: z.string().min(6),
+        role: z.enum(["admin", "counselor", "staff"]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") return { success: false, error: "Unauthorized" };
+        // Check if email already exists
+        const existing = await getStaffAccountByEmail(input.email);
+        if (existing) return { success: false, error: "Email already registered" };
+        const passwordHash = await bcrypt.hash(input.password, 10);
+        const staff = await createStaffAccount({
+          name: input.name,
+          email: input.email,
+          passwordHash,
+          role: input.role,
+          mustChangePassword: true,
+          isActive: true,
+        });
+        // Send welcome email
+        const loginUrl = `https://spectaeducation.com/staff-login`;
+        sendStaffWelcomeEmail({
+          to: input.email,
+          name: input.name,
+          role: input.role,
+          password: input.password,
+          loginUrl,
+        }).catch(err => console.error("[StaffMgmt] Welcome email failed:", err));
+        return { success: true, staff };
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).optional(),
+        email: z.string().email().optional(),
+        role: z.enum(["admin", "counselor", "staff"]).optional(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") return { success: false, error: "Unauthorized" };
+        const { id, ...data } = input;
+        await updateStaffAccount(id, data as any);
+        return { success: true };
+      }),
+
+    resetPassword: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        newPassword: z.string().min(6),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") return { success: false, error: "Unauthorized" };
+        const staff = await getStaffAccountById(input.id);
+        if (!staff) return { success: false, error: "Staff not found" };
+        const passwordHash = await bcrypt.hash(input.newPassword, 10);
+        await updateStaffAccount(input.id, { passwordHash, mustChangePassword: true } as any);
+        // Send password reset email
+        const loginUrl = `https://spectaeducation.com/staff-login`;
+        sendPasswordResetEmail({
+          to: staff.email,
+          name: staff.name,
+          newPassword: input.newPassword,
+          loginUrl,
+        }).catch(err => console.error("[StaffMgmt] Password reset email failed:", err));
+        return { success: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") return { success: false, error: "Unauthorized" };
+        await deleteStaffAccount(input.id);
+        return { success: true };
+      }),
+  }),
+
+  // ==========================================
+  // ADMIN DELETE OPERATIONS
+  // ==========================================
+  adminDelete: router({
+    deleteApplication: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") return { success: false, error: "Unauthorized" };
+        await deleteApplication(input.id);
+        return { success: true };
+      }),
+
+    deleteDocument: protectedProcedure
+      .input(z.object({ id: z.number(), type: z.enum(["chatbot", "application"]) }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") return { success: false, error: "Unauthorized" };
+        if (input.type === "chatbot") {
+          await deleteDocument(input.id);
+        } else {
+          await deleteApplicationDocument(input.id);
+        }
+        return { success: true };
+      }),
+
+    deleteLead: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") return { success: false, error: "Unauthorized" };
+        await deleteLead(input.id);
+        return { success: true };
+      }),
+
+    deleteAppointment: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") return { success: false, error: "Unauthorized" };
+        await deleteAppointment(input.id);
+        return { success: true };
+      }),
+
+    deleteCounselor: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") return { success: false, error: "Unauthorized" };
+        await deleteCounselor(input.id);
+        return { success: true };
+      }),
+
+    deleteScholarshipLead: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") return { success: false, error: "Unauthorized" };
+        await deleteScholarshipLead(input.id);
+        return { success: true };
+      }),
+
+    deleteConversation: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") return { success: false, error: "Unauthorized" };
+        await deleteConversation(input.id);
         return { success: true };
       }),
   }),

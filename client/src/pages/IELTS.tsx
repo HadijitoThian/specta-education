@@ -37,11 +37,11 @@ const benefits = [
 ];
 
 const testimonials = [
-  { name: "Angie Y. A.", score: "8.0", image: "/testimonial-1.jpg", quote: "I received an Overall Score of 8 on my actual IELTS test. If SpecTa teachers can enhance my skills, I don't know why else you should be worried about joining!" },
-  { name: "Nabila Imanina", score: "7.0", image: "/testimonial-2.jpg", quote: "I got 7.0 overall band score from 5.0 on Prediction Test. A very nice place to practice and learn about IELTS in an effective and efficient learning method." },
-  { name: "Irvan Louis", score: "7.0", image: "/testimonial-3.jpg", quote: "Thanks, SpecTa! I got an overall 7! Special thanks to Sir Fred, Ms Onny, Pak Paulus, Pak Al, and Mba Wulan." },
-  { name: "Sarah Chen", score: "7.5", image: "/testimonial-4.jpg", quote: "The personalized attention and structured approach helped me improve from 6.0 to 7.5 in just 8 weeks. Highly recommend SpecTa!" },
-  { name: "Ahmad Rizky", score: "8.0", image: "/testimonial-5.jpg", quote: "SpecTa's intensive program was exactly what I needed. The mock tests and feedback sessions were invaluable for my preparation." }
+  { name: "Angie Y. A.", score: "8.0", image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/fcxuovpOPVSYDEOL.jpg", quote: "I received an Overall Score of 8 on my actual IELTS test. If SpecTa teachers can enhance my skills, I don't know why else you should be worried about joining!" },
+  { name: "Nabila Imanina", score: "7.0", image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/rqYJsserdhaaeKxB.jpg", quote: "I got 7.0 overall band score from 5.0 on Prediction Test. A very nice place to practice and learn about IELTS in an effective and efficient learning method." },
+  { name: "Irvan Louis", score: "7.0", image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kUbFXwPeFvsStTWl.jpg", quote: "Thanks, SpecTa! I got an overall 7! Special thanks to Sir Fred, Ms Onny, Pak Paulus, Pak Al, and Mba Wulan." },
+  { name: "Sarah Chen", score: "7.5", image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/cRuovhLnzbbhOziq.jpg", quote: "The personalized attention and structured approach helped me improve from 6.0 to 7.5 in just 8 weeks. Highly recommend SpecTa!" },
+  { name: "Ahmad Rizky", score: "8.0", image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/oGYCKRHyaDJycUxN.jpg", quote: "SpecTa's intensive program was exactly what I needed. The mock tests and feedback sessions were invaluable for my preparation." }
 ];
 
 const packages = [

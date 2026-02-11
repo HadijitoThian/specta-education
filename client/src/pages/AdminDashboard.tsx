@@ -6,13 +6,14 @@ import {
   Users, FileText, MessageSquare, Phone, Mail, Globe, 
   Calendar, Clock, ChevronRight, ExternalLink, Loader2,
   LogOut, Home, CalendarCheck, BookOpen, Search, ClipboardList, Edit, Save, X,
-  UserPlus, Shield, Briefcase, BarChart3, Trash2, ToggleLeft, ToggleRight, Download
+  UserPlus, Shield, Briefcase, BarChart3, Trash2, ToggleLeft, ToggleRight, Download,
+  Upload, Eye, EyeOff, KeyRound, UserCog, RefreshCw
 } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { getLoginUrl } from "@/const";
 
-type TabType = "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads";
+type TabType = "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staff";
 
 const APP_STATUS_OPTIONS = [
   "submitted", "reviewing", "processing", "on_hold", 
@@ -59,6 +60,16 @@ export default function AdminDashboard() {
   // Document filter state
   const [docFilter, setDocFilter] = useState<"all" | "chatbot" | "application" | "tracker">("all");
   const [docSearch, setDocSearch] = useState("");
+
+  // Staff management state
+  const [showAddStaff, setShowAddStaff] = useState(false);
+  const [staffName, setStaffName] = useState("");
+  const [staffEmail, setStaffEmail] = useState("");
+  const [staffPassword, setStaffPassword] = useState("");
+  const [staffRole, setStaffRole] = useState<"admin" | "counselor" | "staff">("counselor");
+  const [showStaffPassword, setShowStaffPassword] = useState(false);
+  const [resetPasswordStaffId, setResetPasswordStaffId] = useState<number | null>(null);
+  const [resetNewPassword, setResetNewPassword] = useState("");
   
   const utils = trpc.useUtils();
 
@@ -110,6 +121,11 @@ export default function AdminDashboard() {
   // Team management (admin only)
   const { data: usersData, isLoading: usersLoading } = trpc.userManagement.getUsers.useQuery(undefined, {
     enabled: isAuthenticated && user?.role === 'admin' && activeTab === 'team'
+  });
+
+  // Staff management (admin only)
+  const { data: staffData, isLoading: staffLoading } = trpc.staffManagement.getAll.useQuery(undefined, {
+    enabled: isAuthenticated && user?.role === 'admin' && (activeTab === 'staff')
   });
 
   const updateLeadMutation = trpc.admin.updateLead.useMutation();
@@ -173,6 +189,58 @@ export default function AdminDashboard() {
   // User role mutation (admin only)
   const updateRoleMutation = trpc.userManagement.updateRole.useMutation({
     onSuccess: () => utils.userManagement.getUsers.invalidate()
+  });
+
+  // Staff management mutations
+  const createStaffMutation = trpc.staffManagement.create.useMutation({
+    onSuccess: (data: any) => {
+      if (data.success) {
+        setShowAddStaff(false);
+        setStaffName(""); setStaffEmail(""); setStaffPassword(""); setStaffRole("counselor");
+        utils.staffManagement.getAll.invalidate();
+      }
+    }
+  });
+
+  const updateStaffMutation = trpc.staffManagement.update.useMutation({
+    onSuccess: () => utils.staffManagement.getAll.invalidate()
+  });
+
+  const deleteStaffMutation = trpc.staffManagement.delete.useMutation({
+    onSuccess: () => utils.staffManagement.getAll.invalidate()
+  });
+
+  const resetPasswordMutation = trpc.staffManagement.resetPassword.useMutation({
+    onSuccess: () => {
+      setResetPasswordStaffId(null);
+      setResetNewPassword("");
+      utils.staffManagement.getAll.invalidate();
+    }
+  });
+
+  // Admin delete mutations
+  const deleteApplicationMutation = trpc.adminDelete.deleteApplication.useMutation({
+    onSuccess: () => { utils.application.getAll.invalidate(); utils.admin.getLeads.invalidate(); }
+  });
+
+  const deleteDocumentMutation = trpc.adminDelete.deleteDocument.useMutation({
+    onSuccess: () => utils.admin.getDocuments.invalidate()
+  });
+
+  const deleteLeadMutation = trpc.adminDelete.deleteLead.useMutation({
+    onSuccess: () => utils.admin.getLeads.invalidate()
+  });
+
+  const deleteAppointmentMutation = trpc.adminDelete.deleteAppointment.useMutation({
+    onSuccess: () => utils.admin.getAppointments.invalidate()
+  });
+
+  const deleteScholarshipLeadMutation = trpc.adminDelete.deleteScholarshipLead.useMutation({
+    onSuccess: () => utils.scholarship.getLeads.invalidate()
+  });
+
+  const deleteConversationMutation = trpc.adminDelete.deleteConversation.useMutation({
+    onSuccess: () => { utils.admin.getConversations.invalidate(); utils.admin.getDocuments.invalidate(); utils.admin.getLeads.invalidate(); }
   });
 
   if (loading) {
@@ -265,7 +333,7 @@ export default function AdminDashboard() {
         <div className="container flex items-center justify-between h-16">
           <div className="flex items-center gap-4">
             <Link href="/">
-              <img src="/logo.jpeg" alt="SpecTa Education" className="h-10 object-contain" />
+              <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/QxrYSewOYzAuPIEN.jpeg" alt="SpecTa Education" className="h-10 object-contain" />
             </Link>
             <span className="text-sm font-medium text-muted-foreground">Admin Dashboard</span>
             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadge(user?.role || 'user')}`}>
@@ -404,9 +472,14 @@ export default function AdminDashboard() {
             <Globe className="w-4 h-4 mr-2" /> Scholarship Leads
           </Button>
           {user?.role === 'admin' && (
-            <Button variant={activeTab === 'team' ? 'default' : 'outline'} onClick={() => setActiveTab('team')} size="sm">
-              <Shield className="w-4 h-4 mr-2" /> Team Management
-            </Button>
+            <>
+              <Button variant={activeTab === 'staff' ? 'default' : 'outline'} onClick={() => setActiveTab('staff')} size="sm">
+                <UserCog className="w-4 h-4 mr-2" /> Staff Accounts
+              </Button>
+              <Button variant={activeTab === 'team' ? 'default' : 'outline'} onClick={() => setActiveTab('team')} size="sm">
+                <Shield className="w-4 h-4 mr-2" /> Team Management
+              </Button>
+            </>
           )}
         </div>
 
@@ -473,6 +546,15 @@ export default function AdminDashboard() {
                             <option value="converted">Converted</option>
                             <option value="closed">Closed</option>
                           </select>
+                          {user?.role === 'admin' && (
+                            <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" onClick={() => {
+                              if (confirm(`Delete lead ${lead.studentName}? This cannot be undone.`)) {
+                                deleteLeadMutation.mutate({ id: lead.id });
+                              }
+                            }}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -546,13 +628,24 @@ export default function AdminDashboard() {
                                 </Button>
                               </>
                             ) : (
-                              <Button size="sm" variant="outline" onClick={() => {
-                                setEditingAppId(app.id);
-                                setEditStatus(app.status);
-                                setEditCounselor(app.assignedCounselor || "");
-                              }}>
-                                <Edit className="w-4 h-4 mr-1" /> Edit
-                              </Button>
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => {
+                                  setEditingAppId(app.id);
+                                  setEditStatus(app.status);
+                                  setEditCounselor(app.assignedCounselor || "");
+                                }}>
+                                  <Edit className="w-4 h-4 mr-1" /> Edit
+                                </Button>
+                                {user?.role === 'admin' && (
+                                  <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" onClick={() => {
+                                    if (confirm(`Delete application from ${app.fullName}? This cannot be undone.`)) {
+                                      deleteApplicationMutation.mutate({ id: app.id });
+                                    }
+                                  }}>
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </>
                             )}
                           </div>
                         </div>
@@ -737,6 +830,15 @@ export default function AdminDashboard() {
                             <option value="completed">Completed</option>
                             <option value="cancelled">Cancelled</option>
                           </select>
+                          {user?.role === 'admin' && (
+                            <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" onClick={() => {
+                              if (confirm(`Delete appointment for ${apt.fullName}? This cannot be undone.`)) {
+                                deleteAppointmentMutation.mutate({ id: apt.id });
+                              }
+                            }}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1008,21 +1110,32 @@ export default function AdminDashboard() {
                   <ScrollArea className="h-[500px]">
                     <div className="divide-y divide-border">
                       {conversationsData?.conversations?.map((conv) => (
-                        <button
-                          key={conv.id}
-                          onClick={() => setSelectedConversationId(conv.id)}
-                          className={`w-full p-4 text-left hover:bg-muted/50 transition-colors ${
+                        <div key={conv.id} className={`flex items-center gap-1 hover:bg-muted/50 transition-colors ${
                             selectedConversationId === conv.id ? 'bg-muted' : ''
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="font-medium">{conv.studentName || 'Anonymous'}</div>
-                              <div className="text-sm text-muted-foreground">{conv.preferredCountry || 'No country selected'}</div>
+                          }`}>
+                          <button
+                            onClick={() => setSelectedConversationId(conv.id)}
+                            className="flex-1 p-4 text-left"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium">{conv.studentName || 'Anonymous'}</div>
+                                <div className="text-sm text-muted-foreground">{conv.preferredCountry || 'No country selected'}</div>
+                              </div>
+                              <div className="text-xs text-muted-foreground">{formatDate(conv.createdAt)}</div>
                             </div>
-                            <div className="text-xs text-muted-foreground">{formatDate(conv.createdAt)}</div>
-                          </div>
-                        </button>
+                          </button>
+                          {user?.role === 'admin' && (
+                            <Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-50 mr-2 shrink-0" onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`Delete conversation with ${conv.studentName || 'Anonymous'}? All messages and related documents will be deleted.`)) {
+                                deleteConversationMutation.mutate({ id: conv.id });
+                              }
+                            }}>
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </ScrollArea>
@@ -1231,6 +1344,16 @@ export default function AdminDashboard() {
                                 <Download className="w-4 h-4" />
                               </Button>
                             </a>
+                            {user?.role === 'admin' && (
+                              <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" onClick={() => {
+                                if (confirm(`Delete this document? This cannot be undone.`)) {
+                                  const docIdNum = parseInt(doc.id.replace(/^(chat-|app-)/, ''), 10);
+                                    deleteDocumentMutation.mutate({ id: docIdNum, type: doc.source === 'chatbot' ? 'chatbot' : 'application' });
+                                }
+                              }}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1306,11 +1429,154 @@ export default function AdminDashboard() {
                               <option value="converted">Converted</option>
                               <option value="closed">Closed</option>
                             </select>
+                            {user?.role === 'admin' && (
+                              <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" onClick={() => {
+                                if (confirm(`Delete scholarship lead ${lead.studentName}? This cannot be undone.`)) {
+                                  deleteScholarshipLeadMutation.mutate({ id: lead.id });
+                                }
+                              }}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>
                     );
                   })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===== STAFF ACCOUNTS TAB (Admin Only) ===== */}
+          {activeTab === 'staff' && user?.role === 'admin' && (
+            <div>
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-lg">Staff Accounts</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Manage staff login accounts. Staff can log in at <strong>/staff-login</strong> with their email and password.
+                  </p>
+                </div>
+                <Button size="sm" className="bg-primary" onClick={() => setShowAddStaff(!showAddStaff)}>
+                  <UserPlus className="w-4 h-4 mr-1" /> Add Staff
+                </Button>
+              </div>
+
+              {/* Add Staff Form */}
+              {showAddStaff && (
+                <div className="p-4 bg-muted/50 border-b border-border">
+                  <h4 className="font-medium mb-3">Create New Staff Account</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">Full Name</label>
+                      <input className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background" placeholder="e.g. John Doe" value={staffName} onChange={e => setStaffName(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">Email</label>
+                      <input className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background" placeholder="e.g. john@spectaeducation.com" type="email" value={staffEmail} onChange={e => setStaffEmail(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">Password</label>
+                      <div className="relative">
+                        <input className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background pr-10" placeholder="Min 6 characters" type={showStaffPassword ? 'text' : 'password'} value={staffPassword} onChange={e => setStaffPassword(e.target.value)} />
+                        <button type="button" onClick={() => setShowStaffPassword(!showStaffPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                          {showStaffPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">Role</label>
+                      <select className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background" value={staffRole} onChange={e => setStaffRole(e.target.value as any)}>
+                        <option value="counselor">Counselor</option>
+                        <option value="admin">Admin</option>
+                        <option value="staff">Staff</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <Button size="sm" className="bg-primary" disabled={createStaffMutation.isPending || !staffName || !staffEmail || staffPassword.length < 6}
+                      onClick={() => createStaffMutation.mutate({ name: staffName, email: staffEmail, password: staffPassword, role: staffRole })}>
+                      {createStaffMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <UserPlus className="w-4 h-4 mr-1" />}
+                      Create & Send Welcome Email
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setShowAddStaff(false)}>Cancel</Button>
+                  </div>
+                </div>
+              )}
+
+              {staffLoading ? (
+                <div className="p-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></div>
+              ) : !staffData?.staff?.length ? (
+                <div className="p-8 text-center text-muted-foreground">No staff accounts yet. Click "Add Staff" to create one.</div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {staffData.staff.map((s: any) => (
+                    <div key={s.id} className="p-4 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${s.isActive ? 'bg-primary/10' : 'bg-red-100'}`}>
+                            <span className={`text-sm font-bold ${s.isActive ? 'text-primary' : 'text-red-600'}`}>
+                              {(s.name || 'S').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold">{s.name}</h4>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                s.role === 'admin' ? 'bg-purple-100 text-purple-800' :
+                                s.role === 'counselor' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {s.role}
+                              </span>
+                              {!s.isActive && <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800">Inactive</span>}
+                              {s.mustChangePassword && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Must change password</span>}
+                            </div>
+                            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-1">
+                              <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {s.email}</span>
+                              {s.lastLoginAt && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Last login: {new Date(s.lastLoginAt).toLocaleDateString()}</span>}
+                              {!s.lastLoginAt && <span className="flex items-center gap-1 text-amber-600"><Clock className="w-3 h-3" /> Never logged in</span>}
+                              <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> Created: {new Date(s.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {/* Toggle Active */}
+                          <Button variant="ghost" size="sm" title={s.isActive ? 'Deactivate' : 'Activate'}
+                            onClick={() => { if (confirm(`${s.isActive ? 'Deactivate' : 'Activate'} ${s.name}?`)) updateStaffMutation.mutate({ id: s.id, isActive: !s.isActive }); }}>
+                            {s.isActive ? <ToggleRight className="w-4 h-4 text-green-600" /> : <ToggleLeft className="w-4 h-4 text-red-600" />}
+                          </Button>
+                          {/* Reset Password */}
+                          <Button variant="ghost" size="sm" title="Reset Password"
+                            onClick={() => { setResetPasswordStaffId(resetPasswordStaffId === s.id ? null : s.id); setResetNewPassword(''); }}>
+                            <KeyRound className="w-4 h-4 text-amber-600" />
+                          </Button>
+                          {/* Delete */}
+                          <Button variant="ghost" size="sm" title="Delete Staff"
+                            onClick={() => { if (confirm(`Delete staff account for ${s.name}? This cannot be undone.`)) deleteStaffMutation.mutate({ id: s.id }); }}>
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </Button>
+                        </div>
+                      </div>
+                      {/* Reset Password Form */}
+                      {resetPasswordStaffId === s.id && (
+                        <div className="mt-3 ml-[52px] p-3 bg-amber-50 rounded-lg border border-amber-200">
+                          <p className="text-sm font-medium mb-2">Reset password for {s.name}</p>
+                          <div className="flex gap-2 items-center">
+                            <input className="px-3 py-1.5 text-sm border border-border rounded-md bg-background w-48" placeholder="New password (min 6 chars)" type="text" value={resetNewPassword} onChange={e => setResetNewPassword(e.target.value)} />
+                            <Button size="sm" className="bg-amber-600 hover:bg-amber-700" disabled={resetNewPassword.length < 6 || resetPasswordMutation.isPending}
+                              onClick={() => resetPasswordMutation.mutate({ id: s.id, newPassword: resetNewPassword })}>
+                              {resetPasswordMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RefreshCw className="w-3 h-3 mr-1" />}
+                              Reset & Email
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setResetPasswordStaffId(null)}>Cancel</Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">A password reset email will be sent to {s.email}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

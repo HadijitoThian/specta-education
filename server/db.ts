@@ -15,7 +15,8 @@ import {
   counselors, InsertCounselor, Counselor,
   quizResults, InsertQuizResult, QuizResult,
   personaResults, InsertPersonaResult, PersonaResult,
-  scholarshipLeads, InsertScholarshipLead, ScholarshipLead
+  scholarshipLeads, InsertScholarshipLead, ScholarshipLead,
+  staffAccounts, InsertStaffAccount, StaffAccount
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -577,4 +578,102 @@ export async function getAllApplicationDocuments() {
     studentEmail: d.appStudentEmail ?? undefined,
     referenceNumber: d.appReferenceNumber ?? undefined,
   }));
+}
+
+
+// ==========================================
+// STAFF ACCOUNTS
+// ==========================================
+
+export async function createStaffAccount(data: InsertStaffAccount): Promise<StaffAccount | null> {
+  const db = await getDb();
+  if (!db) return null;
+  await db.insert(staffAccounts).values(data);
+  const [row] = await db.select().from(staffAccounts).where(eq(staffAccounts.email, data.email));
+  return row || null;
+}
+
+export async function getAllStaffAccounts(): Promise<StaffAccount[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(staffAccounts).orderBy(desc(staffAccounts.createdAt));
+}
+
+export async function getStaffAccountByEmail(email: string): Promise<StaffAccount | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(staffAccounts).where(eq(staffAccounts.email, email));
+  return row || null;
+}
+
+export async function getStaffAccountById(id: number): Promise<StaffAccount | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(staffAccounts).where(eq(staffAccounts.id, id));
+  return row || null;
+}
+
+export async function updateStaffAccount(id: number, data: Partial<InsertStaffAccount>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(staffAccounts).set(data).where(eq(staffAccounts.id, id));
+}
+
+export async function deleteStaffAccount(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(staffAccounts).where(eq(staffAccounts.id, id));
+}
+
+// ==========================================
+// DELETE FUNCTIONS FOR ADMIN
+// ==========================================
+
+export async function deleteApplication(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  // Delete related records first
+  await db.delete(applicationDocuments).where(eq(applicationDocuments.applicationId, id));
+  await db.delete(applicationNotes).where(eq(applicationNotes.applicationId, id));
+  await db.delete(applications).where(eq(applications.id, id));
+}
+
+export async function deleteDocument(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(documents).where(eq(documents.id, id));
+}
+
+export async function deleteApplicationDocument(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(applicationDocuments).where(eq(applicationDocuments.id, id));
+}
+
+export async function deleteLead(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(leads).where(eq(leads.id, id));
+}
+
+export async function deleteAppointment(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(appointments).where(eq(appointments.id, id));
+}
+
+export async function deleteScholarshipLead(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(scholarshipLeads).where(eq(scholarshipLeads.id, id));
+}
+
+export async function deleteConversation(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  // Delete related messages and documents first
+  await db.delete(messages).where(eq(messages.conversationId, id));
+  await db.delete(documents).where(eq(documents.conversationId, id));
+  await db.delete(leads).where(eq(leads.conversationId, id));
+  await db.delete(conversations).where(eq(conversations.id, id));
 }

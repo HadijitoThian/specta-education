@@ -174,7 +174,7 @@ export default function Home() {
             >
               <div className="relative z-10">
                 <motion.img 
-                  src="/excited-students.jpg" 
+                  src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/QxFYGzgmpzrKbZOs.jpg" 
                   alt="Excited students ready to study abroad" 
                   className="w-full max-w-lg mx-auto rounded-2xl shadow-2xl object-cover"
                   animate={{ 

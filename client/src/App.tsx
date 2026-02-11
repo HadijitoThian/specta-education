@@ -23,6 +23,8 @@ import Quiz from "./pages/Quiz";
 import Persona from "./pages/Persona";
 import Play from "./pages/Play";
 import Scholarships from "./pages/Scholarships";
+import StaffLogin from "./pages/StaffLogin";
+import StaffDashboard from "./pages/StaffDashboard";
 
 function Router() {
   return (
@@ -47,6 +49,8 @@ function Router() {
       <Route path={"/play/persona"} component={Persona} />
       {/* Keep old /quiz route as redirect for SEO */}
       <Route path={"/quiz"}>{() => <Redirect to="/play/quiz" />}</Route>
+      <Route path={"/staff-login"} component={StaffLogin} />
+      <Route path={"/staff-dashboard"} component={StaffDashboard} />
       <Route path={"/admin"} component={AdminDashboard} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />

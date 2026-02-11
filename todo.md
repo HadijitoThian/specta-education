@@ -431,3 +431,39 @@
 - [x] Fix document upload to use actual Manus S3 storage (storagePut) — already working correctly
 - [x] Fix existing broken document URLs in database — cleaned up 16 test applications + fake URLs, backfilled 7 real docs
 - [x] Verify document upload and download works end-to-end — all 10 documents have valid CloudFront URLs
+
+### 41. Staff/Counselor Login & Welcome Email
+- [x] Auto-send welcome email with login credentials when admin creates new staff account
+- [x] Include login URL, email, and temporary password in welcome email
+- [x] Staff Login page (/staff-login) with email/password authentication
+- [x] Staff Dashboard page (/staff-dashboard) with role-based content
+- [x] Password change flow (forced on first login)
+- [x] Staff session management with JWT cookies
+- [x] Password reset by admin with email notification
+
+### 42. Admin Delete Capabilities
+- [x] Admin can delete applications from the Applications tab
+- [x] Admin can delete documents from the Documents tab
+- [x] Admin can delete staff/counselors from the Staff Management tab
+- [x] Admin can delete leads from the Leads tab
+- [x] Admin can delete appointments from the Appointments tab
+- [x] Admin can delete counselors from the Counselors tab
+- [x] Admin can delete scholarship leads from the Scholarship Leads tab
+- [x] Admin can delete conversations from the Conversations tab
+- [x] All delete operations require confirmation dialog
+- [x] Delete buttons only visible to admin role
+
+### 43. Counselor Document Upload
+- [ ] Counselors can upload documents for their assigned students
+- [ ] Documents uploaded by counselors are tracked with "counselor" as uploadedBy source
+
+### 44. Staff Management Tab (Admin Dashboard)
+- [x] Staff Management tab visible only to admin users
+- [x] View all staff accounts with role, status, last login
+- [x] Create new staff account (name, email, password, role)
+- [x] Edit staff account (name, email, role, active status)
+- [x] Reset staff password (sends email notification)
+- [x] Delete staff account
+- [x] Staff Auth router (login, me, changePassword, logout)
+- [x] Staff Management router (getAll, create, update, resetPassword, delete)
+- [x] 21 vitest tests for staff auth, management, and admin delete operations
