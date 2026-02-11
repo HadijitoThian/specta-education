@@ -353,3 +353,23 @@ export const aptitudeResults = mysqlTable("aptitudeResults", {
 
 export type AptitudeResult = typeof aptitudeResults.$inferSelect;
 export type InsertAptitudeResult = typeof aptitudeResults.$inferInsert;
+
+/**
+ * Aptitude Access Tokens - single-use links for gated aptitude test access
+ */
+export const aptitudeAccessTokens = mysqlTable("aptitudeAccessTokens", {
+  id: int("id").autoincrement().primaryKey(),
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  status: mysqlEnum("status", ["unused", "in_progress", "completed", "expired"]).default("unused").notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  usedByName: varchar("usedByName", { length: 255 }),
+  usedByEmail: varchar("usedByEmail", { length: 320 }),
+  usedByPhone: varchar("usedByPhone", { length: 50 }),
+  usedAt: timestamp("usedAt"),
+  completedAt: timestamp("completedAt"),
+  resultId: int("resultId"), // links to aptitudeResults.id after completion
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AptitudeAccessToken = typeof aptitudeAccessTokens.$inferSelect;
+export type InsertAptitudeAccessToken = typeof aptitudeAccessTokens.$inferInsert;

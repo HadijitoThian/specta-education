@@ -580,3 +580,17 @@
 - [x] Replaced SpecTa Play Promo Banner with Tes Bakat AI promotion
 - [x] Teal/emerald gradient with AI-Powered badge
 - [x] CTA links to /play/aptitude
+
+### 59. Single-Use Access Links for Aptitude Test
+- [x] Database schema: aptitudeAccessTokens table (token, status, expiresAt, createdAt, usedAt, usedByEmail, usedByName)
+- [x] DB helpers: createAccessTokens, getAccessToken, markTokenUsed, markTokenCompleted, listAccessTokens
+- [x] Admin-only tRPC procedures: generateLinks, listLinks, deleteLink
+- [x] Public tRPC procedures: validateToken, useToken, completeToken
+- [x] Admin dashboard page: Generate links with count + expiry date picker
+- [x] Admin dashboard: Table showing all links with status, copy button, used-by info
+- [x] AptitudeTest.tsx: Check for ?token= param, validate before allowing test
+- [x] AptitudeTest.tsx: Show "Link expired/invalid/already used" pages for bad tokens
+- [x] AptitudeTest.tsx: Mark token as in_progress when student starts test (after lead capture)
+- [x] AptitudeTest.tsx: Mark token as completed when test finishes
+- [x] Enforce: same token cannot be reused, retake button hidden for token tests
+- [x] 7 vitest tests covering all token lifecycle scenarios

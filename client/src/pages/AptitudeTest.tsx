@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, Brain, ChevronDown, Globe2, GraduationCap, Heart, Sparkles, Users, BookOpen, Briefcase, BarChart3, Share2, RotateCcw, MessageCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Brain, ChevronDown, Globe2, GraduationCap, Heart, Sparkles, Users, BookOpen, Briefcase, BarChart3, Share2, RotateCcw, MessageCircle, ShieldX, Clock, AlertTriangle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -244,15 +244,28 @@ function MiChart({ scores, lang }: { scores: Record<string, number>; lang: Lang 
 
 export default function AptitudeTest() {
   const [, setLocation] = useLocation();
+  const searchString = useSearch();
   const [lang, setLang] = useState<Lang>("id");
   const [phase, setPhase] = useState<Phase>("intro");
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number | string>>({});
   const [leadInfo, setLeadInfo] = useState({ name: "", email: "", phone: "" });
   const [aiResult, setAiResult] = useState<any>(null);
+  const [tokenClaimed, setTokenClaimed] = useState(false);
 
+  // Extract token from URL
+  const urlParams = useMemo(() => new URLSearchParams(searchString), [searchString]);
+  const token = urlParams.get("token");
+
+  // Validate token if present
+  const { data: tokenValidation, isLoading: tokenLoading, error: tokenError } = trpc.aptitude.validateToken.useQuery(
+    { token: token! },
+    { enabled: !!token, retry: false }
+  );
+
+  const useTokenMutation = trpc.aptitude.useToken.useMutation();
+  const completeTokenMutation = trpc.aptitude.completeToken.useMutation();
   const analyzeMutation = trpc.aptitude.analyzeResults.useMutation();
-  // Results are saved as part of analyzeResults mutation (no separate save needed)
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -402,6 +415,15 @@ export default function AptitudeTest() {
         hollandCode,
       });
 
+      // Mark token as completed if using access link
+      if (token && result.resultId) {
+        try {
+          await completeTokenMutation.mutateAsync({ token, resultId: result.resultId });
+        } catch {
+          // Non-critical - token completion is best-effort
+        }
+      }
+
       setPhase("emailSent");
     } catch {
       // On error, still show email sent confirmation
@@ -410,6 +432,8 @@ export default function AptitudeTest() {
   };
 
   const handleRetake = () => {
+    // If using a token, retake is not allowed
+    if (token) return;
     setAnswers({});
     setCurrentQ(0);
     setAiResult(null);
@@ -427,6 +451,89 @@ export default function AptitudeTest() {
     }
     return true;
   })() : false;
+
+  // ========== TOKEN VALIDATION SCREENS ==========
+  // If token is present but still loading
+  if (token && tokenLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
+          <div className="relative w-16 h-16 mx-auto mb-6">
+            <div className="absolute inset-0 rounded-full border-4 border-teal-100" />
+            <div className="absolute inset-0 rounded-full border-4 border-teal-500 border-t-transparent animate-spin" />
+          </div>
+          <p className="text-gray-600">{lang === "id" ? "Memvalidasi link akses..." : "Validating access link..."}</p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // If token is invalid
+  if (token && tokenValidation && !tokenValidation.valid) {
+    const reason = tokenValidation.reason;
+    const icon = reason === "already_used" ? <ShieldX className="w-12 h-12 text-red-400" /> : reason === "expired" ? <Clock className="w-12 h-12 text-amber-400" /> : <AlertTriangle className="w-12 h-12 text-red-400" />;
+    const title = reason === "already_used" 
+      ? (lang === "id" ? "Link Sudah Digunakan" : "Link Already Used")
+      : reason === "expired" 
+      ? (lang === "id" ? "Link Sudah Kadaluarsa" : "Link Has Expired")
+      : (lang === "id" ? "Link Tidak Valid" : "Invalid Link");
+    const desc = reason === "already_used"
+      ? (lang === "id" ? "Link ini sudah pernah digunakan untuk mengambil tes. Setiap link hanya bisa digunakan satu kali." : "This link has already been used to take the test. Each link can only be used once.")
+      : reason === "expired"
+      ? (lang === "id" ? "Link ini sudah melewati tanggal kadaluarsa dan tidak bisa digunakan lagi." : "This link has passed its expiry date and can no longer be used.")
+      : (lang === "id" ? "Link yang kamu gunakan tidak valid. Silakan hubungi admin untuk mendapatkan link baru." : "The link you used is not valid. Please contact admin for a new link.");
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation currentPage="play" />
+        <div className="pt-24 pb-20 px-4 flex items-center justify-center min-h-[80vh]">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md w-full text-center">
+            <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+              <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">{icon}</div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">{title}</h2>
+              <p className="text-gray-600 mb-6 text-sm">{desc}</p>
+              <a
+                href="https://wa.me/6281287878055?text=Hi%20SpecTa!%20Link%20tes%20bakat%20saya%20tidak%20bisa%20digunakan."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-semibold px-6 py-3 rounded-xl hover:shadow-lg transition-all text-sm"
+              >
+                <MessageCircle className="w-4 h-4" />
+                {lang === "id" ? "Hubungi Admin" : "Contact Admin"}
+              </a>
+              <button onClick={() => setLocation("/")} className="block mx-auto mt-4 text-gray-500 hover:text-gray-700 text-sm">
+                ← {lang === "id" ? "Kembali ke Beranda" : "Back to Home"}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // If token had an error (network/server error)
+  if (token && tokenError) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation currentPage="play" />
+        <div className="pt-24 pb-20 px-4 flex items-center justify-center min-h-[80vh]">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md w-full text-center">
+            <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+              <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <AlertTriangle className="w-12 h-12 text-red-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">{lang === "id" ? "Link Tidak Valid" : "Invalid Link"}</h2>
+              <p className="text-gray-600 mb-6 text-sm">{lang === "id" ? "Link yang kamu gunakan tidak valid atau sudah tidak berlaku." : "The link you used is invalid or has expired."}</p>
+              <button onClick={() => setLocation("/")} className="inline-flex items-center gap-2 bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-semibold px-6 py-3 rounded-xl hover:shadow-lg transition-all text-sm">
+                ← {lang === "id" ? "Kembali ke Beranda" : "Back to Home"}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   // ========== INTRO PHASE ==========
   if (phase === "intro") {
@@ -749,16 +856,35 @@ export default function AptitudeTest() {
             </div>
 
             <button
-              onClick={() => setPhase("section1")}
-              disabled={!isFormValid}
+              onClick={async () => {
+                if (token && !tokenClaimed) {
+                  try {
+                    await useTokenMutation.mutateAsync({
+                      token,
+                      name: leadInfo.name,
+                      email: leadInfo.email,
+                      phone: leadInfo.phone,
+                    });
+                    setTokenClaimed(true);
+                  } catch {
+                    // Token claim failed - show error
+                    return;
+                  }
+                }
+                setPhase("section1");
+              }}
+              disabled={!isFormValid || useTokenMutation.isPending}
               className={`w-full mt-6 font-semibold py-3.5 rounded-xl text-sm transition-all ${
-                isFormValid
+                isFormValid && !useTokenMutation.isPending
                   ? "bg-gradient-to-r from-teal-500 to-emerald-500 text-white hover:shadow-lg"
                   : "bg-gray-100 text-gray-400 cursor-not-allowed"
               }`}
             >
-              {uiLabels.startButton[lang]} →
+              {useTokenMutation.isPending ? (lang === "id" ? "Memvalidasi..." : "Validating...") : `${uiLabels.startButton[lang]} →`}
             </button>
+            {useTokenMutation.isError && (
+              <p className="text-red-500 text-xs mt-2 text-center">{lang === "id" ? "Link tidak valid atau sudah digunakan." : "Link is invalid or already used."}</p>
+            )}
 
             <button onClick={() => setPhase("intro")} className="block mx-auto mt-3 text-xs text-gray-400 hover:text-gray-600">
               ← {uiLabels.backButton[lang]}
@@ -855,18 +981,20 @@ export default function AptitudeTest() {
             </div>
 
             <div className="flex flex-wrap justify-center gap-3">
+              {!token && (
+                <button
+                  onClick={handleRetake}
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-800 text-sm font-medium px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  {uiLabels.retakeButton[lang]}
+                </button>
+              )}
               <button
-                onClick={handleRetake}
+                onClick={() => setLocation("/")}
                 className="flex items-center gap-2 text-gray-600 hover:text-gray-800 text-sm font-medium px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
               >
-                <RotateCcw className="w-4 h-4" />
-                {uiLabels.retakeButton[lang]}
-              </button>
-              <button
-                onClick={() => setLocation("/play")}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-800 text-sm font-medium px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
-                ← {lang === "id" ? "Kembali ke SpecTa Play" : "Back to SpecTa Play"}
+                ← {lang === "id" ? "Kembali ke Beranda" : "Back to Home"}
               </button>
             </div>
           </div>

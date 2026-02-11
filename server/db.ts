@@ -1,4 +1,4 @@
-import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { 
   InsertUser, users, 
@@ -17,7 +17,8 @@ import {
   personaResults, InsertPersonaResult, PersonaResult,
   scholarshipLeads, InsertScholarshipLead, ScholarshipLead,
   staffAccounts, InsertStaffAccount, StaffAccount,
-  aptitudeResults, InsertAptitudeResult, AptitudeResult
+  aptitudeResults, InsertAptitudeResult, AptitudeResult,
+  aptitudeAccessTokens, InsertAptitudeAccessToken, AptitudeAccessToken
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -743,4 +744,79 @@ export async function getAllAptitudeResults(): Promise<AptitudeResult[]> {
   const db = await getDb();
   if (!db) return [];
   return await db.select().from(aptitudeResults).orderBy(desc(aptitudeResults.createdAt));
+}
+
+// ==========================================
+// APTITUDE ACCESS TOKENS
+// ==========================================
+
+export async function createAccessTokens(tokens: InsertAptitudeAccessToken[]): Promise<AptitudeAccessToken[]> {
+  const db = await getDb();
+  if (!db) return [];
+  await db.insert(aptitudeAccessTokens).values(tokens);
+  // Fetch all just-created tokens
+  const tokenValues = tokens.map(t => t.token);
+  return await db.select().from(aptitudeAccessTokens)
+    .where(inArray(aptitudeAccessTokens.token, tokenValues))
+    .orderBy(desc(aptitudeAccessTokens.createdAt));
+}
+
+export async function getAccessTokenByToken(token: string): Promise<AptitudeAccessToken | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(aptitudeAccessTokens)
+    .where(eq(aptitudeAccessTokens.token, token));
+  return row || null;
+}
+
+export async function markTokenInProgress(token: string, name: string, email: string, phone: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const result = await db.update(aptitudeAccessTokens)
+    .set({
+      status: "in_progress",
+      usedByName: name,
+      usedByEmail: email,
+      usedByPhone: phone,
+      usedAt: new Date(),
+    })
+    .where(and(
+      eq(aptitudeAccessTokens.token, token),
+      eq(aptitudeAccessTokens.status, "unused")
+    ));
+  return (result[0] as any).affectedRows > 0;
+}
+
+export async function markTokenCompleted(token: string, resultId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const result = await db.update(aptitudeAccessTokens)
+    .set({
+      status: "completed",
+      completedAt: new Date(),
+      resultId,
+    })
+    .where(and(
+      eq(aptitudeAccessTokens.token, token),
+      eq(aptitudeAccessTokens.status, "in_progress")
+    ));
+  return (result[0] as any).affectedRows > 0;
+}
+
+export async function listAccessTokens(): Promise<AptitudeAccessToken[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(aptitudeAccessTokens)
+    .orderBy(desc(aptitudeAccessTokens.createdAt));
+}
+
+export async function deleteAccessToken(id: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const result = await db.delete(aptitudeAccessTokens)
+    .where(and(
+      eq(aptitudeAccessTokens.id, id),
+      eq(aptitudeAccessTokens.status, "unused")
+    ));
+  return (result[0] as any).affectedRows > 0;
 }

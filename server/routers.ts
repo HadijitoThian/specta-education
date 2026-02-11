@@ -2,6 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { invokeLLM } from "./_core/llm";
 import { storagePut } from "./storage";
@@ -78,7 +79,13 @@ import {
   createAptitudeResult,
   getAptitudeResultById,
   getAptitudeResultsByEmail,
-  getAllAptitudeResults
+  getAllAptitudeResults,
+  createAccessTokens,
+  getAccessTokenByToken,
+  markTokenInProgress,
+  markTokenCompleted,
+  listAccessTokens,
+  deleteAccessToken
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail } from "./email";
@@ -2277,6 +2284,105 @@ IMPORTANT:
           recommendedMajors: JSON.parse(r.recommendedMajors || "[]"),
           personalitySnapshot: r.personalitySnapshot ? JSON.parse(r.personalitySnapshot) : null,
         }));
+      }),
+
+    // ---- Access Token Management (Admin Only) ----
+    generateLinks: protectedProcedure
+      .input(z.object({
+        count: z.number().min(1).max(100),
+        expiresAt: z.string(), // ISO date string
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+        }
+        const tokens = Array.from({ length: input.count }, () => ({
+          token: crypto.randomBytes(16).toString("hex"),
+          expiresAt: new Date(input.expiresAt),
+        }));
+        const created = await createAccessTokens(tokens);
+        return created;
+      }),
+
+    listLinks: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") return [];
+        return await listAccessTokens();
+      }),
+
+    deleteLink: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+        }
+        const deleted = await deleteAccessToken(input.id);
+        if (!deleted) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Token not found or already used" });
+        }
+        return { success: true };
+      }),
+
+    // ---- Public Token Validation ----
+    validateToken: publicProcedure
+      .input(z.object({ token: z.string() }))
+      .query(async ({ input }) => {
+        const tokenRow = await getAccessTokenByToken(input.token);
+        if (!tokenRow) {
+          return { valid: false, reason: "not_found" as const };
+        }
+        if (tokenRow.status === "completed") {
+          return { valid: false, reason: "already_used" as const };
+        }
+        if (tokenRow.status === "expired" || new Date(tokenRow.expiresAt) < new Date()) {
+          return { valid: false, reason: "expired" as const };
+        }
+        if (tokenRow.status === "in_progress") {
+          // Allow continuing if in progress (same session)
+          return { valid: true, reason: "in_progress" as const, usedByName: tokenRow.usedByName, usedByEmail: tokenRow.usedByEmail, usedByPhone: tokenRow.usedByPhone };
+        }
+        return { valid: true, reason: "unused" as const };
+      }),
+
+    // ---- Mark Token as In Progress (when student starts test) ----
+    useToken: publicProcedure
+      .input(z.object({
+        token: z.string(),
+        name: z.string(),
+        email: z.string(),
+        phone: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const tokenRow = await getAccessTokenByToken(input.token);
+        if (!tokenRow) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Invalid token" });
+        }
+        if (tokenRow.status === "completed") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "This link has already been used" });
+        }
+        if (tokenRow.status === "expired" || new Date(tokenRow.expiresAt) < new Date()) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "This link has expired" });
+        }
+        if (tokenRow.status === "in_progress") {
+          // Already in progress, allow continuing
+          return { success: true };
+        }
+        const marked = await markTokenInProgress(input.token, input.name, input.email, input.phone);
+        if (!marked) {
+          throw new TRPCError({ code: "CONFLICT", message: "Token could not be claimed" });
+        }
+        return { success: true };
+      }),
+
+    // ---- Mark Token as Completed ----
+    completeToken: publicProcedure
+      .input(z.object({
+        token: z.string(),
+        resultId: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        await markTokenCompleted(input.token, input.resultId);
+        return { success: true };
       }),
   }),
 });

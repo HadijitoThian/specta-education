@@ -10,13 +10,13 @@ import {
   Calendar, Clock, ChevronRight, ExternalLink, Loader2,
   LogOut, Home, CalendarCheck, BookOpen, Search, ClipboardList, Edit, Save, X,
   UserPlus, Shield, Briefcase, BarChart3, Trash2, ToggleLeft, ToggleRight, Download,
-  Upload, Eye, EyeOff, KeyRound, UserCog, RefreshCw
+  Upload, Eye, EyeOff, KeyRound, UserCog, RefreshCw, Link2, Copy, Plus, CheckCircle2
 } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { getLoginUrl } from "@/const";
 
-type TabType = "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staff";
+type TabType = "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staff" | "accessLinks";
 
 const APP_STATUS_OPTIONS = [
   "submitted", "reviewing", "processing", "on_hold", 
@@ -77,6 +77,11 @@ export default function AdminDashboard() {
   // Monitoring modal state
   const [monitorCounselor, setMonitorCounselor] = useState<string | null>(null);
   const [monitorStudentId, setMonitorStudentId] = useState<number | null>(null);
+
+  // Access links state
+  const [linkCount, setLinkCount] = useState(10);
+  const [linkExpiry, setLinkExpiry] = useState("");
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
   
   const utils = trpc.useUtils();
 
@@ -261,6 +266,38 @@ export default function AdminDashboard() {
   const deleteConversationMutation = trpc.adminDelete.deleteConversation.useMutation({
     onSuccess: () => { utils.admin.getConversations.invalidate(); utils.admin.getDocuments.invalidate(); utils.admin.getLeads.invalidate(); }
   });
+
+  // Access links queries & mutations
+  const { data: accessLinksData, isLoading: accessLinksLoading } = trpc.aptitude.listLinks.useQuery(undefined, {
+    enabled: isAuthenticated && user?.role === 'admin' && activeTab === 'accessLinks'
+  });
+
+  const generateLinksMutation = trpc.aptitude.generateLinks.useMutation({
+    onSuccess: () => {
+      utils.aptitude.listLinks.invalidate();
+      setLinkCount(10);
+      setLinkExpiry("");
+    }
+  });
+
+  const deleteLinkMutation = trpc.aptitude.deleteLink.useMutation({
+    onSuccess: () => utils.aptitude.listLinks.invalidate()
+  });
+
+  const copyToClipboard = (token: string) => {
+    const url = `${window.location.origin}/play/aptitude?token=${token}`;
+    navigator.clipboard.writeText(url);
+    setCopiedToken(token);
+    setTimeout(() => setCopiedToken(null), 2000);
+  };
+
+  const copyAllUnused = () => {
+    const unused = accessLinksData?.filter((l: any) => l.status === 'unused' && new Date(l.expiresAt) > new Date()) || [];
+    const urls = unused.map((l: any) => `${window.location.origin}/play/aptitude?token=${l.token}`).join('\n');
+    navigator.clipboard.writeText(urls);
+    setCopiedToken('all');
+    setTimeout(() => setCopiedToken(null), 2000);
+  };
 
   if (loading) {
     return (
@@ -499,6 +536,9 @@ export default function AdminDashboard() {
               </Button>
               <Button variant={activeTab === 'team' ? 'default' : 'outline'} onClick={() => setActiveTab('team')} size="sm">
                 <Shield className="w-4 h-4 mr-2" /> Team Management
+              </Button>
+              <Button variant={activeTab === 'accessLinks' ? 'default' : 'outline'} onClick={() => setActiveTab('accessLinks')} size="sm">
+                <Link2 className="w-4 h-4 mr-2" /> Access Links
               </Button>
             </>
           )}
@@ -1604,6 +1644,174 @@ export default function AdminDashboard() {
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===== ACCESS LINKS TAB (Admin Only) ===== */}
+          {activeTab === 'accessLinks' && user?.role === 'admin' && (
+            <div>
+              <div className="p-4 border-b border-border">
+                <h3 className="font-semibold text-lg">Tes Bakat AI — Access Links</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Generate single-use links for the aptitude test. Each link can only be used once.
+                </p>
+              </div>
+
+              {/* Generate Links Form */}
+              <div className="p-4 border-b border-border bg-muted/30">
+                <div className="flex flex-wrap items-end gap-4">
+                  <div>
+                    <label className="text-sm font-medium block mb-1">Number of Links</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={linkCount}
+                      onChange={(e) => setLinkCount(parseInt(e.target.value) || 1)}
+                      className="w-24 px-3 py-2 text-sm border border-border rounded-md bg-background"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium block mb-1">Expiry Date</label>
+                    <input
+                      type="date"
+                      value={linkExpiry}
+                      onChange={(e) => setLinkExpiry(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="px-3 py-2 text-sm border border-border rounded-md bg-background"
+                    />
+                  </div>
+                  <Button
+                    onClick={() => {
+                      if (!linkExpiry) return;
+                      generateLinksMutation.mutate({
+                        count: linkCount,
+                        expiresAt: new Date(linkExpiry + 'T23:59:59').toISOString(),
+                      });
+                    }}
+                    disabled={!linkExpiry || generateLinksMutation.isPending}
+                    size="sm"
+                  >
+                    {generateLinksMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Plus className="w-4 h-4 mr-2" />
+                    )}
+                    Generate {linkCount} Links
+                  </Button>
+                  {(accessLinksData?.filter((l: any) => l.status === 'unused' && new Date(l.expiresAt) > new Date()).length || 0) > 0 && (
+                    <Button onClick={copyAllUnused} variant="outline" size="sm">
+                      {copiedToken === 'all' ? <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" /> : <Copy className="w-4 h-4 mr-2" />}
+                      {copiedToken === 'all' ? 'Copied All!' : 'Copy All Unused'}
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Links Table */}
+              {accessLinksLoading ? (
+                <div className="p-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></div>
+              ) : !accessLinksData?.length ? (
+                <div className="p-8 text-center text-muted-foreground">No access links generated yet. Create some above!</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/50">
+                        <th className="text-left p-3 font-medium">#</th>
+                        <th className="text-left p-3 font-medium">Link</th>
+                        <th className="text-left p-3 font-medium">Status</th>
+                        <th className="text-left p-3 font-medium">Used By</th>
+                        <th className="text-left p-3 font-medium">Expires</th>
+                        <th className="text-left p-3 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {accessLinksData.map((link: any, idx: number) => {
+                        const isExpired = new Date(link.expiresAt) < new Date();
+                        const effectiveStatus = isExpired && link.status === 'unused' ? 'expired' : link.status;
+                        const statusColorMap: Record<string, string> = {
+                          unused: 'bg-green-100 text-green-800',
+                          in_progress: 'bg-yellow-100 text-yellow-800',
+                          completed: 'bg-blue-100 text-blue-800',
+                          expired: 'bg-red-100 text-red-800',
+                        };
+                        const statusColor = statusColorMap[effectiveStatus] || 'bg-gray-100 text-gray-800';
+                        return (
+                          <tr key={link.id} className="border-b border-border hover:bg-muted/30">
+                            <td className="p-3 text-muted-foreground">{idx + 1}</td>
+                            <td className="p-3">
+                              <code className="text-xs bg-muted px-2 py-1 rounded font-mono">
+                                ...{link.token.slice(-8)}
+                              </code>
+                            </td>
+                            <td className="p-3">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
+                                {effectiveStatus.replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              {link.usedByName ? (
+                                <div>
+                                  <div className="font-medium">{link.usedByName}</div>
+                                  <div className="text-xs text-muted-foreground">{link.usedByEmail}</div>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="p-3 text-xs">
+                              {new Date(link.expiresAt).toLocaleDateString()}
+                            </td>
+                            <td className="p-3">
+                              <div className="flex gap-1">
+                                {effectiveStatus === 'unused' && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => copyToClipboard(link.token)}
+                                      className="h-7 px-2"
+                                    >
+                                      {copiedToken === link.token ? (
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                                      ) : (
+                                        <Copy className="w-3.5 h-3.5" />
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        if (confirm('Delete this unused link?')) {
+                                          deleteLinkMutation.mutate({ id: link.id });
+                                        }
+                                      }}
+                                      className="h-7 px-2 text-red-500 hover:text-red-700"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </>
+                                )}
+                                {effectiveStatus === 'completed' && link.resultId && (
+                                  <span className="text-xs text-muted-foreground">Result #{link.resultId}</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <div className="p-3 text-xs text-muted-foreground border-t border-border">
+                    Total: {accessLinksData.length} links · 
+                    Unused: {accessLinksData.filter((l: any) => l.status === 'unused' && new Date(l.expiresAt) > new Date()).length} · 
+                    Used: {accessLinksData.filter((l: any) => l.status === 'completed').length} · 
+                    In Progress: {accessLinksData.filter((l: any) => l.status === 'in_progress').length} · 
+                    Expired: {accessLinksData.filter((l: any) => l.status === 'expired' || (l.status === 'unused' && new Date(l.expiresAt) < new Date())).length}
+                  </div>
                 </div>
               )}
             </div>

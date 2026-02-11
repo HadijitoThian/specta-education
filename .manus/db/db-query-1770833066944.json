@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS `aptitudeAccessTokens` (\n  `id` int AUTO_INCREMENT NOT NULL,\n  `token` varchar(64) NOT NULL,\n  `status` enum('unused','in_progress','completed','expired') NOT NULL DEFAULT 'unused',\n  `expiresAt` timestamp NOT NULL,\n  `usedByName` varchar(255),\n  `usedByEmail` varchar(320),\n  `usedByPhone` varchar(50),\n  `usedAt` timestamp,\n  `completedAt` timestamp,\n  `resultId` int,\n  `createdAt` timestamp NOT NULL DEFAULT (now()),\n  CONSTRAINT `aptitudeAccessTokens_id` PRIMARY KEY(`id`),\n  CONSTRAINT `aptitudeAccessTokens_token_unique` UNIQUE(`token`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute CREATE TABLE IF NOT EXISTS `aptitudeAccessTokens` (\n  `id` int AUTO_INCREMENT NOT NULL,\n  `token` varchar(64) NOT NULL,\n  `status` enum('unused','in_progress','completed','expired') NOT NULL DEFAULT 'unused',\n  `expiresAt` timestamp NOT NULL,\n  `usedByName` varchar(255),\n  `usedByEmail` varchar(320),\n  `usedByPhone` varchar(50),\n  `usedAt` timestamp,\n  `completedAt` timestamp,\n  `resultId` int,\n  `createdAt` timestamp NOT NULL DEFAULT (now()),\n  CONSTRAINT `aptitudeAccessTokens_id` PRIMARY KEY(`id`),\n  CONSTRAINT `aptitudeAccessTokens_token_unique` UNIQUE(`token`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1940
+}
