@@ -422,3 +422,6 @@
 - [x] Add password reset button for each staff member in admin dashboard
 - [x] Update routes in App.tsx for staff login
 - [x] Write tests for staff auth procedures (9 tests passing)
+
+### 37. Fix Nav Spacing - Logo Too Close to About Us
+- [x] Add more spacing between SpecTa logo and "About Us" nav item
