@@ -482,3 +482,34 @@
 - [x] Add document upload capability for counselors
 - [x] Add notes capability for counselors
 - [x] Fixed staff account name mismatch ("hadijito thian" → "Hadi Jito Thian")
+
+### 47. Merge Counselors Tab with Staff Accounts
+- [x] Counselor assignment dropdown in Applications tab now pulls from Staff Accounts (role=counselor)
+- [x] Legacy counselors still shown as fallback in dropdown
+- [x] Staff accounts query always enabled for admin (needed for counselor dropdown)
+
+### 48. Counselor Status Update on Staff Dashboard
+- [x] Allow counselors to change application status from their dashboard
+- [x] Add staffAuth.updateApplicationStatus procedure
+- [x] Show status dropdown on expanded application in StaffDashboard
+- [x] Status change sends email notification to student
+
+### 49. Email Notifications
+- [x] Notify counselor via email when a new student is assigned to them
+- [x] Notify student via email when counselor uploads a document
+- [x] Notify student via email when counselor adds a note
+- [x] Notify student via email when counselor updates application status
+- [x] Added sendCounselorAssignmentEmail and sendStudentNotificationEmail to email.ts
+
+### 50. Gen Z Casual Chatbot Personality
+- [x] Update chatbot system prompt to be more casual, Gen Z friendly
+- [x] Use informal language, emojis, and relatable tone
+- [x] Keep information accurate while being more engaging
+
+### 51. Admin Click-Through Monitoring
+- [x] Click on counselor name in Applications tab → opens Counselor Detail modal
+- [x] Counselor Detail shows: stats (students, docs, notes), status breakdown, list of assigned students
+- [x] Click student name in Applications tab → opens Student Detail modal
+- [x] Student Detail shows: overview, documents, notes, chatbot conversation (4 tabs)
+- [x] Cross-navigation: click student in counselor modal → opens student modal, and vice versa
+- [x] Admin can monitor all activity and progress from these modals

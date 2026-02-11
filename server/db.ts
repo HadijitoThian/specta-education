@@ -606,6 +606,13 @@ export async function getStaffAccountByEmail(email: string): Promise<StaffAccoun
   return row || null;
 }
 
+export async function getStaffAccountByName(name: string): Promise<StaffAccount | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const results = await db.select().from(staffAccounts).where(sql`LOWER(${staffAccounts.name}) = LOWER(${name})`);
+  return results[0] || null;
+}
+
 export async function getStaffAccountById(id: number): Promise<StaffAccount | null> {
   const db = await getDb();
   if (!db) return null;

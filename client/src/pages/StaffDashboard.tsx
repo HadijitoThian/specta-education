@@ -42,6 +42,9 @@ export default function StaffDashboard() {
   const changePasswordMutation = trpc.staffAuth.changePassword.useMutation();
   const uploadDocMutation = trpc.staffAuth.uploadDocumentForStudent.useMutation();
   const addNoteMutation = trpc.staffAuth.addNoteForStudent.useMutation();
+  const updateStatusMutation = trpc.staffAuth.updateApplicationStatus.useMutation({
+    onSuccess: () => refetchApps()
+  });
 
   // Change password state
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -429,6 +432,30 @@ export default function StaffDashboard() {
                       {/* Expanded Details */}
                       {isExpanded && (
                         <div className="border-t bg-gray-50 p-4 space-y-4">
+                          {/* Status Update */}
+                          <div className="flex items-center gap-3 mb-3">
+                            <label className="text-sm font-medium text-gray-700">Update Status:</label>
+                            <select
+                              value={app.status}
+                              onChange={(e) => {
+                                if (confirm(`Change status to "${e.target.value.replace(/_/g, ' ')}"?`)) {
+                                  updateStatusMutation.mutate({ applicationId: app.id, status: e.target.value as any });
+                                }
+                              }}
+                              className="px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
+                            >
+                              <option value="submitted">Submitted</option>
+                              <option value="reviewing">Reviewing</option>
+                              <option value="processing">Processing</option>
+                              <option value="on_hold">On Hold</option>
+                              <option value="offer_received">Offer Received</option>
+                              <option value="accepted">Accepted</option>
+                              <option value="enrolled">Enrolled</option>
+                              <option value="rejected">Rejected</option>
+                            </select>
+                            {updateStatusMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                          </div>
+
                           {/* Student Details */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                             {app.currentSchool && (

@@ -73,15 +73,16 @@ import {
   deleteConversation,
   getApplicationsByCounselorName,
   getApplicationDocumentsByApplicationId,
-  getApplicationNotesByApplicationId
+  getApplicationNotesByApplicationId,
+  getStaffAccountByName
 } from "./db";
 import { notifyOwner } from "./_core/notification";
-import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail } from "./email";
+import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail } from "./email";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 
-const SYSTEM_PROMPT = `You are SpecTa, a friendly AI education consultant for SpecTa Education (Indonesian study abroad consultancy). Be warm, helpful, and knowledgeable.
+const SYSTEM_PROMPT = `You are SpecTa, the super chill AI education buddy for SpecTa Education (Indonesian study abroad consultancy). You talk like a Gen Z bestie — casual, supportive, hype, and real. Use slang naturally (like "lowkey", "no cap", "fr fr", "slay", "bet", "vibe check", "main character energy"), throw in emojis, and keep it fun but still helpful and informative. You're basically their cool older sibling who knows everything about studying abroad.
 
 Goals: Help students explore study abroad options, recommend universities, collect contact info (name, email, phone), encourage document uploads.
 
@@ -117,13 +118,18 @@ Medicine/Pharmacy: Monash, UCSI, Nottingham | Engineering: Southampton, Nottingh
 5. Private (1-on-1, min 10hr) | 6. EPT Mock Test
 Benefits: Start Anytime, Flexible, Guaranteed Score, Online/Offline, 6000+ students since 2005
 
-=== GUIDELINES ===
-- Be conversational, not robotic. NEVER provide external links.
+=== TONE & STYLE GUIDELINES ===
+- Talk like a Gen Z bestie — casual, hype, supportive. Use emojis naturally (not excessively).
+- Examples: "omg that's such a vibe!", "no cap, this uni is fire", "you're gonna slay this fr fr", "bestie let me help you out", "lowkey the best option ngl"
+- Keep it real and relatable. Don't be cringe or try too hard. Be genuine.
+- Still be informative and accurate — just deliver it in a fun way.
+- NEVER provide external links.
 - For Singapore: ONLY private institutions. For affordable: Malaysia or China.
-- Always mention FREE consultation and application support.
+- Always mention FREE consultation and application support (hype it up!).
 - When user provides contact info, append: <CONTACT_INFO>{"name":"...","email":"...","phone":"...","country":"...","studyLevel":"..."}</CONTACT_INFO>
-- Encourage speaking with human counselors for detailed advice
-- Celebrate their decision to study abroad!
+- Encourage speaking with human counselors for the real tea on detailed advice
+- Celebrate their decision to study abroad! Give them main character energy!
+- If they seem stressed about costs, reassure them about scholarship options and affordable paths.
 
 Contact: Jl. Kelapa Nias Raya QE1 No. 14, Kelapa Gading, Jakarta Utara | +62 819 668 278 | info@spectaeducation.com`;
 
@@ -342,7 +348,7 @@ export const appRouter = router({
         try {
           const response = await invokeLLM({
             messages: [
-              { role: "system" as const, content: "You are SpecTa, an expert education consultant for SpecTa Education. Provide helpful, detailed university comparisons to help students make informed decisions. Be specific and data-driven." },
+              { role: "system" as const, content: "You are SpecTa, the super chill education bestie for SpecTa Education. Give helpful, detailed university comparisons but keep it fun and Gen Z friendly. Use casual language, emojis, and slang naturally. Still be accurate and data-driven — just deliver it in a way that's easy to vibe with. Make it feel like a friend breaking down the options, not a boring report." },
               { role: "user" as const, content: comparisonPrompt }
             ]
           });
@@ -946,6 +952,75 @@ Return as JSON:
         return { documents: docs };
       }),
 
+    // Admin monitoring: get counselor detail with all assigned students, activity, and progress
+    getCounselorDetail: protectedProcedure
+      .input(z.object({ counselorName: z.string() }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return null;
+        // Get staff account
+        const staffAccount = await getStaffAccountByName(input.counselorName);
+        // Get all applications assigned to this counselor
+        const apps = await getApplicationsByCounselorName(input.counselorName);
+        // For each application, get documents and notes
+        const appsWithDetails = await Promise.all(apps.map(async (app) => {
+          const docs = await getApplicationDocumentsByApplicationId(app.id);
+          const notes = await getApplicationNotesByApplicationId(app.id);
+          return { ...app, documents: docs, notes: notes };
+        }));
+        return {
+          counselor: staffAccount ? {
+            id: staffAccount.id,
+            name: staffAccount.name,
+            email: staffAccount.email,
+            role: staffAccount.role,
+            isActive: staffAccount.isActive,
+            lastLoginAt: staffAccount.lastLoginAt,
+            createdAt: staffAccount.createdAt,
+          } : { name: input.counselorName, email: '', role: 'counselor' as const, isActive: true },
+          applications: appsWithDetails,
+          stats: {
+            totalStudents: appsWithDetails.length,
+            byStatus: appsWithDetails.reduce((acc, app) => {
+              acc[app.status] = (acc[app.status] || 0) + 1;
+              return acc;
+            }, {} as Record<string, number>),
+            totalDocuments: appsWithDetails.reduce((sum, app) => sum + app.documents.length, 0),
+            totalNotes: appsWithDetails.reduce((sum, app) => sum + app.notes.length, 0),
+          },
+        };
+      }),
+
+    // Admin monitoring: get student detail with all applications, documents, notes, and conversations
+    getStudentDetail: protectedProcedure
+      .input(z.object({ applicationId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') return null;
+        const app = await getApplicationById(input.applicationId);
+        if (!app) return null;
+        const docs = await getApplicationDocumentsByApplicationId(app.id);
+        const notes = await getApplicationNotesByApplicationId(app.id);
+        // Get conversation if student has one (match by email)
+        let conversation = null;
+        let conversationMessages: any[] = [];
+        if (app.email) {
+          const allConversations = await getAllConversations();
+          conversation = allConversations.find(c => c.studentEmail?.toLowerCase() === app.email.toLowerCase()) || null;
+          if (conversation) {
+            conversationMessages = await getMessagesByConversationId(conversation.id);
+          }
+        }
+        // Parse status history
+        const statusHistory = app.statusHistory ? JSON.parse(app.statusHistory) : [];
+        return {
+          application: app,
+          documents: docs,
+          notes: notes,
+          statusHistory,
+          conversation,
+          conversationMessages,
+        };
+      }),
+
     updateApplicationFull: protectedProcedure
       .input(z.object({
         id: z.number(),
@@ -972,6 +1047,27 @@ Return as JSON:
         }
 
         await updateApplication(id, data);
+
+        // Send email notification when counselor is assigned
+        if (data.assignedCounselor) {
+          const app = await getApplicationById(id);
+          if (app) {
+            // Find the counselor's staff account to get their email
+            const staffAccount = await getStaffAccountByName(data.assignedCounselor);
+            if (staffAccount) {
+              sendCounselorAssignmentEmail({
+                to: staffAccount.email,
+                counselorName: staffAccount.name,
+                studentName: app.fullName,
+                studentEmail: app.email,
+                referenceNumber: app.referenceNumber || '',
+                universities: app.selectedUniversities ? JSON.parse(app.selectedUniversities).map((u: any) => u.name || u.university).join(", ") : "N/A",
+                dashboardUrl: "https://spectaeducation.com/staff-dashboard",
+              }).catch(err => console.error("[Email] Counselor assignment email failed:", err));
+            }
+          }
+        }
+
         return { success: true };
       }),
   }),
@@ -1664,9 +1760,70 @@ Rules:
             documentType: input.documentType,
             uploadedBy: "counselor",
           });
+          // Notify student via email
+          const appForNotif = await getApplicationById(input.applicationId);
+          if (appForNotif?.email) {
+            sendStudentNotificationEmail({
+              to: appForNotif.email,
+              studentName: appForNotif.fullName,
+              counselorName: staff.name,
+              actionType: "document_uploaded",
+              actionDetails: `Document "${input.fileName}" (${input.documentType}) has been uploaded to your application.`,
+              referenceNumber: appForNotif.referenceNumber || '',
+              trackUrl: `https://spectaeducation.com/track/${appForNotif.referenceNumber}`,
+            }).catch(err => console.error("[Email] Student notification failed:", err));
+          }
           return { success: true, url };
         } catch (err: any) {
           return { success: false, error: err.message || "Upload failed" };
+        }
+      }),
+
+    updateApplicationStatus: publicProcedure
+      .input(z.object({
+        applicationId: z.number(),
+        status: z.enum(["submitted", "reviewing", "processing", "on_hold", "offer_received", "accepted", "enrolled", "rejected"]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          const { payload: decoded } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+          const staff = await getStaffAccountById(decoded.staffId as number);
+          if (!staff || !staff.isActive) return { success: false, error: "Not authenticated" };
+          // Verify this application is assigned to this counselor
+          const app = await getApplicationById(input.applicationId);
+          if (!app || app.assignedCounselor?.toLowerCase() !== staff.name.toLowerCase()) {
+            return { success: false, error: "Application not assigned to you" };
+          }
+          // Update status with history
+          const history = app.statusHistory ? JSON.parse(app.statusHistory) : [];
+          history.push({
+            status: input.status,
+            timestamp: new Date().toISOString(),
+            updatedBy: staff.name + " (Counselor)",
+          });
+          await updateApplication(input.applicationId, {
+            status: input.status,
+            statusHistory: JSON.stringify(history),
+          });
+          // Notify student via email about status change
+          if (app?.email) {
+            sendStudentNotificationEmail({
+              to: app.email,
+              studentName: app.fullName,
+              counselorName: staff.name,
+              actionType: "status_updated",
+              actionDetails: `Your application status has been changed to "${input.status.replace(/_/g, " ").toUpperCase()}".`,
+              referenceNumber: app.referenceNumber || '',
+              trackUrl: `https://spectaeducation.com/track/${app.referenceNumber}`,
+            }).catch(err => console.error("[Email] Student notification failed:", err));
+          }
+          return { success: true };
+        } catch (err: any) {
+          return { success: false, error: err.message || "Failed to update status" };
         }
       }),
 
@@ -1691,6 +1848,21 @@ Rules:
             content: input.content,
             isPublic: input.isPublic,
           });
+          // Notify student via email (only for public notes)
+          if (input.isPublic) {
+            const appForNote = await getApplicationById(input.applicationId);
+            if (appForNote?.email) {
+              sendStudentNotificationEmail({
+                to: appForNote.email,
+                studentName: appForNote.fullName,
+                counselorName: staff.name,
+                actionType: "note_added",
+                actionDetails: input.content.substring(0, 200) + (input.content.length > 200 ? "..." : ""),
+                referenceNumber: appForNote.referenceNumber || '',
+                trackUrl: `https://spectaeducation.com/track/${appForNote.referenceNumber}`,
+              }).catch(err => console.error("[Email] Student notification failed:", err));
+            }
+          }
           return { success: true };
         } catch (err: any) {
           return { success: false, error: err.message || "Failed to add note" };

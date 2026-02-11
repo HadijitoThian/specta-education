@@ -2,6 +2,9 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { 
   Users, FileText, MessageSquare, Phone, Mail, Globe, 
   Calendar, Clock, ChevronRight, ExternalLink, Loader2,
@@ -71,6 +74,10 @@ export default function AdminDashboard() {
   const [resetPasswordStaffId, setResetPasswordStaffId] = useState<number | null>(null);
   const [resetNewPassword, setResetNewPassword] = useState("");
   
+  // Monitoring modal state
+  const [monitorCounselor, setMonitorCounselor] = useState<string | null>(null);
+  const [monitorStudentId, setMonitorStudentId] = useState<number | null>(null);
+  
   const utils = trpc.useUtils();
 
   const isAdminOrGM = user?.role === 'admin' || user?.role === 'general_manager';
@@ -109,6 +116,7 @@ export default function AdminDashboard() {
     enabled: isAuthenticated && isAdminOrGM
   });
 
+  // Use staff accounts with role=counselor for assignment dropdown (merged with old counselors)
   const { data: activeCounselorsData } = trpc.counselor.getActive.useQuery(undefined, {
     enabled: isAuthenticated && isAdminOrGM
   });
@@ -125,7 +133,7 @@ export default function AdminDashboard() {
 
   // Staff management (admin only)
   const { data: staffData, isLoading: staffLoading } = trpc.staffManagement.getAll.useQuery(undefined, {
-    enabled: isAuthenticated && user?.role === 'admin' && (activeTab === 'staff')
+    enabled: isAuthenticated && user?.role === 'admin'
   });
 
   const updateLeadMutation = trpc.admin.updateLead.useMutation();
@@ -217,6 +225,17 @@ export default function AdminDashboard() {
       utils.staffManagement.getAll.invalidate();
     }
   });
+
+  // Monitoring queries
+  const { data: counselorDetail, isLoading: counselorDetailLoading } = trpc.admin.getCounselorDetail.useQuery(
+    { counselorName: monitorCounselor! },
+    { enabled: !!monitorCounselor && isAuthenticated && isAdminOrGM }
+  );
+
+  const { data: studentDetail, isLoading: studentDetailLoading } = trpc.admin.getStudentDetail.useQuery(
+    { applicationId: monitorStudentId! },
+    { enabled: !!monitorStudentId && isAuthenticated && isAdminOrGM }
+  );
 
   // Admin delete mutations
   const deleteApplicationMutation = trpc.adminDelete.deleteApplication.useMutation({
@@ -325,6 +344,8 @@ export default function AdminDashboard() {
   };
 
   const activeCounselors = activeCounselorsData?.counselors || [];
+  // Get staff accounts with counselor role for the assignment dropdown
+  const staffCounselors = (staffData?.staff || []).filter((s: any) => s.role === 'counselor' && s.isActive);
 
   return (
     <div className="min-h-screen bg-background">
@@ -586,7 +607,7 @@ export default function AdminDashboard() {
                         <div className="flex items-start justify-between mb-3">
                           <div>
                             <div className="flex items-center gap-3 mb-1">
-                              <h3 className="font-semibold text-lg">{app.fullName}</h3>
+                              <h3 className="font-semibold text-lg cursor-pointer hover:text-primary hover:underline" onClick={() => setMonitorStudentId(app.id)}>{app.fullName}</h3>
                               <span className="font-mono text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
                                 {app.referenceNumber || `#${app.id}`}
                               </span>
@@ -605,7 +626,7 @@ export default function AdminDashboard() {
                                 <Calendar className="w-3.5 h-3.5" /> {formatDate(app.createdAt)}
                               </span>
                               {app.assignedCounselor && (
-                                <span className="flex items-center gap-1 text-blue-600 font-medium">
+                                <span className="flex items-center gap-1 text-blue-600 font-medium cursor-pointer hover:underline" onClick={() => setMonitorCounselor(app.assignedCounselor!)}>
                                   <Briefcase className="w-3.5 h-3.5" /> {app.assignedCounselor}
                                 </span>
                               )}
@@ -672,9 +693,15 @@ export default function AdminDashboard() {
                                 className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background"
                               >
                                 <option value="">-- Select Counselor --</option>
-                                {activeCounselors.map((c) => (
+                                {staffCounselors.map((c: any) => (
                                   <option key={c.id} value={c.name}>
-                                    {c.name} {c.specialization ? `(${c.specialization})` : ''} — {c.activeApplications || 0} active
+                                    {c.name} ({c.email})
+                                  </option>
+                                ))}
+                                {/* Fallback: also show old counselors not in staff accounts */}
+                                {activeCounselors.filter(c => !staffCounselors.some((sc: any) => sc.name.toLowerCase() === c.name.toLowerCase())).map((c) => (
+                                  <option key={`old-${c.id}`} value={c.name}>
+                                    {c.name} {c.specialization ? `(${c.specialization})` : ''} — legacy
                                   </option>
                                 ))}
                               </select>
@@ -1662,6 +1689,272 @@ export default function AdminDashboard() {
           )}
         </div>
       </div>
+
+      {/* ===== COUNSELOR MONITORING MODAL ===== */}
+      <Dialog open={!!monitorCounselor} onOpenChange={(open) => { if (!open) setMonitorCounselor(null); }}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Briefcase className="w-5 h-5 text-primary" />
+              Counselor: {counselorDetail?.counselor?.name || monitorCounselor}
+            </DialogTitle>
+            <DialogDescription>
+              Monitor counselor activity, assigned students, and progress
+            </DialogDescription>
+          </DialogHeader>
+          {counselorDetailLoading ? (
+            <div className="p-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></div>
+          ) : counselorDetail ? (
+            <div className="space-y-6">
+              {/* Counselor Info */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-blue-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-blue-700">{counselorDetail.stats?.totalStudents || 0}</div>
+                  <div className="text-xs text-blue-600">Assigned Students</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-green-700">{counselorDetail.stats?.totalDocuments || 0}</div>
+                  <div className="text-xs text-green-600">Documents</div>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-purple-700">{counselorDetail.stats?.totalNotes || 0}</div>
+                  <div className="text-xs text-purple-600">Notes</div>
+                </div>
+                <div className="bg-orange-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-orange-700">
+                    {counselorDetail.counselor?.email || 'N/A'}
+                  </div>
+                  <div className="text-xs text-orange-600">Email</div>
+                </div>
+              </div>
+
+              {/* Status Breakdown */}
+              {counselorDetail.stats?.byStatus && Object.keys(counselorDetail.stats.byStatus).length > 0 && (
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold mb-2">Status Breakdown</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(counselorDetail.stats.byStatus).map(([status, count]) => (
+                      <span key={status} className={`px-3 py-1 rounded-full text-xs font-medium ${APP_STATUS_COLORS[status] || 'bg-gray-100 text-gray-800'}`}>
+                        {status.replace(/_/g, ' ')}: {count as number}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Assigned Students List */}
+              <div>
+                <h4 className="text-sm font-semibold mb-3">Assigned Students</h4>
+                {counselorDetail.applications?.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No students assigned yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {counselorDetail.applications?.map((app: any) => {
+                      const universities = (() => { try { return JSON.parse(app.selectedUniversities); } catch { return []; } })();
+                      return (
+                        <div key={app.id} className="border border-border rounded-lg p-4 hover:bg-muted/30 transition-colors">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <h5 className="font-semibold cursor-pointer hover:text-primary hover:underline" onClick={() => { setMonitorCounselor(null); setMonitorStudentId(app.id); }}>
+                                {app.fullName}
+                              </h5>
+                              <div className="flex gap-3 text-xs text-muted-foreground mt-1">
+                                <span>{app.email}</span>
+                                <span>{app.referenceNumber}</span>
+                              </div>
+                            </div>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${APP_STATUS_COLORS[app.status] || 'bg-gray-100 text-gray-800'}`}>
+                              {app.status.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                          {universities.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-2">
+                              {universities.map((u: any, i: number) => (
+                                <span key={i} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
+                                  {u.university || u.name} · {u.program || u.course}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex gap-4 text-xs text-muted-foreground">
+                            <span>{app.documents?.length || 0} documents</span>
+                            <span>{app.notes?.length || 0} notes</span>
+                            <span>Created: {formatDate(app.createdAt)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No data found.</p>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== STUDENT MONITORING MODAL ===== */}
+      <Dialog open={!!monitorStudentId} onOpenChange={(open) => { if (!open) setMonitorStudentId(null); }}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-primary" />
+              Student: {studentDetail?.application?.fullName || 'Loading...'}
+            </DialogTitle>
+            <DialogDescription>
+              Full student profile with application progress, documents, notes, and conversations
+            </DialogDescription>
+          </DialogHeader>
+          {studentDetailLoading ? (
+            <div className="p-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></div>
+          ) : studentDetail ? (
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="documents">Documents ({studentDetail.documents?.length || 0})</TabsTrigger>
+                <TabsTrigger value="notes">Notes ({studentDetail.notes?.length || 0})</TabsTrigger>
+                <TabsTrigger value="conversation">Conversation</TabsTrigger>
+              </TabsList>
+
+              {/* Overview Tab */}
+              <TabsContent value="overview" className="space-y-4 mt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="text-sm"><strong>Name:</strong> {studentDetail.application.fullName}</div>
+                    <div className="text-sm"><strong>Email:</strong> {studentDetail.application.email}</div>
+                    <div className="text-sm"><strong>Phone:</strong> {studentDetail.application.phone}</div>
+                    <div className="text-sm"><strong>Reference:</strong> {studentDetail.application.referenceNumber}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-sm"><strong>Status:</strong> <span className={`px-2 py-1 rounded-full text-xs font-medium ${APP_STATUS_COLORS[studentDetail.application.status] || 'bg-gray-100 text-gray-800'}`}>{studentDetail.application.status.replace(/_/g, ' ')}</span></div>
+                    <div className="text-sm"><strong>Counselor:</strong> {studentDetail.application.assignedCounselor ? <span className="text-blue-600 cursor-pointer hover:underline" onClick={() => { setMonitorStudentId(null); setMonitorCounselor(studentDetail.application.assignedCounselor!); }}>{studentDetail.application.assignedCounselor}</span> : 'Not assigned'}</div>
+                    <div className="text-sm"><strong>School:</strong> {studentDetail.application.currentSchool || 'N/A'}</div>
+                    <div className="text-sm"><strong>IELTS:</strong> {studentDetail.application.ieltsScore || 'N/A'}</div>
+                  </div>
+                </div>
+
+                {/* Universities */}
+                {(() => {
+                  const unis = (() => { try { return JSON.parse(studentDetail.application.selectedUniversities); } catch { return []; } })();
+                  return unis.length > 0 ? (
+                    <div>
+                      <h4 className="text-sm font-semibold mb-2">Selected Universities</h4>
+                      <div className="space-y-1">
+                        {unis.map((u: any, i: number) => (
+                          <div key={i} className="text-sm bg-blue-50 text-blue-700 px-3 py-2 rounded flex justify-between">
+                            <span>{u.university || u.name}</span>
+                            <span className="text-blue-500">{u.program || u.course} · {u.country}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+
+                {/* Status History Timeline */}
+                {studentDetail.statusHistory?.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2">Status History</h4>
+                    <div className="space-y-2">
+                      {studentDetail.statusHistory.map((entry: any, i: number) => (
+                        <div key={i} className="flex items-center gap-3 text-sm">
+                          <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${APP_STATUS_COLORS[entry.status] || 'bg-gray-100 text-gray-800'}`}>
+                            {entry.status?.replace(/_/g, ' ')}
+                          </span>
+                          <span className="text-muted-foreground text-xs">
+                            {entry.timestamp ? new Date(entry.timestamp).toLocaleString() : ''}
+                          </span>
+                          {entry.updatedBy && <span className="text-xs text-muted-foreground">by {entry.updatedBy}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Documents Tab */}
+              <TabsContent value="documents" className="mt-4">
+                {studentDetail.documents?.length === 0 ? (
+                  <p className="text-sm text-muted-foreground p-4">No documents uploaded yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {studentDetail.documents?.map((doc: any) => (
+                      <div key={doc.id} className="flex items-center justify-between p-3 border border-border rounded-lg">
+                        <div>
+                          <div className="text-sm font-medium">{doc.fileName}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {doc.documentType} · Uploaded by {doc.uploadedBy} · {formatDate(doc.createdAt)}
+                          </div>
+                        </div>
+                        <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="outline"><ExternalLink className="w-3.5 h-3.5 mr-1" /> View</Button>
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Notes Tab */}
+              <TabsContent value="notes" className="mt-4">
+                {studentDetail.notes?.length === 0 ? (
+                  <p className="text-sm text-muted-foreground p-4">No notes yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {studentDetail.notes?.map((note: any) => (
+                      <div key={note.id} className={`p-3 rounded-lg border ${note.isPublic ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-medium">{note.authorName}</span>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs px-2 py-0.5 rounded ${note.isPublic ? 'bg-green-200 text-green-800' : 'bg-orange-200 text-orange-800'}`}>
+                              {note.isPublic ? 'Public' : 'Internal'}
+                            </span>
+                            <span className="text-xs text-muted-foreground">{formatDate(note.createdAt)}</span>
+                          </div>
+                        </div>
+                        <p className="text-sm">{note.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Conversation Tab */}
+              <TabsContent value="conversation" className="mt-4">
+                {!studentDetail.conversation ? (
+                  <p className="text-sm text-muted-foreground p-4">No chatbot conversation found for this student.</p>
+                ) : (
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-3">
+                      Conversation started: {formatDate(studentDetail.conversation.createdAt)} · 
+                      {studentDetail.conversationMessages?.length || 0} messages
+                    </div>
+                    <ScrollArea className="h-[400px] border border-border rounded-lg p-4">
+                      <div className="space-y-3">
+                        {studentDetail.conversationMessages?.map((msg: any) => (
+                          <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                              msg.role === 'user' 
+                                ? 'bg-primary text-primary-foreground' 
+                                : 'bg-muted text-foreground'
+                            }`}>
+                              {msg.content}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <p className="text-sm text-muted-foreground">No data found.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

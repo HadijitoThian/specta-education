@@ -299,3 +299,106 @@ export async function sendPasswordResetEmail({
     html,
   });
 }
+
+// ==========================================
+// COUNSELOR ASSIGNMENT NOTIFICATION EMAIL
+// ==========================================
+export async function sendCounselorAssignmentEmail({
+  to,
+  counselorName,
+  studentName,
+  studentEmail,
+  referenceNumber,
+  universities,
+  dashboardUrl,
+}: {
+  to: string;
+  counselorName: string;
+  studentName: string;
+  studentEmail: string;
+  referenceNumber: string;
+  universities: string;
+  dashboardUrl: string;
+}): Promise<boolean> {
+  const html = emailWrapper(`
+    <h3>New Student Assigned to You</h3>
+    <p>Hi <strong>${counselorName}</strong>,</p>
+    <p>A new student has been assigned to you. Please review their application and reach out to them.</p>
+    
+    <div class="info-box">
+      <p><strong>Student:</strong> ${studentName}</p>
+      <p><strong>Email:</strong> ${studentEmail}</p>
+      <p><strong>Reference:</strong> ${referenceNumber}</p>
+      <p><strong>Universities:</strong> ${universities}</p>
+    </div>
+    
+    <a href="${dashboardUrl}" class="btn">View in Your Dashboard</a>
+    
+    <p style="color: #666; font-size: 13px;">If the button doesn't work, copy and paste this link into your browser:<br>${dashboardUrl}</p>
+  `);
+
+  return sendEmail({
+    to,
+    subject: `New Student Assigned: ${studentName} (${referenceNumber})`,
+    html,
+  });
+}
+
+// ==========================================
+// STUDENT NOTIFICATION: COUNSELOR ACTION
+// ==========================================
+export async function sendStudentNotificationEmail({
+  to,
+  studentName,
+  counselorName,
+  actionType,
+  actionDetails,
+  referenceNumber,
+  trackUrl,
+}: {
+  to: string;
+  studentName: string;
+  counselorName: string;
+  actionType: "document_uploaded" | "note_added" | "status_updated";
+  actionDetails: string;
+  referenceNumber: string;
+  trackUrl: string;
+}): Promise<boolean> {
+  const actionLabels: Record<string, { title: string; description: string }> = {
+    document_uploaded: {
+      title: "New Document Uploaded for Your Application",
+      description: `Your counselor <strong>${counselorName}</strong> has uploaded a new document for your application.`,
+    },
+    note_added: {
+      title: "New Note on Your Application",
+      description: `Your counselor <strong>${counselorName}</strong> has added a note to your application.`,
+    },
+    status_updated: {
+      title: "Application Status Updated",
+      description: `Your application status has been updated by your counselor <strong>${counselorName}</strong>.`,
+    },
+  };
+
+  const action = actionLabels[actionType] || actionLabels.note_added;
+
+  const html = emailWrapper(`
+    <h3>${action.title}</h3>
+    <p>Hi <strong>${studentName}</strong>,</p>
+    <p>${action.description}</p>
+    
+    <div class="info-box">
+      <p><strong>Reference:</strong> ${referenceNumber}</p>
+      <p><strong>Details:</strong> ${actionDetails}</p>
+    </div>
+    
+    <a href="${trackUrl}" class="btn">Track Your Application</a>
+    
+    <p style="color: #666; font-size: 13px;">If the button doesn't work, copy and paste this link into your browser:<br>${trackUrl}</p>
+  `);
+
+  return sendEmail({
+    to,
+    subject: `SpecTa Education - ${action.title}`,
+    html,
+  });
+}
