@@ -1,0 +1,24 @@
+{
+  "query": "SELECT id, fileName, fileUrl, documentType, uploadedBy FROM applicationDocuments ORDER BY id",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT id, fileName, fileUrl, documentType, uploadedBy FROM applicationDocuments ORDER BY id",
+  "rows": [
+    {
+      "id": "1",
+      "fileName": "test-transcript.pdf",
+      "fileUrl": "https://s3.example.com/transcript.pdf",
+      "documentType": "transcript",
+      "uploadedBy": "student"
+    },
+    {
+      "id": "2",
+      "fileName": "test-passport.jpg",
+      "fileUrl": "https://s3.example.com/passport.jpg",
+      "documentType": "passport",
+      "uploadedBy": "student"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tfileName\tfileUrl\tdocumentType\tuploadedBy\n1\ttest-transcript.pdf\thttps://s3.example.com/transcript.pdf\ttranscript\tstudent\n2\ttest-passport.jpg\thttps://s3.example.com/passport.jpg\tpassport\tstudent\n",
+  "stderr": "",
+  "execution_time_ms": 1597
+}

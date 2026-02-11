@@ -1,0 +1,52 @@
+{
+  "query": "SELECT id, fileName, fileUrl, documentType, uploadedBy FROM applicationDocuments ORDER BY id; SELECT id, fullName, transcriptUrl, passportUrl, certificateUrl FROM applications WHERE transcriptUrl IS NOT NULL OR passportUrl IS NOT NULL OR certificateUrl IS NOT NULL LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT id, fileName, fileUrl, documentType, uploadedBy FROM applicationDocuments ORDER BY id; SELECT id, fullName, transcriptUrl, passportUrl, certificateUrl FROM applications WHERE transcriptUrl IS NOT NULL OR passportUrl IS NOT NULL OR certificateUrl IS NOT NULL LIMIT 10;",
+  "rows": [
+    {
+      "id": "1",
+      "fileName": "test-transcript.pdf",
+      "fileUrl": "https://s3.example.com/transcript.pdf",
+      "documentType": "transcript",
+      "uploadedBy": "student"
+    },
+    {
+      "id": "2",
+      "fileName": "test-passport.jpg",
+      "fileUrl": "https://s3.example.com/passport.jpg",
+      "documentType": "passport",
+      "uploadedBy": "student"
+    },
+    {
+      "id": "id",
+      "fileName": "fullName",
+      "fileUrl": "transcriptUrl",
+      "documentType": "passportUrl",
+      "uploadedBy": "certificateUrl"
+    },
+    {
+      "id": "3",
+      "fileName": "hadijitothian",
+      "fileUrl": "https://d2xsxph8kpxj0f.cloudfront.net/310519663225686644/HYZQfmGzLP8hwhgd2UnqHZ/applications/ex5qJIB8Au3ES1LnUFeSQ-WhatsApp Image 2026-02-03 at 10.39.08.jpeg",
+      "documentType": "https://d2xsxph8kpxj0f.cloudfront.net/310519663225686644/HYZQfmGzLP8hwhgd2UnqHZ/applications/eqLxxz0XStDOAgyR6M_Xw-WhatsApp Image 2026-01-23 at 02.48.31.jpeg",
+      "uploadedBy": "NULL"
+    },
+    {
+      "id": "270001",
+      "fileName": "Adhitya Maulana",
+      "fileUrl": "https://d2xsxph8kpxj0f.cloudfront.net/310519663225686644/HYZQfmGzLP8hwhgd2UnqHZ/applications/7CaTO_mIPS6FNJ5USf0CT-Academic Transcript-AdhityaMaulana.pdf",
+      "documentType": "https://d2xsxph8kpxj0f.cloudfront.net/310519663225686644/HYZQfmGzLP8hwhgd2UnqHZ/applications/KxmE_6YiMHHbAVSMiPxRX-Passport-Adhitya.jpg",
+      "uploadedBy": "https://d2xsxph8kpxj0f.cloudfront.net/310519663225686644/HYZQfmGzLP8hwhgd2UnqHZ/applications/s2jY9kKGIXQzCyyObXWoN-ID01724512525-21-12-2024-ETRF.pdf"
+    },
+    {
+      "id": "330001",
+      "fileName": "Doc Test Student",
+      "fileUrl": "https://s3.example.com/transcript.pdf",
+      "documentType": "https://s3.example.com/passport.jpg",
+      "uploadedBy": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tfileName\tfileUrl\tdocumentType\tuploadedBy\n1\ttest-transcript.pdf\thttps://s3.example.com/transcript.pdf\ttranscript\tstudent\n2\ttest-passport.jpg\thttps://s3.example.com/passport.jpg\tpassport\tstudent\nid\tfullName\ttranscriptUrl\tpassportUrl\tcertificateUrl\n3\thadijitothian\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663225686644/HYZQfmGzLP8hwhgd2UnqHZ/applications/ex5qJIB8Au3ES1LnUFeSQ-WhatsApp Image 2026-02-03 at 10.39.08.jpeg\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663225686644/HYZQfmGzLP8hwhgd2UnqHZ/applications/eqLxxz0XStDOAgyR6M_Xw-WhatsApp Image 2026-01-23 at 02.48.31.jpeg\tNULL\n270001\tAdhitya Maulana\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663225686644/HYZQfmGzLP8hwhgd2UnqHZ/applications/7CaTO_mIPS6FNJ5USf0CT-Academic Transcript-AdhityaMaulana.pdf\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663225686644/HYZQfmGzLP8hwhgd2UnqHZ/applications/KxmE_6YiMHHbAVSMiPxRX-Passport-Adhitya.jpg\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663225686644/HYZQfmGzLP8hwhgd2UnqHZ/applications/s2jY9kKGIXQzCyyObXWoN-ID01724512525-21-12-2024-ETRF.pdf\n330001\tDoc Test Student\thttps://s3.example.com/transcript.pdf\thttps://s3.example.com/passport.jpg\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 1919
+}

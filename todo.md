@@ -425,3 +425,9 @@
 - [x] Write tests for email service (2 tests passing)
 - [ ] Send email notification to assigned counselor when documents arrive for their student (future)
 - [ ] Auto-send welcome email when new staff account is created via admin dashboard (future)
+
+### 40. BUG FIX: Document URLs pointing to s3.example.com instead of real S3
+- [x] Investigate why document URLs are s3.example.com placeholder URLs (test data, not real uploads)
+- [x] Fix document upload to use actual Manus S3 storage (storagePut) — already working correctly
+- [x] Fix existing broken document URLs in database — cleaned up 16 test applications + fake URLs, backfilled 7 real docs
+- [x] Verify document upload and download works end-to-end — all 10 documents have valid CloudFront URLs

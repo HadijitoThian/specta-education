@@ -1,0 +1,9 @@
+{
+  "query": "DELETE FROM applicationDocuments WHERE fileUrl LIKE '%s3.example.com%'; UPDATE applications SET transcriptUrl = NULL, passportUrl = NULL WHERE id = 330001 AND transcriptUrl LIKE '%s3.example.com%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute DELETE FROM applicationDocuments WHERE fileUrl LIKE '%s3.example.com%'; UPDATE applications SET transcriptUrl = NULL, passportUrl = NULL WHERE id = 330001 AND transcriptUrl LIKE '%s3.example.com%';",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1719
+}
