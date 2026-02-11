@@ -513,3 +513,13 @@
 - [x] Student Detail shows: overview, documents, notes, chatbot conversation (4 tabs)
 - [x] Cross-navigation: click student in counselor modal → opens student modal, and vice versa
 - [x] Admin can monitor all activity and progress from these modals
+
+### 52. Chatbot Conversational Rewrite
+- [x] Rewrite system prompt: short replies (2-3 sentences max per message)
+- [x] Bot asks questions first before giving recommendations
+- [x] Only share university lists when student's needs are understood (3 at a time max)
+- [x] Show genuine care and interest in the student's goals
+- [x] Guide conversation step by step, not dump all info at once
+- [x] Keep casual warm tone but prioritize being a caring counselor
+- [x] Added example good/bad responses to enforce behavior
+- [x] Added strict conversation flow (greet → learn → suggest → detail → collect → encourage)
