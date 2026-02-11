@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, ArrowRight, Brain, ChevronDown, Globe2, GraduationCap, Heart, Sparkles, Users, BookOpen, Briefcase, BarChart3, Share2, RotateCcw, MessageCircle, ShieldX, Clock, AlertTriangle } from "lucide-react";
+import AptitudeReportDownload from "@/components/AptitudeReportPDF";
 import { trpc } from "@/lib/trpc";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -251,6 +252,7 @@ export default function AptitudeTest() {
   const [answers, setAnswers] = useState<Record<string, number | string>>({});
   const [leadInfo, setLeadInfo] = useState({ name: "", email: "", phone: "" });
   const [aiResult, setAiResult] = useState<any>(null);
+  const [savedResultId, setSavedResultId] = useState<number | null>(null);
   const [tokenClaimed, setTokenClaimed] = useState(false);
 
   // Extract token from URL
@@ -414,6 +416,11 @@ export default function AptitudeTest() {
         miScores,
         hollandCode,
       });
+
+      // Store resultId for PDF download
+      if (result.resultId) {
+        setSavedResultId(result.resultId);
+      }
 
       // Mark token as completed if using access link
       if (token && result.resultId) {
@@ -979,6 +986,12 @@ export default function AptitudeTest() {
                 {lang === "id" ? "Chat via WhatsApp" : "Chat via WhatsApp"}
               </a>
             </div>
+
+            {savedResultId && (
+              <div className="mb-6">
+                <AptitudeReportDownload resultId={savedResultId} studentName={leadInfo.name} language={lang} />
+              </div>
+            )}
 
             <div className="flex flex-wrap justify-center gap-3">
               {!token && (

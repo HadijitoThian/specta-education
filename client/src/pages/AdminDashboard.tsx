@@ -15,6 +15,7 @@ import {
 import { Link } from "wouter";
 import { useState } from "react";
 import { getLoginUrl } from "@/const";
+import AptitudeReportDownload from "@/components/AptitudeReportPDF";
 
 type TabType = "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staff" | "accessLinks";
 
@@ -1796,7 +1797,9 @@ export default function AdminDashboard() {
                                   </>
                                 )}
                                 {effectiveStatus === 'completed' && link.resultId && (
-                                  <span className="text-xs text-muted-foreground">Result #{link.resultId}</span>
+                                  <div className="flex items-center gap-2">
+                                    <AptitudeReportDownload resultId={link.resultId} studentName={link.usedByName || 'Student'} language="id" />
+                                  </div>
                                 )}
                               </div>
                             </td>

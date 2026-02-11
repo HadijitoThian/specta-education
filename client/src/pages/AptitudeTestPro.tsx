@@ -9,6 +9,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
+import AptitudeReportDownload from "@/components/AptitudeReportPDF";
 import {
   profilDiriFields,
   riasecProQuestions,
@@ -22,6 +23,7 @@ import {
 
 type Lang = "id" | "en";
 type Phase = "intro" | "leadCapture" | "section1" | "section2" | "section3" | "section4" | "section5" | "section6" | "section7" | "analyzing" | "emailSent";
+
 
 // ========== SCORING HELPERS ==========
 function computeRiasecScores(answers: Record<string, number>) {
@@ -208,6 +210,7 @@ export default function AptitudeTestPro() {
   // Analysis
   const analyzeMutation = trpc.aptitude.analyzeProResults.useMutation();
   const [analysisError, setAnalysisError] = useState("");
+  const [savedResultId, setSavedResultId] = useState<number | null>(null);
 
   // Ref for scroll
   const topRef = useRef<HTMLDivElement>(null);
@@ -333,6 +336,11 @@ export default function AptitudeTestPro() {
         rankingAnswers,
         language: lang,
       });
+
+      // Store resultId for PDF download
+      if (result.resultId) {
+        setSavedResultId(result.resultId);
+      }
 
       // Complete the token
       if (tokenParam && result.resultId) {
@@ -1118,8 +1126,15 @@ export default function AptitudeTestPro() {
                 </div>
               </>
             )}
+
+            {savedResultId && !analysisError && (
+              <div className="mb-4">
+                <AptitudeReportDownload resultId={savedResultId} studentName={studentName} language={lang} />
+              </div>
+            )}
+
             <a
-              href="https://wa.me/6281234567890?text=Halo%20SpecTa%2C%20saya%20baru%20saja%20menyelesaikan%20Tes%20Bakat%20AI%20Pro"
+              href="https://wa.me/6281287878055?text=Halo%20SpecTa%2C%20saya%20baru%20saja%20menyelesaikan%20Tes%20Bakat%20AI%20Pro"
               target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-green-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-green-600 transition-colors"
             >

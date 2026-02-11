@@ -617,3 +617,12 @@
 - [x] Add route /test/pro with token validation
 - [x] Access links now point to /test/pro
 - [x] Write 12 vitest tests for Pro question bank and procedures
+
+### 63. PDF Report Generator for Aptitude Test Results
+- [x] Build client-side PDF generation using html2canvas + jsPDF
+- [x] Design professional PDF layout with SpecTa branding (teal gradient header, score bars, major cards)
+- [x] Include all sections: personality snapshot, RIASEC chart, MI scores, major recommendations, career outlook, study tips, parent summary
+- [x] Add download PDF button to emailSent confirmation page (both free and Pro)
+- [x] Add download PDF button to admin dashboard for completed access links
+- [x] PDF fetches result data via tRPC getResult procedure
+- [x] Write 8 vitest tests for PDF data structure and formatting
