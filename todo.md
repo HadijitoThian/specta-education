@@ -376,3 +376,6 @@
 
 ### 31. Fix Footer Logo Not Displaying
 - [x] Fix footer logo showing as white block instead of SpecTa logo on dark background
+
+### 32. Move SpecTa Play Promo Above Destinations on Homepage
+- [x] Move SpecTa Play promo section above Study Abroad Destinations section on Home.tsx

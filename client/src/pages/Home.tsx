@@ -216,6 +216,35 @@ export default function Home() {
         </div>
       </section>
 
+      {/* SpecTa Play Promo Banner */}
+      <section className="py-12">
+        <div className="container">
+          <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-500 rounded-3xl p-8 md:p-12 relative overflow-hidden">
+            {/* Floating emojis */}
+            <div className="absolute top-4 left-8 text-4xl opacity-20 animate-bounce" style={{ animationDelay: '0s' }}>🌏</div>
+            <div className="absolute top-6 right-12 text-3xl opacity-20 animate-bounce" style={{ animationDelay: '0.5s' }}>✈️</div>
+            <div className="absolute bottom-4 left-1/4 text-3xl opacity-20 animate-bounce" style={{ animationDelay: '1s' }}>🎓</div>
+            <div className="absolute bottom-6 right-1/4 text-4xl opacity-20 animate-bounce" style={{ animationDelay: '1.5s' }}>🌟</div>
+            
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="text-center md:text-left">
+                <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-4 py-1.5 mb-4">
+                  <span className="text-yellow-300">🎮</span>
+                  <span className="text-white/90 text-sm font-medium">Interactive & Fun</span>
+                </div>
+                <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">Discover Your Study Abroad Persona!</h3>
+                <p className="text-white/80 text-lg max-w-md">Take fun quizzes, find your ideal country, and get your unique study abroad character card!</p>
+              </div>
+              <Link href="/play">
+                <button className="bg-white text-purple-600 font-bold text-lg px-8 py-4 rounded-2xl hover:bg-yellow-300 hover:text-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 whitespace-nowrap">
+                  Play Now →
+                </button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Destinations Section */}
       <section className="py-20">
         <div className="container">
@@ -298,35 +327,6 @@ export default function Home() {
                 <p className="text-muted-foreground">{service.desc}</p>
               </motion.div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* SpecTa Play Promo Banner */}
-      <section className="py-12">
-        <div className="container">
-          <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-500 rounded-3xl p-8 md:p-12 relative overflow-hidden">
-            {/* Floating emojis */}
-            <div className="absolute top-4 left-8 text-4xl opacity-20 animate-bounce" style={{ animationDelay: '0s' }}>🌏</div>
-            <div className="absolute top-6 right-12 text-3xl opacity-20 animate-bounce" style={{ animationDelay: '0.5s' }}>✈️</div>
-            <div className="absolute bottom-4 left-1/4 text-3xl opacity-20 animate-bounce" style={{ animationDelay: '1s' }}>🎓</div>
-            <div className="absolute bottom-6 right-1/4 text-4xl opacity-20 animate-bounce" style={{ animationDelay: '1.5s' }}>🌟</div>
-            
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="text-center md:text-left">
-                <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-4 py-1.5 mb-4">
-                  <span className="text-yellow-300">🎮</span>
-                  <span className="text-white/90 text-sm font-medium">Interactive & Fun</span>
-                </div>
-                <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">Discover Your Study Abroad Persona!</h3>
-                <p className="text-white/80 text-lg max-w-md">Take fun quizzes, find your ideal country, and get your unique study abroad character card!</p>
-              </div>
-              <Link href="/play">
-                <button className="bg-white text-purple-600 font-bold text-lg px-8 py-4 rounded-2xl hover:bg-yellow-300 hover:text-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 whitespace-nowrap">
-                  Play Now →
-                </button>
-              </Link>
-            </div>
           </div>
         </div>
       </section>
