@@ -370,3 +370,6 @@
 ### 29. Navigation Cleanup
 - [x] Remove Contact button with phone icon from desktop navigation (next to Quick Apply)
 - [x] Remove Contact button with phone icon from mobile navigation
+
+### 30. Persona Generator - Add Social Sciences Option
+- [x] Add "Social Sciences" as 6th option to "What do you want to study?" question

@@ -79,6 +79,7 @@ const QUESTIONS = [
       { text: "Arts & Design", icon: "🎨", value: "arts" },
       { text: "IT & Computer Science", icon: "💻", value: "it" },
       { text: "Medicine & Health", icon: "🏥", value: "medicine" },
+      { text: "Social Sciences", icon: "🌍", value: "social_sciences" },
     ],
   },
   {
