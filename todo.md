@@ -626,3 +626,10 @@
 - [x] Add download PDF button to admin dashboard for completed access links
 - [x] PDF fetches result data via tRPC getResult procedure
 - [x] Write 8 vitest tests for PDF data structure and formatting
+
+### 64. Bug Fix: Pro Test Cannot Proceed from Section 2 to Section 3
+- [x] Root cause: auto-advance could skip questions during fast clicking, leaving them unanswered with no way to navigate back
+- [x] Added dot navigator to Section 2 (RIASEC, 30 dots), Section 3 (MI, 24 dots), Section 4 (Personality, 20 dots), Section 5 (SJT, 8 dots)
+- [x] Users can now click any dot to jump to a specific question and see answered (colored) vs unanswered (gray)
+- [x] Added unanswered question warning with clickable links when ≤5 questions remain
+- [x] All 122 tests still passing

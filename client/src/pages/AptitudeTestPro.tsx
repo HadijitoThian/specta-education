@@ -381,7 +381,11 @@ export default function AptitudeTestPro() {
   const isSection1Complete = () => {
     return profilDiriFields.filter(f => f.required).every(f => (profilAnswers[f.id] || "").trim() !== "");
   };
-  const isSection2Complete = () => riasecProQuestions.every(q => riasecAnswers[q.id] !== undefined);
+  const isSection2Complete = () => {
+    const unanswered = riasecProQuestions.filter(q => riasecAnswers[q.id] === undefined);
+
+    return unanswered.length === 0;
+  };
   const isSection3Complete = () => miPairs.every(p => miAnswers[p.id] !== undefined);
   const isSection4Complete = () => personalityQuestions.every(q => personalityAnswers[q.id] !== undefined);
   const isSection5Complete = () => sjtQuestions.every(q => sjtAnswers[q.id] !== undefined);
@@ -668,8 +672,43 @@ export default function AptitudeTestPro() {
                       </motion.div>
                     </AnimatePresence>
 
+                    {/* Question dot navigator */}
+                    <div className="flex flex-wrap justify-center gap-1.5 mt-6 mb-4">
+                      {riasecProQuestions.map((q, i) => (
+                        <button
+                          key={q.id}
+                          onClick={() => setRiasecIndex(i)}
+                          className={`w-7 h-7 rounded-full text-xs font-medium transition-all ${
+                            i === riasecIndex
+                              ? "bg-pink-500 text-white ring-2 ring-pink-300 ring-offset-1 scale-110"
+                              : riasecAnswers[q.id] !== undefined
+                                ? "bg-pink-100 text-pink-600 hover:bg-pink-200"
+                                : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                          }`}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Unanswered warning */}
+                    {(() => {
+                      const unanswered = riasecProQuestions.filter(q => riasecAnswers[q.id] === undefined);
+                      if (unanswered.length > 0 && unanswered.length <= 5) {
+                        return (
+                          <div className="text-center text-sm text-amber-600 bg-amber-50 rounded-lg py-2 px-3 mb-4">
+                            {unanswered.length} pertanyaan belum dijawab: {unanswered.map((q, i) => (
+                              <button key={q.id} onClick={() => setRiasecIndex(riasecProQuestions.indexOf(q))}
+                                className="underline font-medium hover:text-amber-700 mx-0.5">#{riasecProQuestions.indexOf(q) + 1}</button>
+                            ))}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
                     {/* Mini nav for RIASEC */}
-                    <div className="flex justify-between mt-8">
+                    <div className="flex justify-between mt-4">
                       <button
                         onClick={() => setRiasecIndex(prev => Math.max(0, prev - 1))}
                         disabled={riasecIndex === 0}
@@ -742,7 +781,30 @@ export default function AptitudeTestPro() {
                       </motion.div>
                     </AnimatePresence>
 
-                    <div className="flex justify-between mt-8">
+                    {/* Question dot navigator */}
+                    <div className="flex flex-wrap justify-center gap-1.5 mt-6 mb-4">
+                      {miPairs.map((p, i) => (
+                        <button key={p.id} onClick={() => setMiIndex(i)}
+                          className={`w-7 h-7 rounded-full text-xs font-medium transition-all ${
+                            i === miIndex ? "bg-amber-500 text-white ring-2 ring-amber-300 ring-offset-1 scale-110"
+                              : miAnswers[p.id] !== undefined ? "bg-amber-100 text-amber-600 hover:bg-amber-200"
+                              : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                          }`}>{i + 1}</button>
+                      ))}
+                    </div>
+                    {(() => {
+                      const unanswered = miPairs.filter(p => miAnswers[p.id] === undefined);
+                      if (unanswered.length > 0 && unanswered.length <= 5) {
+                        return (<div className="text-center text-sm text-amber-600 bg-amber-50 rounded-lg py-2 px-3 mb-4">
+                          {unanswered.length} pasangan belum dijawab: {unanswered.map(p => (
+                            <button key={p.id} onClick={() => setMiIndex(miPairs.indexOf(p))}
+                              className="underline font-medium hover:text-amber-700 mx-0.5">#{miPairs.indexOf(p) + 1}</button>
+                          ))}
+                        </div>);
+                      }
+                      return null;
+                    })()}
+                    <div className="flex justify-between mt-4">
                       <button onClick={() => setMiIndex(prev => Math.max(0, prev - 1))} disabled={miIndex === 0}
                         className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-30">
                         <ArrowLeft className="w-4 h-4" /> Sebelumnya
@@ -807,7 +869,30 @@ export default function AptitudeTestPro() {
                       </motion.div>
                     </AnimatePresence>
 
-                    <div className="flex justify-between mt-6">
+                    {/* Question dot navigator */}
+                    <div className="flex flex-wrap justify-center gap-1.5 mt-6 mb-4">
+                      {personalityQuestions.map((q, i) => (
+                        <button key={q.id} onClick={() => setPersonalityIndex(i)}
+                          className={`w-7 h-7 rounded-full text-xs font-medium transition-all ${
+                            i === personalityIndex ? "bg-emerald-500 text-white ring-2 ring-emerald-300 ring-offset-1 scale-110"
+                              : personalityAnswers[q.id] !== undefined ? "bg-emerald-100 text-emerald-600 hover:bg-emerald-200"
+                              : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                          }`}>{i + 1}</button>
+                      ))}
+                    </div>
+                    {(() => {
+                      const unanswered = personalityQuestions.filter(q => personalityAnswers[q.id] === undefined);
+                      if (unanswered.length > 0 && unanswered.length <= 5) {
+                        return (<div className="text-center text-sm text-amber-600 bg-amber-50 rounded-lg py-2 px-3 mb-4">
+                          {unanswered.length} pertanyaan belum dijawab: {unanswered.map(q => (
+                            <button key={q.id} onClick={() => setPersonalityIndex(personalityQuestions.indexOf(q))}
+                              className="underline font-medium hover:text-amber-700 mx-0.5">#{personalityQuestions.indexOf(q) + 1}</button>
+                          ))}
+                        </div>);
+                      }
+                      return null;
+                    })()}
+                    <div className="flex justify-between mt-4">
                       <button onClick={() => setPersonalityIndex(prev => Math.max(0, prev - 1))} disabled={personalityIndex === 0}
                         className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-30">
                         <ArrowLeft className="w-4 h-4" /> Sebelumnya
@@ -880,7 +965,30 @@ export default function AptitudeTestPro() {
                       </motion.div>
                     </AnimatePresence>
 
-                    <div className="flex justify-between mt-8">
+                    {/* Question dot navigator */}
+                    <div className="flex flex-wrap justify-center gap-1.5 mt-6 mb-4">
+                      {sjtQuestions.map((q, i) => (
+                        <button key={q.id} onClick={() => setSjtIndex(i)}
+                          className={`w-7 h-7 rounded-full text-xs font-medium transition-all ${
+                            i === sjtIndex ? "bg-violet-500 text-white ring-2 ring-violet-300 ring-offset-1 scale-110"
+                              : sjtAnswers[q.id] !== undefined ? "bg-violet-100 text-violet-600 hover:bg-violet-200"
+                              : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                          }`}>{i + 1}</button>
+                      ))}
+                    </div>
+                    {(() => {
+                      const unanswered = sjtQuestions.filter(q => sjtAnswers[q.id] === undefined);
+                      if (unanswered.length > 0 && unanswered.length <= 3) {
+                        return (<div className="text-center text-sm text-amber-600 bg-amber-50 rounded-lg py-2 px-3 mb-4">
+                          {unanswered.length} skenario belum dijawab: {unanswered.map(q => (
+                            <button key={q.id} onClick={() => setSjtIndex(sjtQuestions.indexOf(q))}
+                              className="underline font-medium hover:text-amber-700 mx-0.5">#{sjtQuestions.indexOf(q) + 1}</button>
+                          ))}
+                        </div>);
+                      }
+                      return null;
+                    })()}
+                    <div className="flex justify-between mt-4">
                       <button onClick={() => setSjtIndex(prev => Math.max(0, prev - 1))} disabled={sjtIndex === 0}
                         className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-30">
                         <ArrowLeft className="w-4 h-4" /> Sebelumnya
