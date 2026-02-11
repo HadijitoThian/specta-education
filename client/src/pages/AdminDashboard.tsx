@@ -7,7 +7,7 @@ import {
   Calendar, Clock, ChevronRight, ExternalLink, Loader2,
   LogOut, Home, CalendarCheck, BookOpen, Search, ClipboardList, Edit, Save, X,
   UserPlus, Shield, Briefcase, BarChart3, Trash2, ToggleLeft, ToggleRight,
-  KeyRound, UserCheck, UserX
+  KeyRound, UserCheck, UserX, Download, Bot, Upload, Filter
 } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
@@ -57,6 +57,8 @@ export default function AdminDashboard() {
   const [staffRole, setStaffRole] = useState<"admin" | "counselor" | "staff">("counselor");
   const [resetPasswordStaffId, setResetPasswordStaffId] = useState<number | null>(null);
   const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const [docFilter, setDocFilter] = useState<'all' | 'chatbot' | 'application' | 'counselor'>('all');
+  const [docSearch, setDocSearch] = useState("");
   
   // Counselor form state
   const [showAddCounselor, setShowAddCounselor] = useState(false);
@@ -1100,35 +1102,135 @@ export default function AdminDashboard() {
                 <div className="p-8 text-center">
                   <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
                 </div>
-              ) : documentsData?.documents?.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  No documents uploaded yet.
-                </div>
-              ) : (
-                <div className="divide-y divide-border">
-                  {documentsData?.documents?.map((doc) => (
-                    <div key={doc.id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <FileText className="w-5 h-5 text-primary" />
-                        </div>
-                        <div>
-                          <div className="font-medium">{doc.fileName}</div>
-                          <div className="text-sm text-muted-foreground flex items-center gap-2">
-                            <span className="px-2 py-0.5 bg-muted rounded text-xs">{doc.documentType}</span>
-                            <span>{formatDate(doc.createdAt)}</span>
-                          </div>
-                        </div>
+              ) : (() => {
+                const allDocs = documentsData?.documents || [];
+                const filteredDocs = allDocs.filter(doc => {
+                  const matchesFilter = docFilter === 'all' || doc.source === docFilter;
+                  const matchesSearch = !docSearch || 
+                    doc.fileName.toLowerCase().includes(docSearch.toLowerCase()) ||
+                    (doc.studentName && doc.studentName.toLowerCase().includes(docSearch.toLowerCase())) ||
+                    (doc.studentEmail && doc.studentEmail.toLowerCase().includes(docSearch.toLowerCase())) ||
+                    (doc.referenceNumber && doc.referenceNumber.toLowerCase().includes(docSearch.toLowerCase()));
+                  return matchesFilter && matchesSearch;
+                });
+
+                const sourceColors: Record<string, string> = {
+                  chatbot: 'bg-purple-100 text-purple-800',
+                  application: 'bg-blue-100 text-blue-800',
+                  counselor: 'bg-green-100 text-green-800',
+                };
+                const sourceLabels: Record<string, string> = {
+                  chatbot: 'AI Chatbot',
+                  application: 'Quick Apply',
+                  counselor: 'Counselor',
+                };
+                const sourceIcons: Record<string, typeof Bot> = {
+                  chatbot: Bot,
+                  application: Upload,
+                  counselor: UserCheck,
+                };
+
+                return (
+                  <>
+                    {/* Filters bar */}
+                    <div className="p-4 border-b border-border flex flex-wrap items-center gap-3">
+                      <div className="flex items-center gap-1">
+                        <Filter className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm font-medium text-muted-foreground">Source:</span>
                       </div>
-                      <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
-                        <Button size="sm" variant="outline">
-                          <ExternalLink className="w-4 h-4 mr-1" /> View
-                        </Button>
-                      </a>
+                      {(['all', 'application', 'chatbot', 'counselor'] as const).map(f => (
+                        <button
+                          key={f}
+                          onClick={() => setDocFilter(f)}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                            docFilter === f 
+                              ? 'bg-primary text-primary-foreground' 
+                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                          }`}
+                        >
+                          {f === 'all' ? `All (${allDocs.length})` : `${sourceLabels[f]} (${allDocs.filter(d => d.source === f).length})`}
+                        </button>
+                      ))}
+                      <div className="flex-1" />
+                      <div className="relative">
+                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                          type="text"
+                          placeholder="Search by name, email, or reference..."
+                          value={docSearch}
+                          onChange={(e) => setDocSearch(e.target.value)}
+                          className="pl-9 pr-3 py-1.5 text-sm border border-border rounded-lg bg-background w-64 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        />
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
+
+                    {filteredDocs.length === 0 ? (
+                      <div className="p-8 text-center text-muted-foreground">
+                        {allDocs.length === 0 ? 'No documents uploaded yet.' : 'No documents match your filter.'}
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-border">
+                        {filteredDocs.map((doc) => {
+                          const SourceIcon = sourceIcons[doc.source] || FileText;
+                          return (
+                            <div key={`${doc.source}-${doc.id}`} className="p-4 hover:bg-muted/50 transition-colors">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex items-start gap-4 flex-1 min-w-0">
+                                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                                    <FileText className="w-5 h-5 text-primary" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium truncate">{doc.fileName}</div>
+                                    <div className="flex items-center gap-2 flex-wrap mt-1">
+                                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${sourceColors[doc.source] || 'bg-gray-100 text-gray-800'}`}>
+                                        <SourceIcon className="w-3 h-3 inline mr-1" />
+                                        {sourceLabels[doc.source] || doc.source}
+                                      </span>
+                                      <span className="px-2 py-0.5 bg-muted rounded text-xs">{doc.documentType}</span>
+                                      <span className="text-xs text-muted-foreground">{formatDate(doc.createdAt)}</span>
+                                    </div>
+                                    {(doc.studentName || doc.studentEmail || doc.referenceNumber) && (
+                                      <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground flex-wrap">
+                                        {doc.studentName && (
+                                          <span className="flex items-center gap-1">
+                                            <Users className="w-3 h-3" /> {doc.studentName}
+                                          </span>
+                                        )}
+                                        {doc.studentEmail && (
+                                          <span className="flex items-center gap-1">
+                                            <Mail className="w-3 h-3" /> {doc.studentEmail}
+                                          </span>
+                                        )}
+                                        {doc.referenceNumber && (
+                                          <span className="flex items-center gap-1 font-mono text-xs">
+                                            <ClipboardList className="w-3 h-3" /> {doc.referenceNumber}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
+                                    <Button size="sm" variant="outline">
+                                      <ExternalLink className="w-4 h-4 mr-1" /> View
+                                    </Button>
+                                  </a>
+                                  <a href={doc.fileUrl} download={doc.fileName}>
+                                    <Button size="sm" variant="outline">
+                                      <Download className="w-4 h-4" />
+                                    </Button>
+                                  </a>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
 

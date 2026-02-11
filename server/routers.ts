@@ -64,7 +64,8 @@ import {
   getStaffById,
   getAllStaffAccounts,
   updateStaffAccount,
-  updateStaffLastLogin
+  updateStaffLastLogin,
+  getAllApplicationDocuments
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import crypto from "crypto";
@@ -263,6 +264,14 @@ export const appRouter = router({
 
           await updateConversation(sessionId, {
             status: "documents_uploaded"
+          });
+
+          // Notify owner about new document upload from chatbot
+          const studentName = conversation.studentName || 'Unknown Student';
+          const studentEmail = conversation.studentEmail || 'Not provided';
+          await notifyOwner({
+            title: `New Document Uploaded: ${fileName}`,
+            content: `A student uploaded a document via AI Chatbot.\n\nStudent: ${studentName}\nEmail: ${studentEmail}\nDocument: ${fileName}\nType: ${documentType}\nSource: AI Chatbot\n\nView in Admin Dashboard → Documents tab.`
           });
 
           return { 
@@ -762,6 +771,15 @@ Return as JSON:
           uploadedBy: "student",
         });
 
+        // Notify owner about new document upload from tracker
+        const application = await getApplicationById(tokenRecord.applicationId);
+        const studentName = application?.fullName || 'Unknown Student';
+        const refNumber = application?.referenceNumber || 'N/A';
+        await notifyOwner({
+          title: `New Document Uploaded: ${input.fileName}`,
+          content: `A student uploaded a document via Track My Application.\n\nStudent: ${studentName}\nReference: ${refNumber}\nDocument: ${input.fileName}\nType: ${input.documentType}\nSource: Track My Application\n\nView in Admin Dashboard → Documents tab.`
+        });
+
         return { success: true, document: doc };
       }),
   }),
@@ -823,8 +841,50 @@ Return as JSON:
       if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') {
         return { documents: [] };
       }
-      const documents = await getAllDocuments();
-      return { documents };
+      
+      // Get documents from ALL sources for a unified view
+      // 1. Chatbot documents (from documents table)
+      const chatbotDocs = await getAllDocuments();
+      
+      // 2. Application documents (from applicationDocuments table, with student info)
+      const appDocs = await getAllApplicationDocuments();
+      
+      // Normalize into a unified format
+      const unified = [
+        ...chatbotDocs.map(d => ({
+          id: d.id,
+          fileName: d.fileName,
+          fileType: d.fileType,
+          fileUrl: d.fileUrl,
+          fileKey: d.fileKey,
+          documentType: d.documentType,
+          source: 'chatbot' as const,
+          studentName: null as string | null,
+          studentEmail: null as string | null,
+          referenceNumber: null as string | null,
+          uploadedBy: 'student' as const,
+          createdAt: d.createdAt,
+        })),
+        ...appDocs.map(d => ({
+          id: 10000 + d.id, // offset to avoid ID collision
+          fileName: d.fileName,
+          fileType: d.fileType,
+          fileUrl: d.fileUrl,
+          fileKey: d.fileKey,
+          documentType: d.documentType,
+          source: (d.uploadedBy === 'student' ? 'application' : 'counselor') as 'application' | 'counselor',
+          studentName: d.studentName || null,
+          studentEmail: d.studentEmail || null,
+          referenceNumber: d.referenceNumber || null,
+          uploadedBy: d.uploadedBy,
+          createdAt: d.createdAt,
+        })),
+      ];
+      
+      // Sort by most recent first
+      unified.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      return { documents: unified };
     }),
 
     getLeadDocuments: protectedProcedure
@@ -976,9 +1036,38 @@ Return as JSON:
         if (application) {
           const unis = JSON.parse(input.selectedUniversities);
           const uniNames = unis.map((u: any) => `${u.university} (${u.country})`).join(", ");
+          
+          // Create applicationDocuments entries for each uploaded document
+          const docEntries: { url?: string; key?: string; type: string; label: string }[] = [
+            { url: input.transcriptUrl, key: input.transcriptKey, type: 'transcript', label: 'Academic Transcript' },
+            { url: input.passportUrl, key: input.passportKey, type: 'passport', label: 'Passport' },
+            { url: input.ieltsDocUrl, key: input.ieltsDocKey, type: 'ielts', label: 'IELTS/TOEFL Score' },
+            { url: input.certificateUrl, key: input.certificateKey, type: 'certificate', label: 'Certificate' },
+          ];
+          
+          const uploadedDocs: string[] = [];
+          for (const doc of docEntries) {
+            if (doc.url && doc.key) {
+              await createApplicationDocument({
+                applicationId: application.id,
+                fileName: doc.key.split('/').pop() || doc.label,
+                fileType: doc.url.includes('.pdf') ? 'application/pdf' : 'image/jpeg',
+                fileUrl: doc.url,
+                fileKey: doc.key,
+                documentType: doc.type as any,
+                uploadedBy: 'student',
+              });
+              uploadedDocs.push(doc.label);
+            }
+          }
+          
+          const docsInfo = uploadedDocs.length > 0 
+            ? `\nDocuments Uploaded: ${uploadedDocs.join(', ')}` 
+            : '\nDocuments: None uploaded';
+          
           await notifyOwner({
             title: `New Application: ${input.fullName}`,
-            content: `Reference: ${referenceNumber}\nStudent: ${input.fullName}\nEmail: ${input.email}\nPhone: ${input.phone}\nSchool: ${input.currentSchool || 'N/A'}\nApplying to: ${uniNames}\nIELTS: ${input.ieltsScore || 'N/A'}`
+            content: `Reference: ${referenceNumber}\nStudent: ${input.fullName}\nEmail: ${input.email}\nPhone: ${input.phone}\nSchool: ${input.currentSchool || 'N/A'}\nApplying to: ${uniNames}\nIELTS: ${input.ieltsScore || 'N/A'}${docsInfo}`
           });
         }
         return { success: true, application, referenceNumber };

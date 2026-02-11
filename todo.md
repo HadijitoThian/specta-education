@@ -425,3 +425,13 @@
 
 ### 37. Fix Nav Spacing - Logo Too Close to About Us
 - [x] Add more spacing between SpecTa logo and "About Us" nav item
+
+### 38. Document Management System Overhaul
+- [x] Fix: Documents uploaded via Quick Apply form are stored in S3 but only saved as URLs in the applications table (not linked to applicationDocuments table)
+- [x] Fix: When students upload documents via Quick Apply, also create entries in applicationDocuments table so they appear in admin Documents tab
+- [x] Add owner notification when new documents are uploaded (via chatbot, Quick Apply, or tracker)
+- [x] Enhance admin Documents tab: show student name, email, application reference, and download button
+- [x] Add document count badge to admin dashboard stats showing total docs from all sources (chatbot + applications + tracker)
+- [x] Consolidate all document sources into a unified view in admin dashboard
+- [x] Add ability for admin to view documents grouped by student/application (filter + search by student name/email/reference)
+- [x] Write tests for document upload and retrieval flow (9 tests passing)

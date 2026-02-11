@@ -313,6 +313,32 @@ export async function getDocumentsByApplicationId(applicationId: number): Promis
     .orderBy(desc(applicationDocuments.createdAt));
 }
 
+export async function getAllApplicationDocuments() {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Get all application documents with student info joined from applications table
+  const docs = await db.select({
+    id: applicationDocuments.id,
+    applicationId: applicationDocuments.applicationId,
+    fileName: applicationDocuments.fileName,
+    fileType: applicationDocuments.fileType,
+    fileUrl: applicationDocuments.fileUrl,
+    fileKey: applicationDocuments.fileKey,
+    documentType: applicationDocuments.documentType,
+    uploadedBy: applicationDocuments.uploadedBy,
+    createdAt: applicationDocuments.createdAt,
+    studentName: applications.fullName,
+    studentEmail: applications.email,
+    referenceNumber: applications.referenceNumber,
+  })
+    .from(applicationDocuments)
+    .leftJoin(applications, eq(applicationDocuments.applicationId, applications.id))
+    .orderBy(desc(applicationDocuments.createdAt));
+
+  return docs;
+}
+
 // Tracking Token functions
 export async function createTrackingToken(data: InsertTrackingToken): Promise<TrackingToken | null> {
   const db = await getDb();
