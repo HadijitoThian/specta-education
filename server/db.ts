@@ -1,4 +1,4 @@
-import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { 
   InsertUser, users, 
@@ -666,6 +666,31 @@ export async function deleteScholarshipLead(id: number): Promise<void> {
   const db = await getDb();
   if (!db) return;
   await db.delete(scholarshipLeads).where(eq(scholarshipLeads.id, id));
+}
+
+export async function getApplicationsByCounselorName(counselorName: string): Promise<Application[]> {
+  const db = await getDb();
+  if (!db) return [];
+  // Case-insensitive match since admin assigns by counselor name string
+  return await db.select().from(applications)
+    .where(sql`LOWER(${applications.assignedCounselor}) = LOWER(${counselorName})`)
+    .orderBy(desc(applications.createdAt));
+}
+
+export async function getApplicationDocumentsByApplicationId(applicationId: number): Promise<ApplicationDocument[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(applicationDocuments)
+    .where(eq(applicationDocuments.applicationId, applicationId))
+    .orderBy(desc(applicationDocuments.createdAt));
+}
+
+export async function getApplicationNotesByApplicationId(applicationId: number): Promise<ApplicationNote[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(applicationNotes)
+    .where(eq(applicationNotes.applicationId, applicationId))
+    .orderBy(desc(applicationNotes.createdAt));
 }
 
 export async function deleteConversation(id: number): Promise<void> {

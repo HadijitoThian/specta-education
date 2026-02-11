@@ -70,7 +70,10 @@ import {
   deleteLead,
   deleteAppointment,
   deleteScholarshipLead,
-  deleteConversation
+  deleteConversation,
+  getApplicationsByCounselorName,
+  getApplicationDocumentsByApplicationId,
+  getApplicationNotesByApplicationId
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail } from "./email";
@@ -1606,6 +1609,93 @@ Rules:
       ctx.res.clearCookie("staff_token", { path: "/" });
       return { success: true };
     }),
+
+    getMyApplications: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { applications: [] };
+      try {
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const { payload: decoded } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        const staff = await getStaffAccountById(decoded.staffId as number);
+        if (!staff || !staff.isActive) return { applications: [] };
+        // Get applications assigned to this staff member by name
+        const apps = await getApplicationsByCounselorName(staff.name);
+        // For each application, get its documents and notes
+        const appsWithDetails = await Promise.all(apps.map(async (app) => {
+          const docs = await getApplicationDocumentsByApplicationId(app.id);
+          const notes = await getApplicationNotesByApplicationId(app.id);
+          return { ...app, documents: docs, notes: notes };
+        }));
+        return { applications: appsWithDetails };
+      } catch {
+        return { applications: [] };
+      }
+    }),
+
+    uploadDocumentForStudent: publicProcedure
+      .input(z.object({
+        applicationId: z.number(),
+        fileName: z.string(),
+        fileType: z.string(),
+        fileData: z.string(), // base64
+        documentType: z.enum(["transcript", "passport", "ielts", "certificate", "offer_letter", "visa", "other"]).default("other"),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          const { payload: decoded } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+          const staff = await getStaffAccountById(decoded.staffId as number);
+          if (!staff || !staff.isActive) return { success: false, error: "Not authenticated" };
+          // Upload file to S3
+          const buffer = Buffer.from(input.fileData, "base64");
+          const fileKey = `counselor-uploads/${staff.id}/${Date.now()}-${input.fileName}`;
+          const { url } = await storagePut(fileKey, buffer, input.fileType);
+          // Create document record
+          await createApplicationDocument({
+            applicationId: input.applicationId,
+            fileName: input.fileName,
+            fileType: input.fileType,
+            fileUrl: url,
+            fileKey: fileKey,
+            documentType: input.documentType,
+            uploadedBy: "counselor",
+          });
+          return { success: true, url };
+        } catch (err: any) {
+          return { success: false, error: err.message || "Upload failed" };
+        }
+      }),
+
+    addNoteForStudent: publicProcedure
+      .input(z.object({
+        applicationId: z.number(),
+        content: z.string().min(1),
+        isPublic: z.boolean().default(true),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          const { payload: decoded } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+          const staff = await getStaffAccountById(decoded.staffId as number);
+          if (!staff || !staff.isActive) return { success: false, error: "Not authenticated" };
+          await createApplicationNote({
+            applicationId: input.applicationId,
+            authorName: staff.name + " (Counselor)",
+            content: input.content,
+            isPublic: input.isPublic,
+          });
+          return { success: true };
+        } catch (err: any) {
+          return { success: false, error: err.message || "Failed to add note" };
+        }
+      }),
   }),
 
   // ==========================================

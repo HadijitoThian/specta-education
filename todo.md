@@ -472,3 +472,13 @@
 - [x] Fix "Dynamic require of jsonwebtoken is not supported" error - replaced require() with jose (SignJWT/jwtVerify)
 - [x] Verify staff accounts exist (7 accounts confirmed in database)
 - [x] Test staff login works end-to-end
+
+### 46. Bug Fix: Staff Dashboard Not Showing Assigned Students
+- [x] Create getApplicationsByCounselor db helper (case-insensitive matching)
+- [x] Create staffAuth.getMyApplications tRPC procedure (fetches apps + docs + notes)
+- [x] Create staffAuth.uploadDocumentForStudent tRPC procedure (S3 upload)
+- [x] Create staffAuth.addNoteForStudent tRPC procedure
+- [x] Build real Staff Dashboard UI with assigned students list, application details, documents
+- [x] Add document upload capability for counselors
+- [x] Add notes capability for counselors
+- [x] Fixed staff account name mismatch ("hadijito thian" → "Hadi Jito Thian")
