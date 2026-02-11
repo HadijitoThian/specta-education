@@ -2,18 +2,17 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
+import { 
   Users, FileText, MessageSquare, Phone, Mail, Globe, 
   Calendar, Clock, ChevronRight, ExternalLink, Loader2,
   LogOut, Home, CalendarCheck, BookOpen, Search, ClipboardList, Edit, Save, X,
-  UserPlus, Shield, Briefcase, BarChart3, Trash2, ToggleLeft, ToggleRight,
-  KeyRound, UserCheck, UserX, Download, Bot, Upload, Filter
+  UserPlus, Shield, Briefcase, BarChart3, Trash2, ToggleLeft, ToggleRight, Download
 } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { getLoginUrl } from "@/const";
 
-type TabType = "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staffAccounts";
+type TabType = "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads";
 
 const APP_STATUS_OPTIONS = [
   "submitted", "reviewing", "processing", "on_hold", 
@@ -49,17 +48,6 @@ export default function AdminDashboard() {
   const [adminNoteAppId, setAdminNoteAppId] = useState<number | null>(null);
   const [adminNoteIsInternal, setAdminNoteIsInternal] = useState(false);
   
-  // Staff account form state
-  const [showAddStaff, setShowAddStaff] = useState(false);
-  const [staffName, setStaffName] = useState("");
-  const [staffEmail, setStaffEmail] = useState("");
-  const [staffPassword, setStaffPassword] = useState("");
-  const [staffRole, setStaffRole] = useState<"admin" | "counselor" | "staff">("counselor");
-  const [resetPasswordStaffId, setResetPasswordStaffId] = useState<number | null>(null);
-  const [resetPasswordValue, setResetPasswordValue] = useState("");
-  const [docFilter, setDocFilter] = useState<'all' | 'chatbot' | 'application' | 'counselor'>('all');
-  const [docSearch, setDocSearch] = useState("");
-  
   // Counselor form state
   const [showAddCounselor, setShowAddCounselor] = useState(false);
   const [counselorName, setCounselorName] = useState("");
@@ -67,6 +55,10 @@ export default function AdminDashboard() {
   const [counselorPhone, setCounselorPhone] = useState("");
   const [counselorSpec, setCounselorSpec] = useState("");
   const [editingCounselorId, setEditingCounselorId] = useState<number | null>(null);
+  
+  // Document filter state
+  const [docFilter, setDocFilter] = useState<"all" | "chatbot" | "application" | "tracker">("all");
+  const [docSearch, setDocSearch] = useState("");
   
   const utils = trpc.useUtils();
 
@@ -113,11 +105,6 @@ export default function AdminDashboard() {
   // Scholarship leads
   const { data: scholarshipLeadsData, isLoading: scholarshipLeadsLoading } = trpc.scholarship.getLeads.useQuery(undefined, {
     enabled: isAuthenticated && isAdminOrGM && activeTab === 'scholarshipLeads'
-  });
-
-  // Staff accounts
-  const { data: staffAccountsData, isLoading: staffAccountsLoading } = trpc.staffAuth.getAccounts.useQuery(undefined, {
-    enabled: isAuthenticated && isAdminOrGM && activeTab === 'staffAccounts'
   });
 
   // Team management (admin only)
@@ -181,34 +168,6 @@ export default function AdminDashboard() {
 
   const updateScholarshipLeadMutation = trpc.scholarship.updateLead.useMutation({
     onSuccess: () => utils.scholarship.getLeads.invalidate()
-  });
-
-  // Staff account mutations
-  const createStaffMutation = trpc.staffAuth.createAccount.useMutation({
-    onSuccess: (data) => {
-      if (data.success) {
-        setShowAddStaff(false);
-        setStaffName("");
-        setStaffEmail("");
-        setStaffPassword("");
-        setStaffRole("counselor");
-        utils.staffAuth.getAccounts.invalidate();
-      }
-    }
-  });
-
-  const resetStaffPasswordMutation = trpc.staffAuth.resetPassword.useMutation({
-    onSuccess: (data) => {
-      if (data.success) {
-        setResetPasswordStaffId(null);
-        setResetPasswordValue("");
-        utils.staffAuth.getAccounts.invalidate();
-      }
-    }
-  });
-
-  const toggleStaffActiveMutation = trpc.staffAuth.toggleActive.useMutation({
-    onSuccess: () => utils.staffAuth.getAccounts.invalidate()
   });
 
   // User role mutation (admin only)
@@ -443,9 +402,6 @@ export default function AdminDashboard() {
           </Button>
           <Button variant={activeTab === 'scholarshipLeads' ? 'default' : 'outline'} onClick={() => setActiveTab('scholarshipLeads')} size="sm">
             <Globe className="w-4 h-4 mr-2" /> Scholarship Leads
-          </Button>
-          <Button variant={activeTab === 'staffAccounts' ? 'default' : 'outline'} onClick={() => setActiveTab('staffAccounts')} size="sm">
-            <KeyRound className="w-4 h-4 mr-2" /> Staff Accounts
           </Button>
           {user?.role === 'admin' && (
             <Button variant={activeTab === 'team' ? 'default' : 'outline'} onClick={() => setActiveTab('team')} size="sm">
@@ -1095,140 +1051,191 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ===== DOCUMENTS TAB ===== */}
+          {/* ===== DOCUMENTS TAB (UNIFIED VIEW) ===== */}
           {activeTab === 'documents' && (
             <div>
+              {/* Header with filters */}
+              <div className="p-4 border-b border-border space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-lg">All Documents</h3>
+                  <span className="text-sm text-muted-foreground">
+                    {(() => {
+                      const chatbotCount = documentsData?.documents?.length || 0;
+                      const appCount = documentsData?.applicationDocuments?.length || 0;
+                      return `${chatbotCount + appCount} total documents`;
+                    })()}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2 items-center">
+                  <div className="flex gap-1">
+                    {(["all", "chatbot", "application", "tracker"] as const).map((f) => (
+                      <button
+                        key={f}
+                        onClick={() => setDocFilter(f)}
+                        className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
+                          docFilter === f
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                        }`}
+                      >
+                        {f === "all" ? "All" : f === "chatbot" ? "AI Chatbot" : f === "application" ? "Quick Apply" : "Track My App"}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Search by student name, email, or reference..."
+                      value={docSearch}
+                      onChange={(e) => setDocSearch(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-md bg-background"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {documentsLoading ? (
                 <div className="p-8 text-center">
                   <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
                 </div>
               ) : (() => {
-                const allDocs = documentsData?.documents || [];
-                const filteredDocs = allDocs.filter(doc => {
-                  const matchesFilter = docFilter === 'all' || doc.source === docFilter;
-                  const matchesSearch = !docSearch || 
-                    doc.fileName.toLowerCase().includes(docSearch.toLowerCase()) ||
-                    (doc.studentName && doc.studentName.toLowerCase().includes(docSearch.toLowerCase())) ||
-                    (doc.studentEmail && doc.studentEmail.toLowerCase().includes(docSearch.toLowerCase())) ||
-                    (doc.referenceNumber && doc.referenceNumber.toLowerCase().includes(docSearch.toLowerCase()));
-                  return matchesFilter && matchesSearch;
+                // Build unified document list
+                const allDocs: Array<{
+                  id: string;
+                  fileName: string;
+                  documentType: string;
+                  fileUrl: string;
+                  source: "chatbot" | "application" | "tracker";
+                  studentName?: string;
+                  studentEmail?: string;
+                  referenceNumber?: string;
+                  uploadedBy?: string;
+                  createdAt: any;
+                }> = [];
+
+                // Add chatbot documents
+                (documentsData?.documents || []).forEach((doc: any) => {
+                  allDocs.push({
+                    id: `chat-${doc.id}`,
+                    fileName: doc.fileName,
+                    documentType: doc.documentType || "Document",
+                    fileUrl: doc.fileUrl,
+                    source: "chatbot",
+                    studentName: doc.studentName || doc.conversationId ? `Chat #${doc.conversationId}` : undefined,
+                    studentEmail: doc.studentEmail,
+                    createdAt: doc.createdAt,
+                  });
                 });
 
+                // Add application documents
+                (documentsData?.applicationDocuments || []).forEach((doc: any) => {
+                  allDocs.push({
+                    id: `app-${doc.id}`,
+                    fileName: doc.fileName,
+                    documentType: doc.documentType || "Document",
+                    fileUrl: doc.fileUrl,
+                    source: doc.uploadedBy === "student" && doc.applicationId ? "application" : "tracker",
+                    studentName: doc.studentName || doc.appStudentName,
+                    studentEmail: doc.studentEmail || doc.appStudentEmail,
+                    referenceNumber: doc.referenceNumber || doc.appReferenceNumber,
+                    uploadedBy: doc.uploadedBy,
+                    createdAt: doc.createdAt,
+                  });
+                });
+
+                // Apply filters
+                let filtered = allDocs;
+                if (docFilter !== "all") {
+                  filtered = filtered.filter(d => d.source === docFilter);
+                }
+                if (docSearch.trim()) {
+                  const q = docSearch.toLowerCase();
+                  filtered = filtered.filter(d =>
+                    (d.studentName || "").toLowerCase().includes(q) ||
+                    (d.studentEmail || "").toLowerCase().includes(q) ||
+                    (d.referenceNumber || "").toLowerCase().includes(q) ||
+                    d.fileName.toLowerCase().includes(q)
+                  );
+                }
+
+                // Sort by date descending
+                filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="p-8 text-center text-muted-foreground">
+                      {allDocs.length === 0 ? "No documents uploaded yet." : "No documents match your filter."}
+                    </div>
+                  );
+                }
+
                 const sourceColors: Record<string, string> = {
-                  chatbot: 'bg-purple-100 text-purple-800',
-                  application: 'bg-blue-100 text-blue-800',
-                  counselor: 'bg-green-100 text-green-800',
+                  chatbot: "bg-purple-100 text-purple-800",
+                  application: "bg-blue-100 text-blue-800",
+                  tracker: "bg-green-100 text-green-800",
                 };
                 const sourceLabels: Record<string, string> = {
-                  chatbot: 'AI Chatbot',
-                  application: 'Quick Apply',
-                  counselor: 'Counselor',
-                };
-                const sourceIcons: Record<string, typeof Bot> = {
-                  chatbot: Bot,
-                  application: Upload,
-                  counselor: UserCheck,
+                  chatbot: "AI Chatbot",
+                  application: "Quick Apply",
+                  tracker: "Track My App",
                 };
 
                 return (
-                  <>
-                    {/* Filters bar */}
-                    <div className="p-4 border-b border-border flex flex-wrap items-center gap-3">
-                      <div className="flex items-center gap-1">
-                        <Filter className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm font-medium text-muted-foreground">Source:</span>
-                      </div>
-                      {(['all', 'application', 'chatbot', 'counselor'] as const).map(f => (
-                        <button
-                          key={f}
-                          onClick={() => setDocFilter(f)}
-                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                            docFilter === f 
-                              ? 'bg-primary text-primary-foreground' 
-                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                          }`}
-                        >
-                          {f === 'all' ? `All (${allDocs.length})` : `${sourceLabels[f]} (${allDocs.filter(d => d.source === f).length})`}
-                        </button>
-                      ))}
-                      <div className="flex-1" />
-                      <div className="relative">
-                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <input
-                          type="text"
-                          placeholder="Search by name, email, or reference..."
-                          value={docSearch}
-                          onChange={(e) => setDocSearch(e.target.value)}
-                          className="pl-9 pr-3 py-1.5 text-sm border border-border rounded-lg bg-background w-64 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                        />
-                      </div>
-                    </div>
-
-                    {filteredDocs.length === 0 ? (
-                      <div className="p-8 text-center text-muted-foreground">
-                        {allDocs.length === 0 ? 'No documents uploaded yet.' : 'No documents match your filter.'}
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-border">
-                        {filteredDocs.map((doc) => {
-                          const SourceIcon = sourceIcons[doc.source] || FileText;
-                          return (
-                            <div key={`${doc.source}-${doc.id}`} className="p-4 hover:bg-muted/50 transition-colors">
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="flex items-start gap-4 flex-1 min-w-0">
-                                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                                    <FileText className="w-5 h-5 text-primary" />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="font-medium truncate">{doc.fileName}</div>
-                                    <div className="flex items-center gap-2 flex-wrap mt-1">
-                                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${sourceColors[doc.source] || 'bg-gray-100 text-gray-800'}`}>
-                                        <SourceIcon className="w-3 h-3 inline mr-1" />
-                                        {sourceLabels[doc.source] || doc.source}
-                                      </span>
-                                      <span className="px-2 py-0.5 bg-muted rounded text-xs">{doc.documentType}</span>
-                                      <span className="text-xs text-muted-foreground">{formatDate(doc.createdAt)}</span>
-                                    </div>
-                                    {(doc.studentName || doc.studentEmail || doc.referenceNumber) && (
-                                      <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground flex-wrap">
-                                        {doc.studentName && (
-                                          <span className="flex items-center gap-1">
-                                            <Users className="w-3 h-3" /> {doc.studentName}
-                                          </span>
-                                        )}
-                                        {doc.studentEmail && (
-                                          <span className="flex items-center gap-1">
-                                            <Mail className="w-3 h-3" /> {doc.studentEmail}
-                                          </span>
-                                        )}
-                                        {doc.referenceNumber && (
-                                          <span className="flex items-center gap-1 font-mono text-xs">
-                                            <ClipboardList className="w-3 h-3" /> {doc.referenceNumber}
-                                          </span>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
-                                    <Button size="sm" variant="outline">
-                                      <ExternalLink className="w-4 h-4 mr-1" /> View
-                                    </Button>
-                                  </a>
-                                  <a href={doc.fileUrl} download={doc.fileName}>
-                                    <Button size="sm" variant="outline">
-                                      <Download className="w-4 h-4" />
-                                    </Button>
-                                  </a>
-                                </div>
-                              </div>
+                  <div className="divide-y divide-border">
+                    {filtered.map((doc) => (
+                      <div key={doc.id} className="p-4 hover:bg-muted/50 transition-colors">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-4 flex-1 min-w-0">
+                            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+                              <FileText className="w-5 h-5 text-primary" />
                             </div>
-                          );
-                        })}
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium truncate">{doc.fileName}</div>
+                              <div className="flex flex-wrap items-center gap-2 mt-1">
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${sourceColors[doc.source]}`}>
+                                  {sourceLabels[doc.source]}
+                                </span>
+                                <span className="px-2 py-0.5 bg-muted rounded text-xs">{doc.documentType}</span>
+                                <span className="text-xs text-muted-foreground">{formatDate(doc.createdAt)}</span>
+                              </div>
+                              {(doc.studentName || doc.studentEmail || doc.referenceNumber) && (
+                                <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+                                  {doc.studentName && (
+                                    <span className="flex items-center gap-1">
+                                      <Users className="w-3 h-3" /> {doc.studentName}
+                                    </span>
+                                  )}
+                                  {doc.studentEmail && (
+                                    <span className="flex items-center gap-1">
+                                      <Mail className="w-3 h-3" /> {doc.studentEmail}
+                                    </span>
+                                  )}
+                                  {doc.referenceNumber && (
+                                    <span className="flex items-center gap-1">
+                                      <ClipboardList className="w-3 h-3" /> {doc.referenceNumber}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex gap-2 shrink-0">
+                            <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
+                              <Button size="sm" variant="outline">
+                                <ExternalLink className="w-4 h-4 mr-1" /> View
+                              </Button>
+                            </a>
+                            <a href={doc.fileUrl} download={doc.fileName}>
+                              <Button size="sm" variant="outline">
+                                <Download className="w-4 h-4" />
+                              </Button>
+                            </a>
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </>
+                    ))}
+                  </div>
                 );
               })()}
             </div>
@@ -1304,218 +1311,6 @@ export default function AdminDashboard() {
                       </div>
                     );
                   })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ===== STAFF ACCOUNTS TAB ===== */}
-          {activeTab === 'staffAccounts' && (
-            <div>
-              <div className="p-4 border-b border-border flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-lg">Staff Accounts</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Create and manage email/password login accounts for your staff members.
-                  </p>
-                </div>
-                <Button onClick={() => setShowAddStaff(true)} size="sm">
-                  <UserPlus className="w-4 h-4 mr-2" /> Add Staff
-                </Button>
-              </div>
-
-              {/* Add Staff Form */}
-              {showAddStaff && (
-                <div className="p-4 bg-muted/50 border-b border-border">
-                  <h4 className="font-medium mb-3">Create New Staff Account</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <input
-                      type="text"
-                      placeholder="Full Name"
-                      value={staffName}
-                      onChange={(e) => setStaffName(e.target.value)}
-                      className="px-3 py-2 border border-border rounded-md bg-background text-sm"
-                    />
-                    <input
-                      type="email"
-                      placeholder="Email Address"
-                      value={staffEmail}
-                      onChange={(e) => setStaffEmail(e.target.value)}
-                      className="px-3 py-2 border border-border rounded-md bg-background text-sm"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Temporary Password (min 6 chars)"
-                      value={staffPassword}
-                      onChange={(e) => setStaffPassword(e.target.value)}
-                      className="px-3 py-2 border border-border rounded-md bg-background text-sm"
-                    />
-                    <select
-                      value={staffRole}
-                      onChange={(e) => setStaffRole(e.target.value as any)}
-                      className="px-3 py-2 border border-border rounded-md bg-background text-sm"
-                    >
-                      <option value="counselor">Counselor</option>
-                      <option value="staff">Staff</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    The staff member will be prompted to change their password on first login.
-                  </p>
-                  <div className="flex gap-2 mt-3">
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        if (!staffName || !staffEmail || !staffPassword) return;
-                        createStaffMutation.mutate({
-                          name: staffName,
-                          email: staffEmail,
-                          password: staffPassword,
-                          role: staffRole,
-                        });
-                      }}
-                      disabled={createStaffMutation.isPending || !staffName || !staffEmail || staffPassword.length < 6}
-                    >
-                      {createStaffMutation.isPending ? (
-                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating...</>
-                      ) : (
-                        <><Save className="w-4 h-4 mr-2" /> Create Account</>
-                      )}
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => setShowAddStaff(false)}>
-                      <X className="w-4 h-4 mr-2" /> Cancel
-                    </Button>
-                  </div>
-                  {createStaffMutation.data && !createStaffMutation.data.success && (
-                    <p className="text-sm text-red-500 mt-2">{createStaffMutation.data.error}</p>
-                  )}
-                </div>
-              )}
-
-              {staffAccountsLoading ? (
-                <div className="p-8 text-center">
-                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-                </div>
-              ) : !staffAccountsData || staffAccountsData.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  No staff accounts yet. Click "Add Staff" to create the first account.
-                </div>
-              ) : (
-                <div className="divide-y divide-border">
-                  {staffAccountsData.map((staff: any) => (
-                    <div key={staff.id} className="p-4 hover:bg-muted/50 transition-colors">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            staff.isActive ? 'bg-green-100' : 'bg-red-100'
-                          }`}>
-                            <span className={`text-sm font-bold ${
-                              staff.isActive ? 'text-green-700' : 'text-red-700'
-                            }`}>
-                              {staff.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                            </span>
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-semibold">{staff.name}</h4>
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                                staff.role === 'admin' ? 'bg-purple-100 text-purple-800' :
-                                staff.role === 'counselor' ? 'bg-blue-100 text-blue-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
-                                {staff.role.charAt(0).toUpperCase() + staff.role.slice(1)}
-                              </span>
-                              {staff.mustChangePassword && (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">
-                                  Must change password
-                                </span>
-                              )}
-                              {!staff.isActive && (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-medium">
-                                  Deactivated
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex flex-wrap gap-3 text-sm text-muted-foreground mt-1">
-                              <span className="flex items-center gap-1">
-                                <Mail className="w-3.5 h-3.5" /> {staff.email}
-                              </span>
-                              {staff.lastLoginAt && (
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-3.5 h-3.5" /> Last login: {new Date(staff.lastLoginAt).toLocaleDateString()}
-                                </span>
-                              )}
-                              <span className="flex items-center gap-1">
-                                <Calendar className="w-3.5 h-3.5" /> Created: {new Date(staff.createdAt).toLocaleDateString()}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {/* Reset Password */}
-                          {resetPasswordStaffId === staff.id ? (
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                placeholder="New password"
-                                value={resetPasswordValue}
-                                onChange={(e) => setResetPasswordValue(e.target.value)}
-                                className="px-2 py-1 border border-border rounded text-sm w-36 bg-background"
-                              />
-                              <Button
-                                size="sm"
-                                variant="default"
-                                onClick={() => {
-                                  if (resetPasswordValue.length >= 6) {
-                                    resetStaffPasswordMutation.mutate({
-                                      staffId: staff.id,
-                                      newPassword: resetPasswordValue,
-                                    });
-                                  }
-                                }}
-                                disabled={resetPasswordValue.length < 6 || resetStaffPasswordMutation.isPending}
-                              >
-                                {resetStaffPasswordMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => { setResetPasswordStaffId(null); setResetPasswordValue(""); }}>
-                                <X className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setResetPasswordStaffId(staff.id)}
-                              title="Reset Password"
-                            >
-                              <KeyRound className="w-3.5 h-3.5 mr-1" /> Reset PW
-                            </Button>
-                          )}
-                          {/* Toggle Active */}
-                          <Button
-                            size="sm"
-                            variant={staff.isActive ? "outline" : "default"}
-                            onClick={() => {
-                              if (confirm(`${staff.isActive ? 'Deactivate' : 'Activate'} ${staff.name}'s account?`)) {
-                                toggleStaffActiveMutation.mutate({
-                                  staffId: staff.id,
-                                  isActive: !staff.isActive,
-                                });
-                              }
-                            }}
-                            title={staff.isActive ? 'Deactivate Account' : 'Activate Account'}
-                          >
-                            {staff.isActive ? (
-                              <><UserX className="w-3.5 h-3.5 mr-1" /> Deactivate</>
-                            ) : (
-                              <><UserCheck className="w-3.5 h-3.5 mr-1" /> Activate</>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               )}
             </div>

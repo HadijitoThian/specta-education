@@ -6,8 +6,6 @@ import { z } from "zod";
 import { invokeLLM } from "./_core/llm";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
-import bcrypt from "bcryptjs";
-import { SignJWT, jwtVerify } from "jose";
 import { 
   createConversation, 
   getConversationBySessionId, 
@@ -59,15 +57,10 @@ import {
   createScholarshipLead,
   getAllScholarshipLeads,
   updateScholarshipLead,
-  createStaffAccount,
-  getStaffByEmail,
-  getStaffById,
-  getAllStaffAccounts,
-  updateStaffAccount,
-  updateStaffLastLogin,
   getAllApplicationDocuments
 } from "./db";
 import { notifyOwner } from "./_core/notification";
+import { sendEmail, sendDocumentNotificationEmail } from "./email";
 import crypto from "crypto";
 
 const SYSTEM_PROMPT = `You are SpecTa, a friendly AI education consultant for SpecTa Education (Indonesian study abroad consultancy). Be warm, helpful, and knowledgeable.
@@ -264,14 +257,6 @@ export const appRouter = router({
 
           await updateConversation(sessionId, {
             status: "documents_uploaded"
-          });
-
-          // Notify owner about new document upload from chatbot
-          const studentName = conversation.studentName || 'Unknown Student';
-          const studentEmail = conversation.studentEmail || 'Not provided';
-          await notifyOwner({
-            title: `New Document Uploaded: ${fileName}`,
-            content: `A student uploaded a document via AI Chatbot.\n\nStudent: ${studentName}\nEmail: ${studentEmail}\nDocument: ${fileName}\nType: ${documentType}\nSource: AI Chatbot\n\nView in Admin Dashboard → Documents tab.`
           });
 
           return { 
@@ -771,14 +756,28 @@ Return as JSON:
           uploadedBy: "student",
         });
 
-        // Notify owner about new document upload from tracker
-        const application = await getApplicationById(tokenRecord.applicationId);
-        const studentName = application?.fullName || 'Unknown Student';
-        const refNumber = application?.referenceNumber || 'N/A';
-        await notifyOwner({
-          title: `New Document Uploaded: ${input.fileName}`,
-          content: `A student uploaded a document via Track My Application.\n\nStudent: ${studentName}\nReference: ${refNumber}\nDocument: ${input.fileName}\nType: ${input.documentType}\nSource: Track My Application\n\nView in Admin Dashboard → Documents tab.`
-        });
+        // Send email notification about the upload
+        try {
+          const application = await getApplicationById(tokenRecord.applicationId);
+          if (application) {
+            await notifyOwner({
+              title: `Document Uploaded: ${input.documentType}`,
+              content: `Student: ${application.fullName}\nEmail: ${application.email}\nRef: ${application.referenceNumber}\nDocument: ${input.fileName}\nType: ${input.documentType}\nSource: Track My Application`
+            });
+            await sendDocumentNotificationEmail({
+              to: "hadi@spectaeducation.com",
+              studentName: application.fullName,
+              studentEmail: application.email,
+              documentType: input.documentType,
+              fileName: input.fileName,
+              source: "tracker",
+              referenceNumber: application.referenceNumber || undefined,
+              dashboardUrl: "https://spectaeducation.com/admin",
+            });
+          }
+        } catch (e) {
+          console.error("[Email] Failed to send tracker document notification:", e);
+        }
 
         return { success: true, document: doc };
       }),
@@ -839,52 +838,13 @@ Return as JSON:
 
     getDocuments: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') {
-        return { documents: [] };
+        return { documents: [], applicationDocuments: [] };
       }
-      
-      // Get documents from ALL sources for a unified view
-      // 1. Chatbot documents (from documents table)
+      // Get chatbot-uploaded documents
       const chatbotDocs = await getAllDocuments();
-      
-      // 2. Application documents (from applicationDocuments table, with student info)
+      // Get application documents (from Quick Apply + Track My Application)
       const appDocs = await getAllApplicationDocuments();
-      
-      // Normalize into a unified format
-      const unified = [
-        ...chatbotDocs.map(d => ({
-          id: d.id,
-          fileName: d.fileName,
-          fileType: d.fileType,
-          fileUrl: d.fileUrl,
-          fileKey: d.fileKey,
-          documentType: d.documentType,
-          source: 'chatbot' as const,
-          studentName: null as string | null,
-          studentEmail: null as string | null,
-          referenceNumber: null as string | null,
-          uploadedBy: 'student' as const,
-          createdAt: d.createdAt,
-        })),
-        ...appDocs.map(d => ({
-          id: 10000 + d.id, // offset to avoid ID collision
-          fileName: d.fileName,
-          fileType: d.fileType,
-          fileUrl: d.fileUrl,
-          fileKey: d.fileKey,
-          documentType: d.documentType,
-          source: (d.uploadedBy === 'student' ? 'application' : 'counselor') as 'application' | 'counselor',
-          studentName: d.studentName || null,
-          studentEmail: d.studentEmail || null,
-          referenceNumber: d.referenceNumber || null,
-          uploadedBy: d.uploadedBy,
-          createdAt: d.createdAt,
-        })),
-      ];
-      
-      // Sort by most recent first
-      unified.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      
-      return { documents: unified };
+      return { documents: chatbotDocs, applicationDocuments: appDocs };
     }),
 
     getLeadDocuments: protectedProcedure
@@ -1036,39 +996,54 @@ Return as JSON:
         if (application) {
           const unis = JSON.parse(input.selectedUniversities);
           const uniNames = unis.map((u: any) => `${u.university} (${u.country})`).join(", ");
-          
-          // Create applicationDocuments entries for each uploaded document
-          const docEntries: { url?: string; key?: string; type: string; label: string }[] = [
-            { url: input.transcriptUrl, key: input.transcriptKey, type: 'transcript', label: 'Academic Transcript' },
-            { url: input.passportUrl, key: input.passportKey, type: 'passport', label: 'Passport' },
-            { url: input.ieltsDocUrl, key: input.ieltsDocKey, type: 'ielts', label: 'IELTS/TOEFL Score' },
-            { url: input.certificateUrl, key: input.certificateKey, type: 'certificate', label: 'Certificate' },
-          ];
-          
-          const uploadedDocs: string[] = [];
-          for (const doc of docEntries) {
-            if (doc.url && doc.key) {
-              await createApplicationDocument({
-                applicationId: application.id,
-                fileName: doc.key.split('/').pop() || doc.label,
-                fileType: doc.url.includes('.pdf') ? 'application/pdf' : 'image/jpeg',
-                fileUrl: doc.url,
-                fileKey: doc.key,
-                documentType: doc.type as any,
-                uploadedBy: 'student',
-              });
-              uploadedDocs.push(doc.label);
-            }
-          }
-          
-          const docsInfo = uploadedDocs.length > 0 
-            ? `\nDocuments Uploaded: ${uploadedDocs.join(', ')}` 
-            : '\nDocuments: None uploaded';
-          
           await notifyOwner({
             title: `New Application: ${input.fullName}`,
-            content: `Reference: ${referenceNumber}\nStudent: ${input.fullName}\nEmail: ${input.email}\nPhone: ${input.phone}\nSchool: ${input.currentSchool || 'N/A'}\nApplying to: ${uniNames}\nIELTS: ${input.ieltsScore || 'N/A'}${docsInfo}`
+            content: `Reference: ${referenceNumber}\nStudent: ${input.fullName}\nEmail: ${input.email}\nPhone: ${input.phone}\nSchool: ${input.currentSchool || 'N/A'}\nApplying to: ${uniNames}\nIELTS: ${input.ieltsScore || 'N/A'}`
           });
+
+          // Create applicationDocuments entries for uploaded files so they appear in unified Documents tab
+          const appId = application.id;
+          const docEntries: Array<{type: "transcript" | "passport" | "ielts" | "certificate" | "other"; label: string; url?: string; key?: string}> = [
+            { type: "transcript", label: "Transcript", url: input.transcriptUrl, key: input.transcriptKey },
+            { type: "passport", label: "Passport", url: input.passportUrl, key: input.passportKey },
+            { type: "ielts", label: "IELTS Certificate", url: input.ieltsDocUrl, key: input.ieltsDocKey },
+            { type: "certificate", label: "Certificate", url: input.certificateUrl, key: input.certificateKey },
+          ];
+
+          let docCount = 0;
+          for (const doc of docEntries) {
+            if (doc.url) {
+              const fileName = doc.key ? doc.key.split('/').pop() || `${doc.type}.pdf` : `${doc.type}.pdf`;
+              await createApplicationDocument({
+                applicationId: appId,
+                documentType: doc.type,
+                fileName,
+                fileType: "application/pdf",
+                fileUrl: doc.url,
+                fileKey: doc.key || fileName,
+                uploadedBy: "student",
+              });
+              docCount++;
+            }
+          }
+
+          // Send email notification about document uploads
+          if (docCount > 0) {
+            try {
+              await sendDocumentNotificationEmail({
+                to: "hadi@spectaeducation.com",
+                studentName: input.fullName,
+                studentEmail: input.email,
+                documentType: `${docCount} document(s) via Quick Apply`,
+                fileName: docEntries.filter(d => d.url).map(d => d.type).join(", "),
+                source: "application",
+                referenceNumber,
+                dashboardUrl: "https://spectaeducation.com/admin",
+              });
+            } catch (e) {
+              console.error("[Email] Failed to send document notification:", e);
+            }
+          }
         }
         return { success: true, application, referenceNumber };
       }),
@@ -1534,217 +1509,6 @@ Rules:
         if (input.status) updateData.status = input.status;
         if (input.adminNotes !== undefined) updateData.adminNotes = input.adminNotes;
         await updateScholarshipLead(input.id, updateData as any);
-        return { success: true };
-      }),
-  }),
-
-  staffAuth: router({
-    login: publicProcedure
-      .input(z.object({
-        email: z.string().email(),
-        password: z.string().min(1),
-      }))
-      .mutation(async ({ input, ctx }) => {
-        const staff = await getStaffByEmail(input.email.toLowerCase());
-        if (!staff) {
-          return { success: false, error: "Invalid email or password" };
-        }
-        if (!staff.isActive) {
-          return { success: false, error: "Account has been deactivated. Contact your administrator." };
-        }
-
-        const validPassword = await bcrypt.compare(input.password, staff.passwordHash);
-        if (!validPassword) {
-          return { success: false, error: "Invalid email or password" };
-        }
-
-        // Create a staff JWT token
-        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
-        const token = await new SignJWT({
-          staffId: staff.id,
-          email: staff.email,
-          name: staff.name,
-          role: staff.role,
-          type: "staff",
-        })
-          .setProtectedHeader({ alg: "HS256" })
-          .setExpirationTime("7d")
-          .sign(secret);
-
-        // Set the staff session cookie
-        const cookieOptions = getSessionCookieOptions(ctx.req);
-        ctx.res.cookie("staff_session", token, {
-          ...cookieOptions,
-          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        });
-
-        await updateStaffLastLogin(staff.id);
-
-        return {
-          success: true,
-          mustChangePassword: staff.mustChangePassword,
-          staff: {
-            id: staff.id,
-            name: staff.name,
-            email: staff.email,
-            role: staff.role,
-            mustChangePassword: staff.mustChangePassword,
-          },
-        };
-      }),
-
-    me: publicProcedure.query(async ({ ctx }) => {
-      const cookieHeader = ctx.req.headers.cookie;
-      if (!cookieHeader) return null;
-
-      const cookies = cookieHeader.split(";").reduce((acc, c) => {
-        const [key, val] = c.trim().split("=");
-        if (key && val) acc[key] = val;
-        return acc;
-      }, {} as Record<string, string>);
-
-      const staffToken = cookies["staff_session"];
-      if (!staffToken) return null;
-
-      try {
-        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
-        const { payload } = await jwtVerify(staffToken, secret, { algorithms: ["HS256"] });
-        if (payload.type !== "staff") return null;
-
-        const staff = await getStaffById(payload.staffId as number);
-        if (!staff || !staff.isActive) return null;
-
-        return {
-          id: staff.id,
-          name: staff.name,
-          email: staff.email,
-          role: staff.role,
-          mustChangePassword: staff.mustChangePassword,
-        };
-      } catch {
-        return null;
-      }
-    }),
-
-    changePassword: publicProcedure
-      .input(z.object({
-        email: z.string().email(),
-        currentPassword: z.string().min(1),
-        newPassword: z.string().min(6, "Password must be at least 6 characters"),
-      }))
-      .mutation(async ({ input }) => {
-        const staff = await getStaffByEmail(input.email.toLowerCase());
-        if (!staff) {
-          return { success: false, error: "Account not found" };
-        }
-
-        const validPassword = await bcrypt.compare(input.currentPassword, staff.passwordHash);
-        if (!validPassword) {
-          return { success: false, error: "Current password is incorrect" };
-        }
-
-        const newHash = await bcrypt.hash(input.newPassword, 10);
-        await updateStaffAccount(staff.id, {
-          passwordHash: newHash,
-          mustChangePassword: false,
-        });
-
-        return { success: true };
-      }),
-
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie("staff_session", { ...cookieOptions, maxAge: -1 });
-      return { success: true };
-    }),
-
-    // Admin: Create staff account
-    createAccount: protectedProcedure
-      .input(z.object({
-        name: z.string().min(1),
-        email: z.string().email(),
-        password: z.string().min(6),
-        role: z.enum(["admin", "counselor", "staff"]),
-      }))
-      .mutation(async ({ input, ctx }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
-          return { success: false, error: "Only admins can create staff accounts" };
-        }
-
-        const existing = await getStaffByEmail(input.email.toLowerCase());
-        if (existing) {
-          return { success: false, error: "An account with this email already exists" };
-        }
-
-        const passwordHash = await bcrypt.hash(input.password, 10);
-        const account = await createStaffAccount({
-          name: input.name,
-          email: input.email.toLowerCase(),
-          passwordHash,
-          role: input.role,
-          mustChangePassword: true,
-          isActive: true,
-        });
-
-        return { success: true, account };
-      }),
-
-    // Admin: Get all staff accounts
-    getAccounts: protectedProcedure.query(async ({ ctx }) => {
-      if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
-        return [];
-      }
-      const accounts = await getAllStaffAccounts();
-      // Never return password hashes
-      return accounts.map(a => ({
-        id: a.id,
-        name: a.name,
-        email: a.email,
-        role: a.role,
-        mustChangePassword: a.mustChangePassword,
-        isActive: a.isActive,
-        lastLoginAt: a.lastLoginAt,
-        createdAt: a.createdAt,
-      }));
-    }),
-
-    // Admin: Reset staff password
-    resetPassword: protectedProcedure
-      .input(z.object({
-        staffId: z.number(),
-        newPassword: z.string().min(6),
-      }))
-      .mutation(async ({ input, ctx }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
-          return { success: false, error: "Only admins can reset passwords" };
-        }
-
-        const staff = await getStaffById(input.staffId);
-        if (!staff) {
-          return { success: false, error: "Staff account not found" };
-        }
-
-        const passwordHash = await bcrypt.hash(input.newPassword, 10);
-        await updateStaffAccount(input.staffId, {
-          passwordHash,
-          mustChangePassword: true,
-        });
-
-        return { success: true };
-      }),
-
-    // Admin: Toggle staff active status
-    toggleActive: protectedProcedure
-      .input(z.object({
-        staffId: z.number(),
-        isActive: z.boolean(),
-      }))
-      .mutation(async ({ input, ctx }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
-          return { success: false, error: "Only admins can manage staff accounts" };
-        }
-
-        await updateStaffAccount(input.staffId, { isActive: input.isActive });
         return { success: true };
       }),
   }),

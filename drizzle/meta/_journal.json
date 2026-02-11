@@ -64,13 +64,6 @@
       "when": 1770789206956,
       "tag": "0008_married_loa",
       "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "5",
-      "when": 1770804464442,
-      "tag": "0009_real_retro_girl",
-      "breakpoints": true
     }
   ]
 }

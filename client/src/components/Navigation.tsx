@@ -38,7 +38,7 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
         </button>
         
         {/* Desktop Navigation */}
-        <div className="hidden lg:flex items-center gap-8 ml-6">
+        <div className="hidden lg:flex items-center gap-8">
           <button onClick={() => handleNavClick("/about")} className={`text-sm font-medium transition-colors ${isActive("about") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             About Us
           </button>

@@ -408,30 +408,20 @@
 - [x] Remove Home button from desktop and mobile navigation (logo already links to home)
 - [x] Rename "Track" to "Track My Application" in desktop and mobile navigation
 
-### 36. Staff Email/Password Login System
-- [x] Add staffAccounts table to database (email, passwordHash, name, role, mustChangePassword, isActive)
-- [x] Install bcrypt for password hashing
-- [x] Build staff login tRPC procedure (email + password → JWT session)
-- [x] Build password change procedure (current password + new password)
-- [x] Build admin create staff account procedure (name, email, temp password, role)
-- [x] Build admin reset staff password procedure
-- [x] Build staff login page at /staff-login with SpecTa branding (no Manus branding)
-- [x] Build first-login password change prompt
-- [x] Build password change page/modal for staff
-- [x] Update admin dashboard with Staff Accounts tab (create, reset password, activate/deactivate)
-- [x] Add password reset button for each staff member in admin dashboard
-- [x] Update routes in App.tsx for staff login
-- [x] Write tests for staff auth procedures (9 tests passing)
-
-### 37. Fix Nav Spacing - Logo Too Close to About Us
-- [x] Add more spacing between SpecTa logo and "About Us" nav item
-
 ### 38. Document Management System Overhaul
-- [x] Fix: Documents uploaded via Quick Apply form are stored in S3 but only saved as URLs in the applications table (not linked to applicationDocuments table)
-- [x] Fix: When students upload documents via Quick Apply, also create entries in applicationDocuments table so they appear in admin Documents tab
-- [x] Add owner notification when new documents are uploaded (via chatbot, Quick Apply, or tracker)
-- [x] Enhance admin Documents tab: show student name, email, application reference, and download button
-- [x] Add document count badge to admin dashboard stats showing total docs from all sources (chatbot + applications + tracker)
-- [x] Consolidate all document sources into a unified view in admin dashboard
-- [x] Add ability for admin to view documents grouped by student/application (filter + search by student name/email/reference)
-- [x] Write tests for document upload and retrieval flow (9 tests passing)
+- [x] Fix: Documents uploaded via Quick Apply form now create entries in applicationDocuments table
+- [x] Add getAllApplicationDocuments helper to db.ts for unified document view
+- [x] Update admin getDocuments endpoint to return both chatbot docs and application docs
+- [x] Enhance admin Documents tab with unified view, source filters (AI Chatbot / Quick Apply / Track My App), search, and download buttons
+- [x] Add email notification to admin when documents uploaded via Quick Apply
+- [x] Add email notification to admin when documents uploaded via Track My Application
+- [x] Write document management tests (10 tests passing)
+
+### 39. SMTP Email Integration
+- [x] Store SMTP credentials as environment secrets (host, port, user, password, from address)
+- [x] Create server-side email service module (sendEmail + sendDocumentNotificationEmail helpers with HTML templates)
+- [x] Send welcome/confirmation email to all 7 existing staff members
+- [x] Send email notification to admin when students upload documents (via Quick Apply and Tracker)
+- [x] Write tests for email service (2 tests passing)
+- [ ] Send email notification to assigned counselor when documents arrive for their student (future)
+- [ ] Auto-send welcome email when new staff account is created via admin dashboard (future)

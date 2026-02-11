@@ -15,8 +15,7 @@ import {
   counselors, InsertCounselor, Counselor,
   quizResults, InsertQuizResult, QuizResult,
   personaResults, InsertPersonaResult, PersonaResult,
-  scholarshipLeads, InsertScholarshipLead, ScholarshipLead,
-  staffAccounts, InsertStaffAccount, StaffAccount
+  scholarshipLeads, InsertScholarshipLead, ScholarshipLead
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -313,32 +312,6 @@ export async function getDocumentsByApplicationId(applicationId: number): Promis
     .orderBy(desc(applicationDocuments.createdAt));
 }
 
-export async function getAllApplicationDocuments() {
-  const db = await getDb();
-  if (!db) return [];
-
-  // Get all application documents with student info joined from applications table
-  const docs = await db.select({
-    id: applicationDocuments.id,
-    applicationId: applicationDocuments.applicationId,
-    fileName: applicationDocuments.fileName,
-    fileType: applicationDocuments.fileType,
-    fileUrl: applicationDocuments.fileUrl,
-    fileKey: applicationDocuments.fileKey,
-    documentType: applicationDocuments.documentType,
-    uploadedBy: applicationDocuments.uploadedBy,
-    createdAt: applicationDocuments.createdAt,
-    studentName: applications.fullName,
-    studentEmail: applications.email,
-    referenceNumber: applications.referenceNumber,
-  })
-    .from(applicationDocuments)
-    .leftJoin(applications, eq(applicationDocuments.applicationId, applications.id))
-    .orderBy(desc(applicationDocuments.createdAt));
-
-  return docs;
-}
-
 // Tracking Token functions
 export async function createTrackingToken(data: InsertTrackingToken): Promise<TrackingToken | null> {
   const db = await getDb();
@@ -568,50 +541,40 @@ export async function updateScholarshipLead(id: number, data: Partial<InsertScho
   await db.update(scholarshipLeads).set(data).where(eq(scholarshipLeads.id, id));
 }
 
-// Staff Account functions
-export async function createStaffAccount(data: InsertStaffAccount): Promise<StaffAccount | null> {
-  const db = await getDb();
-  if (!db) return null;
 
-  const result = await db.insert(staffAccounts).values(data);
-  const insertId = result[0].insertId;
-  const created = await db.select().from(staffAccounts).where(eq(staffAccounts.id, insertId)).limit(1);
-  return created[0] || null;
-}
+// ==========================================
+// UNIFIED DOCUMENT VIEW HELPERS
+// ==========================================
 
-export async function getStaffByEmail(email: string): Promise<StaffAccount | null> {
-  const db = await getDb();
-  if (!db) return null;
-
-  const result = await db.select().from(staffAccounts).where(eq(staffAccounts.email, email.toLowerCase())).limit(1);
-  return result[0] || null;
-}
-
-export async function getStaffById(id: number): Promise<StaffAccount | null> {
-  const db = await getDb();
-  if (!db) return null;
-
-  const result = await db.select().from(staffAccounts).where(eq(staffAccounts.id, id)).limit(1);
-  return result[0] || null;
-}
-
-export async function getAllStaffAccounts(): Promise<StaffAccount[]> {
+/**
+ * Get all application documents with student info from the applications table.
+ * This provides a unified view of documents from all sources.
+ */
+export async function getAllApplicationDocuments() {
   const db = await getDb();
   if (!db) return [];
 
-  return db.select().from(staffAccounts).orderBy(desc(staffAccounts.createdAt));
-}
+  const docs = await db
+    .select({
+      id: applicationDocuments.id,
+      applicationId: applicationDocuments.applicationId,
+      documentType: applicationDocuments.documentType,
+      fileName: applicationDocuments.fileName,
+      fileUrl: applicationDocuments.fileUrl,
+      uploadedBy: applicationDocuments.uploadedBy,
+      createdAt: applicationDocuments.createdAt,
+      appStudentName: applications.fullName,
+      appStudentEmail: applications.email,
+      appReferenceNumber: applications.referenceNumber,
+    })
+    .from(applicationDocuments)
+    .leftJoin(applications, eq(applicationDocuments.applicationId, applications.id))
+    .orderBy(desc(applicationDocuments.createdAt));
 
-export async function updateStaffAccount(id: number, data: Partial<InsertStaffAccount>): Promise<void> {
-  const db = await getDb();
-  if (!db) return;
-
-  await db.update(staffAccounts).set(data).where(eq(staffAccounts.id, id));
-}
-
-export async function updateStaffLastLogin(id: number): Promise<void> {
-  const db = await getDb();
-  if (!db) return;
-
-  await db.update(staffAccounts).set({ lastLoginAt: new Date() }).where(eq(staffAccounts.id, id));
+  return docs.map(d => ({
+    ...d,
+    studentName: d.appStudentName ?? undefined,
+    studentEmail: d.appStudentEmail ?? undefined,
+    referenceNumber: d.appReferenceNumber ?? undefined,
+  }));
 }
