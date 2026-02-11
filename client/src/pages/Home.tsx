@@ -62,6 +62,45 @@ function CountUp({ end, suffix, duration = 2 }: { end: number; suffix: string; d
   return <div ref={ref}>{count}{suffix}</div>;
 }
 
+function ReviewCard({ review, index }: { review: { name: string; branch: string; destination: string; text: string; highlight: string }; index: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = review.text.length > 150;
+  return (
+    <motion.div
+      className="bg-card p-6 rounded-xl border border-border shadow-sm hover:shadow-md transition-all relative cursor-pointer"
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.4, delay: index * 0.05 }}
+      whileHover={{ y: -3 }}
+      onClick={() => isLong && setExpanded(!expanded)}
+    >
+      <Quote className="absolute top-4 right-4 w-8 h-8 text-primary/10" />
+      <div className="flex items-center gap-0.5 mb-3">
+        {[1,2,3,4,5].map(i => <Star key={i} className="w-3.5 h-3.5 fill-yellow-500 text-yellow-500" />)}
+      </div>
+      <p className={`text-sm text-muted-foreground mb-2 transition-all duration-300 ${expanded ? '' : 'line-clamp-4'}`}>"{review.text}"</p>
+      {isLong && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+          className="text-xs font-medium text-primary hover:text-primary/80 transition-colors mb-3 flex items-center gap-1"
+        >
+          {expanded ? 'Show less' : 'Read more'}
+          <ChevronDown className={`w-3 h-3 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`} />
+        </button>
+      )}
+      {!isLong && <div className="mb-2" />}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="font-semibold text-sm">{review.name}</div>
+          <div className="text-xs text-muted-foreground">{review.branch} Branch · {review.destination}</div>
+        </div>
+        <span className="text-[10px] font-medium bg-primary/10 text-primary px-2 py-1 rounded-full">{review.highlight}</span>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function Home() {
   const [isChatOpen, setIsChatOpen] = useState(false);
 
@@ -440,28 +479,7 @@ export default function Home() {
                 highlight: "Full Service Support"
               }
             ].map((review, index) => (
-              <motion.div
-                key={index}
-                className="bg-card p-6 rounded-xl border border-border shadow-sm hover:shadow-md transition-all relative"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: index * 0.05 }}
-                whileHover={{ y: -3 }}
-              >
-                <Quote className="absolute top-4 right-4 w-8 h-8 text-primary/10" />
-                <div className="flex items-center gap-0.5 mb-3">
-                  {[1,2,3,4,5].map(i => <Star key={i} className="w-3.5 h-3.5 fill-yellow-500 text-yellow-500" />)}
-                </div>
-                <p className="text-sm text-muted-foreground mb-4 line-clamp-4">"{review.text}"</p>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-semibold text-sm">{review.name}</div>
-                    <div className="text-xs text-muted-foreground">{review.branch} Branch</div>
-                  </div>
-                  <span className="text-[10px] font-medium bg-primary/10 text-primary px-2 py-1 rounded-full">{review.highlight}</span>
-                </div>
-              </motion.div>
+              <ReviewCard key={index} review={review} index={index} />
             ))}
           </div>
 

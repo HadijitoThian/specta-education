@@ -523,3 +523,11 @@
 - [x] Keep casual warm tone but prioritize being a caring counselor
 - [x] Added example good/bad responses to enforce behavior
 - [x] Added strict conversation flow (greet → learn → suggest → detail → collect → encourage)
+
+### 53. Expandable Testimonial Cards
+- [x] Make testimonial cards clickable to expand and show full review text
+- [x] Smooth CSS transition on expand/collapse (transition-all duration-300)
+- [x] Add "Read more" / "Show less" toggle link with chevron icon
+- [x] No new page needed — expand in-place on the homepage
+- [x] Extracted ReviewCard as proper React component (fixes hooks-in-map issue)
+- [x] Also shows destination info (e.g. "PIK Branch · Australia (UTS)")
