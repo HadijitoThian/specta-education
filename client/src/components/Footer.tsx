@@ -7,7 +7,9 @@ export default function Footer() {
       <div className="container">
         <div className="grid md:grid-cols-4 gap-12">
           <div className="space-y-4">
-            <img src="/logo.jpeg" alt="SpecTa Education" className="h-12 object-contain brightness-0 invert" />
+            <div className="bg-white rounded-lg px-3 py-1.5 inline-block">
+              <img src="/logo.jpeg" alt="SpecTa Education" className="h-10 object-contain" />
+            </div>
             <p className="text-sm text-background/70">
               Your trusted partner for international education and study abroad services since 2005.
             </p>

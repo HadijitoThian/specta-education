@@ -373,3 +373,6 @@
 
 ### 30. Persona Generator - Add Social Sciences Option
 - [x] Add "Social Sciences" as 6th option to "What do you want to study?" question
+
+### 31. Fix Footer Logo Not Displaying
+- [x] Fix footer logo showing as white block instead of SpecTa logo on dark background
