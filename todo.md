@@ -379,3 +379,19 @@
 
 ### 32. Move SpecTa Play Promo Above Destinations on Homepage
 - [x] Move SpecTa Play promo section above Study Abroad Destinations section on Home.tsx
+
+### 33. Scholarships Page
+- [x] Add scholarshipLeads database table (name, phone, email, education level, GPA, scholarship interest, IELTS status, score)
+- [x] Add backend tRPC procedures: scholarship.submitLead, scholarship.getLeads (admin)
+- [x] Add owner notification when new scholarship lead comes in
+- [x] Build Scholarships page hero section with "200+ Students Secured Scholarships" stat
+- [x] Build 3 Scholarship Track cards (China 100%, Mila University Malaysia 100%, LPDP)
+- [x] Build interactive "Am I Eligible?" checker with 4 tap-steps + lead capture form
+- [x] Build Scholarship Success Stories section from Google Reviews
+- [x] Build "How It Works" 4-step visual timeline
+- [x] Build FAQ accordion section
+- [x] Build strong bottom CTA section
+- [x] Add /scholarships route to App.tsx
+- [x] Add Scholarships link to navigation
+- [x] Add Scholarship Leads tab to admin dashboard
+- [x] Write tests for scholarship lead submission

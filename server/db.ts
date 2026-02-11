@@ -14,7 +14,8 @@ import {
   ieltsPracticeResults, InsertIeltsPracticeResult, IeltsPracticeResult,
   counselors, InsertCounselor, Counselor,
   quizResults, InsertQuizResult, QuizResult,
-  personaResults, InsertPersonaResult, PersonaResult
+  personaResults, InsertPersonaResult, PersonaResult,
+  scholarshipLeads, InsertScholarshipLead, ScholarshipLead
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -513,4 +514,29 @@ export async function generateReferenceNumber(): Promise<string> {
   const allApps = await db.select().from(applications).orderBy(desc(applications.id)).limit(1);
   const nextId = allApps.length > 0 ? allApps[0].id + 1 : 1;
   return `SPECTA-${year}-${String(nextId).padStart(5, '0')}`;
+}
+
+// Scholarship Lead functions
+export async function createScholarshipLead(data: InsertScholarshipLead): Promise<ScholarshipLead | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(scholarshipLeads).values(data);
+  const insertId = result[0].insertId;
+  const created = await db.select().from(scholarshipLeads).where(eq(scholarshipLeads.id, insertId)).limit(1);
+  return created[0] || null;
+}
+
+export async function getAllScholarshipLeads(): Promise<ScholarshipLead[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select().from(scholarshipLeads).orderBy(desc(scholarshipLeads.createdAt));
+}
+
+export async function updateScholarshipLead(id: number, data: Partial<InsertScholarshipLead>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(scholarshipLeads).set(data).where(eq(scholarshipLeads.id, id));
 }

@@ -53,7 +53,10 @@ import {
   createQuizResult,
   getAllQuizResults,
   createPersonaResult,
-  getAllPersonaResults
+  getAllPersonaResults,
+  createScholarshipLead,
+  getAllScholarshipLeads,
+  updateScholarshipLead
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import crypto from "crypto";
@@ -1368,6 +1371,72 @@ Rules:
         const { users: usersTable } = await import("../drizzle/schema");
         const { eq } = await import("drizzle-orm");
         await db.update(usersTable).set({ role: input.role }).where(eq(usersTable.id, input.userId));
+        return { success: true };
+      }),
+  }),
+
+  // Scholarship procedures
+  scholarship: router({
+    submitLead: publicProcedure
+      .input(z.object({
+        studentName: z.string().min(1),
+        studentEmail: z.string().email(),
+        studentPhone: z.string().min(1),
+        educationLevel: z.string().min(1),
+        gpa: z.string().min(1),
+        scholarshipInterest: z.string().min(1),
+        ieltsStatus: z.string().min(1),
+        ieltsScore: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const lead = await createScholarshipLead({
+          studentName: input.studentName,
+          studentEmail: input.studentEmail,
+          studentPhone: input.studentPhone,
+          educationLevel: input.educationLevel,
+          gpa: input.gpa,
+          scholarshipInterest: input.scholarshipInterest,
+          ieltsStatus: input.ieltsStatus,
+          ieltsScore: input.ieltsScore || null,
+        });
+
+        // Notify owner about new scholarship lead
+        const interestMap: Record<string, string> = {
+          china: "China 100% Scholarship",
+          mila_malaysia: "Mila University Malaysia",
+          lpdp: "LPDP Scholarship",
+          not_sure: "Not Sure Yet",
+        };
+        const scholarshipName = interestMap[input.scholarshipInterest] || input.scholarshipInterest;
+        await notifyOwner({
+          title: `New Scholarship Lead: ${input.studentName}`,
+          content: `A new scholarship lead has been captured!\n\nName: ${input.studentName}\nEmail: ${input.studentEmail}\nPhone: ${input.studentPhone}\nEducation: ${input.educationLevel}\nGPA: ${input.gpa}\nInterested in: ${scholarshipName}\nIELTS: ${input.ieltsStatus}${input.ieltsScore ? ` (Score: ${input.ieltsScore})` : ""}`,
+        });
+
+        return { success: true, lead };
+      }),
+
+    getLeads: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+        return [];
+      }
+      return getAllScholarshipLeads();
+    }),
+
+    updateLead: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["new", "contacted", "qualified", "converted", "closed"]).optional(),
+        adminNotes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          return { success: false };
+        }
+        const updateData: Record<string, unknown> = {};
+        if (input.status) updateData.status = input.status;
+        if (input.adminNotes !== undefined) updateData.adminNotes = input.adminNotes;
+        await updateScholarshipLead(input.id, updateData as any);
         return { success: true };
       }),
   }),

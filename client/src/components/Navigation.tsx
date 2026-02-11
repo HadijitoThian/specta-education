@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ChevronDown, Menu, X, Gamepad2 } from "lucide-react";
+import { ChevronDown, Menu, X, Gamepad2, GraduationCap } from "lucide-react";
 import { useState, useEffect } from "react";
 
 interface NavigationProps {
@@ -95,6 +95,10 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             </div>
           </div>
           
+          <button onClick={() => handleNavClick("/scholarships")} className={`text-sm font-medium transition-colors flex items-center gap-1.5 ${isActive("scholarships") ? "text-primary" : "text-amber-600 hover:text-amber-700"}`}>
+            <GraduationCap className="w-4 h-4" />
+            <span>Scholarships</span>
+          </button>
           <button onClick={() => handleNavClick("/compare")} className={`text-sm font-medium transition-colors ${isActive("compare") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             Compare
           </button>
@@ -179,6 +183,10 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
                 🇳🇱 Netherlands
               </button>
             </div>
+            <button onClick={() => handleNavClick("/scholarships")} className="block w-full text-left text-sm font-medium text-amber-600 hover:text-amber-700 flex items-center gap-2">
+              <GraduationCap className="w-4 h-4" />
+              Scholarships
+            </button>
             <button onClick={() => handleNavClick("/compare")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
               Compare Universities
             </button>

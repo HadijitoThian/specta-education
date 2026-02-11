@@ -12,7 +12,7 @@ import { Link } from "wouter";
 import { useState } from "react";
 import { getLoginUrl } from "@/const";
 
-type TabType = "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team";
+type TabType = "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads";
 
 const APP_STATUS_OPTIONS = [
   "submitted", "reviewing", "processing", "on_hold", 
@@ -98,6 +98,11 @@ export default function AdminDashboard() {
     enabled: isAuthenticated && isAdminOrGM
   });
 
+  // Scholarship leads
+  const { data: scholarshipLeadsData, isLoading: scholarshipLeadsLoading } = trpc.scholarship.getLeads.useQuery(undefined, {
+    enabled: isAuthenticated && isAdminOrGM && activeTab === 'scholarshipLeads'
+  });
+
   // Team management (admin only)
   const { data: usersData, isLoading: usersLoading } = trpc.userManagement.getUsers.useQuery(undefined, {
     enabled: isAuthenticated && user?.role === 'admin' && activeTab === 'team'
@@ -155,6 +160,10 @@ export default function AdminDashboard() {
       utils.counselor.getAll.invalidate();
       utils.counselor.getActive.invalidate();
     }
+  });
+
+  const updateScholarshipLeadMutation = trpc.scholarship.updateLead.useMutation({
+    onSuccess: () => utils.scholarship.getLeads.invalidate()
   });
 
   // User role mutation (admin only)
@@ -386,6 +395,9 @@ export default function AdminDashboard() {
           </Button>
           <Button variant={activeTab === 'documents' ? 'default' : 'outline'} onClick={() => setActiveTab('documents')} size="sm">
             <FileText className="w-4 h-4 mr-2" /> Documents
+          </Button>
+          <Button variant={activeTab === 'scholarshipLeads' ? 'default' : 'outline'} onClick={() => setActiveTab('scholarshipLeads')} size="sm">
+            <Globe className="w-4 h-4 mr-2" /> Scholarship Leads
           </Button>
           {user?.role === 'admin' && (
             <Button variant={activeTab === 'team' ? 'default' : 'outline'} onClick={() => setActiveTab('team')} size="sm">
@@ -1069,6 +1081,81 @@ export default function AdminDashboard() {
                       </a>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===== SCHOLARSHIP LEADS TAB ===== */}
+          {activeTab === 'scholarshipLeads' && (
+            <div>
+              {scholarshipLeadsLoading ? (
+                <div className="p-8 text-center">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                </div>
+              ) : !scholarshipLeadsData || scholarshipLeadsData.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  No scholarship leads yet. Leads will appear here when students use the eligibility checker.
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {scholarshipLeadsData.map((lead) => {
+                    const interestMap: Record<string, string> = {
+                      china: "\ud83c\udde8\ud83c\uddf3 China 100%",
+                      mila_malaysia: "\ud83c\uddf2\ud83c\uddfe Mila University",
+                      lpdp: "\ud83c\uddee\ud83c\udde9 LPDP",
+                      not_sure: "\ud83e\udd14 Not Sure",
+                    };
+                    const statusColors: Record<string, string> = {
+                      new: "bg-blue-100 text-blue-800",
+                      contacted: "bg-yellow-100 text-yellow-800",
+                      qualified: "bg-green-100 text-green-800",
+                      converted: "bg-emerald-100 text-emerald-800",
+                      closed: "bg-gray-100 text-gray-800",
+                    };
+                    return (
+                      <div key={lead.id} className="p-4 hover:bg-muted/50 transition-colors">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-semibold">{lead.studentName}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[lead.status] || 'bg-gray-100 text-gray-800'}`}>
+                                {lead.status}
+                              </span>
+                            </div>
+                            <div className="text-sm text-muted-foreground space-y-0.5">
+                              <div className="flex items-center gap-4 flex-wrap">
+                                <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {lead.studentEmail}</span>
+                                <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {lead.studentPhone}</span>
+                              </div>
+                              <div className="flex items-center gap-4 flex-wrap mt-1">
+                                <span><strong>Education:</strong> {lead.educationLevel}</span>
+                                <span><strong>GPA:</strong> {lead.gpa}</span>
+                                <span><strong>Interest:</strong> {interestMap[lead.scholarshipInterest] || lead.scholarshipInterest}</span>
+                                <span><strong>IELTS:</strong> {lead.ieltsStatus}{lead.ieltsScore ? ` (${lead.ieltsScore})` : ''}</span>
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {formatDate(lead.createdAt)}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <select
+                              value={lead.status}
+                              onChange={(e) => updateScholarshipLeadMutation.mutate({ id: lead.id, status: e.target.value as any })}
+                              className="text-xs border border-border rounded px-2 py-1 bg-background"
+                            >
+                              <option value="new">New</option>
+                              <option value="contacted">Contacted</option>
+                              <option value="qualified">Qualified</option>
+                              <option value="converted">Converted</option>
+                              <option value="closed">Closed</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

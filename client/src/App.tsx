@@ -22,6 +22,7 @@ import TrackApplication from "./pages/TrackApplication";
 import Quiz from "./pages/Quiz";
 import Persona from "./pages/Persona";
 import Play from "./pages/Play";
+import Scholarships from "./pages/Scholarships";
 
 function Router() {
   return (
@@ -40,6 +41,7 @@ function Router() {
       <Route path={"/book"} component={BookConsultation} />
       <Route path={"/track"} component={TrackApplication} />
       <Route path={"/track/:token"} component={TrackApplication} />
+      <Route path={"/scholarships"} component={Scholarships} />
       <Route path={"/play"} component={Play} />
       <Route path={"/play/quiz"} component={Quiz} />
       <Route path={"/play/persona"} component={Persona} />

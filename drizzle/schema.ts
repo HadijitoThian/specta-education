@@ -285,3 +285,25 @@ export const personaResults = mysqlTable("personaResults", {
 
 export type PersonaResult = typeof personaResults.$inferSelect;
 export type InsertPersonaResult = typeof personaResults.$inferInsert;
+
+/**
+ * Scholarship Leads table - captured from the interactive eligibility checker
+ */
+export const scholarshipLeads = mysqlTable("scholarshipLeads", {
+  id: int("id").autoincrement().primaryKey(),
+  studentName: varchar("studentName", { length: 255 }).notNull(),
+  studentEmail: varchar("studentEmail", { length: 320 }).notNull(),
+  studentPhone: varchar("studentPhone", { length: 50 }).notNull(),
+  educationLevel: varchar("educationLevel", { length: 100 }).notNull(), // SMA/SMK, D3, S1, S2
+  gpa: varchar("gpa", { length: 10 }).notNull(), // e.g. "3.5"
+  scholarshipInterest: varchar("scholarshipInterest", { length: 100 }).notNull(), // china, mila_malaysia, lpdp, not_sure
+  ieltsStatus: varchar("ieltsStatus", { length: 50 }).notNull(), // yes, not_yet, planning
+  ieltsScore: varchar("ieltsScore", { length: 10 }), // optional, e.g. "6.5"
+  status: mysqlEnum("status", ["new", "contacted", "qualified", "converted", "closed"]).default("new").notNull(),
+  adminNotes: text("adminNotes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ScholarshipLead = typeof scholarshipLeads.$inferSelect;
+export type InsertScholarshipLead = typeof scholarshipLeads.$inferInsert;
