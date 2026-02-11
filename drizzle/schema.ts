@@ -307,3 +307,22 @@ export const scholarshipLeads = mysqlTable("scholarshipLeads", {
 
 export type ScholarshipLead = typeof scholarshipLeads.$inferSelect;
 export type InsertScholarshipLead = typeof scholarshipLeads.$inferInsert;
+
+/**
+ * Staff Accounts table - email/password login for SpecTa staff members
+ */
+export const staffAccounts = mysqlTable("staffAccounts", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull().unique(),
+  passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
+  role: mysqlEnum("role", ["admin", "counselor", "staff"]).default("staff").notNull(),
+  mustChangePassword: boolean("mustChangePassword").default(true).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  lastLoginAt: timestamp("lastLoginAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type StaffAccount = typeof staffAccounts.$inferSelect;
+export type InsertStaffAccount = typeof staffAccounts.$inferInsert;

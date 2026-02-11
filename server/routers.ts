@@ -6,6 +6,8 @@ import { z } from "zod";
 import { invokeLLM } from "./_core/llm";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
+import bcrypt from "bcryptjs";
+import { SignJWT, jwtVerify } from "jose";
 import { 
   createConversation, 
   getConversationBySessionId, 
@@ -56,7 +58,13 @@ import {
   getAllPersonaResults,
   createScholarshipLead,
   getAllScholarshipLeads,
-  updateScholarshipLead
+  updateScholarshipLead,
+  createStaffAccount,
+  getStaffByEmail,
+  getStaffById,
+  getAllStaffAccounts,
+  updateStaffAccount,
+  updateStaffLastLogin
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import crypto from "crypto";
@@ -1437,6 +1445,217 @@ Rules:
         if (input.status) updateData.status = input.status;
         if (input.adminNotes !== undefined) updateData.adminNotes = input.adminNotes;
         await updateScholarshipLead(input.id, updateData as any);
+        return { success: true };
+      }),
+  }),
+
+  staffAuth: router({
+    login: publicProcedure
+      .input(z.object({
+        email: z.string().email(),
+        password: z.string().min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const staff = await getStaffByEmail(input.email.toLowerCase());
+        if (!staff) {
+          return { success: false, error: "Invalid email or password" };
+        }
+        if (!staff.isActive) {
+          return { success: false, error: "Account has been deactivated. Contact your administrator." };
+        }
+
+        const validPassword = await bcrypt.compare(input.password, staff.passwordHash);
+        if (!validPassword) {
+          return { success: false, error: "Invalid email or password" };
+        }
+
+        // Create a staff JWT token
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const token = await new SignJWT({
+          staffId: staff.id,
+          email: staff.email,
+          name: staff.name,
+          role: staff.role,
+          type: "staff",
+        })
+          .setProtectedHeader({ alg: "HS256" })
+          .setExpirationTime("7d")
+          .sign(secret);
+
+        // Set the staff session cookie
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie("staff_session", token, {
+          ...cookieOptions,
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
+
+        await updateStaffLastLogin(staff.id);
+
+        return {
+          success: true,
+          mustChangePassword: staff.mustChangePassword,
+          staff: {
+            id: staff.id,
+            name: staff.name,
+            email: staff.email,
+            role: staff.role,
+            mustChangePassword: staff.mustChangePassword,
+          },
+        };
+      }),
+
+    me: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req.headers.cookie;
+      if (!cookieHeader) return null;
+
+      const cookies = cookieHeader.split(";").reduce((acc, c) => {
+        const [key, val] = c.trim().split("=");
+        if (key && val) acc[key] = val;
+        return acc;
+      }, {} as Record<string, string>);
+
+      const staffToken = cookies["staff_session"];
+      if (!staffToken) return null;
+
+      try {
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const { payload } = await jwtVerify(staffToken, secret, { algorithms: ["HS256"] });
+        if (payload.type !== "staff") return null;
+
+        const staff = await getStaffById(payload.staffId as number);
+        if (!staff || !staff.isActive) return null;
+
+        return {
+          id: staff.id,
+          name: staff.name,
+          email: staff.email,
+          role: staff.role,
+          mustChangePassword: staff.mustChangePassword,
+        };
+      } catch {
+        return null;
+      }
+    }),
+
+    changePassword: publicProcedure
+      .input(z.object({
+        email: z.string().email(),
+        currentPassword: z.string().min(1),
+        newPassword: z.string().min(6, "Password must be at least 6 characters"),
+      }))
+      .mutation(async ({ input }) => {
+        const staff = await getStaffByEmail(input.email.toLowerCase());
+        if (!staff) {
+          return { success: false, error: "Account not found" };
+        }
+
+        const validPassword = await bcrypt.compare(input.currentPassword, staff.passwordHash);
+        if (!validPassword) {
+          return { success: false, error: "Current password is incorrect" };
+        }
+
+        const newHash = await bcrypt.hash(input.newPassword, 10);
+        await updateStaffAccount(staff.id, {
+          passwordHash: newHash,
+          mustChangePassword: false,
+        });
+
+        return { success: true };
+      }),
+
+    logout: publicProcedure.mutation(({ ctx }) => {
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.clearCookie("staff_session", { ...cookieOptions, maxAge: -1 });
+      return { success: true };
+    }),
+
+    // Admin: Create staff account
+    createAccount: protectedProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        email: z.string().email(),
+        password: z.string().min(6),
+        role: z.enum(["admin", "counselor", "staff"]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          return { success: false, error: "Only admins can create staff accounts" };
+        }
+
+        const existing = await getStaffByEmail(input.email.toLowerCase());
+        if (existing) {
+          return { success: false, error: "An account with this email already exists" };
+        }
+
+        const passwordHash = await bcrypt.hash(input.password, 10);
+        const account = await createStaffAccount({
+          name: input.name,
+          email: input.email.toLowerCase(),
+          passwordHash,
+          role: input.role,
+          mustChangePassword: true,
+          isActive: true,
+        });
+
+        return { success: true, account };
+      }),
+
+    // Admin: Get all staff accounts
+    getAccounts: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+        return [];
+      }
+      const accounts = await getAllStaffAccounts();
+      // Never return password hashes
+      return accounts.map(a => ({
+        id: a.id,
+        name: a.name,
+        email: a.email,
+        role: a.role,
+        mustChangePassword: a.mustChangePassword,
+        isActive: a.isActive,
+        lastLoginAt: a.lastLoginAt,
+        createdAt: a.createdAt,
+      }));
+    }),
+
+    // Admin: Reset staff password
+    resetPassword: protectedProcedure
+      .input(z.object({
+        staffId: z.number(),
+        newPassword: z.string().min(6),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          return { success: false, error: "Only admins can reset passwords" };
+        }
+
+        const staff = await getStaffById(input.staffId);
+        if (!staff) {
+          return { success: false, error: "Staff account not found" };
+        }
+
+        const passwordHash = await bcrypt.hash(input.newPassword, 10);
+        await updateStaffAccount(input.staffId, {
+          passwordHash,
+          mustChangePassword: true,
+        });
+
+        return { success: true };
+      }),
+
+    // Admin: Toggle staff active status
+    toggleActive: protectedProcedure
+      .input(z.object({
+        staffId: z.number(),
+        isActive: z.boolean(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          return { success: false, error: "Only admins can manage staff accounts" };
+        }
+
+        await updateStaffAccount(input.staffId, { isActive: input.isActive });
         return { success: true };
       }),
   }),

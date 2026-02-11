@@ -15,7 +15,8 @@ import {
   counselors, InsertCounselor, Counselor,
   quizResults, InsertQuizResult, QuizResult,
   personaResults, InsertPersonaResult, PersonaResult,
-  scholarshipLeads, InsertScholarshipLead, ScholarshipLead
+  scholarshipLeads, InsertScholarshipLead, ScholarshipLead,
+  staffAccounts, InsertStaffAccount, StaffAccount
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -539,4 +540,52 @@ export async function updateScholarshipLead(id: number, data: Partial<InsertScho
   if (!db) return;
 
   await db.update(scholarshipLeads).set(data).where(eq(scholarshipLeads.id, id));
+}
+
+// Staff Account functions
+export async function createStaffAccount(data: InsertStaffAccount): Promise<StaffAccount | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(staffAccounts).values(data);
+  const insertId = result[0].insertId;
+  const created = await db.select().from(staffAccounts).where(eq(staffAccounts.id, insertId)).limit(1);
+  return created[0] || null;
+}
+
+export async function getStaffByEmail(email: string): Promise<StaffAccount | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.select().from(staffAccounts).where(eq(staffAccounts.email, email.toLowerCase())).limit(1);
+  return result[0] || null;
+}
+
+export async function getStaffById(id: number): Promise<StaffAccount | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.select().from(staffAccounts).where(eq(staffAccounts.id, id)).limit(1);
+  return result[0] || null;
+}
+
+export async function getAllStaffAccounts(): Promise<StaffAccount[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select().from(staffAccounts).orderBy(desc(staffAccounts.createdAt));
+}
+
+export async function updateStaffAccount(id: number, data: Partial<InsertStaffAccount>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(staffAccounts).set(data).where(eq(staffAccounts.id, id));
+}
+
+export async function updateStaffLastLogin(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(staffAccounts).set({ lastLoginAt: new Date() }).where(eq(staffAccounts.id, id));
 }

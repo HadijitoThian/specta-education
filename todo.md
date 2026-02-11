@@ -407,3 +407,18 @@
 ### 35. Navigation UX Improvements
 - [x] Remove Home button from desktop and mobile navigation (logo already links to home)
 - [x] Rename "Track" to "Track My Application" in desktop and mobile navigation
+
+### 36. Staff Email/Password Login System
+- [x] Add staffAccounts table to database (email, passwordHash, name, role, mustChangePassword, isActive)
+- [x] Install bcrypt for password hashing
+- [x] Build staff login tRPC procedure (email + password → JWT session)
+- [x] Build password change procedure (current password + new password)
+- [x] Build admin create staff account procedure (name, email, temp password, role)
+- [x] Build admin reset staff password procedure
+- [x] Build staff login page at /staff-login with SpecTa branding (no Manus branding)
+- [x] Build first-login password change prompt
+- [x] Build password change page/modal for staff
+- [x] Update admin dashboard with Staff Accounts tab (create, reset password, activate/deactivate)
+- [x] Add password reset button for each staff member in admin dashboard
+- [x] Update routes in App.tsx for staff login
+- [x] Write tests for staff auth procedures (9 tests passing)
