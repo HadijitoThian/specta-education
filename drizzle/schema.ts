@@ -326,3 +326,30 @@ export const staffAccounts = mysqlTable("staffAccounts", {
 
 export type StaffAccount = typeof staffAccounts.$inferSelect;
 export type InsertStaffAccount = typeof staffAccounts.$inferInsert;
+
+/**
+ * Aptitude Test Results - AI-powered Tes Bakat using RIASEC + Multiple Intelligences
+ */
+export const aptitudeResults = mysqlTable("aptitudeResults", {
+  id: int("id").autoincrement().primaryKey(),
+  studentName: varchar("studentName", { length: 255 }).notNull(),
+  studentEmail: varchar("studentEmail", { length: 320 }).notNull(),
+  studentPhone: varchar("studentPhone", { length: 50 }),
+  language: mysqlEnum("language", ["id", "en"]).default("id").notNull(),
+  riasecAnswers: text("riasecAnswers").notNull(), // JSON: {R: [scores], I: [scores], A: [scores], S: [scores], E: [scores], C: [scores]}
+  miAnswers: text("miAnswers").notNull(), // JSON: {linguistic: [scores], logical: [scores], ...}
+  personalAnswers: text("personalAnswers").notNull(), // JSON: {subjects, hobbies, educationLevel, etc.}
+  riasecScores: text("riasecScores").notNull(), // JSON: {R: number, I: number, A: number, S: number, E: number, C: number}
+  miScores: text("miScores").notNull(), // JSON: {linguistic: number, logical: number, ...}
+  hollandCode: varchar("hollandCode", { length: 10 }).notNull(), // e.g. "IAR"
+  topIntelligences: text("topIntelligences").notNull(), // JSON: top 3 intelligences
+  aiAnalysis: text("aiAnalysis").notNull(), // JSON: full AI-generated analysis
+  personalitySnapshot: text("personalitySnapshot"), // Short shareable summary
+  recommendedMajors: text("recommendedMajors").notNull(), // JSON: top 3 majors with reasoning
+  careerOutlook: text("careerOutlook"), // JSON: career paths for each major
+  parentSummary: text("parentSummary"), // Parent-friendly explanation
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AptitudeResult = typeof aptitudeResults.$inferSelect;
+export type InsertAptitudeResult = typeof aptitudeResults.$inferInsert;

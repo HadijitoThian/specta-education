@@ -74,7 +74,11 @@ import {
   getApplicationsByCounselorName,
   getApplicationDocumentsByApplicationId,
   getApplicationNotesByApplicationId,
-  getStaffAccountByName
+  getStaffAccountByName,
+  createAptitudeResult,
+  getAptitudeResultById,
+  getAptitudeResultsByEmail,
+  getAllAptitudeResults
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail } from "./email";
@@ -2046,6 +2050,222 @@ Rules:
         if (ctx.user.role !== "admin") return { success: false, error: "Unauthorized" };
         await deleteConversation(input.id);
         return { success: true };
+      }),
+  }),
+
+  // ==========================================
+  // APTITUDE TEST ROUTER
+  // ==========================================
+  aptitude: router({
+    analyzeResults: publicProcedure
+      .input(z.object({
+        language: z.enum(["id", "en"]),
+        riasecAnswers: z.record(z.string(), z.number()),
+        miAnswers: z.record(z.string(), z.number()),
+        personalAnswers: z.record(z.string(), z.union([z.string(), z.array(z.string())])),
+        studentName: z.string().min(1),
+        studentEmail: z.string().email(),
+        studentPhone: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        // 1. Calculate RIASEC scores
+        const riasecDimensions = ["R", "I", "A", "S", "E", "C"];
+        const riasecScores: Record<string, number> = {};
+        for (const dim of riasecDimensions) {
+          const keys = Object.keys(input.riasecAnswers).filter(k => k.startsWith(dim));
+          const total = keys.reduce((sum, k) => sum + (input.riasecAnswers[k] || 3), 0);
+          riasecScores[dim] = Math.round((total / (keys.length || 1)) * 20); // Normalize to 0-100
+        }
+
+        // 2. Calculate MI scores
+        const miDimensions = ["linguistic", "logical", "spatial", "musical", "kinesthetic", "interpersonal", "intrapersonal", "naturalistic"];
+        const miScores: Record<string, number> = {};
+        for (const dim of miDimensions) {
+          const keys = Object.keys(input.miAnswers).filter(k => k.startsWith("MI_" + dim.substring(0, 2).toUpperCase()));
+          const total = keys.reduce((sum, k) => sum + (input.miAnswers[k] || 3), 0);
+          miScores[dim] = Math.round((total / (keys.length || 1)) * 20); // Normalize to 0-100
+        }
+
+        // 3. Determine Holland Code (top 3)
+        const sortedRiasec = Object.entries(riasecScores).sort((a, b) => b[1] - a[1]);
+        const hollandCode = sortedRiasec.slice(0, 3).map(([k]) => k).join("");
+
+        // 4. Determine top intelligences (top 3)
+        const sortedMI = Object.entries(miScores).sort((a, b) => b[1] - a[1]);
+        const topIntelligences = sortedMI.slice(0, 3).map(([k]) => k);
+
+        // 5. AI Analysis
+        const lang = input.language === "id" ? "Bahasa Indonesia" : "English";
+        const personalContext = JSON.stringify(input.personalAnswers);
+
+        const aiPrompt = `You are a professional career psychologist analyzing an aptitude test result. Respond ENTIRELY in ${lang}.
+
+Student: ${input.studentName}
+Holland Code: ${hollandCode}
+RIASEC Scores: ${JSON.stringify(riasecScores)}
+Top 3 RIASEC: ${sortedRiasec.slice(0, 3).map(([k, v]) => `${k}=${v}`).join(", ")}
+Multiple Intelligence Scores: ${JSON.stringify(miScores)}
+Top 3 Intelligences: ${topIntelligences.join(", ")}
+Personal Context: ${personalContext}
+
+Provide a comprehensive analysis in the following JSON format:
+{
+  "personalitySnapshot": {
+    "title": "A catchy 3-5 word title for their personality type (e.g., 'Si Pemikir Kreatif' or 'The Creative Thinker')",
+    "emoji": "2-3 relevant emojis",
+    "description": "A warm, encouraging 2-3 sentence description of who they are based on their RIASEC + MI combination. Make it feel personal, not generic."
+  },
+  "riasecAnalysis": "A 2-3 sentence analysis of their RIASEC profile. Explain what their Holland Code means for them specifically. Be warm and encouraging.",
+  "miAnalysis": "A 2-3 sentence analysis of their top intelligences. Explain how these strengths can be applied. Be encouraging.",
+  "crossAnalysis": "A 2-3 sentence analysis of how their RIASEC profile and MI profile work TOGETHER. This is the unique insight that simple tests don't provide.",
+  "recommendedMajors": [
+    {
+      "name": "Major name",
+      "compatibilityScore": 85-98,
+      "reason": "2-3 sentences explaining WHY this major fits them specifically based on their unique combination of interests and intelligences.",
+      "careers": ["Career 1", "Career 2", "Career 3"]
+    }
+  ],
+  "careerOutlook": "A 3-4 sentence overview of career prospects for their recommended majors. Include salary range expectations and job market outlook. Be realistic but encouraging.",
+  "parentSummary": "A 3-4 sentence professional summary written FOR PARENTS. Explain why these majors are a good fit for their child, mention career prospects, and reassure them. Use respectful, formal tone ${input.language === "id" ? "(use 'Bapak/Ibu' and formal Indonesian)" : ""}.",
+  "studyTips": "2-3 practical tips for the student on how to prepare for their recommended majors."
+}
+
+IMPORTANT:
+- Recommend exactly 3 majors, ordered by compatibility score (highest first)
+- Compatibility scores should be realistic (75-98 range), not all the same
+- Make the analysis feel PERSONAL to this specific student, not generic
+- Cross-reference RIASEC with MI for unique insights
+- Be warm, encouraging, and supportive throughout`;
+
+        const aiResponse = await invokeLLM({
+          messages: [
+            { role: "system", content: "You are a professional career psychologist. Always respond with valid JSON only, no markdown formatting." },
+            { role: "user", content: aiPrompt },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "aptitude_analysis",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  personalitySnapshot: {
+                    type: "object",
+                    properties: {
+                      title: { type: "string" },
+                      emoji: { type: "string" },
+                      description: { type: "string" }
+                    },
+                    required: ["title", "emoji", "description"],
+                    additionalProperties: false
+                  },
+                  riasecAnalysis: { type: "string" },
+                  miAnalysis: { type: "string" },
+                  crossAnalysis: { type: "string" },
+                  recommendedMajors: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string" },
+                        compatibilityScore: { type: "number" },
+                        reason: { type: "string" },
+                        careers: { type: "array", items: { type: "string" } }
+                      },
+                      required: ["name", "compatibilityScore", "reason", "careers"],
+                      additionalProperties: false
+                    }
+                  },
+                  careerOutlook: { type: "string" },
+                  parentSummary: { type: "string" },
+                  studyTips: { type: "string" }
+                },
+                required: ["personalitySnapshot", "riasecAnalysis", "miAnalysis", "crossAnalysis", "recommendedMajors", "careerOutlook", "parentSummary", "studyTips"],
+                additionalProperties: false
+              }
+            }
+          }
+        });
+
+        let aiAnalysis;
+        try {
+          const rawContent = aiResponse.choices?.[0]?.message?.content;
+          const content = typeof rawContent === "string" ? rawContent : "{}";
+          aiAnalysis = JSON.parse(content);
+        } catch {
+          aiAnalysis = { error: "Failed to parse AI analysis" };
+        }
+
+        // 6. Save to database
+        const saved = await createAptitudeResult({
+          studentName: input.studentName,
+          studentEmail: input.studentEmail,
+          studentPhone: input.studentPhone || null,
+          language: input.language,
+          riasecAnswers: JSON.stringify(input.riasecAnswers),
+          miAnswers: JSON.stringify(input.miAnswers),
+          personalAnswers: JSON.stringify(input.personalAnswers),
+          riasecScores: JSON.stringify(riasecScores),
+          miScores: JSON.stringify(miScores),
+          hollandCode,
+          topIntelligences: JSON.stringify(topIntelligences),
+          aiAnalysis: JSON.stringify(aiAnalysis),
+          personalitySnapshot: aiAnalysis.personalitySnapshot ? JSON.stringify(aiAnalysis.personalitySnapshot) : null,
+          recommendedMajors: JSON.stringify(aiAnalysis.recommendedMajors || []),
+          careerOutlook: aiAnalysis.careerOutlook || null,
+          parentSummary: aiAnalysis.parentSummary || null,
+        });
+
+        // 7. Notify owner about new lead
+        notifyOwner({
+          title: "New Aptitude Test Completed",
+          content: `${input.studentName} (${input.studentEmail}) completed the aptitude test. Holland Code: ${hollandCode}. Top majors: ${(aiAnalysis.recommendedMajors || []).map((m: any) => m.name).join(", ")}.`,
+        }).catch(() => {});
+
+        return {
+          success: true,
+          resultId: saved?.id,
+          riasecScores,
+          miScores,
+          hollandCode,
+          topIntelligences,
+          aiAnalysis,
+        };
+      }),
+
+    getResult: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const result = await getAptitudeResultById(input.id);
+        if (!result) return null;
+        return {
+          ...result,
+          riasecScores: JSON.parse(result.riasecScores || "{}"),
+          miScores: JSON.parse(result.miScores || "{}"),
+          topIntelligences: JSON.parse(result.topIntelligences || "[]"),
+          aiAnalysis: JSON.parse(result.aiAnalysis || "{}"),
+          personalitySnapshot: result.personalitySnapshot ? JSON.parse(result.personalitySnapshot) : null,
+          recommendedMajors: JSON.parse(result.recommendedMajors || "[]"),
+        };
+      }),
+
+    getAllResults: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") return [];
+        const results = await getAllAptitudeResults();
+        return results.map(r => ({
+          id: r.id,
+          studentName: r.studentName,
+          studentEmail: r.studentEmail,
+          studentPhone: r.studentPhone,
+          hollandCode: r.hollandCode,
+          language: r.language,
+          createdAt: r.createdAt,
+          recommendedMajors: JSON.parse(r.recommendedMajors || "[]"),
+          personalitySnapshot: r.personalitySnapshot ? JSON.parse(r.personalitySnapshot) : null,
+        }));
       }),
   }),
 });

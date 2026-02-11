@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Sparkles, Globe, ArrowRight, Gamepad2, Star, Zap, Users, Trophy } from "lucide-react";
+import { Sparkles, Globe, ArrowRight, Gamepad2, Star, Zap, Users, Trophy, Brain, GraduationCap } from "lucide-react";
 import ChatBot from "@/components/ChatBot";
 import ChatBotButton from "@/components/ChatBotButton";
 import Navigation from "@/components/Navigation";
@@ -72,7 +72,7 @@ export default function Play() {
 
       {/* Game Cards Section */}
       <div className="max-w-5xl mx-auto px-4 -mt-12 relative z-20 pb-20">
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Card 1: Country Quiz */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -218,6 +218,84 @@ export default function Play() {
                   <span className="text-gray-400 text-sm">~30 seconds</span>
                   <div className="flex items-center gap-2 text-fuchsia-600 font-semibold group-hover:gap-3 transition-all">
                     Discover Now
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Card 3: AI Aptitude Test */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="md:col-span-2 lg:col-span-1"
+          >
+            <div
+              onClick={() => setLocation("/play/aptitude")}
+              className="group cursor-pointer bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-2xl hover:-translate-y-2 transition-all duration-500"
+            >
+              {/* Card header gradient */}
+              <div className="relative bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 p-8 pb-12">
+                <div className="absolute top-4 right-4 text-3xl opacity-30 animate-bounce" style={{ animationDuration: '3s' }}>🧠</div>
+                <div className="absolute bottom-4 left-4 text-2xl opacity-30 animate-bounce" style={{ animationDelay: '1s', animationDuration: '4s' }}>🎓</div>
+
+                <div className="relative z-10">
+                  <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-3 py-1.5 mb-4">
+                    <Brain className="w-3.5 h-3.5 text-white" />
+                    <span className="text-white/90 text-xs font-medium">51 Questions</span>
+                  </div>
+                  <h2 className="text-3xl font-bold text-white mb-2">Tes Bakat AI<br />Aptitude Test</h2>
+                  <p className="text-white/80 text-sm max-w-xs">
+                    Temukan jurusan kuliah yang paling cocok untuk kamu dengan AI! Available in ID & EN.
+                  </p>
+                </div>
+              </div>
+
+              {/* Card body */}
+              <div className="p-6">
+                {/* Methodology badges */}
+                <div className="flex flex-wrap gap-2 mb-5">
+                  {[
+                    { emoji: "🔬", name: "RIASEC" },
+                    { emoji: "🧮", name: "Multiple Intelligence" },
+                    { emoji: "🤖", name: "AI Analysis" },
+                    { emoji: "📊", name: "Holland Code" },
+                  ].map((p, i) => (
+                    <span key={i} className="text-xs bg-teal-50 text-teal-700 rounded-full px-3 py-1.5 font-medium">
+                      {p.emoji} {p.name}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Features */}
+                <div className="space-y-2 mb-6">
+                  <div className="flex items-center gap-2 text-gray-600 text-sm">
+                    <div className="w-5 h-5 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
+                      <Brain className="w-3 h-3 text-teal-500" />
+                    </div>
+                    Professional-grade aptitude assessment
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-600 text-sm">
+                    <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                      <GraduationCap className="w-3 h-3 text-emerald-500" />
+                    </div>
+                    3 personalized major recommendations
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-600 text-sm">
+                    <div className="w-5 h-5 rounded-full bg-cyan-100 flex items-center justify-center flex-shrink-0">
+                      <Users className="w-3 h-3 text-cyan-500" />
+                    </div>
+                    Parent-friendly summary included
+                  </div>
+                </div>
+
+                {/* CTA */}
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-sm">~10-15 minutes</span>
+                  <div className="flex items-center gap-2 text-teal-600 font-semibold group-hover:gap-3 transition-all">
+                    Take Test
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>

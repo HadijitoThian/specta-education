@@ -1,0 +1,21 @@
+CREATE TABLE `aptitudeResults` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`studentName` varchar(255) NOT NULL,
+	`studentEmail` varchar(320) NOT NULL,
+	`studentPhone` varchar(50),
+	`language` enum('id','en') NOT NULL DEFAULT 'id',
+	`riasecAnswers` text NOT NULL,
+	`miAnswers` text NOT NULL,
+	`personalAnswers` text NOT NULL,
+	`riasecScores` text NOT NULL,
+	`miScores` text NOT NULL,
+	`hollandCode` varchar(10) NOT NULL,
+	`topIntelligences` text NOT NULL,
+	`aiAnalysis` text NOT NULL,
+	`personalitySnapshot` text,
+	`recommendedMajors` text NOT NULL,
+	`careerOutlook` text,
+	`parentSummary` text,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `aptitudeResults_id` PRIMARY KEY(`id`)
+);

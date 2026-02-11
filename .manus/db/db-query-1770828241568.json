@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS `aptitudeResults` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`studentName` varchar(255) NOT NULL,\n\t`studentEmail` varchar(320) NOT NULL,\n\t`studentPhone` varchar(50),\n\t`language` enum('id','en') NOT NULL DEFAULT 'id',\n\t`riasecAnswers` text NOT NULL,\n\t`miAnswers` text NOT NULL,\n\t`personalAnswers` text NOT NULL,\n\t`riasecScores` text NOT NULL,\n\t`miScores` text NOT NULL,\n\t`hollandCode` varchar(10) NOT NULL,\n\t`topIntelligences` text NOT NULL,\n\t`aiAnalysis` text NOT NULL,\n\t`personalitySnapshot` text,\n\t`recommendedMajors` text NOT NULL,\n\t`careerOutlook` text,\n\t`parentSummary` text,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `aptitudeResults_id` PRIMARY KEY(`id`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute CREATE TABLE IF NOT EXISTS `aptitudeResults` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`studentName` varchar(255) NOT NULL,\n\t`studentEmail` varchar(320) NOT NULL,\n\t`studentPhone` varchar(50),\n\t`language` enum('id','en') NOT NULL DEFAULT 'id',\n\t`riasecAnswers` text NOT NULL,\n\t`miAnswers` text NOT NULL,\n\t`personalAnswers` text NOT NULL,\n\t`riasecScores` text NOT NULL,\n\t`miScores` text NOT NULL,\n\t`hollandCode` varchar(10) NOT NULL,\n\t`topIntelligences` text NOT NULL,\n\t`aiAnalysis` text NOT NULL,\n\t`personalitySnapshot` text,\n\t`recommendedMajors` text NOT NULL,\n\t`careerOutlook` text,\n\t`parentSummary` text,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `aptitudeResults_id` PRIMARY KEY(`id`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1760
+}

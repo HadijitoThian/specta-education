@@ -531,3 +531,27 @@
 - [x] No new page needed — expand in-place on the homepage
 - [x] Extracted ReviewCard as proper React component (fixes hooks-in-map issue)
 - [x] Also shows destination info (e.g. "PIK Branch · Australia (UTS)")
+
+### 54. AI-Powered Tes Bakat (Aptitude Test) in SpecTa Play
+- [x] Bilingual support (Bahasa Indonesia / English toggle)
+- [x] RIASEC Interest Assessment (30 questions, 5 per dimension, validated IIP markers)
+- [x] Gardner's Multiple Intelligences Assessment (16 questions, 2 per intelligence type)
+- [x] Personal Context questions (5 questions: subjects, hobbies, etc.)
+- [x] Step-by-step wizard UI with progress bar and animations
+- [x] Proper Likert scale scoring (1-5) per dimension
+- [x] AI-generated personalized analysis (cross-references RIASEC + MI profiles)
+- [x] Personality snapshot with shareable summary
+- [x] Compatibility scores for recommended majors
+- [x] Top 3 major recommendations with detailed reasoning
+- [x] Career outlook for each recommended major
+- [x] Parent-friendly summary section
+- [x] Visual charts (RIASEC hexagonal chart, MI horizontal bar chart)
+- [x] Lead capture (name, email, WhatsApp) before results
+- [x] CTA to WhatsApp consultation and booking
+- [x] Retake option
+- [x] Save results to database (aptitudeResults table)
+- [x] Backend tRPC procedures (analyzeResults, saveResult, getResult, getMyResults)
+- [x] Owner notification on test completion
+- [x] AI analysis sections: RIASEC analysis, MI analysis, cross-analysis, study tips
+- [x] Entry point card on SpecTa Play page
+- [x] Route: /play/aptitude

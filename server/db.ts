@@ -16,7 +16,8 @@ import {
   quizResults, InsertQuizResult, QuizResult,
   personaResults, InsertPersonaResult, PersonaResult,
   scholarshipLeads, InsertScholarshipLead, ScholarshipLead,
-  staffAccounts, InsertStaffAccount, StaffAccount
+  staffAccounts, InsertStaffAccount, StaffAccount,
+  aptitudeResults, InsertAptitudeResult, AptitudeResult
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -708,4 +709,38 @@ export async function deleteConversation(id: number): Promise<void> {
   await db.delete(documents).where(eq(documents.conversationId, id));
   await db.delete(leads).where(eq(leads.conversationId, id));
   await db.delete(conversations).where(eq(conversations.id, id));
+}
+
+// ==========================================
+// APTITUDE TEST RESULTS
+// ==========================================
+
+export async function createAptitudeResult(data: InsertAptitudeResult): Promise<AptitudeResult | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(aptitudeResults).values(data);
+  const insertId = result[0].insertId;
+  const [row] = await db.select().from(aptitudeResults).where(eq(aptitudeResults.id, insertId));
+  return row || null;
+}
+
+export async function getAptitudeResultById(id: number): Promise<AptitudeResult | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(aptitudeResults).where(eq(aptitudeResults.id, id));
+  return row || null;
+}
+
+export async function getAptitudeResultsByEmail(email: string): Promise<AptitudeResult[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(aptitudeResults)
+    .where(eq(aptitudeResults.studentEmail, email))
+    .orderBy(desc(aptitudeResults.createdAt));
+}
+
+export async function getAllAptitudeResults(): Promise<AptitudeResult[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(aptitudeResults).orderBy(desc(aptitudeResults.createdAt));
 }
