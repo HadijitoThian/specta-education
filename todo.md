@@ -395,3 +395,11 @@
 - [x] Add Scholarships link to navigation
 - [x] Add Scholarship Leads tab to admin dashboard
 - [x] Write tests for scholarship lead submission
+
+### 34. Full-Body Mascot Chatbot Button
+- [x] Replace current Baymax face icon with full-body chibi mascot image
+- [x] Add floating up-and-down bobbing animation
+- [x] Add shadow underneath that grows/shrinks for floating effect
+- [x] Keep "Ask SpecTa" label below mascot
+- [x] Add bounce effect on hover
+- [x] Upload mascot image to S3 CDN
