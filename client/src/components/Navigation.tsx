@@ -39,9 +39,6 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
         
         {/* Desktop Navigation */}
         <div className="hidden lg:flex items-center gap-8">
-          <button onClick={() => handleNavClick("/")} className={`text-sm font-medium transition-colors ${isActive("home") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
-            Home
-          </button>
           <button onClick={() => handleNavClick("/about")} className={`text-sm font-medium transition-colors ${isActive("about") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             About Us
           </button>
@@ -106,7 +103,7 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             Contact
           </button>
           <button onClick={() => handleNavClick("/track")} className={`text-sm font-medium transition-colors ${isActive("track") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
-            Track
+            Track My Application
           </button>
           <button onClick={() => handleNavClick("/play")} className={`text-sm font-medium transition-colors flex items-center gap-1.5 ${isActive("play") ? "text-primary" : "text-purple-600 hover:text-purple-700"}`}>
             <Gamepad2 className="w-4 h-4" />
@@ -138,9 +135,6 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
       {mobileMenuOpen && (
         <div className="lg:hidden bg-white border-t border-border max-h-[calc(100vh-4rem)] overflow-y-auto">
           <div className="container py-4 space-y-4">
-            <button onClick={() => handleNavClick("/")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
-              Home
-            </button>
             <button onClick={() => handleNavClick("/about")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
               About Us
             </button>
@@ -194,7 +188,7 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
               Contact
             </button>
             <button onClick={() => handleNavClick("/track")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
-              Track Application
+              Track My Application
             </button>
             <button onClick={() => handleNavClick("/play")} className="block w-full text-left text-sm font-medium text-purple-600 hover:text-purple-700 flex items-center gap-2">
               <Gamepad2 className="w-4 h-4" />

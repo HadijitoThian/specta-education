@@ -403,3 +403,7 @@
 - [x] Keep "Ask SpecTa" label below mascot
 - [x] Add bounce effect on hover
 - [x] Upload mascot image to S3 CDN
+
+### 35. Navigation UX Improvements
+- [x] Remove Home button from desktop and mobile navigation (logo already links to home)
+- [x] Rename "Track" to "Track My Application" in desktop and mobile navigation
