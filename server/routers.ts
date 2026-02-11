@@ -2253,6 +2253,276 @@ IMPORTANT:
         };
       }),
 
+    analyzeProResults: publicProcedure
+      .input(z.object({
+        studentName: z.string().min(1),
+        studentEmail: z.string().email(),
+        studentPhone: z.string(),
+        profilDiri: z.record(z.string(), z.string()),
+        riasecScores: z.record(z.string(), z.number()),
+        riasecAnswers: z.record(z.string(), z.number()),
+        miScores: z.record(z.string(), z.number()),
+        miAnswers: z.record(z.string(), z.string()),
+        personalityProfile: z.record(z.string(), z.array(z.string())),
+        personalityAnswers: z.record(z.string(), z.string()),
+        sjtProfile: z.record(z.string(), z.number()),
+        sjtAnswers: z.record(z.string(), z.string()),
+        creativeAnswers: z.record(z.string(), z.string()),
+        rankingAnswers: z.record(z.string(), z.array(z.string())),
+        language: z.enum(["id", "en"]),
+      }))
+      .mutation(async ({ input }) => {
+        const lang = input.language === "id" ? "Bahasa Indonesia" : "English";
+
+        // Build comprehensive data summary for AI
+        const sortedRiasec = Object.entries(input.riasecScores).sort((a, b) => b[1] - a[1]);
+        const hollandCode = sortedRiasec.slice(0, 3).map(([k]) => k).join("");
+        const sortedMI = Object.entries(input.miScores).sort((a, b) => b[1] - a[1]);
+        const topIntelligences = sortedMI.slice(0, 3).map(([k]) => k);
+
+        // Personality traits summary
+        const personalityTraits = Object.entries(input.personalityProfile)
+          .map(([dim, traits]) => `${dim}: ${traits.join(", ")}`)
+          .join("; ");
+
+        // SJT traits summary
+        const sjtTraits = Object.entries(input.sjtProfile)
+          .sort((a, b) => b[1] - a[1])
+          .map(([trait, count]) => `${trait} (${count})`)
+          .join(", ");
+
+        // Creative answers summary
+        const creativeResponses = Object.entries(input.creativeAnswers)
+          .map(([id, answer]) => `[${id}]: ${answer}`)
+          .join("\n");
+
+        // Ranking priorities
+        const rankingPriorities = Object.entries(input.rankingAnswers)
+          .map(([id, order]) => `[${id}]: ${order.join(" > ")}`)
+          .join("\n");
+
+        // Profil diri context
+        const profilContext = Object.entries(input.profilDiri)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(", ");
+
+        const aiPrompt = `You are a world-class career psychologist and educational counselor conducting a PREMIUM comprehensive aptitude assessment. This is a paid professional assessment — your analysis must be thorough, deeply personalized, and worth the investment. Respond ENTIRELY in ${lang}.
+
+=== STUDENT PROFILE ===
+Name: ${input.studentName}
+Profile: ${profilContext}
+
+=== DIMENSION 1: CAREER INTERESTS (RIASEC) ===
+Holland Code: ${hollandCode}
+Scores: ${JSON.stringify(input.riasecScores)}
+Top 3: ${sortedRiasec.slice(0, 3).map(([k, v]) => `${k}=${v}`).join(", ")}
+
+=== DIMENSION 2: MULTIPLE INTELLIGENCES ===
+Scores: ${JSON.stringify(input.miScores)}
+Top 3: ${topIntelligences.join(", ")}
+
+=== DIMENSION 3: PERSONALITY & VALUES (Big Five) ===
+Traits: ${personalityTraits}
+
+=== DIMENSION 4: SITUATIONAL JUDGMENT ===
+Soft Skills Profile: ${sjtTraits}
+
+=== DIMENSION 5: CREATIVE THINKING (Open-Ended Responses) ===
+${creativeResponses}
+
+=== DIMENSION 6: LIFE PRIORITIES (Rankings) ===
+${rankingPriorities}
+
+Provide an extremely comprehensive, deeply personalized analysis in the following JSON format. This is a PREMIUM report — make every section substantial and insightful:
+{
+  "personalitySnapshot": {
+    "title": "A catchy, memorable 3-5 word title for their unique personality archetype",
+    "emoji": "3-4 relevant emojis",
+    "description": "A warm, deeply personal 4-5 sentence description synthesizing ALL 7 dimensions. This should feel like the student is truly SEEN and understood. Reference specific answers they gave."
+  },
+  "bigFiveProfile": {
+    "openness": { "level": "high/medium/low", "description": "2 sentences about their openness to experience" },
+    "conscientiousness": { "level": "high/medium/low", "description": "2 sentences" },
+    "extraversion": { "level": "high/medium/low", "description": "2 sentences" },
+    "agreeableness": { "level": "high/medium/low", "description": "2 sentences" },
+    "neuroticism": { "level": "high/medium/low", "description": "2 sentences" }
+  },
+  "riasecAnalysis": "3-4 sentences analyzing their RIASEC profile in depth. Explain what their Holland Code means specifically for their career path.",
+  "miAnalysis": "3-4 sentences analyzing their intelligence profile. Explain how their top intelligences create unique advantages.",
+  "softSkillsAnalysis": "3-4 sentences analyzing their situational judgment responses. What leadership style do they have? How do they handle conflict? What team role suits them?",
+  "creativeThinkingAnalysis": "3-4 sentences analyzing their open-ended responses. What does their writing reveal about their thinking style, values, and aspirations? Be specific — quote or reference their actual answers.",
+  "valuesAnalysis": "3-4 sentences analyzing their ranking priorities. What drives them? What do they value most in life and career?",
+  "crossDimensionalInsight": "4-5 sentences providing a UNIQUE insight that only emerges when you cross-reference ALL 7 dimensions together. This is the premium value — the insight they can't get from any single test.",
+  "recommendedMajors": [
+    {
+      "name": "Major name",
+      "compatibilityScore": 85-98,
+      "reason": "3-4 sentences explaining WHY this major fits based on their unique multi-dimensional profile. Reference specific dimensions.",
+      "careers": ["Career 1", "Career 2", "Career 3", "Career 4"],
+      "salaryRange": "Expected salary range in IDR",
+      "growthOutlook": "1 sentence about job market growth"
+    }
+  ],
+  "strengthsAndWeaknesses": {
+    "strengths": ["Strength 1 with explanation", "Strength 2", "Strength 3", "Strength 4", "Strength 5"],
+    "areasForGrowth": ["Area 1 with constructive advice", "Area 2", "Area 3"]
+  },
+  "learningStyle": "2-3 sentences about their optimal learning environment and study approach based on their MI and personality profile.",
+  "careerOutlook": "4-5 sentences providing a comprehensive career outlook. Include salary expectations, industry trends, and how their unique combination of skills positions them in the job market.",
+  "parentSummary": "5-6 sentences written FOR PARENTS in formal, respectful tone ${input.language === "id" ? "(use 'Bapak/Ibu' and formal Indonesian)" : ""}. Explain the child's unique strengths across all dimensions, why the recommended majors fit, career prospects, and reassurance about their future. This should be substantial enough to convince a skeptical parent.",
+  "actionPlan": [
+    "Specific action step 1 the student should take now",
+    "Action step 2",
+    "Action step 3",
+    "Action step 4",
+    "Action step 5"
+  ]
+}
+
+IMPORTANT:
+- Recommend exactly 5 majors, ordered by compatibility (highest first)
+- Compatibility scores should be realistic (75-98), varied, not all the same
+- Make EVERY section deeply personal — reference their specific answers and profile
+- The cross-dimensional insight must be genuinely unique and valuable
+- Be warm, encouraging, professional, and thorough throughout
+- This is a PREMIUM paid assessment — quality must exceed free online tests`;
+
+        const aiResponse = await invokeLLM({
+          messages: [
+            { role: "system", content: "You are a world-class career psychologist providing premium aptitude assessments. Always respond with valid JSON only, no markdown formatting." },
+            { role: "user", content: aiPrompt },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "pro_aptitude_analysis",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  personalitySnapshot: {
+                    type: "object",
+                    properties: {
+                      title: { type: "string" },
+                      emoji: { type: "string" },
+                      description: { type: "string" }
+                    },
+                    required: ["title", "emoji", "description"],
+                    additionalProperties: false
+                  },
+                  bigFiveProfile: {
+                    type: "object",
+                    properties: {
+                      openness: { type: "object", properties: { level: { type: "string" }, description: { type: "string" } }, required: ["level", "description"], additionalProperties: false },
+                      conscientiousness: { type: "object", properties: { level: { type: "string" }, description: { type: "string" } }, required: ["level", "description"], additionalProperties: false },
+                      extraversion: { type: "object", properties: { level: { type: "string" }, description: { type: "string" } }, required: ["level", "description"], additionalProperties: false },
+                      agreeableness: { type: "object", properties: { level: { type: "string" }, description: { type: "string" } }, required: ["level", "description"], additionalProperties: false },
+                      neuroticism: { type: "object", properties: { level: { type: "string" }, description: { type: "string" } }, required: ["level", "description"], additionalProperties: false }
+                    },
+                    required: ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"],
+                    additionalProperties: false
+                  },
+                  riasecAnalysis: { type: "string" },
+                  miAnalysis: { type: "string" },
+                  softSkillsAnalysis: { type: "string" },
+                  creativeThinkingAnalysis: { type: "string" },
+                  valuesAnalysis: { type: "string" },
+                  crossDimensionalInsight: { type: "string" },
+                  recommendedMajors: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string" },
+                        compatibilityScore: { type: "number" },
+                        reason: { type: "string" },
+                        careers: { type: "array", items: { type: "string" } },
+                        salaryRange: { type: "string" },
+                        growthOutlook: { type: "string" }
+                      },
+                      required: ["name", "compatibilityScore", "reason", "careers", "salaryRange", "growthOutlook"],
+                      additionalProperties: false
+                    }
+                  },
+                  strengthsAndWeaknesses: {
+                    type: "object",
+                    properties: {
+                      strengths: { type: "array", items: { type: "string" } },
+                      areasForGrowth: { type: "array", items: { type: "string" } }
+                    },
+                    required: ["strengths", "areasForGrowth"],
+                    additionalProperties: false
+                  },
+                  learningStyle: { type: "string" },
+                  careerOutlook: { type: "string" },
+                  parentSummary: { type: "string" },
+                  actionPlan: { type: "array", items: { type: "string" } }
+                },
+                required: ["personalitySnapshot", "bigFiveProfile", "riasecAnalysis", "miAnalysis", "softSkillsAnalysis", "creativeThinkingAnalysis", "valuesAnalysis", "crossDimensionalInsight", "recommendedMajors", "strengthsAndWeaknesses", "learningStyle", "careerOutlook", "parentSummary", "actionPlan"],
+                additionalProperties: false
+              }
+            }
+          }
+        });
+
+        let aiAnalysis;
+        try {
+          const rawContent = aiResponse.choices?.[0]?.message?.content;
+          const content = typeof rawContent === "string" ? rawContent : "{}";
+          aiAnalysis = JSON.parse(content);
+        } catch {
+          aiAnalysis = { error: "Failed to parse AI analysis" };
+        }
+
+        // Save to database (reuse existing table)
+        const saved = await createAptitudeResult({
+          studentName: input.studentName,
+          studentEmail: input.studentEmail,
+          studentPhone: input.studentPhone,
+          language: input.language,
+          riasecAnswers: JSON.stringify(input.riasecAnswers),
+          miAnswers: JSON.stringify(input.miAnswers),
+          personalAnswers: JSON.stringify({
+            profil: input.profilDiri,
+            personality: input.personalityAnswers,
+            sjt: input.sjtAnswers,
+            creative: input.creativeAnswers,
+            ranking: input.rankingAnswers,
+          }),
+          riasecScores: JSON.stringify(input.riasecScores),
+          miScores: JSON.stringify(input.miScores),
+          hollandCode,
+          topIntelligences: JSON.stringify(topIntelligences),
+          aiAnalysis: JSON.stringify(aiAnalysis),
+          personalitySnapshot: aiAnalysis.personalitySnapshot ? JSON.stringify(aiAnalysis.personalitySnapshot) : null,
+          recommendedMajors: JSON.stringify(aiAnalysis.recommendedMajors || []),
+          careerOutlook: aiAnalysis.careerOutlook || null,
+          parentSummary: aiAnalysis.parentSummary || null,
+        });
+
+        // Notify owner
+        notifyOwner({
+          title: "🌟 New PRO Aptitude Test Completed",
+          content: `${input.studentName} (${input.studentEmail}) completed the PRO aptitude test. Holland Code: ${hollandCode}. Top majors: ${(aiAnalysis.recommendedMajors || []).slice(0, 3).map((m: any) => m.name).join(", ")}.`,
+        }).catch(() => {});
+
+        // Send premium results email (reuse existing email function)
+        sendAptitudeResultsEmail({
+          to: input.studentEmail,
+          studentName: input.studentName,
+          language: input.language,
+          hollandCode,
+          riasecScores: input.riasecScores,
+          miScores: input.miScores,
+          aiAnalysis,
+        }).catch((err: Error) => console.error("[AptitudePro] Failed to send results email:", err));
+
+        return {
+          success: true,
+          resultId: saved?.id,
+        };
+      }),
+
     getResult: publicProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {

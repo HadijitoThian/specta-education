@@ -26,6 +26,7 @@ import Scholarships from "./pages/Scholarships";
 import StaffLogin from "./pages/StaffLogin";
 import StaffDashboard from "./pages/StaffDashboard";
 import AptitudeTest from "./pages/AptitudeTest";
+import AptitudeTestPro from "./pages/AptitudeTestPro";
 
 function Router() {
   return (
@@ -49,6 +50,7 @@ function Router() {
       <Route path={"/play/quiz"} component={Quiz} />
       <Route path={"/play/persona"} component={Persona} />
       <Route path={"/play/aptitude"} component={AptitudeTest} />
+      <Route path={"/test/pro"} component={AptitudeTestPro} />
       {/* Keep old /quiz route as redirect for SEO */}
       <Route path={"/quiz"}>{() => <Redirect to="/play/quiz" />}</Route>
       <Route path={"/staff-login"} component={StaffLogin} />

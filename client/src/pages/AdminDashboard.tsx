@@ -285,7 +285,7 @@ export default function AdminDashboard() {
   });
 
   const copyToClipboard = (token: string) => {
-    const url = `${window.location.origin}/play/aptitude?token=${token}`;
+    const url = `${window.location.origin}/test/pro?token=${token}`;
     navigator.clipboard.writeText(url);
     setCopiedToken(token);
     setTimeout(() => setCopiedToken(null), 2000);
@@ -293,7 +293,7 @@ export default function AdminDashboard() {
 
   const copyAllUnused = () => {
     const unused = accessLinksData?.filter((l: any) => l.status === 'unused' && new Date(l.expiresAt) > new Date()) || [];
-    const urls = unused.map((l: any) => `${window.location.origin}/play/aptitude?token=${l.token}`).join('\n');
+    const urls = unused.map((l: any) => `${window.location.origin}/test/pro?token=${l.token}`).join('\n');
     navigator.clipboard.writeText(urls);
     setCopiedToken('all');
     setTimeout(() => setCopiedToken(null), 2000);

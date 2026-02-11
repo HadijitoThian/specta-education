@@ -594,3 +594,26 @@
 - [x] AptitudeTest.tsx: Mark token as completed when test finishes
 - [x] Enforce: same token cannot be reused, retake button hidden for token tests
 - [x] 7 vitest tests covering all token lifecycle scenarios
+
+### 62. Tes Bakat AI Pro — Premium 25-Minute Test (Access Link Only)
+- [x] Create shared/proQuestions.ts with all 7 sections question bank (97 questions)
+- [x] Section 1: Profil Diri (5 fields)
+- [x] Section 2: Minat Karir RIASEC (30 Likert scale questions)
+- [x] Section 3: Kecerdasan Majemuk MI (24 forced-choice pairs)
+- [x] Section 4: Kepribadian & Nilai (20 this-or-that forced choices)
+- [x] Section 5: Penilaian Situasi SJT (8 scenario-based questions)
+- [x] Section 6: Pemikiran Kreatif (4 open-ended AI-analyzed questions)
+- [x] Section 7: Prioritas Hidup (6 drag-and-rank exercises)
+- [x] Build AptitudeTestPro.tsx with 7 distinct section renderers
+- [x] Likert scale renderer (1-5 buttons)
+- [x] Forced-choice pair renderer (A vs B cards)
+- [x] Scenario-based SJT renderer (situation + 4 options)
+- [x] Open-ended text area renderer
+- [x] Drag-and-rank renderer (up/down reorder)
+- [x] Section progress tracking with visual indicators
+- [x] Page reload warning (beforeunload)
+- [x] Build deep AI analysis prompt covering all 7 dimensions
+- [x] Reuses premium HTML email report template (sendAptitudeResultsEmail)
+- [x] Add route /test/pro with token validation
+- [x] Access links now point to /test/pro
+- [x] Write 12 vitest tests for Pro question bank and procedures
