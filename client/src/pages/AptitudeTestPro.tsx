@@ -161,7 +161,7 @@ export default function AptitudeTestPro() {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const tokenParam = params.get("token");
-  const lang: Lang = "id";
+  const [lang, setLang] = useState<Lang>("id");
 
   // Token validation
   const tokenQuery = trpc.aptitude.validateToken.useQuery(
@@ -301,7 +301,7 @@ export default function AptitudeTestPro() {
         <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-600">Memvalidasi link akses...</p>
+            <p className="text-gray-600">{lang === "id" ? "Memvalidasi link akses..." : "Validating access link..."}</p>
           </div>
         </div>
       );
@@ -317,18 +317,22 @@ export default function AptitudeTestPro() {
                <AlertTriangle className="w-8 h-8 text-red-500" />}
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">
-              {reason === "expired" ? "Link Sudah Kedaluwarsa" :
-               reason === "already_used" ? "Link Sudah Digunakan" :
-               "Link Tidak Valid"}
+              {reason === "expired"
+                ? (lang === "id" ? "Link Sudah Kedaluwarsa" : "Link Has Expired")
+                : reason === "already_used"
+                ? (lang === "id" ? "Link Sudah Digunakan" : "Link Already Used")
+                : (lang === "id" ? "Link Tidak Valid" : "Invalid Link")}
             </h2>
             <p className="text-gray-600 mb-6">
-              {reason === "expired" ? "Link tes ini sudah melewati batas waktu. Silakan hubungi admin untuk link baru." :
-               reason === "already_used" ? "Link tes ini sudah pernah digunakan. Setiap link hanya bisa digunakan satu kali." :
-               "Link tes ini tidak valid. Pastikan Anda menggunakan link yang benar."}
+              {reason === "expired"
+                ? (lang === "id" ? "Link tes ini sudah melewati batas waktu. Silakan hubungi admin untuk link baru." : "This test link has expired. Please contact admin for a new link.")
+                : reason === "already_used"
+                ? (lang === "id" ? "Link tes ini sudah pernah digunakan. Setiap link hanya bisa digunakan satu kali." : "This test link has already been used. Each link can only be used once.")
+                : (lang === "id" ? "Link tes ini tidak valid. Pastikan Anda menggunakan link yang benar." : "This test link is invalid. Please make sure you are using the correct link.")}
             </p>
-            <a href="https://wa.me/6281234567890" target="_blank" rel="noopener noreferrer"
+            <a href="https://wa.me/6281287878055" target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-green-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-green-600 transition-colors">
-              Hubungi Admin via WhatsApp
+              {lang === "id" ? "Hubungi Admin via WhatsApp" : "Contact Admin via WhatsApp"}
             </a>
           </div>
         </div>
@@ -344,13 +348,15 @@ export default function AptitudeTestPro() {
           <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <ShieldCheck className="w-8 h-8 text-indigo-500" />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Akses Terbatas</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">{lang === "id" ? "Akses Terbatas" : "Restricted Access"}</h2>
           <p className="text-gray-600 mb-6">
-            Tes Bakat AI Pro hanya bisa diakses melalui link khusus. Silakan hubungi SpecTa Education untuk mendapatkan link akses Anda.
+            {lang === "id"
+              ? "Tes Bakat AI Pro hanya bisa diakses melalui link khusus. Silakan hubungi SpecTa Education untuk mendapatkan link akses Anda."
+              : "AI Aptitude Test Pro can only be accessed via a special link. Please contact SpecTa Education to get your access link."}
           </p>
-          <a href="https://wa.me/6281234567890" target="_blank" rel="noopener noreferrer"
+          <a href="https://wa.me/6281287878055" target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-2 bg-green-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-green-600 transition-colors">
-            Hubungi Kami via WhatsApp
+            {lang === "id" ? "Hubungi Kami via WhatsApp" : "Contact Us via WhatsApp"}
           </a>
         </div>
       </div>
@@ -485,16 +491,39 @@ export default function AptitudeTestPro() {
         <div className="min-h-screen">
           <Navigation currentPage="aptitude-pro" />
           <div className="container max-w-4xl mx-auto py-12 px-4">
+            {/* Language toggle */}
+            <div className="flex justify-center mb-8">
+              <div className="inline-flex bg-white rounded-full p-1 shadow-sm border border-gray-200">
+                <button
+                  onClick={() => setLang("id")}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    lang === "id" ? "bg-indigo-500 text-white shadow" : "text-gray-600 hover:text-gray-800"
+                  }`}
+                >
+                  \ud83c\uddee\ud83c\udde9 Bahasa Indonesia
+                </button>
+                <button
+                  onClick={() => setLang("en")}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    lang === "en" ? "bg-indigo-500 text-white shadow" : "text-gray-600 hover:text-gray-800"
+                  }`}
+                >
+                  \ud83c\uddec\ud83c\udde7 English
+                </button>
+              </div>
+            </div>
+
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-12">
               <div className="inline-flex items-center gap-2 bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full text-sm font-medium mb-6">
                 <Sparkles className="w-4 h-4" /> Premium AI Assessment
               </div>
               <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-                Tes Bakat AI <span className="text-gradient-specta">Pro</span>
+                {lang === "id" ? "Tes Bakat AI" : "AI Aptitude Test"} <span className="text-gradient-specta">Pro</span>
               </h1>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                Tes bakat komprehensif dengan 7 dimensi penilaian dan analisis AI mendalam.
-                Temukan potensi tersembunyimu dan dapatkan rekomendasi jurusan & karir yang tepat.
+                {lang === "id"
+                  ? "Tes bakat komprehensif dengan 7 dimensi penilaian dan analisis AI mendalam. Temukan potensi tersembunyimu dan dapatkan rekomendasi jurusan & karir yang tepat."
+                  : "Comprehensive aptitude test with 7 assessment dimensions and in-depth AI analysis. Discover your hidden potential and get personalized major & career recommendations."}
               </p>
             </motion.div>
 
@@ -526,8 +555,8 @@ export default function AptitudeTestPro() {
                 <div className="flex items-center gap-3">
                   <Brain className="w-8 h-8" />
                   <div>
-                    <h3 className="font-semibold text-sm">Analisis AI Mendalam</h3>
-                    <p className="text-xs text-indigo-100">Hasil dikirim ke email</p>
+                    <h3 className="font-semibold text-sm">{lang === "id" ? "Analisis AI Mendalam" : "Deep AI Analysis"}</h3>
+                    <p className="text-xs text-indigo-100">{lang === "id" ? "Hasil dikirim ke email" : "Results sent to email"}</p>
                   </div>
                 </div>
               </motion.div>
@@ -538,13 +567,13 @@ export default function AptitudeTestPro() {
               <div className="flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
                 <div className="text-sm text-amber-800">
-                  <p className="font-semibold mb-1">Perhatian Penting:</p>
+                  <p className="font-semibold mb-1">{lang === "id" ? "Perhatian Penting:" : "Important Notes:"}</p>
                   <ul className="list-disc list-inside space-y-1">
-                    <li>Tes ini membutuhkan waktu sekitar <strong>25 menit</strong>. Pastikan Anda memiliki waktu yang cukup.</li>
-                    <li><strong>Jangan refresh atau tutup halaman</strong> selama tes berlangsung.</li>
-                    <li>Jawab dengan jujur — tidak ada jawaban benar atau salah.</li>
-                    <li>Link ini hanya bisa digunakan <strong>satu kali</strong>.</li>
-                    <li>Hasil lengkap akan dikirim ke email Anda.</li>
+                    <li>{lang === "id" ? <>Tes ini membutuhkan waktu sekitar <strong>25 menit</strong>. Pastikan Anda memiliki waktu yang cukup.</> : <>This test takes approximately <strong>25 minutes</strong>. Make sure you have enough time.</>}</li>
+                    <li>{lang === "id" ? <><strong>Jangan refresh atau tutup halaman</strong> selama tes berlangsung.</> : <><strong>Do not refresh or close the page</strong> during the test.</>}</li>
+                    <li>{lang === "id" ? "Jawab dengan jujur \u2014 tidak ada jawaban benar atau salah." : "Answer honestly \u2014 there are no right or wrong answers."}</li>
+                    <li>{lang === "id" ? <>Link ini hanya bisa digunakan <strong>satu kali</strong>.</> : <>This link can only be used <strong>once</strong>.</>}</li>
+                    <li>{lang === "id" ? "Hasil lengkap akan dikirim ke email Anda." : "Complete results will be sent to your email."}</li>
                   </ul>
                 </div>
               </div>
@@ -555,7 +584,7 @@ export default function AptitudeTestPro() {
                 onClick={() => { setPhase("leadCapture"); scrollToTop(); }}
                 className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-10 py-4 rounded-xl text-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
               >
-                Mulai Tes Bakat AI Pro
+                {lang === "id" ? "Mulai Tes Bakat AI Pro" : "Start AI Aptitude Test Pro"}
               </button>
             </div>
           </div>
@@ -571,17 +600,17 @@ export default function AptitudeTestPro() {
               <div className="w-14 h-14 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Mail className="w-7 h-7 text-indigo-600" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900">Data Diri</h2>
-              <p className="text-sm text-gray-500 mt-1">Hasil tes akan dikirim ke email Anda</p>
+              <h2 className="text-xl font-bold text-gray-900">{lang === "id" ? "Data Diri" : "Personal Information"}</h2>
+              <p className="text-sm text-gray-500 mt-1">{lang === "id" ? "Hasil tes akan dikirim ke email Anda" : "Test results will be sent to your email"}</p>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{lang === "id" ? "Nama Lengkap" : "Full Name"} *</label>
                 <input
                   type="text" value={studentName} onChange={e => setStudentName(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                  placeholder="Nama lengkap Anda"
+                  placeholder={lang === "id" ? "Nama lengkap Anda" : "Your full name"}
                 />
               </div>
               <div>
@@ -593,7 +622,7 @@ export default function AptitudeTestPro() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nomor WhatsApp *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{lang === "id" ? "Nomor WhatsApp" : "WhatsApp Number"} *</label>
                 <input
                   type="tel" value={studentPhone} onChange={e => setStudentPhone(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
@@ -611,7 +640,7 @@ export default function AptitudeTestPro() {
               disabled={!studentName.trim() || !studentEmail.trim() || !studentPhone.trim() || useTokenMutation.isPending}
               className="w-full mt-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {useTokenMutation.isPending ? "Memvalidasi..." : "Mulai Tes →"}
+              {useTokenMutation.isPending ? (lang === "id" ? "Memvalidasi..." : "Validating...") : (lang === "id" ? "Mulai Tes →" : "Start Test →")}
             </button>
           </motion.div>
         </div>
@@ -623,7 +652,15 @@ export default function AptitudeTestPro() {
           <div className="max-w-3xl mx-auto">
             {/* Header with timer */}
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Tes Bakat AI Pro</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-gray-900">{lang === "id" ? "Tes Bakat AI Pro" : "AI Aptitude Test Pro"}</h2>
+                <button
+                  onClick={() => setLang(lang === "id" ? "en" : "id")}
+                  className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded-full border border-gray-200"
+                >
+                  {lang === "id" ? "EN" : "ID"}
+                </button>
+              </div>
               {testStartTime > 0 && <Timer startTime={testStartTime} />}
             </div>
 
@@ -644,8 +681,8 @@ export default function AptitudeTestPro() {
                     <div className="flex items-center gap-3 mb-6">
                       <div className="text-3xl">👤</div>
                       <div>
-                        <h3 className="text-xl font-bold text-gray-900">Profil Diri</h3>
-                        <p className="text-sm text-gray-500">Ceritakan tentang dirimu</p>
+                        <h3 className="text-xl font-bold text-gray-900">{lang === "id" ? "Profil Diri" : "Personal Profile"}</h3>
+                        <p className="text-sm text-gray-500">{lang === "id" ? "Ceritakan tentang dirimu" : "Tell us about yourself"}</p>
                       </div>
                     </div>
                     <div className="space-y-5">
@@ -669,7 +706,7 @@ export default function AptitudeTestPro() {
                               onChange={e => setProfilAnswers(prev => ({ ...prev, [field.id]: e.target.value }))}
                               className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white"
                             >
-                              <option value="">— Pilih —</option>
+                              <option value="">{lang === "id" ? "— Pilih —" : "— Select —"}</option>
                               {field.options?.map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.label[lang]}</option>
                               ))}
@@ -696,11 +733,11 @@ export default function AptitudeTestPro() {
                     <div className="flex items-center gap-3 mb-2">
                       <div className="text-3xl">🎯</div>
                       <div>
-                        <h3 className="text-xl font-bold text-gray-900">Minat Karir</h3>
-                        <p className="text-sm text-gray-500">Seberapa setuju kamu dengan pernyataan berikut?</p>
+<h3 className="text-xl font-bold text-gray-900">{lang === "id" ? "Minat Karir" : "Career Interests"}</h3>
+                         <p className="text-sm text-gray-500">{lang === "id" ? "Seberapa setuju kamu dengan pernyataan berikut?" : "How much do you agree with the following statements?"}</p>
                       </div>
                     </div>
-                    <div className="text-xs text-gray-400 mb-6">Pertanyaan {riasecIndex + 1} dari {riasecProQuestions.length}</div>
+                    <div className="text-xs text-gray-400 mb-6">{lang === "id" ? "Pertanyaan" : "Question"} {riasecIndex + 1} {lang === "id" ? "dari" : "of"} {riasecProQuestions.length}</div>
 
                     {/* Progress bar for this section */}
                     <div className="w-full bg-gray-100 rounded-full h-1.5 mb-6">
@@ -730,8 +767,8 @@ export default function AptitudeTestPro() {
                           ))}
                         </div>
                         <div className="flex justify-between text-xs text-gray-400 px-2">
-                          <span>Sangat Tidak Setuju</span>
-                          <span>Sangat Setuju</span>
+<span>{lang === "id" ? "Sangat Tidak Setuju" : "Strongly Disagree"}</span>
+                           <span>{lang === "id" ? "Sangat Setuju" : "Strongly Agree"}</span>
                         </div>
                       </motion.div>
                     </AnimatePresence>
@@ -761,7 +798,7 @@ export default function AptitudeTestPro() {
                       if (unanswered.length > 0 && unanswered.length <= 5) {
                         return (
                           <div className="text-center text-sm text-amber-600 bg-amber-50 rounded-lg py-2 px-3 mb-4">
-                            {unanswered.length} pertanyaan belum dijawab: {unanswered.map((q, i) => (
+                            {unanswered.length} {lang === "id" ? "pertanyaan belum dijawab:" : "questions unanswered:"} {unanswered.map((q, i) => (
                               <button key={q.id} onClick={() => setRiasecIndex(riasecProQuestions.indexOf(q))}
                                 className="underline font-medium hover:text-amber-700 mx-0.5">#{riasecProQuestions.indexOf(q) + 1}</button>
                             ))}
@@ -778,7 +815,7 @@ export default function AptitudeTestPro() {
                         disabled={riasecIndex === 0}
                         className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-30"
                       >
-                        <ArrowLeft className="w-4 h-4" /> Sebelumnya
+                        <ArrowLeft className="w-4 h-4" /> {lang === "id" ? "Sebelumnya" : "Previous"}
                       </button>
                       <button
                         onClick={() => {
@@ -789,9 +826,9 @@ export default function AptitudeTestPro() {
                         disabled={riasecIndex >= riasecProQuestions.length - 1 || !riasecAnswers[riasecProQuestions[riasecIndex]?.id]}
                         className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 disabled:opacity-30"
                       >
-                        Selanjutnya <ArrowRight className="w-4 h-4" />
-                      </button>
-                    </div>
+{lang === "id" ? "Selanjutnya" : "Next"} <ArrowRight className="w-4 h-4" />
+                       </button>
+                     </div>
                   </div>
                 )}
 
@@ -801,11 +838,11 @@ export default function AptitudeTestPro() {
                     <div className="flex items-center gap-3 mb-2">
                       <div className="text-3xl">🧠</div>
                       <div>
-                        <h3 className="text-xl font-bold text-gray-900">Kecerdasan Majemuk</h3>
-                        <p className="text-sm text-gray-500">Pilih pernyataan yang LEBIH menggambarkan dirimu</p>
+<h3 className="text-xl font-bold text-gray-900">{lang === "id" ? "Kecerdasan Majemuk" : "Multiple Intelligences"}</h3>
+                         <p className="text-sm text-gray-500">{lang === "id" ? "Pilih pernyataan yang LEBIH menggambarkan dirimu" : "Choose the statement that BETTER describes you"}</p>
                       </div>
                     </div>
-                    <div className="text-xs text-gray-400 mb-6">Pasangan {miIndex + 1} dari {miPairs.length}</div>
+                    <div className="text-xs text-gray-400 mb-6">{lang === "id" ? "Pasangan" : "Pair"} {miIndex + 1} {lang === "id" ? "dari" : "of"} {miPairs.length}</div>
 
                     <div className="w-full bg-gray-100 rounded-full h-1.5 mb-6">
                       <div className="bg-amber-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${((miIndex + 1) / miPairs.length) * 100}%` }} />
@@ -857,8 +894,8 @@ export default function AptitudeTestPro() {
                       const unanswered = miPairs.filter(p => miAnswers[p.id] === undefined);
                       if (unanswered.length > 0 && unanswered.length <= 5) {
                         return (<div className="text-center text-sm text-amber-600 bg-amber-50 rounded-lg py-2 px-3 mb-4">
-                          {unanswered.length} pasangan belum dijawab: {unanswered.map(p => (
-                            <button key={p.id} onClick={() => setMiIndex(miPairs.indexOf(p))}
+{unanswered.length} {lang === "id" ? "pasangan belum dijawab:" : "pairs unanswered:"} {unanswered.map(p => (
+                             <button key={p.id} onClick={() => setMiIndex(miPairs.indexOf(p))}
                               className="underline font-medium hover:text-amber-700 mx-0.5">#{miPairs.indexOf(p) + 1}</button>
                           ))}
                         </div>);
@@ -873,8 +910,8 @@ export default function AptitudeTestPro() {
                       <button onClick={() => { if (miIndex < miPairs.length - 1) setMiIndex(prev => prev + 1); }}
                         disabled={miIndex >= miPairs.length - 1 || !miAnswers[miPairs[miIndex]?.id]}
                         className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 disabled:opacity-30">
-                        Selanjutnya <ArrowRight className="w-4 h-4" />
-                      </button>
+{lang === "id" ? "Selanjutnya" : "Next"} <ArrowRight className="w-4 h-4" />
+                       </button>
                     </div>
                   </div>
                 )}
@@ -885,11 +922,11 @@ export default function AptitudeTestPro() {
                     <div className="flex items-center gap-3 mb-2">
                       <div className="text-3xl">💎</div>
                       <div>
-                        <h3 className="text-xl font-bold text-gray-900">Kepribadian & Nilai</h3>
-                        <p className="text-sm text-gray-500">Mana yang lebih menggambarkan dirimu?</p>
+<h3 className="text-xl font-bold text-gray-900">{lang === "id" ? "Kepribadian & Nilai" : "Personality & Values"}</h3>
+                         <p className="text-sm text-gray-500">{lang === "id" ? "Mana yang lebih menggambarkan dirimu?" : "Which one describes you better?"}</p>
                       </div>
                     </div>
-                    <div className="text-xs text-gray-400 mb-6">Pertanyaan {personalityIndex + 1} dari {personalityQuestions.length}</div>
+                    <div className="text-xs text-gray-400 mb-6">{lang === "id" ? "Pertanyaan" : "Question"} {personalityIndex + 1} {lang === "id" ? "dari" : "of"} {personalityQuestions.length}</div>
 
                     <div className="w-full bg-gray-100 rounded-full h-1.5 mb-6">
                       <div className="bg-emerald-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${((personalityIndex + 1) / personalityQuestions.length) * 100}%` }} />
@@ -942,8 +979,8 @@ export default function AptitudeTestPro() {
                       const unanswered = personalityQuestions.filter(q => personalityAnswers[q.id] === undefined);
                       if (unanswered.length > 0 && unanswered.length <= 5) {
                         return (<div className="text-center text-sm text-amber-600 bg-amber-50 rounded-lg py-2 px-3 mb-4">
-                          {unanswered.length} pertanyaan belum dijawab: {unanswered.map(q => (
-                            <button key={q.id} onClick={() => setPersonalityIndex(personalityQuestions.indexOf(q))}
+{unanswered.length} {lang === "id" ? "pertanyaan belum dijawab:" : "questions unanswered:"} {unanswered.map(q => (
+                             <button key={q.id} onClick={() => setPersonalityIndex(personalityQuestions.indexOf(q))}
                               className="underline font-medium hover:text-amber-700 mx-0.5">#{personalityQuestions.indexOf(q) + 1}</button>
                           ))}
                         </div>);
@@ -970,11 +1007,11 @@ export default function AptitudeTestPro() {
                     <div className="flex items-center gap-3 mb-2">
                       <div className="text-3xl">🎭</div>
                       <div>
-                        <h3 className="text-xl font-bold text-gray-900">Penilaian Situasi</h3>
-                        <p className="text-sm text-gray-500">Apa yang akan kamu lakukan dalam situasi ini?</p>
+<h3 className="text-xl font-bold text-gray-900">{lang === "id" ? "Penilaian Situasi" : "Situational Judgment"}</h3>
+                         <p className="text-sm text-gray-500">{lang === "id" ? "Apa yang akan kamu lakukan dalam situasi ini?" : "What would you do in this situation?"}</p>
                       </div>
                     </div>
-                    <div className="text-xs text-gray-400 mb-6">Skenario {sjtIndex + 1} dari {sjtQuestions.length}</div>
+                    <div className="text-xs text-gray-400 mb-6">{lang === "id" ? "Skenario" : "Scenario"} {sjtIndex + 1} {lang === "id" ? "dari" : "of"} {sjtQuestions.length}</div>
 
                     <div className="w-full bg-gray-100 rounded-full h-1.5 mb-6">
                       <div className="bg-violet-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${((sjtIndex + 1) / sjtQuestions.length) * 100}%` }} />
@@ -1035,8 +1072,8 @@ export default function AptitudeTestPro() {
                       const unanswered = sjtQuestions.filter(q => sjtAnswers[q.id] === undefined);
                       if (unanswered.length > 0 && unanswered.length <= 3) {
                         return (<div className="text-center text-sm text-amber-600 bg-amber-50 rounded-lg py-2 px-3 mb-4">
-                          {unanswered.length} skenario belum dijawab: {unanswered.map(q => (
-                            <button key={q.id} onClick={() => setSjtIndex(sjtQuestions.indexOf(q))}
+{unanswered.length} {lang === "id" ? "skenario belum dijawab:" : "scenarios unanswered:"} {unanswered.map(q => (
+                             <button key={q.id} onClick={() => setSjtIndex(sjtQuestions.indexOf(q))}
                               className="underline font-medium hover:text-amber-700 mx-0.5">#{sjtQuestions.indexOf(q) + 1}</button>
                           ))}
                         </div>);
@@ -1046,12 +1083,12 @@ export default function AptitudeTestPro() {
                     <div className="flex justify-between mt-4">
                       <button onClick={() => setSjtIndex(prev => Math.max(0, prev - 1))} disabled={sjtIndex === 0}
                         className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-30">
-                        <ArrowLeft className="w-4 h-4" /> Sebelumnya
+                        <ArrowLeft className="w-4 h-4" /> {lang === "id" ? "Sebelumnya" : "Previous"}
                       </button>
                       <button onClick={() => { if (sjtIndex < sjtQuestions.length - 1) setSjtIndex(prev => prev + 1); }}
                         disabled={sjtIndex >= sjtQuestions.length - 1 || !sjtAnswers[sjtQuestions[sjtIndex]?.id]}
                         className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 disabled:opacity-30">
-                        Selanjutnya <ArrowRight className="w-4 h-4" />
+                        {lang === "id" ? "Selanjutnya" : "Next"} <ArrowRight className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -1063,11 +1100,11 @@ export default function AptitudeTestPro() {
                     <div className="flex items-center gap-3 mb-2">
                       <div className="text-3xl">✍️</div>
                       <div>
-                        <h3 className="text-xl font-bold text-gray-900">Pemikiran Kreatif</h3>
-                        <p className="text-sm text-gray-500">Tuliskan jawabanmu dengan jujur dan detail</p>
+<h3 className="text-xl font-bold text-gray-900">{lang === "id" ? "Pemikiran Kreatif" : "Creative Thinking"}</h3>
+                         <p className="text-sm text-gray-500">{lang === "id" ? "Tuliskan jawabanmu dengan jujur dan detail" : "Write your answer honestly and in detail"}</p>
                       </div>
                     </div>
-                    <div className="text-xs text-gray-400 mb-6">Pertanyaan {creativeIndex + 1} dari {creativeQuestions.length}</div>
+                    <div className="text-xs text-gray-400 mb-6">{lang === "id" ? "Pertanyaan" : "Question"} {creativeIndex + 1} {lang === "id" ? "dari" : "of"} {creativeQuestions.length}</div>
 
                     <div className="w-full bg-gray-100 rounded-full h-1.5 mb-6">
                       <div className="bg-red-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${((creativeIndex + 1) / creativeQuestions.length) * 100}%` }} />
@@ -1094,7 +1131,7 @@ export default function AptitudeTestPro() {
                             (creativeAnswers[creativeQuestions[creativeIndex]?.id] || "").length < (creativeQuestions[creativeIndex]?.minLength ?? 0)
                               ? "text-red-500" : "text-green-600"
                           }`}>
-                            {(creativeAnswers[creativeQuestions[creativeIndex]?.id] || "").length} / min {creativeQuestions[creativeIndex]?.minLength ?? 0} karakter
+                            {(creativeAnswers[creativeQuestions[creativeIndex]?.id] || "").length} / min {creativeQuestions[creativeIndex]?.minLength ?? 0} {lang === "id" ? "karakter" : "characters"}
                           </span>
                           <span className="text-gray-400">
                             max {creativeQuestions[creativeIndex]?.maxLength ?? 0}
@@ -1123,11 +1160,11 @@ export default function AptitudeTestPro() {
                     <div className="flex items-center gap-3 mb-2">
                       <div className="text-3xl">📊</div>
                       <div>
-                        <h3 className="text-xl font-bold text-gray-900">Prioritas Hidup</h3>
-                        <p className="text-sm text-gray-500">Seret dan urutkan dari yang paling penting</p>
+<h3 className="text-xl font-bold text-gray-900">{lang === "id" ? "Prioritas Hidup" : "Life Priorities"}</h3>
+                         <p className="text-sm text-gray-500">{lang === "id" ? "Seret dan urutkan dari yang paling penting" : "Drag and sort from most important"}</p>
                       </div>
                     </div>
-                    <div className="text-xs text-gray-400 mb-6">Latihan {rankingIndex + 1} dari {rankingExercises.length}</div>
+                    <div className="text-xs text-gray-400 mb-6">{lang === "id" ? "Latihan" : "Exercise"} {rankingIndex + 1} {lang === "id" ? "dari" : "of"} {rankingExercises.length}</div>
 
                     <div className="w-full bg-gray-100 rounded-full h-1.5 mb-6">
                       <div className="bg-sky-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${((rankingIndex + 1) / rankingExercises.length) * 100}%` }} />
@@ -1175,7 +1212,7 @@ export default function AptitudeTestPro() {
                           })}
                         </Reorder.Group>
 
-                        <p className="text-xs text-gray-400 mt-3 text-center">💡 Seret item untuk mengubah urutan</p>
+                        <p className="text-xs text-gray-400 mt-3 text-center">💡 {lang === "id" ? "Seret item untuk mengubah urutan" : "Drag items to change order"}</p>
                       </motion.div>
                     </AnimatePresence>
 
@@ -1202,7 +1239,7 @@ export default function AptitudeTestPro() {
                 disabled={phase === "section1"}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
               >
-                <ArrowLeft className="w-4 h-4" /> Bagian Sebelumnya
+                <ArrowLeft className="w-4 h-4" /> {lang === "id" ? "Bagian Sebelumnya" : "Previous Section"}
               </button>
               <button
                 onClick={goNextSection}
@@ -1214,9 +1251,9 @@ export default function AptitudeTestPro() {
                 }`}
               >
                 {phase === "section7" ? (
-                  <>Kirim & Analisis <Sparkles className="w-4 h-4" /></>
+                  <>{lang === "id" ? "Kirim & Analisis" : "Submit & Analyze"} <Sparkles className="w-4 h-4" /></>
                 ) : (
-                  <>Bagian Selanjutnya <ArrowRight className="w-4 h-4" /></>
+                  <>{lang === "id" ? "Bagian Selanjutnya" : "Next Section"} <ArrowRight className="w-4 h-4" /></>
                 )}
               </button>
             </div>
@@ -1235,17 +1272,17 @@ export default function AptitudeTestPro() {
                 <Brain className="w-8 h-8 text-white" />
               </div>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">AI Sedang Menganalisis...</h2>
-            <p className="text-gray-600 mb-2">Menganalisis 7 dimensi penilaian dari jawaban Anda</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">{lang === "id" ? "AI Sedang Menganalisis..." : "AI is Analyzing..."}</h2>
+            <p className="text-gray-600 mb-2">{lang === "id" ? "Menganalisis 7 dimensi penilaian dari jawaban Anda" : "Analyzing 7 assessment dimensions from your answers"}</p>
             <div className="space-y-2 text-sm text-gray-500">
-              <p>🎯 Minat karir & RIASEC profile</p>
-              <p>🧠 Kecerdasan majemuk</p>
-              <p>💎 Kepribadian & nilai hidup</p>
-              <p>🎭 Soft skills & penilaian situasi</p>
-              <p>✍️ Analisis pemikiran kreatif</p>
-              <p>📊 Prioritas & preferensi</p>
+              <p>🎯 {lang === "id" ? "Minat karir & RIASEC profile" : "Career interests & RIASEC profile"}</p>
+              <p>🧠 {lang === "id" ? "Kecerdasan majemuk" : "Multiple intelligences"}</p>
+              <p>💎 {lang === "id" ? "Kepribadian & nilai hidup" : "Personality & life values"}</p>
+              <p>🎭 {lang === "id" ? "Soft skills & penilaian situasi" : "Soft skills & situational judgment"}</p>
+              <p>✍️ {lang === "id" ? "Analisis pemikiran kreatif" : "Creative thinking analysis"}</p>
+              <p>📊 {lang === "id" ? "Prioritas & preferensi" : "Priorities & preferences"}</p>
             </div>
-            <p className="text-xs text-gray-400 mt-6">Proses ini membutuhkan waktu 30-60 detik...</p>
+            <p className="text-xs text-gray-400 mt-6">{lang === "id" ? "Proses ini membutuhkan waktu 30-60 detik..." : "This process takes 30-60 seconds..."}</p>
           </motion.div>
         </div>
       )}
@@ -1259,7 +1296,7 @@ export default function AptitudeTestPro() {
                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <AlertTriangle className="w-8 h-8 text-red-500" />
                 </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Terjadi Kesalahan</h2>
+                <h2 className="text-xl font-bold text-gray-900 mb-2">{lang === "id" ? "Terjadi Kesalahan" : "An Error Occurred"}</h2>
                 <p className="text-gray-600 mb-6">{analysisError}</p>
               </>
             ) : (
@@ -1267,24 +1304,25 @@ export default function AptitudeTestPro() {
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CheckCircle2 className="w-8 h-8 text-green-500" />
                 </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Tes Selesai! 🎉</h2>
+                <h2 className="text-xl font-bold text-gray-900 mb-2">{lang === "id" ? "Tes Selesai! 🎉" : "Test Complete! 🎉"}</h2>
                 <p className="text-gray-600 mb-2">
-                  Terima kasih, <strong>{studentName}</strong>!
+                  {lang === "id" ? "Terima kasih" : "Thank you"}, <strong>{studentName}</strong>!
                 </p>
                 <p className="text-gray-600 mb-6">
-                  Hasil analisis AI Pro lengkap sedang dikirim ke <strong>{studentEmail}</strong>.
-                  Silakan cek inbox (dan folder spam) Anda dalam beberapa menit.
+                  {lang === "id"
+                    ? <>Hasil analisis AI Pro lengkap sedang dikirim ke <strong>{studentEmail}</strong>. Silakan cek inbox (dan folder spam) Anda dalam beberapa menit.</>
+                    : <>Your complete AI Pro analysis results are being sent to <strong>{studentEmail}</strong>. Please check your inbox (and spam folder) in a few minutes.</>}
                 </p>
                 <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-6 text-left">
-                  <h3 className="text-sm font-semibold text-indigo-900 mb-2">Laporan Anda mencakup:</h3>
+                  <h3 className="text-sm font-semibold text-indigo-900 mb-2">{lang === "id" ? "Laporan Anda mencakup:" : "Your report includes:"}</h3>
                   <ul className="text-xs text-indigo-700 space-y-1">
-                    <li>✅ Profil kepribadian lengkap (Big Five + RIASEC)</li>
-                    <li>✅ Peta kecerdasan majemuk</li>
-                    <li>✅ Analisis soft skills dari penilaian situasi</li>
-                    <li>✅ Analisis AI dari jawaban kreatif Anda</li>
-                    <li>✅ Rekomendasi jurusan kuliah (5 pilihan terbaik)</li>
-                    <li>✅ Prospek karir & jalur profesional</li>
-                    <li>✅ Ringkasan untuk orang tua</li>
+                    <li>✅ {lang === "id" ? "Profil kepribadian lengkap (Big Five + RIASEC)" : "Complete personality profile (Big Five + RIASEC)"}</li>
+                    <li>✅ {lang === "id" ? "Peta kecerdasan majemuk" : "Multiple intelligence map"}</li>
+                    <li>✅ {lang === "id" ? "Analisis soft skills dari penilaian situasi" : "Soft skills analysis from situational judgment"}</li>
+                    <li>✅ {lang === "id" ? "Analisis AI dari jawaban kreatif Anda" : "AI analysis of your creative answers"}</li>
+                    <li>✅ {lang === "id" ? "Rekomendasi jurusan kuliah (5 pilihan terbaik)" : "University major recommendations (top 5)"}</li>
+                    <li>✅ {lang === "id" ? "Prospek karir & jalur profesional" : "Career prospects & professional pathways"}</li>
+                    <li>✅ {lang === "id" ? "Ringkasan untuk orang tua" : "Summary for parents"}</li>
                   </ul>
                 </div>
               </>
@@ -1316,7 +1354,7 @@ export default function AptitudeTestPro() {
               target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-green-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-green-600 transition-colors"
             >
-              💬 Konsultasi Hasil via WhatsApp
+              💬 {lang === "id" ? "Konsultasi Hasil via WhatsApp" : "Discuss Results via WhatsApp"}
             </a>
           </motion.div>
         </div>

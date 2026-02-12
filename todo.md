@@ -669,3 +669,20 @@
 - [x] Fallback: if pdfUrl not available, uses downloadPdf endpoint
 - [x] 5 new vitest tests for PDF generator (valid PDF, English, minimal data, empty analysis, special chars)
 - [x] All 142 tests passing, 0 TypeScript errors
+
+### 69. Bilingual Pro Test (English / Bahasa Indonesia)
+- [x] Add language selector toggle to Pro test intro page (flag buttons)
+- [x] Add compact language switcher during test sections (EN/ID toggle in header)
+- [x] Make all section headers bilingual (Profil Diri/Personal Profile, Minat Karir/Career Interest, etc.)
+- [x] Make all navigation buttons bilingual (Sebelumnya/Previous, Selanjutnya/Next, etc.)
+- [x] Make lead capture form bilingual (Data Diri/Personal Information)
+- [x] Make analyzing phase bilingual (AI Sedang Menganalisis/AI is Analyzing)
+- [x] Make results/emailSent phase bilingual (Tes Selesai/Test Complete)
+- [x] Make token error messages bilingual (Link Tidak Valid/Invalid Link, etc.)
+- [x] Make unanswered question warnings bilingual
+- [x] Make Likert scale labels bilingual (Sangat Tidak Setuju/Strongly Disagree)
+- [x] Make character counter bilingual (karakter/characters)
+- [x] PDF report already supports bilingual via `language` parameter
+- [x] All question content in proQuestions.ts already has { id, en } format
+- [x] Fixed WhatsApp number from placeholder to correct 6281287878055
+- [x] 139 tests passing (3 pre-existing SMTP timeouts), 0 TypeScript errors
