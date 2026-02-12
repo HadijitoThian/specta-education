@@ -698,3 +698,13 @@
 - [x] Added cleanupExpiredConversations() to db.ts — deletes conversations, messages, documents, leads
 - [x] 5 new vitest tests for chat persistence/cleanup
 - [x] All 139 tests passing (3 pre-existing SMTP timeouts), 0 TypeScript errors
+
+### 71. Bug Fix: Chatbot Not Remembering Conversations on Return Visit
+- [x] Diagnosed: race condition between greeting useEffect and async history query
+- [x] Root cause: ChatBot unmounts/remounts on open/close, greeting fires before history arrives
+- [x] Fix: track isReturningUser from getOrCreateSessionId, use historyStatus state machine (loading→loaded/empty/error)
+- [x] Greeting only fires when historyStatus is "empty" or "error", never during "loading"
+- [x] Added "Welcome back!" indicator when history is successfully restored
+- [x] Added staleTime: Infinity to prevent re-fetching history on every remount
+- [x] Used sessionId in message keys to prevent React key conflicts across sessions
+- [x] All 139 tests passing (3 pre-existing SMTP timeouts), 0 TypeScript errors
