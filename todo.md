@@ -686,3 +686,15 @@
 - [x] All question content in proQuestions.ts already has { id, en } format
 - [x] Fixed WhatsApp number from placeholder to correct 6281287878055
 - [x] 139 tests passing (3 pre-existing SMTP timeouts), 0 TypeScript errors
+
+### 70. Persistent Chat History for SpecTa AI Chatbot
+- [x] Persist sessionId in localStorage so returning visitors keep their conversation
+- [x] Load chat history from server on chatbot mount using getHistory endpoint
+- [x] Add "Start Fresh" button to clear sessionId and reset conversation
+- [x] Add 30-day auto-expiry: server cleans up conversations inactive for 30+ days
+- [x] Client-side expiry check (localStorage timestamp) + server-side daily cleanup (setInterval 24h)
+- [x] Store last activity timestamp in localStorage (specta-chat-last-active)
+- [x] Initial greeting only shown for new sessions (not when history is restored)
+- [x] Added cleanupExpiredConversations() to db.ts — deletes conversations, messages, documents, leads
+- [x] 5 new vitest tests for chat persistence/cleanup
+- [x] All 139 tests passing (3 pre-existing SMTP timeouts), 0 TypeScript errors

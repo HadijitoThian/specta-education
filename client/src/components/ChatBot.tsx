@@ -2,8 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { Loader2, Send, User, Paperclip, X, FileText, Image as ImageIcon } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { Loader2, Send, User, Paperclip, X, FileText, Image as ImageIcon, RotateCcw } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Streamdown } from "streamdown";
 import { trpc } from "@/lib/trpc";
 import { nanoid } from "nanoid";
@@ -18,6 +18,37 @@ type UploadedFile = {
   type: string;
   url: string;
 };
+
+const STORAGE_KEY = "specta-chat-session-id";
+const STORAGE_TIMESTAMP_KEY = "specta-chat-last-active";
+const SESSION_EXPIRY_DAYS = 30;
+
+function getOrCreateSessionId(): string {
+  if (typeof window === "undefined") return nanoid();
+
+  const stored = localStorage.getItem(STORAGE_KEY);
+  const lastActive = localStorage.getItem(STORAGE_TIMESTAMP_KEY);
+
+  // Check if session is expired (30 days of inactivity)
+  if (stored && lastActive) {
+    const daysSinceActive = (Date.now() - parseInt(lastActive, 10)) / (1000 * 60 * 60 * 24);
+    if (daysSinceActive > SESSION_EXPIRY_DAYS) {
+      // Session expired — clear and create new
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_TIMESTAMP_KEY);
+    } else {
+      // Valid session — update timestamp and return
+      localStorage.setItem(STORAGE_TIMESTAMP_KEY, Date.now().toString());
+      return stored;
+    }
+  }
+
+  // Create new session
+  const newId = nanoid();
+  localStorage.setItem(STORAGE_KEY, newId);
+  localStorage.setItem(STORAGE_TIMESTAMP_KEY, Date.now().toString());
+  return newId;
+}
 
 const SYSTEM_PROMPT = `You are SpecTa, a friendly and professional AI education consultant for SpecTa Education, an Indonesian study abroad consultancy. Your personality is warm, helpful, and knowledgeable - like a caring mentor who genuinely wants to help students achieve their dreams of studying abroad.
 
@@ -50,16 +81,63 @@ Contact information for SpecTa Education:
 - Email: info@spectaeducation.com`;
 
 export default function ChatBot() {
-  const [sessionId] = useState(() => nanoid());
+  const [sessionId, setSessionId] = useState(() => getOrCreateSessionId());
   const [messages, setMessages] = useState<Message[]>([
     { role: "system", content: SYSTEM_PROMPT }
   ]);
   const [input, setInput] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load chat history from server
+  const historyQuery = trpc.chat.getHistory.useQuery(
+    { sessionId },
+    { enabled: !hasLoadedHistory }
+  );
+
+  useEffect(() => {
+    if (historyQuery.data && !hasLoadedHistory) {
+      const serverMessages = historyQuery.data.messages;
+      if (serverMessages.length > 0) {
+        // Restore messages from server history
+        const restored: Message[] = [
+          { role: "system", content: SYSTEM_PROMPT },
+          ...serverMessages.map(m => ({
+            role: m.role as "system" | "user" | "assistant",
+            content: m.content
+          }))
+        ];
+        setMessages(restored);
+      }
+      setHasLoadedHistory(true);
+      setIsLoadingHistory(false);
+    } else if (historyQuery.isError) {
+      // If history load fails, just proceed with fresh chat
+      setHasLoadedHistory(true);
+      setIsLoadingHistory(false);
+    }
+  }, [historyQuery.data, historyQuery.isError, hasLoadedHistory]);
+
+  // Send initial greeting only if no history was loaded
+  useEffect(() => {
+    if (!hasLoadedHistory || isLoadingHistory) return;
+    // Only send greeting if there are no user/assistant messages
+    const hasConversation = messages.some(m => m.role === "user" || m.role === "assistant");
+    if (!hasConversation) {
+      const timer = setTimeout(() => {
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: "Hi there! 👋 I'm SpecTa, your friendly study abroad assistant. I'm here to help you explore exciting opportunities to study in countries like Australia, UK, USA, Canada, and more!\n\nWhat brings you here today? Are you thinking about studying abroad?"
+        }]);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [hasLoadedHistory, isLoadingHistory]);
 
   const chatMutation = trpc.chat.sendMessage.useMutation({
     onSuccess: (response) => {
@@ -68,6 +146,8 @@ export default function ChatBot() {
           role: "assistant",
           content: response.message
         }]);
+        // Update last active timestamp
+        localStorage.setItem(STORAGE_TIMESTAMP_KEY, Date.now().toString());
       }
     },
     onError: (error) => {
@@ -104,6 +184,25 @@ export default function ChatBot() {
     }
   });
 
+  const handleStartFresh = useCallback(() => {
+    // Generate new session
+    const newId = nanoid();
+    localStorage.setItem(STORAGE_KEY, newId);
+    localStorage.setItem(STORAGE_TIMESTAMP_KEY, Date.now().toString());
+    setSessionId(newId);
+    setMessages([{ role: "system", content: SYSTEM_PROMPT }]);
+    setUploadedFiles([]);
+    setHasLoadedHistory(true); // Don't try to load history for new session
+    setIsLoadingHistory(false);
+    // Send greeting for new session
+    setTimeout(() => {
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: "Hi there! 👋 I'm SpecTa, your friendly study abroad assistant. Fresh start! How can I help you today?"
+      }]);
+    }, 300);
+  }, []);
+
   const displayMessages = messages.filter((msg) => msg.role !== "system");
 
   const scrollToBottom = () => {
@@ -125,17 +224,6 @@ export default function ChatBot() {
     scrollToBottom();
   }, [messages]);
 
-  // Send initial greeting
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: "Hi there! 👋 I'm SpecTa, your friendly study abroad assistant. I'm here to help you explore exciting opportunities to study in countries like Australia, UK, USA, Canada, and more!\n\nWhat brings you here today? Are you thinking about studying abroad?"
-      }]);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedInput = input.trim();
@@ -145,6 +233,9 @@ export default function ChatBot() {
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput("");
+
+    // Update last active timestamp
+    localStorage.setItem(STORAGE_TIMESTAMP_KEY, Date.now().toString());
 
     chatMutation.mutate({
       sessionId,
@@ -194,10 +285,32 @@ export default function ChatBot() {
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
+      {/* Header with Start Fresh button */}
+      {displayMessages.length > 2 && (
+        <div className="flex items-center justify-end px-3 py-1.5 border-b border-border/50 bg-muted/30">
+          <button
+            onClick={handleStartFresh}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted"
+            title="Start a new conversation"
+          >
+            <RotateCcw className="w-3 h-3" />
+            Start Fresh
+          </button>
+        </div>
+      )}
+
       {/* Messages Area */}
       <div ref={scrollAreaRef} className="flex-1 overflow-hidden">
         <ScrollArea className="h-full">
           <div className="flex flex-col space-y-4 p-4">
+            {/* Loading history indicator */}
+            {isLoadingHistory && (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground mr-2" />
+                <span className="text-sm text-muted-foreground">Loading conversation...</span>
+              </div>
+            )}
+
             {displayMessages.map((message, index) => (
               <div
                 key={index}

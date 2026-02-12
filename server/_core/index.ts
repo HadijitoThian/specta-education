@@ -59,6 +59,27 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
+
+    // Run expired conversation cleanup once on startup, then every 24 hours
+    (async () => {
+      try {
+        const { cleanupExpiredConversations } = await import("../db");
+        const deleted = await cleanupExpiredConversations(30);
+        if (deleted > 0) console.log(`[Cleanup] Removed ${deleted} expired conversations (30+ days inactive)`);
+      } catch (e) {
+        console.error("[Cleanup] Initial cleanup failed:", e);
+      }
+    })();
+
+    setInterval(async () => {
+      try {
+        const { cleanupExpiredConversations } = await import("../db");
+        const deleted = await cleanupExpiredConversations(30);
+        if (deleted > 0) console.log(`[Cleanup] Removed ${deleted} expired conversations (30+ days inactive)`);
+      } catch (e) {
+        console.error("[Cleanup] Scheduled cleanup failed:", e);
+      }
+    }, 24 * 60 * 60 * 1000); // Every 24 hours
   });
 }
 

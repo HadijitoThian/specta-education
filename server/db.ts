@@ -1,4 +1,4 @@
-import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, gte, lte, lt, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { 
   InsertUser, users, 
@@ -710,6 +710,35 @@ export async function deleteConversation(id: number): Promise<void> {
   await db.delete(documents).where(eq(documents.conversationId, id));
   await db.delete(leads).where(eq(leads.conversationId, id));
   await db.delete(conversations).where(eq(conversations.id, id));
+}
+
+/**
+ * Cleanup conversations inactive for more than the specified number of days.
+ * Deletes the conversation and all related messages, documents, and leads.
+ * Returns the number of conversations deleted.
+ */
+export async function cleanupExpiredConversations(expiryDays: number = 30): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+
+  const cutoff = new Date(Date.now() - expiryDays * 24 * 60 * 60 * 1000);
+
+  // Find expired conversations
+  const expired = await db.select({ id: conversations.id })
+    .from(conversations)
+    .where(lt(conversations.updatedAt, cutoff));
+
+  if (expired.length === 0) return 0;
+
+  const expiredIds = expired.map(c => c.id);
+
+  // Delete related records first, then conversations
+  await db.delete(messages).where(inArray(messages.conversationId, expiredIds));
+  await db.delete(documents).where(inArray(documents.conversationId, expiredIds));
+  await db.delete(leads).where(inArray(leads.conversationId, expiredIds));
+  await db.delete(conversations).where(inArray(conversations.id, expiredIds));
+
+  return expired.length;
 }
 
 // ==========================================
