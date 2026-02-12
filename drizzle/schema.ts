@@ -373,3 +373,55 @@ export const aptitudeAccessTokens = mysqlTable("aptitudeAccessTokens", {
 
 export type AptitudeAccessToken = typeof aptitudeAccessTokens.$inferSelect;
 export type InsertAptitudeAccessToken = typeof aptitudeAccessTokens.$inferInsert;
+
+/**
+ * Match Universities table - universities for the matching engine
+ * Stores university profiles with entry requirements and tags for matching
+ */
+export const matchUniversities = mysqlTable("matchUniversities", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  nameId: varchar("nameId", { length: 255 }), // Indonesian name if different
+  country: varchar("country", { length: 100 }).notNull(),
+  city: varchar("city", { length: 100 }).notNull(),
+  description: text("description"), // English description
+  descriptionId: text("descriptionId"), // Indonesian description
+  logoUrl: text("logoUrl"),
+  website: varchar("website", { length: 500 }),
+  tuitionMinUsd: int("tuitionMinUsd"), // Annual tuition in USD (min)
+  tuitionMaxUsd: int("tuitionMaxUsd"), // Annual tuition in USD (max)
+  ieltsMin: varchar("ieltsMin", { length: 10 }), // Minimum IELTS score e.g. "5.5"
+  gpaMin: varchar("gpaMin", { length: 10 }), // Minimum GPA e.g. "2.5"
+  scholarshipAvailable: boolean("scholarshipAvailable").default(false).notNull(),
+  ranking: varchar("ranking", { length: 100 }), // e.g. "QS 200-300"
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MatchUniversity = typeof matchUniversities.$inferSelect;
+export type InsertMatchUniversity = typeof matchUniversities.$inferInsert;
+
+/**
+ * Match Programs table - programs offered by universities
+ * Each program has RIASEC codes and MI types for matching with aptitude test results
+ */
+export const matchPrograms = mysqlTable("matchPrograms", {
+  id: int("id").autoincrement().primaryKey(),
+  universityId: int("universityId").notNull(),
+  programName: varchar("programName", { length: 255 }).notNull(),
+  programNameId: varchar("programNameId", { length: 255 }), // Indonesian name
+  degreeLevel: mysqlEnum("degreeLevel", ["bachelor", "master", "doctorate", "diploma"]).default("bachelor").notNull(),
+  fieldOfStudy: varchar("fieldOfStudy", { length: 255 }).notNull(), // e.g. "Engineering", "Business"
+  fieldOfStudyId: varchar("fieldOfStudyId", { length: 255 }), // Indonesian field name
+  riasecCodes: varchar("riasecCodes", { length: 20 }).notNull(), // e.g. "RIA", "SEC" - top 2-3 RIASEC codes
+  miTypes: varchar("miTypes", { length: 255 }).notNull(), // comma-separated MI types e.g. "logical,spatial"
+  description: text("description"),
+  descriptionId: text("descriptionId"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MatchProgram = typeof matchPrograms.$inferSelect;
+export type InsertMatchProgram = typeof matchPrograms.$inferInsert;

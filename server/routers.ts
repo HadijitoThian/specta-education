@@ -86,7 +86,19 @@ import {
   markTokenInProgress,
   markTokenCompleted,
   listAccessTokens,
-  deleteAccessToken
+  deleteAccessToken,
+  createMatchUniversity,
+  getAllMatchUniversities,
+  getMatchUniversityById,
+  updateMatchUniversity,
+  deleteMatchUniversity,
+  createMatchProgram,
+  getMatchProgramsByUniversityId,
+  getAllMatchPrograms,
+  getMatchProgramById,
+  updateMatchProgram,
+  deleteMatchProgram,
+  getActiveUniversitiesWithPrograms
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail } from "./email";
@@ -2722,6 +2734,253 @@ IMPORTANT:
       .mutation(async ({ input }) => {
         await markTokenCompleted(input.token, input.resultId);
         return { success: true };
+      }),
+  }),
+
+  // ==========================================
+  // UNIVERSITY MATCHING ENGINE ROUTER
+  // ==========================================
+  universityMatch: router({
+    // --- Admin CRUD: Universities ---
+    createUniversity: protectedProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        nameId: z.string().optional(),
+        country: z.string().min(1),
+        city: z.string().min(1),
+        description: z.string().optional(),
+        descriptionId: z.string().optional(),
+        logoUrl: z.string().optional(),
+        website: z.string().optional(),
+        tuitionMinUsd: z.number().optional(),
+        tuitionMaxUsd: z.number().optional(),
+        ieltsMin: z.string().optional(),
+        gpaMin: z.string().optional(),
+        scholarshipAvailable: z.boolean().default(false),
+        ranking: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+        }
+        const uni = await createMatchUniversity(input);
+        return uni;
+      }),
+
+    updateUniversity: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).optional(),
+        nameId: z.string().optional(),
+        country: z.string().optional(),
+        city: z.string().optional(),
+        description: z.string().optional(),
+        descriptionId: z.string().optional(),
+        logoUrl: z.string().optional(),
+        website: z.string().optional(),
+        tuitionMinUsd: z.number().optional(),
+        tuitionMaxUsd: z.number().optional(),
+        ieltsMin: z.string().optional(),
+        gpaMin: z.string().optional(),
+        scholarshipAvailable: z.boolean().optional(),
+        ranking: z.string().optional(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+        }
+        const { id, ...data } = input;
+        await updateMatchUniversity(id, data);
+        return { success: true };
+      }),
+
+    deleteUniversity: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+        }
+        await deleteMatchUniversity(input.id);
+        return { success: true };
+      }),
+
+    getAllUniversities: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") return [];
+        return await getAllMatchUniversities();
+      }),
+
+    getUniversity: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") return null;
+        return await getMatchUniversityById(input.id);
+      }),
+
+    // --- Admin CRUD: Programs ---
+    createProgram: protectedProcedure
+      .input(z.object({
+        universityId: z.number(),
+        programName: z.string().min(1),
+        programNameId: z.string().optional(),
+        degreeLevel: z.enum(["bachelor", "master", "doctorate", "diploma"]).default("bachelor"),
+        fieldOfStudy: z.string().min(1),
+        fieldOfStudyId: z.string().optional(),
+        riasecCodes: z.string().min(1).max(6), // e.g. "RIA"
+        miTypes: z.string().min(1), // comma-separated e.g. "logical,spatial"
+        description: z.string().optional(),
+        descriptionId: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+        }
+        const program = await createMatchProgram(input);
+        return program;
+      }),
+
+    updateProgram: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        programName: z.string().optional(),
+        programNameId: z.string().optional(),
+        degreeLevel: z.enum(["bachelor", "master", "doctorate", "diploma"]).optional(),
+        fieldOfStudy: z.string().optional(),
+        fieldOfStudyId: z.string().optional(),
+        riasecCodes: z.string().optional(),
+        miTypes: z.string().optional(),
+        description: z.string().optional(),
+        descriptionId: z.string().optional(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+        }
+        const { id, ...data } = input;
+        await updateMatchProgram(id, data);
+        return { success: true };
+      }),
+
+    deleteProgram: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+        }
+        await deleteMatchProgram(input.id);
+        return { success: true };
+      }),
+
+    getProgramsByUniversity: protectedProcedure
+      .input(z.object({ universityId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") return [];
+        return await getMatchProgramsByUniversityId(input.universityId);
+      }),
+
+    // --- Public: Get Recommendations based on aptitude test result ---
+    getRecommendations: publicProcedure
+      .input(z.object({
+        riasecScores: z.record(z.string(), z.number()),
+        miScores: z.record(z.string(), z.number()),
+        countryPreference: z.string().optional(), // filter by country if provided
+        budgetMaxUsd: z.number().optional(), // max annual tuition
+        degreeLevel: z.enum(["bachelor", "master", "doctorate", "diploma"]).optional(),
+      }))
+      .query(async ({ input }) => {
+        const allData = await getActiveUniversitiesWithPrograms();
+        if (!allData.length) return [];
+
+        // RIASEC: sort by score descending, take top 3 as student's Holland code
+        const sortedRiasec = Object.entries(input.riasecScores)
+          .sort((a, b) => b[1] - a[1]);
+        const studentHollandCode = sortedRiasec.slice(0, 3).map(([k]) => k).join("");
+        const studentTopRiasec = sortedRiasec.slice(0, 3).map(([k]) => k);
+
+        // MI: sort by score descending, take top 3
+        const sortedMi = Object.entries(input.miScores)
+          .sort((a, b) => b[1] - a[1]);
+        const studentTopMi = sortedMi.slice(0, 3).map(([k]) => k.toLowerCase());
+
+        // Elite universities to exclude
+        const ELITE_EXCLUSIONS = [
+          "oxford", "cambridge", "mit", "harvard", "stanford",
+          "massachusetts institute of technology", "university of oxford",
+          "university of cambridge", "harvard university", "stanford university",
+          "caltech", "california institute of technology",
+          "princeton", "yale", "columbia university"
+        ];
+
+        type ScoredRecommendation = {
+          university: Omit<typeof allData[0], "programs">;
+          program: typeof allData[0]["programs"][0];
+          matchScore: number;
+          riasecMatch: number;
+          miMatch: number;
+        };
+
+        const recommendations: ScoredRecommendation[] = [];
+
+        for (const uni of allData) {
+          // Exclude elite universities
+          if (ELITE_EXCLUSIONS.some(e => uni.name.toLowerCase().includes(e))) continue;
+
+          // Filter by country preference
+          if (input.countryPreference && uni.country.toLowerCase() !== input.countryPreference.toLowerCase()) continue;
+
+          // Filter by budget
+          if (input.budgetMaxUsd && uni.tuitionMinUsd && uni.tuitionMinUsd > input.budgetMaxUsd) continue;
+
+          for (const program of uni.programs) {
+            // Filter by degree level
+            if (input.degreeLevel && program.degreeLevel !== input.degreeLevel) continue;
+
+            // Calculate RIASEC match score (0-100)
+            const programRiasec = program.riasecCodes.toUpperCase().split("");
+            let riasecMatch = 0;
+            for (let i = 0; i < studentTopRiasec.length; i++) {
+              const code = studentTopRiasec[i];
+              const posInProgram = programRiasec.indexOf(code);
+              if (posInProgram !== -1) {
+                // Weight: first match = 40, second = 30, third = 20
+                const weight = i === 0 ? 40 : i === 1 ? 30 : 20;
+                // Bonus if position matches (primary matches primary)
+                const posBonus = posInProgram === i ? 10 : 0;
+                riasecMatch += weight + posBonus;
+              }
+            }
+
+            // Calculate MI match score (0-100)
+            const programMi = program.miTypes.toLowerCase().split(",").map(s => s.trim());
+            let miMatch = 0;
+            for (let i = 0; i < studentTopMi.length; i++) {
+              if (programMi.includes(studentTopMi[i])) {
+                const weight = i === 0 ? 40 : i === 1 ? 30 : 20;
+                miMatch += weight;
+              }
+            }
+
+            // Combined score: 60% RIASEC + 40% MI
+            const matchScore = Math.round(riasecMatch * 0.6 + miMatch * 0.4);
+
+            if (matchScore > 20) { // Minimum threshold
+              const { programs: _, ...uniWithoutPrograms } = uni;
+              recommendations.push({
+                university: uniWithoutPrograms,
+                program,
+                matchScore,
+                riasecMatch,
+                miMatch,
+              });
+            }
+          }
+        }
+
+        // Sort by match score descending, take top 10
+        recommendations.sort((a, b) => b.matchScore - a.matchScore);
+        return recommendations.slice(0, 10);
       }),
   }),
 });

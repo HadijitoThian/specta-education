@@ -85,6 +85,13 @@
       "when": 1770833020353,
       "tag": "0011_round_skin",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1770910404610,
+      "tag": "0012_sturdy_professor_monster",
+      "breakpoints": true
     }
   ]
 }

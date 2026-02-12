@@ -3,6 +3,7 @@ import { useLocation, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, ArrowRight, Brain, ChevronDown, Globe2, GraduationCap, Heart, Sparkles, Users, BookOpen, Briefcase, BarChart3, Share2, RotateCcw, MessageCircle, ShieldX, Clock, AlertTriangle } from "lucide-react";
 import AptitudeReportDownload from "@/components/AptitudeReportPDF";
+import UniversityRecommendations from "@/components/UniversityRecommendations";
 import { trpc } from "@/lib/trpc";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -1177,6 +1178,13 @@ export default function AptitudeTest() {
               </div>
             </motion.div>
           )}
+
+          {/* University Recommendations */}
+          <UniversityRecommendations
+            riasecScores={riasecScores}
+            miScores={miScores}
+            lang={lang}
+          />
 
           {/* Career Outlook */}
           {aiResult.careerOutlook && aiResult.careerOutlook.length > 0 && (

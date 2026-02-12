@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS `matchUniversities` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`name` varchar(255) NOT NULL,\n\t`nameId` varchar(255),\n\t`country` varchar(100) NOT NULL,\n\t`city` varchar(100) NOT NULL,\n\t`description` text,\n\t`descriptionId` text,\n\t`logoUrl` text,\n\t`website` varchar(500),\n\t`tuitionMinUsd` int,\n\t`tuitionMaxUsd` int,\n\t`ieltsMin` varchar(10),\n\t`gpaMin` varchar(10),\n\t`scholarshipAvailable` boolean NOT NULL DEFAULT false,\n\t`ranking` varchar(100),\n\t`isActive` boolean NOT NULL DEFAULT true,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `matchUniversities_id` PRIMARY KEY(`id`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute CREATE TABLE IF NOT EXISTS `matchUniversities` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`name` varchar(255) NOT NULL,\n\t`nameId` varchar(255),\n\t`country` varchar(100) NOT NULL,\n\t`city` varchar(100) NOT NULL,\n\t`description` text,\n\t`descriptionId` text,\n\t`logoUrl` text,\n\t`website` varchar(500),\n\t`tuitionMinUsd` int,\n\t`tuitionMaxUsd` int,\n\t`ieltsMin` varchar(10),\n\t`gpaMin` varchar(10),\n\t`scholarshipAvailable` boolean NOT NULL DEFAULT false,\n\t`ranking` varchar(100),\n\t`isActive` boolean NOT NULL DEFAULT true,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `matchUniversities_id` PRIMARY KEY(`id`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1852
+}

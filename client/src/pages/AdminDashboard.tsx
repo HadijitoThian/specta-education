@@ -10,14 +10,15 @@ import {
   Calendar, Clock, ChevronRight, ExternalLink, Loader2,
   LogOut, Home, CalendarCheck, BookOpen, Search, ClipboardList, Edit, Save, X,
   UserPlus, Shield, Briefcase, BarChart3, Trash2, ToggleLeft, ToggleRight, Download,
-  Upload, Eye, EyeOff, KeyRound, UserCog, RefreshCw, Link2, Copy, Plus, CheckCircle2
+  Upload, Eye, EyeOff, KeyRound, UserCog, RefreshCw, Link2, Copy, Plus, CheckCircle2, Building2
 } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { getLoginUrl } from "@/const";
 import AptitudeReportDownload from "@/components/AptitudeReportPDF";
+import UniversityManager from "@/components/UniversityManager";
 
-type TabType = "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staff" | "accessLinks";
+type TabType = "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staff" | "accessLinks" | "universities";
 
 const APP_STATUS_OPTIONS = [
   "submitted", "reviewing", "processing", "on_hold", 
@@ -540,6 +541,9 @@ export default function AdminDashboard() {
               </Button>
               <Button variant={activeTab === 'accessLinks' ? 'default' : 'outline'} onClick={() => setActiveTab('accessLinks')} size="sm">
                 <Link2 className="w-4 h-4 mr-2" /> Access Links
+              </Button>
+              <Button variant={activeTab === 'universities' ? 'default' : 'outline'} onClick={() => setActiveTab('universities')} size="sm">
+                <Building2 className="w-4 h-4 mr-2" /> Universities
               </Button>
             </>
           )}
@@ -1897,6 +1901,10 @@ export default function AdminDashboard() {
                 </div>
               )}
             </div>
+          )}
+          {/* ===== UNIVERSITIES TAB ===== */}
+          {activeTab === 'universities' && user?.role === 'admin' && (
+            <UniversityManager />
           )}
         </div>
       </div>

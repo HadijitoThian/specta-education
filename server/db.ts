@@ -18,7 +18,9 @@ import {
   scholarshipLeads, InsertScholarshipLead, ScholarshipLead,
   staffAccounts, InsertStaffAccount, StaffAccount,
   aptitudeResults, InsertAptitudeResult, AptitudeResult,
-  aptitudeAccessTokens, InsertAptitudeAccessToken, AptitudeAccessToken
+  aptitudeAccessTokens, InsertAptitudeAccessToken, AptitudeAccessToken,
+  matchUniversities, InsertMatchUniversity, MatchUniversity,
+  matchPrograms, InsertMatchProgram, MatchProgram
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -848,4 +850,113 @@ export async function deleteAccessToken(id: number): Promise<boolean> {
       eq(aptitudeAccessTokens.status, "unused")
     ));
   return (result[0] as any).affectedRows > 0;
+}
+
+// ==========================================
+// UNIVERSITY MATCHING ENGINE
+// ==========================================
+
+// --- Match Universities ---
+export async function createMatchUniversity(data: InsertMatchUniversity): Promise<MatchUniversity | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(matchUniversities).values(data);
+  const insertId = result[0].insertId;
+  const created = await db.select().from(matchUniversities).where(eq(matchUniversities.id, insertId)).limit(1);
+  return created[0] || null;
+}
+
+export async function getAllMatchUniversities(activeOnly = false): Promise<MatchUniversity[]> {
+  const db = await getDb();
+  if (!db) return [];
+  if (activeOnly) {
+    return await db.select().from(matchUniversities)
+      .where(eq(matchUniversities.isActive, true))
+      .orderBy(matchUniversities.name);
+  }
+  return await db.select().from(matchUniversities).orderBy(matchUniversities.name);
+}
+
+export async function getMatchUniversityById(id: number): Promise<MatchUniversity | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(matchUniversities).where(eq(matchUniversities.id, id)).limit(1);
+  return result[0] || null;
+}
+
+export async function updateMatchUniversity(id: number, data: Partial<InsertMatchUniversity>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(matchUniversities).set(data).where(eq(matchUniversities.id, id));
+}
+
+export async function deleteMatchUniversity(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  // Also delete associated programs
+  await db.delete(matchPrograms).where(eq(matchPrograms.universityId, id));
+  await db.delete(matchUniversities).where(eq(matchUniversities.id, id));
+}
+
+// --- Match Programs ---
+export async function createMatchProgram(data: InsertMatchProgram): Promise<MatchProgram | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(matchPrograms).values(data);
+  const insertId = result[0].insertId;
+  const created = await db.select().from(matchPrograms).where(eq(matchPrograms.id, insertId)).limit(1);
+  return created[0] || null;
+}
+
+export async function getMatchProgramsByUniversityId(universityId: number): Promise<MatchProgram[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(matchPrograms)
+    .where(eq(matchPrograms.universityId, universityId))
+    .orderBy(matchPrograms.programName);
+}
+
+export async function getAllMatchPrograms(activeOnly = false): Promise<MatchProgram[]> {
+  const db = await getDb();
+  if (!db) return [];
+  if (activeOnly) {
+    return await db.select().from(matchPrograms)
+      .where(eq(matchPrograms.isActive, true))
+      .orderBy(matchPrograms.programName);
+  }
+  return await db.select().from(matchPrograms).orderBy(matchPrograms.programName);
+}
+
+export async function getMatchProgramById(id: number): Promise<MatchProgram | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(matchPrograms).where(eq(matchPrograms.id, id)).limit(1);
+  return result[0] || null;
+}
+
+export async function updateMatchProgram(id: number, data: Partial<InsertMatchProgram>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(matchPrograms).set(data).where(eq(matchPrograms.id, id));
+}
+
+export async function deleteMatchProgram(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(matchPrograms).where(eq(matchPrograms.id, id));
+}
+
+// --- Matching Algorithm Helpers ---
+export async function getActiveUniversitiesWithPrograms(): Promise<(MatchUniversity & { programs: MatchProgram[] })[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const universities = await db.select().from(matchUniversities)
+    .where(eq(matchUniversities.isActive, true))
+    .orderBy(matchUniversities.name);
+  const programs = await db.select().from(matchPrograms)
+    .where(eq(matchPrograms.isActive, true));
+  return universities.map(uni => ({
+    ...uni,
+    programs: programs.filter(p => p.universityId === uni.id),
+  }));
 }

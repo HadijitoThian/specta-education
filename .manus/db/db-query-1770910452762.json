@@ -1,0 +1,70 @@
+{
+  "query": "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME;",
+  "rows": [
+    {
+      "TABLE_NAME": "__drizzle_migrations"
+    },
+    {
+      "TABLE_NAME": "applicationDocuments"
+    },
+    {
+      "TABLE_NAME": "applicationNotes"
+    },
+    {
+      "TABLE_NAME": "applications"
+    },
+    {
+      "TABLE_NAME": "appointments"
+    },
+    {
+      "TABLE_NAME": "aptitudeAccessTokens"
+    },
+    {
+      "TABLE_NAME": "aptitudeResults"
+    },
+    {
+      "TABLE_NAME": "conversations"
+    },
+    {
+      "TABLE_NAME": "counselors"
+    },
+    {
+      "TABLE_NAME": "documents"
+    },
+    {
+      "TABLE_NAME": "ieltsPracticeResults"
+    },
+    {
+      "TABLE_NAME": "leads"
+    },
+    {
+      "TABLE_NAME": "messages"
+    },
+    {
+      "TABLE_NAME": "personaResults"
+    },
+    {
+      "TABLE_NAME": "quizResults"
+    },
+    {
+      "TABLE_NAME": "scholarshipLeads"
+    },
+    {
+      "TABLE_NAME": "staffAccounts"
+    },
+    {
+      "TABLE_NAME": "trackingTokens"
+    },
+    {
+      "TABLE_NAME": "users"
+    },
+    {
+      "TABLE_NAME": "whatsappMessages"
+    }
+  ],
+  "messages": [],
+  "stdout": "TABLE_NAME\n__drizzle_migrations\napplicationDocuments\napplicationNotes\napplications\nappointments\naptitudeAccessTokens\naptitudeResults\nconversations\ncounselors\ndocuments\nieltsPracticeResults\nleads\nmessages\npersonaResults\nquizResults\nscholarshipLeads\nstaffAccounts\ntrackingTokens\nusers\nwhatsappMessages\n",
+  "stderr": "",
+  "execution_time_ms": 1750
+}
