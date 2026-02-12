@@ -227,6 +227,72 @@ export default function AptitudeTestPro() {
     setRankingAnswers(initial);
   }, []);
 
+  // Auto-advance effects — watch answer count AND current index
+  // When user answers the current question, auto-advance to next unanswered (or next) after a short delay
+  const riasecAnswerCount = Object.keys(riasecAnswers).length;
+  useEffect(() => {
+    if (phase !== "section2" || riasecAnswerCount === 0) return;
+    const currentQ = riasecProQuestions[riasecIndex];
+    if (!currentQ) return; // bounds check
+    if (riasecAnswers[currentQ.id] !== undefined && riasecIndex < riasecProQuestions.length - 1) {
+      const timer = setTimeout(() => {
+        setRiasecIndex(prev => {
+          const next = prev + 1;
+          return next < riasecProQuestions.length ? next : prev;
+        });
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [riasecAnswerCount, riasecIndex, phase]);
+
+  const miAnswerCount = Object.keys(miAnswers).length;
+  useEffect(() => {
+    if (phase !== "section3" || miAnswerCount === 0) return;
+    const currentP = miPairs[miIndex];
+    if (!currentP) return;
+    if (miAnswers[currentP.id] !== undefined && miIndex < miPairs.length - 1) {
+      const timer = setTimeout(() => {
+        setMiIndex(prev => {
+          const next = prev + 1;
+          return next < miPairs.length ? next : prev;
+        });
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [miAnswerCount, miIndex, phase]);
+
+  const personalityAnswerCount = Object.keys(personalityAnswers).length;
+  useEffect(() => {
+    if (phase !== "section4" || personalityAnswerCount === 0) return;
+    const currentQ = personalityQuestions[personalityIndex];
+    if (!currentQ) return;
+    if (personalityAnswers[currentQ.id] !== undefined && personalityIndex < personalityQuestions.length - 1) {
+      const timer = setTimeout(() => {
+        setPersonalityIndex(prev => {
+          const next = prev + 1;
+          return next < personalityQuestions.length ? next : prev;
+        });
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [personalityAnswerCount, personalityIndex, phase]);
+
+  const sjtAnswerCount = Object.keys(sjtAnswers).length;
+  useEffect(() => {
+    if (phase !== "section5" || sjtAnswerCount === 0) return;
+    const currentQ = sjtQuestions[sjtIndex];
+    if (!currentQ) return;
+    if (sjtAnswers[currentQ.id] !== undefined && sjtIndex < sjtQuestions.length - 1) {
+      const timer = setTimeout(() => {
+        setSjtIndex(prev => {
+          const next = prev + 1;
+          return next < sjtQuestions.length ? next : prev;
+        });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [sjtAnswerCount, sjtIndex, phase]);
+
   // Token validation gate
   if (tokenParam) {
     if (tokenQuery.isLoading) {
@@ -640,23 +706,17 @@ export default function AptitudeTestPro() {
                     <AnimatePresence mode="wait">
                       <motion.div key={riasecIndex} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                         <p className="text-lg font-medium text-gray-900 mb-6 text-center">
-                          "{riasecProQuestions[riasecIndex].text[lang]}"
+                          "{riasecProQuestions[riasecIndex]?.text?.[lang] ?? ""}"
                         </p>
                         <div className="flex justify-center gap-2 sm:gap-3 mb-4">
                           {proSectionLabels.likertScale.map(scale => (
                             <button
                               key={scale.value}
                               onClick={() => {
-                                setRiasecAnswers(prev => ({ ...prev, [riasecProQuestions[riasecIndex].id]: scale.value }));
-                                // Auto-advance
-                                setTimeout(() => {
-                                  if (riasecIndex < riasecProQuestions.length - 1) {
-                                    setRiasecIndex(prev => prev + 1);
-                                  }
-                                }, 300);
+                                setRiasecAnswers(prev => ({ ...prev, [riasecProQuestions[riasecIndex]?.id]: scale.value }));
                               }}
                               className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl font-bold text-lg transition-all ${
-                                riasecAnswers[riasecProQuestions[riasecIndex].id] === scale.value
+                                riasecAnswers[riasecProQuestions[riasecIndex]?.id] === scale.value
                                   ? "bg-pink-500 text-white ring-2 ring-pink-300 ring-offset-2 scale-110"
                                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                               }`}
@@ -722,7 +782,7 @@ export default function AptitudeTestPro() {
                             setRiasecIndex(prev => prev + 1);
                           }
                         }}
-                        disabled={riasecIndex >= riasecProQuestions.length - 1 || !riasecAnswers[riasecProQuestions[riasecIndex].id]}
+                        disabled={riasecIndex >= riasecProQuestions.length - 1 || !riasecAnswers[riasecProQuestions[riasecIndex]?.id]}
                         className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 disabled:opacity-30"
                       >
                         Selanjutnya <ArrowRight className="w-4 h-4" />
@@ -751,16 +811,13 @@ export default function AptitudeTestPro() {
                       <motion.div key={miIndex} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           {["A", "B"].map(choice => {
-                            const option = choice === "A" ? miPairs[miIndex].optionA : miPairs[miIndex].optionB;
-                            const isSelected = miAnswers[miPairs[miIndex].id] === choice;
+                            const option = choice === "A" ? miPairs[miIndex]?.optionA : miPairs[miIndex]?.optionB;
+                            const isSelected = miAnswers[miPairs[miIndex]?.id] === choice;
                             return (
                               <button
                                 key={choice}
                                 onClick={() => {
-                                  setMiAnswers(prev => ({ ...prev, [miPairs[miIndex].id]: choice }));
-                                  setTimeout(() => {
-                                    if (miIndex < miPairs.length - 1) setMiIndex(prev => prev + 1);
-                                  }, 400);
+                                  setMiAnswers(prev => ({ ...prev, [miPairs[miIndex]?.id]: choice }));
                                 }}
                                 className={`p-5 rounded-xl border-2 text-left transition-all ${
                                   isSelected
@@ -810,7 +867,7 @@ export default function AptitudeTestPro() {
                         <ArrowLeft className="w-4 h-4" /> Sebelumnya
                       </button>
                       <button onClick={() => { if (miIndex < miPairs.length - 1) setMiIndex(prev => prev + 1); }}
-                        disabled={miIndex >= miPairs.length - 1 || !miAnswers[miPairs[miIndex].id]}
+                        disabled={miIndex >= miPairs.length - 1 || !miAnswers[miPairs[miIndex]?.id]}
                         className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 disabled:opacity-30">
                         Selanjutnya <ArrowRight className="w-4 h-4" />
                       </button>
@@ -846,9 +903,6 @@ export default function AptitudeTestPro() {
                                 key={choice}
                                 onClick={() => {
                                   setPersonalityAnswers(prev => ({ ...prev, [q.id]: choice }));
-                                  setTimeout(() => {
-                                    if (personalityIndex < personalityQuestions.length - 1) setPersonalityIndex(prev => prev + 1);
-                                  }, 400);
                                 }}
                                 className={`flex-1 p-6 rounded-xl border-2 text-center transition-all ${
                                   isSelected
@@ -898,7 +952,7 @@ export default function AptitudeTestPro() {
                         <ArrowLeft className="w-4 h-4" /> Sebelumnya
                       </button>
                       <button onClick={() => { if (personalityIndex < personalityQuestions.length - 1) setPersonalityIndex(prev => prev + 1); }}
-                        disabled={personalityIndex >= personalityQuestions.length - 1 || !personalityAnswers[personalityQuestions[personalityIndex].id]}
+                        disabled={personalityIndex >= personalityQuestions.length - 1 || !personalityAnswers[personalityQuestions[personalityIndex]?.id]}
                         className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 disabled:opacity-30">
                         Selanjutnya <ArrowRight className="w-4 h-4" />
                       </button>
@@ -927,22 +981,19 @@ export default function AptitudeTestPro() {
                         {/* Scenario box */}
                         <div className="bg-violet-50 border border-violet-200 rounded-xl p-5 mb-6">
                           <p className="text-sm font-medium text-violet-900 leading-relaxed">
-                            {sjtQuestions[sjtIndex].scenario[lang]}
+                            {sjtQuestions[sjtIndex]?.scenario?.[lang] ?? ""}
                           </p>
                         </div>
 
                         {/* Options */}
                         <div className="space-y-3">
-                          {sjtQuestions[sjtIndex].options.map(option => {
-                            const isSelected = sjtAnswers[sjtQuestions[sjtIndex].id] === option.value;
+                          {(sjtQuestions[sjtIndex]?.options ?? []).map(option => {
+                            const isSelected = sjtAnswers[sjtQuestions[sjtIndex]?.id] === option.value;
                             return (
                               <button
                                 key={option.value}
                                 onClick={() => {
-                                  setSjtAnswers(prev => ({ ...prev, [sjtQuestions[sjtIndex].id]: option.value }));
-                                  setTimeout(() => {
-                                    if (sjtIndex < sjtQuestions.length - 1) setSjtIndex(prev => prev + 1);
-                                  }, 500);
+                                  setSjtAnswers(prev => ({ ...prev, [sjtQuestions[sjtIndex]?.id]: option.value }));
                                 }}
                                 className={`w-full p-4 rounded-xl border-2 text-left transition-all flex items-start gap-3 ${
                                   isSelected
@@ -994,7 +1045,7 @@ export default function AptitudeTestPro() {
                         <ArrowLeft className="w-4 h-4" /> Sebelumnya
                       </button>
                       <button onClick={() => { if (sjtIndex < sjtQuestions.length - 1) setSjtIndex(prev => prev + 1); }}
-                        disabled={sjtIndex >= sjtQuestions.length - 1 || !sjtAnswers[sjtQuestions[sjtIndex].id]}
+                        disabled={sjtIndex >= sjtQuestions.length - 1 || !sjtAnswers[sjtQuestions[sjtIndex]?.id]}
                         className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 disabled:opacity-30">
                         Selanjutnya <ArrowRight className="w-4 h-4" />
                       </button>
@@ -1022,27 +1073,27 @@ export default function AptitudeTestPro() {
                       <motion.div key={creativeIndex} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                         <div className="bg-red-50 border border-red-200 rounded-xl p-5 mb-5">
                           <p className="text-sm font-medium text-red-900 leading-relaxed">
-                            {creativeQuestions[creativeIndex].text[lang]}
+                            {creativeQuestions[creativeIndex]?.text?.[lang] ?? ""}
                           </p>
                         </div>
 
                         <textarea
-                          value={creativeAnswers[creativeQuestions[creativeIndex].id] || ""}
-                          onChange={e => setCreativeAnswers(prev => ({ ...prev, [creativeQuestions[creativeIndex].id]: e.target.value }))}
-                          placeholder={creativeQuestions[creativeIndex].placeholder[lang]}
+                          value={creativeAnswers[creativeQuestions[creativeIndex]?.id] || ""}
+                          onChange={e => setCreativeAnswers(prev => ({ ...prev, [creativeQuestions[creativeIndex]?.id]: e.target.value }))}
+                          placeholder={creativeQuestions[creativeIndex]?.placeholder?.[lang]}
                           rows={6}
-                          maxLength={creativeQuestions[creativeIndex].maxLength}
+                          maxLength={creativeQuestions[creativeIndex]?.maxLength}
                           className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none resize-none"
                         />
                         <div className="flex justify-between mt-2 text-xs">
                           <span className={`${
-                            (creativeAnswers[creativeQuestions[creativeIndex].id] || "").length < creativeQuestions[creativeIndex].minLength
+                            (creativeAnswers[creativeQuestions[creativeIndex]?.id] || "").length < (creativeQuestions[creativeIndex]?.minLength ?? 0)
                               ? "text-red-500" : "text-green-600"
                           }`}>
-                            {(creativeAnswers[creativeQuestions[creativeIndex].id] || "").length} / min {creativeQuestions[creativeIndex].minLength} karakter
+                            {(creativeAnswers[creativeQuestions[creativeIndex]?.id] || "").length} / min {creativeQuestions[creativeIndex]?.minLength ?? 0} karakter
                           </span>
                           <span className="text-gray-400">
-                            max {creativeQuestions[creativeIndex].maxLength}
+                            max {creativeQuestions[creativeIndex]?.maxLength ?? 0}
                           </span>
                         </div>
                       </motion.div>
@@ -1082,20 +1133,20 @@ export default function AptitudeTestPro() {
                       <motion.div key={rankingIndex} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                         <div className="bg-sky-50 border border-sky-200 rounded-xl p-4 mb-5">
                           <p className="text-sm font-medium text-sky-900">
-                            {rankingExercises[rankingIndex].instruction[lang]}
+                            {rankingExercises[rankingIndex]?.instruction?.[lang] ?? ""}
                           </p>
                         </div>
 
                         <Reorder.Group
                           axis="y"
-                          values={rankingAnswers[rankingExercises[rankingIndex].id] || []}
+                          values={rankingAnswers[rankingExercises[rankingIndex]?.id] || []}
                           onReorder={(newOrder) => {
-                            setRankingAnswers(prev => ({ ...prev, [rankingExercises[rankingIndex].id]: newOrder }));
+                            setRankingAnswers(prev => ({ ...prev, [rankingExercises[rankingIndex]?.id]: newOrder }));
                           }}
                           className="space-y-2"
                         >
-                          {(rankingAnswers[rankingExercises[rankingIndex].id] || []).map((itemValue, idx) => {
-                            const item = rankingExercises[rankingIndex].items.find(i => i.value === itemValue);
+                          {(rankingAnswers[rankingExercises[rankingIndex]?.id] || []).map((itemValue, idx) => {
+                            const item = rankingExercises[rankingIndex]?.items?.find(i => i.value === itemValue);
                             if (!item) return null;
                             return (
                               <Reorder.Item

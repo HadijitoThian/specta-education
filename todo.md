@@ -633,3 +633,19 @@
 - [x] Users can now click any dot to jump to a specific question and see answered (colored) vs unanswered (gray)
 - [x] Added unanswered question warning with clickable links when ≤5 questions remain
 - [x] All 122 tests still passing
+
+### 65. Bug Fix: Pro Test Section 2 Still Cannot Proceed
+- [x] Auto-advance skipping questions 11-20 (only 1-10 and 30 are answered)
+- [x] Fix the RIASEC auto-advance logic to properly advance sequentially
+- [x] Ensure "Bagian Selanjutnya" button enables when all 30 questions are answered
+
+### 66. Critical Bug: Pro Test Crashes with TypeError + Auto-Advance Race Condition
+- [x] Fix TypeError: Cannot read properties of undefined (reading 'text') — index out of bounds
+- [x] Fix auto-advance setTimeout race condition causing skipped questions
+- [x] Add bounds safety checks for all indexed sections (RIASEC, MI, Personality, SJT, Creative, Ranking)
+- [x] Replace setTimeout in onClick with useEffect-based approach
+- [x] Added proper dependency arrays to useEffect hooks (riasecIndex, miIndex, etc.)
+- [x] Added bounds-safe setIndex callbacks (next < length ? next : prev)
+- [x] Added optional chaining (?.) to ALL array index accesses across all 7 sections
+- [x] Wrote 15 new vitest tests for question array bounds safety
+- [x] All 137 tests passing, 0 TypeScript errors
