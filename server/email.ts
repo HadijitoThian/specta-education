@@ -39,11 +39,13 @@ export async function sendEmail({
   subject,
   html,
   text,
+  attachments,
 }: {
   to: string;
   subject: string;
   html: string;
   text?: string;
+  attachments?: Array<{ filename: string; content: Buffer; contentType?: string }>;
 }): Promise<boolean> {
   const transport = getTransporter();
   if (!transport) {
@@ -58,6 +60,11 @@ export async function sendEmail({
       subject,
       html,
       text: text || html.replace(/<[^>]*>/g, ""),
+      attachments: attachments?.map(a => ({
+        filename: a.filename,
+        content: a.content,
+        contentType: a.contentType || "application/octet-stream",
+      })),
     });
     console.log(`[Email] Sent "${subject}" to ${to}`);
     return true;
@@ -414,6 +421,7 @@ export async function sendAptitudeResultsEmail({
   riasecScores,
   miScores,
   aiAnalysis,
+  pdfBuffer,
 }: {
   to: string;
   studentName: string;
@@ -422,6 +430,7 @@ export async function sendAptitudeResultsEmail({
   riasecScores: Record<string, number>;
   miScores: Record<string, number>;
   aiAnalysis: any;
+  pdfBuffer?: Buffer;
 }): Promise<boolean> {
   const isId = language === "id";
 
@@ -586,11 +595,20 @@ export async function sendAptitudeResultsEmail({
     <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 16px;">${isId ? "Email ini dikirim secara otomatis oleh SpecTa Education AI Aptitude Test." : "This email was sent automatically by SpecTa Education AI Aptitude Test."}</p>
   `);
 
+  const attachments = pdfBuffer
+    ? [{
+        filename: `Tes-Bakat-AI_${studentName.replace(/\s+/g, "-")}_${new Date().toISOString().split("T")[0]}.pdf`,
+        content: pdfBuffer,
+        contentType: "application/pdf",
+      }]
+    : undefined;
+
   return sendEmail({
     to,
     subject: isId
       ? `🧠 Hasil Tes Bakat AI Kamu - ${studentName} | SpecTa Education`
       : `🧠 Your AI Aptitude Test Results - ${studentName} | SpecTa Education`,
     html,
+    attachments,
   });
 }

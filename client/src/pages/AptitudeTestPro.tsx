@@ -4,7 +4,7 @@ import { motion, AnimatePresence, Reorder } from "framer-motion";
 import {
   ArrowLeft, ArrowRight, Brain, Clock, Sparkles, ShieldCheck,
   AlertTriangle, Mail, GripVertical, CheckCircle2, ChevronRight,
-  BookOpen, Target, Lightbulb, Users, PenTool, BarChart3, ShieldX
+  BookOpen, Target, Lightbulb, Users, PenTool, BarChart3, ShieldX, Download
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import Navigation from "@/components/Navigation";
@@ -211,6 +211,7 @@ export default function AptitudeTestPro() {
   const analyzeMutation = trpc.aptitude.analyzeProResults.useMutation();
   const [analysisError, setAnalysisError] = useState("");
   const [savedResultId, setSavedResultId] = useState<number | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   // Ref for scroll
   const topRef = useRef<HTMLDivElement>(null);
@@ -403,9 +404,12 @@ export default function AptitudeTestPro() {
         language: lang,
       });
 
-      // Store resultId for PDF download
+      // Store resultId and pdfUrl for PDF download
       if (result.resultId) {
         setSavedResultId(result.resultId);
+      }
+      if (result.pdfUrl) {
+        setPdfUrl(result.pdfUrl);
       }
 
       // Complete the token
@@ -1286,9 +1290,24 @@ export default function AptitudeTestPro() {
               </>
             )}
 
-            {savedResultId && !analysisError && (
-              <div className="mb-4">
-                <AptitudeReportDownload resultId={savedResultId} studentName={studentName} language={lang} />
+            {!analysisError && (pdfUrl || savedResultId) && (
+              <div className="mb-4 space-y-2">
+                {pdfUrl ? (
+                  <a
+                    href={pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-indigo-700 transition-colors text-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    {lang === "id" ? "Download Laporan PDF" : "Download PDF Report"}
+                  </a>
+                ) : savedResultId ? (
+                  <AptitudeReportDownload resultId={savedResultId} studentName={studentName} language={lang} />
+                ) : null}
+                <p className="text-xs text-gray-400 mt-1">
+                  {lang === "id" ? "PDF juga dikirim sebagai lampiran email" : "PDF is also attached to your email"}
+                </p>
               </div>
             )}
 

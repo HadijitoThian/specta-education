@@ -6,6 +6,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { invokeLLM } from "./_core/llm";
 import { storagePut } from "./storage";
+import { generatePdfReport, generateAndUploadPdfReport } from "./pdfGenerator";
 import { nanoid } from "nanoid";
 import { 
   createConversation, 
@@ -2231,7 +2232,22 @@ IMPORTANT:
           content: `${input.studentName} (${input.studentEmail}) completed the aptitude test. Holland Code: ${hollandCode}. Top majors: ${(aiAnalysis.recommendedMajors || []).map((m: any) => m.name).join(", ")}.`,
         }).catch(() => {});
 
-        // 8. Send results to student's email
+        // 8. Generate PDF and send results email with attachment
+        let freePdfBuffer: Buffer | undefined;
+        try {
+          freePdfBuffer = await generatePdfReport({
+            studentName: input.studentName,
+            language: input.language,
+            hollandCode,
+            riasecScores,
+            miScores,
+            aiAnalysis,
+          });
+          console.log(`[Aptitude] PDF generated for ${input.studentName} (${freePdfBuffer.length} bytes)`);
+        } catch (pdfErr) {
+          console.error("[Aptitude] PDF generation failed:", pdfErr);
+        }
+
         sendAptitudeResultsEmail({
           to: input.studentEmail,
           studentName: input.studentName,
@@ -2240,6 +2256,7 @@ IMPORTANT:
           riasecScores,
           miScores,
           aiAnalysis,
+          pdfBuffer: freePdfBuffer,
         }).catch((err) => console.error("[Aptitude] Failed to send results email:", err));
 
         return {
@@ -2506,7 +2523,35 @@ IMPORTANT:
           content: `${input.studentName} (${input.studentEmail}) completed the PRO aptitude test. Holland Code: ${hollandCode}. Top majors: ${(aiAnalysis.recommendedMajors || []).slice(0, 3).map((m: any) => m.name).join(", ")}.`,
         }).catch(() => {});
 
-        // Send premium results email (reuse existing email function)
+        // Generate PDF report server-side
+        let pdfBuffer: Buffer | undefined;
+        let pdfUrl: string | undefined;
+        try {
+          pdfBuffer = await generatePdfReport({
+            studentName: input.studentName,
+            language: input.language,
+            hollandCode,
+            riasecScores: input.riasecScores,
+            miScores: input.miScores,
+            aiAnalysis,
+          });
+          console.log(`[AptitudePro] PDF generated for ${input.studentName} (${pdfBuffer.length} bytes)`);
+
+          // Upload PDF to S3 for download link
+          pdfUrl = await generateAndUploadPdfReport({
+            studentName: input.studentName,
+            language: input.language,
+            hollandCode,
+            riasecScores: input.riasecScores,
+            miScores: input.miScores,
+            aiAnalysis,
+          });
+          console.log(`[AptitudePro] PDF uploaded to S3: ${pdfUrl}`);
+        } catch (pdfErr) {
+          console.error("[AptitudePro] PDF generation failed (email will be sent without attachment):", pdfErr);
+        }
+
+        // Send premium results email with PDF attachment
         sendAptitudeResultsEmail({
           to: input.studentEmail,
           studentName: input.studentName,
@@ -2515,11 +2560,13 @@ IMPORTANT:
           riasecScores: input.riasecScores,
           miScores: input.miScores,
           aiAnalysis,
+          pdfBuffer,
         }).catch((err: Error) => console.error("[AptitudePro] Failed to send results email:", err));
 
         return {
           success: true,
           resultId: saved?.id,
+          pdfUrl,
         };
       }),
 
@@ -2537,6 +2584,28 @@ IMPORTANT:
           personalitySnapshot: result.personalitySnapshot ? JSON.parse(result.personalitySnapshot) : null,
           recommendedMajors: JSON.parse(result.recommendedMajors || "[]"),
         };
+      }),
+
+    downloadPdf: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const result = await getAptitudeResultById(input.id);
+        if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Result not found" });
+
+        const riasecScores = JSON.parse(result.riasecScores || "{}");
+        const miScores = JSON.parse(result.miScores || "{}");
+        const aiAnalysis = JSON.parse(result.aiAnalysis || "{}");
+
+        const pdfUrl = await generateAndUploadPdfReport({
+          studentName: result.studentName,
+          language: (result.language as "id" | "en") || "id",
+          hollandCode: result.hollandCode || "---",
+          riasecScores,
+          miScores,
+          aiAnalysis,
+        });
+
+        return { pdfUrl };
       }),
 
     getAllResults: protectedProcedure

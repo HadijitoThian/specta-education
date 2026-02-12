@@ -655,3 +655,17 @@
 - [x] Update all Instagram URLs to https://instagram.com/spectaedu
 - [x] Update all Instagram handle text to @spectaedu
 - [x] Verify no old/incorrect Instagram handles remain
+
+### 68. Bug Fix: PDF Download + Email Attachment (Server-Side PDF)
+- [x] Investigated: client-side html2canvas/jsPDF was failing silently (CORS, rendering)
+- [x] Built server-side PDF generator using pdfkit (server/pdfGenerator.ts)
+- [x] PDF includes: header, personality snapshot, Holland Code, RIASEC scores, MI scores, cross-analysis, soft skills, creative thinking, values, recommended majors, strengths/weaknesses, learning style, career outlook, action plan, parent summary
+- [x] PDF uploaded to S3 and URL returned to frontend for direct download
+- [x] Added pdfBuffer attachment support to sendEmail function
+- [x] Both free and Pro test emails now include PDF attachment
+- [x] Rewrote AptitudeReportPDF component to use server-side downloadPdf endpoint (no more html2canvas)
+- [x] Added downloadPdf tRPC mutation endpoint for on-demand PDF generation
+- [x] Pro test returns pdfUrl directly from analyzeProResults for instant download
+- [x] Fallback: if pdfUrl not available, uses downloadPdf endpoint
+- [x] 5 new vitest tests for PDF generator (valid PDF, English, minimal data, empty analysis, special chars)
+- [x] All 142 tests passing, 0 TypeScript errors
