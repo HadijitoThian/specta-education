@@ -649,3 +649,9 @@
 - [x] Added optional chaining (?.) to ALL array index accesses across all 7 sections
 - [x] Wrote 15 new vitest tests for question array bounds safety
 - [x] All 137 tests passing, 0 TypeScript errors
+
+### 67. Fix Instagram Handle — Use Official @spectaedu
+- [x] Find all Instagram references across the codebase
+- [x] Update all Instagram URLs to https://instagram.com/spectaedu
+- [x] Update all Instagram handle text to @spectaedu
+- [x] Verify no old/incorrect Instagram handles remain
