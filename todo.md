@@ -794,3 +794,10 @@
 
 ### 79. Fix Deployment - pdfmake Import Error
 - [x] Fix pdfmake/js/Printer import to work in production ESM environment (added .js extension for ESM compatibility)
+
+### 80. Fix Homepage SEO Issues (Static HTML Meta Tags)
+- [x] Fix title: changed from 16 chars ("SpecTa Education") to 55 chars in static HTML
+- [x] Fix meta description: added 155-char description directly in index.html
+- [x] Fix keywords: added bilingual keywords (EN/ID) directly in index.html
+- [x] Root cause: previous SEO tags were only set via JavaScript useEffect (not visible to crawlers)
+- [x] Solution: placed meta tags in static index.html AND kept useEffect as client-side reinforcement
