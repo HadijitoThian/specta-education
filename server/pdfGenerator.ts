@@ -1,6 +1,6 @@
 
 // @ts-ignore - pdfmake/js/Printer lacks type declarations
-import PdfPrinterModule from "pdfmake/js/Printer";
+import PdfPrinterModule from "pdfmake/js/Printer.js";
 const PdfPrinter = (PdfPrinterModule as any).default || PdfPrinterModule;
 import { storagePut } from "./storage";
 import crypto from "crypto";

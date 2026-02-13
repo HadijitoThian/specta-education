@@ -791,3 +791,6 @@
 - [x] Add keywords meta tag to homepage (bilingual EN/ID: study abroad, IELTS, konsultan pendidikan, kuliah luar negeri, beasiswa)
 - [x] Fix title to 60 chars: "SpecTa Education - Study Abroad Consultant & IELTS Preparation"
 - [x] Add meta description (155 chars): helps students study abroad across 10+ countries with expert counseling, IELTS preparation, university matching, and scholarship guidance since 2005
+
+### 79. Fix Deployment - pdfmake Import Error
+- [x] Fix pdfmake/js/Printer import to work in production ESM environment (added .js extension for ESM compatibility)
