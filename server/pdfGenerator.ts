@@ -1,4 +1,5 @@
-// @ts-ignore - pdfmake CJS module
+
+// @ts-ignore - pdfmake/js/Printer lacks type declarations
 import PdfPrinterModule from "pdfmake/js/Printer";
 const PdfPrinter = (PdfPrinterModule as any).default || PdfPrinterModule;
 import { storagePut } from "./storage";
@@ -6,7 +7,7 @@ import crypto from "crypto";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import type { TDocumentDefinitions, Content, ContentColumns, ContentStack, ContentText, ContentCanvas, StyleDictionary } from "pdfmake/interfaces";
+import type { TDocumentDefinitions, Content, StyleDictionary } from "pdfmake/interfaces";
 
 // ========== LOGO PATH ==========
 const __filename_esm = fileURLToPath(import.meta.url);
@@ -15,24 +16,89 @@ const LOGO_PATH = path.join(__dirname_esm, "assets", "specta-logo.jpeg");
 const LOGO_CDN_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/oLYlgeIIkWTCNMTB.jpeg";
 
 // ========== LABELS ==========
-const riasecLabels: Record<string, { id: string; en: string }> = {
-  R: { id: "Realistis", en: "Realistic" },
-  I: { id: "Investigatif", en: "Investigative" },
-  A: { id: "Artistik", en: "Artistic" },
-  S: { id: "Sosial", en: "Social" },
-  E: { id: "Enterprising", en: "Enterprising" },
-  C: { id: "Konvensional", en: "Conventional" },
+const riasecLabels: Record<string, { id: string; en: string; desc_id: string; desc_en: string }> = {
+  R: {
+    id: "Realistis", en: "Realistic",
+    desc_id: "Kamu menyukai aktivitas yang melibatkan pekerjaan tangan, alat, mesin, atau alam. Kamu cenderung praktis, suka memecahkan masalah secara langsung, dan lebih memilih tindakan nyata daripada teori.",
+    desc_en: "You enjoy activities involving hands-on work, tools, machines, or nature. You tend to be practical, prefer solving problems directly, and favor concrete action over abstract theory.",
+  },
+  I: {
+    id: "Investigatif", en: "Investigative",
+    desc_id: "Kamu memiliki rasa ingin tahu yang tinggi dan senang menganalisis, meneliti, serta memahami bagaimana sesuatu bekerja. Kamu menikmati pemecahan masalah yang kompleks dan berpikir kritis.",
+    desc_en: "You have a strong curiosity and enjoy analyzing, researching, and understanding how things work. You thrive on complex problem-solving and critical thinking.",
+  },
+  A: {
+    id: "Artistik", en: "Artistic",
+    desc_id: "Kamu memiliki jiwa kreatif dan ekspresif. Kamu menikmati seni, desain, musik, tulisan, atau bentuk ekspresi lainnya. Kamu lebih suka lingkungan yang fleksibel dan tidak terstruktur.",
+    desc_en: "You have a creative and expressive spirit. You enjoy art, design, music, writing, or other forms of expression. You prefer flexible, unstructured environments.",
+  },
+  S: {
+    id: "Sosial", en: "Social",
+    desc_id: "Kamu senang bekerja dengan orang lain, membantu, mengajar, atau membimbing. Kamu memiliki empati tinggi dan kemampuan komunikasi yang baik. Kamu merasa puas ketika bisa membuat perbedaan dalam kehidupan orang lain.",
+    desc_en: "You enjoy working with others, helping, teaching, or mentoring. You have high empathy and strong communication skills. You feel fulfilled when making a difference in others' lives.",
+  },
+  E: {
+    id: "Enterprising", en: "Enterprising",
+    desc_id: "Kamu adalah pemimpin alami yang suka mengambil inisiatif, mempengaruhi orang lain, dan mengelola proyek. Kamu tertarik pada kewirausahaan, bisnis, dan peluang untuk memimpin.",
+    desc_en: "You are a natural leader who enjoys taking initiative, influencing others, and managing projects. You are drawn to entrepreneurship, business, and leadership opportunities.",
+  },
+  C: {
+    id: "Konvensional", en: "Conventional",
+    desc_id: "Kamu menyukai keteraturan, data, dan sistem yang terorganisir. Kamu teliti, detail-oriented, dan bekerja dengan baik dalam lingkungan yang terstruktur dengan prosedur yang jelas.",
+    desc_en: "You enjoy order, data, and organized systems. You are meticulous, detail-oriented, and work well in structured environments with clear procedures.",
+  },
 };
 
-const miLabels: Record<string, { id: string; en: string }> = {
-  linguistic: { id: "Linguistik", en: "Linguistic" },
-  logical: { id: "Logis-Matematis", en: "Logical-Mathematical" },
-  spatial: { id: "Visual-Spasial", en: "Visual-Spatial" },
-  musical: { id: "Musikal", en: "Musical" },
-  kinesthetic: { id: "Kinestetik", en: "Kinesthetic" },
-  interpersonal: { id: "Interpersonal", en: "Interpersonal" },
-  intrapersonal: { id: "Intrapersonal", en: "Intrapersonal" },
-  naturalistic: { id: "Naturalis", en: "Naturalistic" },
+const miLabels: Record<string, { id: string; en: string; desc_id: string; desc_en: string }> = {
+  linguistic: {
+    id: "Linguistik", en: "Linguistic",
+    desc_id: "Kemampuan menggunakan kata-kata secara efektif, baik secara lisan maupun tulisan. Kamu mahir dalam membaca, menulis, bercerita, dan menjelaskan konsep kompleks dengan jelas.",
+    desc_en: "The ability to use words effectively, both orally and in writing. You excel at reading, writing, storytelling, and explaining complex concepts clearly.",
+  },
+  logical: {
+    id: "Logis-Matematis", en: "Logical-Mathematical",
+    desc_id: "Kemampuan berpikir logis, menganalisis pola, dan menyelesaikan masalah matematis. Kamu unggul dalam penalaran deduktif, pemikiran abstrak, dan pemecahan masalah sistematis.",
+    desc_en: "The ability to think logically, analyze patterns, and solve mathematical problems. You excel in deductive reasoning, abstract thinking, and systematic problem-solving.",
+  },
+  spatial: {
+    id: "Visual-Spasial", en: "Visual-Spatial",
+    desc_id: "Kemampuan memvisualisasikan dan memanipulasi objek dalam ruang. Kamu berpikir dalam gambar, memiliki kesadaran spasial yang kuat, dan mahir dalam desain, navigasi, atau arsitektur.",
+    desc_en: "The ability to visualize and manipulate objects in space. You think in pictures, have strong spatial awareness, and excel in design, navigation, or architecture.",
+  },
+  musical: {
+    id: "Musikal", en: "Musical",
+    desc_id: "Kemampuan memahami, menciptakan, dan mengapresiasi musik. Kamu sensitif terhadap ritme, nada, dan melodi, serta mungkin memiliki bakat dalam memainkan instrumen atau menyanyi.",
+    desc_en: "The ability to understand, create, and appreciate music. You are sensitive to rhythm, pitch, and melody, and may have talent in playing instruments or singing.",
+  },
+  kinesthetic: {
+    id: "Kinestetik", en: "Kinesthetic",
+    desc_id: "Kemampuan menggunakan tubuh secara efektif untuk mengekspresikan ide atau memecahkan masalah. Kamu belajar dengan melakukan, memiliki koordinasi fisik yang baik, dan unggul dalam aktivitas yang melibatkan gerakan.",
+    desc_en: "The ability to use your body effectively to express ideas or solve problems. You learn by doing, have good physical coordination, and excel in activities involving movement.",
+  },
+  interpersonal: {
+    id: "Interpersonal", en: "Interpersonal",
+    desc_id: "Kemampuan memahami dan berinteraksi secara efektif dengan orang lain. Kamu pandai membaca emosi, motivasi, dan niat orang lain, serta mahir dalam kerja tim dan kepemimpinan.",
+    desc_en: "The ability to understand and interact effectively with others. You are skilled at reading others' emotions, motivations, and intentions, and excel in teamwork and leadership.",
+  },
+  intrapersonal: {
+    id: "Intrapersonal", en: "Intrapersonal",
+    desc_id: "Kemampuan memahami diri sendiri secara mendalam, termasuk emosi, kekuatan, kelemahan, dan motivasi. Kamu memiliki kesadaran diri yang tinggi dan kemampuan refleksi yang baik.",
+    desc_en: "The ability to understand yourself deeply, including your emotions, strengths, weaknesses, and motivations. You have high self-awareness and strong reflective abilities.",
+  },
+  naturalistic: {
+    id: "Naturalis", en: "Naturalistic",
+    desc_id: "Kemampuan mengenali, mengkategorikan, dan memahami pola dalam alam dan lingkungan. Kamu memiliki koneksi kuat dengan alam dan tertarik pada ilmu biologi, ekologi, atau konservasi.",
+    desc_en: "The ability to recognize, categorize, and understand patterns in nature and the environment. You have a strong connection to nature and interest in biology, ecology, or conservation.",
+  },
+};
+
+// Big Five labels
+const bigFiveLabels: Record<string, { id: string; en: string }> = {
+  openness: { id: "Keterbukaan", en: "Openness" },
+  conscientiousness: { id: "Kesadaran", en: "Conscientiousness" },
+  extraversion: { id: "Ekstraversi", en: "Extraversion" },
+  agreeableness: { id: "Keramahan", en: "Agreeableness" },
+  neuroticism: { id: "Neurotisisme", en: "Neuroticism" },
 };
 
 // ========== COLORS ==========
@@ -41,7 +107,7 @@ const C = {
   navyLight: "#2a3d5f",
   teal: "#0d9488",
   tealLight: "#e0f7f5",
-  tealMuted: "#b2dfdb",
+  tealMuted: "#5eead4",
   purple: "#6d28d9",
   purpleLight: "#f3f0ff",
   dark: "#1e293b",
@@ -55,6 +121,7 @@ const C = {
   amber: "#b45309",
   blue: "#2563eb",
   gold: "#d97706",
+  red: "#dc2626",
 };
 
 interface PdfReportData {
@@ -82,19 +149,22 @@ function stripEmoji(text: string): string {
 // ========== pdfmake helpers ==========
 function sectionTitle(title: string, accentColor: string): Content {
   return {
-    margin: [0, 18, 0, 8] as [number, number, number, number],
+    margin: [0, 20, 0, 10] as [number, number, number, number],
     columns: [
       {
         canvas: [
-          { type: "rect", x: 0, y: 0, w: 4, h: 20, r: 2, color: accentColor }
+          { type: "rect", x: 0, y: 0, w: 4, h: 22, r: 2, color: accentColor }
         ],
         width: 8,
       },
       {
-        text: title,
-        style: "sectionHeading",
+        text: title.toUpperCase(),
+        fontSize: 13,
+        bold: true,
+        color: C.dark,
+        characterSpacing: 0.5,
         width: "*",
-        margin: [4, 1, 0, 0] as [number, number, number, number],
+        margin: [6, 2, 0, 0] as [number, number, number, number],
       }
     ],
   };
@@ -105,133 +175,158 @@ function dividerLine(color?: string): Content {
     canvas: [
       { type: "line", x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 0.5, lineColor: color || "#e2e8f0" }
     ],
-    margin: [0, 2, 0, 8] as [number, number, number, number],
+    margin: [0, 0, 0, 10] as [number, number, number, number],
   };
 }
 
-function scoreBar(label: string, score: number, barColor: string, bgColor: string): Content {
-  const barWidth = 350;
-  const fillWidth = Math.max((score / 100) * barWidth, 8);
+function paragraph(text: string, opts?: { fontSize?: number; color?: string; bold?: boolean; italic?: boolean; lineHeight?: number; margin?: [number, number, number, number] }): Content {
   return {
-    margin: [10, 0, 10, 6] as [number, number, number, number],
-    stack: [
-      {
-        columns: [
-          { text: label, fontSize: 9, color: C.dark, width: "*" },
-          {
-            table: {
-              widths: [36],
-              body: [[{
-                text: `${score}%`,
-                fontSize: 8,
-                color: C.white,
-                alignment: "center" as const,
-                fillColor: barColor,
-                margin: [0, 1, 0, 1] as [number, number, number, number],
-              }]],
-            },
-            layout: {
-              hLineWidth: () => 0,
-              vLineWidth: () => 0,
-              paddingLeft: () => 0,
-              paddingRight: () => 0,
-              paddingTop: () => 0,
-              paddingBottom: () => 0,
-            },
-            width: 40,
-          }
-        ],
-      },
-      {
-        canvas: [
-          { type: "rect", x: 0, y: 0, w: barWidth, h: 6, r: 3, color: bgColor },
-          { type: "rect", x: 0, y: 0, w: fillWidth, h: 6, r: 3, color: barColor },
-        ],
-        margin: [0, 3, 0, 4] as [number, number, number, number],
-      }
-    ],
+    text: stripEmoji(text),
+    fontSize: opts?.fontSize || 9.5,
+    color: opts?.color || C.gray,
+    bold: opts?.bold || false,
+    italics: opts?.italic || false,
+    lineHeight: opts?.lineHeight || 1.55,
+    margin: opts?.margin || [0, 0, 0, 8] as [number, number, number, number],
+  };
+}
+
+function infoBox(text: string, bgColor: string, textColor: string, borderColor?: string): Content {
+  return {
+    table: {
+      widths: ["*"],
+      body: [[{
+        text: stripEmoji(text),
+        fontSize: 9.5,
+        color: textColor,
+        lineHeight: 1.55,
+        margin: [14, 12, 14, 12] as [number, number, number, number],
+        border: [false, false, false, false],
+      }]],
+    },
+    layout: {
+      hLineWidth: () => 0,
+      vLineWidth: () => 0,
+      fillColor: () => bgColor,
+    },
+    margin: [0, 0, 0, 12] as [number, number, number, number],
+  };
+}
+
+function scoreBar(label: string, score: number, barColor: string, bgColor: string, description?: string): Content {
+  const barWidth = 340;
+  const fillWidth = Math.max((score / 100) * barWidth, 8);
+  const items: Content[] = [
+    {
+      columns: [
+        { text: label, fontSize: 9.5, color: C.dark, width: "*", bold: true },
+        { text: `${score}%`, fontSize: 9.5, color: barColor, bold: true, alignment: "right" as const, width: 40 },
+      ],
+    },
+    {
+      canvas: [
+        { type: "rect", x: 0, y: 0, w: barWidth, h: 7, r: 3.5, color: bgColor },
+        { type: "rect", x: 0, y: 0, w: fillWidth, h: 7, r: 3.5, color: barColor },
+      ],
+      margin: [0, 3, 0, 3] as [number, number, number, number],
+    },
+  ];
+  if (description) {
+    items.push({
+      text: stripEmoji(description),
+      fontSize: 8.5,
+      color: C.grayMedium,
+      lineHeight: 1.4,
+      margin: [0, 0, 0, 2] as [number, number, number, number],
+    });
+  }
+  return {
+    margin: [8, 0, 8, 10] as [number, number, number, number],
+    stack: items,
   };
 }
 
 function majorCard(m: any, index: number, isId: boolean): Content {
   const cs = m.compatibilityScore || 0;
-  const pillColor = cs >= 80 ? C.green : cs >= 60 ? C.teal : C.amber;
+  const pillColor = cs >= 85 ? C.green : cs >= 70 ? C.teal : C.amber;
   const items: Content[] = [];
 
-  // Header row with rank, name, score
+  // Header: rank badge + name + score pill
   items.push({
     columns: [
       {
         table: {
-          widths: [20],
+          widths: [22],
           body: [[{
             text: `${index + 1}`,
-            fontSize: 10,
+            fontSize: 11,
             color: C.white,
             alignment: "center" as const,
             fillColor: C.navy,
             margin: [0, 3, 0, 3] as [number, number, number, number],
           }]],
         },
-        layout: {
-          hLineWidth: () => 0,
-          vLineWidth: () => 0,
-          paddingLeft: () => 0,
-          paddingRight: () => 0,
-          paddingTop: () => 0,
-          paddingBottom: () => 0,
-        },
-        width: 24,
+        layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+        width: 26,
       },
-      { text: m.name || "", fontSize: 12, color: C.dark, bold: true, width: "*", margin: [6, 3, 0, 0] as [number, number, number, number] },
+      { text: m.name || "", fontSize: 12, color: C.dark, bold: true, width: "*", margin: [8, 3, 0, 0] as [number, number, number, number] },
       {
         table: {
-          widths: [58],
+          widths: [60],
           body: [[{
             text: `${cs}% ${isId ? "cocok" : "match"}`,
-            fontSize: 8,
+            fontSize: 8.5,
             color: C.white,
             alignment: "center" as const,
             fillColor: pillColor,
             margin: [0, 3, 0, 3] as [number, number, number, number],
           }]],
         },
-        layout: {
-          hLineWidth: () => 0,
-          vLineWidth: () => 0,
-          paddingLeft: () => 0,
-          paddingRight: () => 0,
-          paddingTop: () => 0,
-          paddingBottom: () => 0,
-        },
-        width: 62,
+        layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+        width: 64,
       }
     ],
-    margin: [0, 0, 0, 4] as [number, number, number, number],
+    margin: [0, 0, 0, 6] as [number, number, number, number],
   });
 
+  // Reason / description (the main elaboration)
   if (m.reason) {
-    items.push({ text: stripEmoji(m.reason), fontSize: 9, color: C.gray, lineHeight: 1.4, margin: [30, 0, 0, 3] as [number, number, number, number] });
-  }
-  if (m.careers?.length) {
     items.push({
-      text: [
-        { text: isId ? "Karir: " : "Careers: ", fontSize: 8, color: C.teal, bold: true },
-        { text: m.careers.join("  |  "), fontSize: 8, color: C.gray },
-      ],
-      margin: [30, 0, 0, 2] as [number, number, number, number],
+      text: stripEmoji(m.reason),
+      fontSize: 9.5,
+      color: C.gray,
+      lineHeight: 1.5,
+      margin: [34, 0, 0, 6] as [number, number, number, number],
     });
   }
+
+  // Careers as pills
+  if (m.careers?.length) {
+    items.push({
+      columns: [
+        { text: isId ? "Karir: " : "Careers: ", fontSize: 8.5, color: C.teal, bold: true, width: 40 },
+        { text: m.careers.join("  |  "), fontSize: 8.5, color: C.gray, width: "*" },
+      ],
+      margin: [34, 0, 0, 4] as [number, number, number, number],
+    });
+  }
+
+  // Salary + outlook
   if (m.salaryRange || m.growthOutlook) {
     const parts: string[] = [];
-    if (m.salaryRange) parts.push(`${isId ? "Gaji" : "Salary"}: ${m.salaryRange}`);
-    if (m.growthOutlook) parts.push(`${isId ? "Prospek" : "Outlook"}: ${m.growthOutlook}`);
-    items.push({ text: parts.join("  |  "), fontSize: 8, color: C.grayMedium, margin: [30, 0, 0, 2] as [number, number, number, number] });
+    if (m.salaryRange) parts.push(`${isId ? "Gaji" : "Salary"}: ${stripEmoji(m.salaryRange)}`);
+    if (m.growthOutlook) parts.push(`${isId ? "Prospek" : "Outlook"}: ${stripEmoji(m.growthOutlook)}`);
+    items.push({
+      text: parts.join("  |  "),
+      fontSize: 8,
+      color: C.grayMedium,
+      margin: [34, 0, 0, 4] as [number, number, number, number],
+    });
   }
 
   return {
     stack: items,
-    margin: [0, 0, 0, 10] as [number, number, number, number],
+    margin: [0, 0, 0, 12] as [number, number, number, number],
   };
 }
 
@@ -240,14 +335,14 @@ function bulletList(items: string[], color: string, prefix: string): Content {
     stack: items.map(item => ({
       columns: [
         { text: prefix, fontSize: 10, color: color, width: 14, bold: true },
-        { text: stripEmoji(item), fontSize: 9, color: C.gray, lineHeight: 1.4, width: "*" },
+        { text: stripEmoji(item), fontSize: 9.5, color: C.gray, lineHeight: 1.5, width: "*" },
       ],
-      margin: [10, 0, 0, 4] as [number, number, number, number],
+      margin: [10, 0, 0, 5] as [number, number, number, number],
     })),
   };
 }
 
-function actionStep(step: string, index: number): Content {
+function numberedStep(step: string, index: number): Content {
   return {
     columns: [
       {
@@ -262,19 +357,12 @@ function actionStep(step: string, index: number): Content {
             margin: [0, 2, 0, 2] as [number, number, number, number],
           }]],
         },
-        layout: {
-          hLineWidth: () => 0,
-          vLineWidth: () => 0,
-          paddingLeft: () => 0,
-          paddingRight: () => 0,
-          paddingTop: () => 0,
-          paddingBottom: () => 0,
-        },
+        layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
         width: 22,
       },
-      { text: stripEmoji(step), fontSize: 9.5, color: C.dark, lineHeight: 1.4, width: "*", margin: [6, 1, 0, 0] as [number, number, number, number] },
+      { text: stripEmoji(step), fontSize: 9.5, color: C.dark, lineHeight: 1.5, width: "*", margin: [6, 1, 0, 0] as [number, number, number, number] },
     ],
-    margin: [0, 0, 0, 6] as [number, number, number, number],
+    margin: [0, 0, 0, 7] as [number, number, number, number],
   };
 }
 
@@ -292,8 +380,11 @@ export async function generatePdfReport(data: PdfReportData): Promise<Buffer> {
   const isId = data.language === "id";
   const snapshot = data.aiAnalysis?.personalitySnapshot || {};
   const majors = data.aiAnalysis?.recommendedMajors || [];
+  const bigFive = data.aiAnalysis?.bigFiveProfile || {};
   const sortedRiasec = Object.entries(data.riasecScores).sort((a, b) => (b[1] as number) - (a[1] as number));
   const sortedMi = Object.entries(data.miScores).sort((a, b) => (b[1] as number) - (a[1] as number));
+  const topRiasec = sortedRiasec.slice(0, 3);
+  const topMi = sortedMi.slice(0, 3);
   const dateStr = new Date().toLocaleDateString(isId ? "id-ID" : "en-US", {
     year: "numeric", month: "long", day: "numeric",
   });
@@ -305,7 +396,6 @@ export async function generatePdfReport(data: PdfReportData): Promise<Buffer> {
       const logoBuffer = fs.readFileSync(LOGO_PATH);
       logoBase64 = `data:image/jpeg;base64,${logoBuffer.toString("base64")}`;
     } else {
-      // Fallback: fetch from CDN
       const resp = await fetch(LOGO_CDN_URL);
       if (resp.ok) {
         const buf = Buffer.from(await resp.arrayBuffer());
@@ -317,61 +407,66 @@ export async function generatePdfReport(data: PdfReportData): Promise<Buffer> {
   // ========== BUILD CONTENT ==========
   const content: Content[] = [];
 
-  // ===== COVER PAGE =====
-  // Teal top accent bar
+  // ===================================================================
+  // COVER PAGE — White background with teal/navy accents
+  // ===================================================================
+
+  // Top teal accent bar
   content.push({
     canvas: [
-      { type: "rect", x: -50, y: -40, w: 595, h: 842, color: C.navy },
       { type: "rect", x: -50, y: -40, w: 595, h: 6, color: C.teal },
-      { type: "rect", x: -50, y: 796, w: 595, h: 6, color: C.teal },
     ],
     absolutePosition: { x: 0, y: 0 },
   } as any);
 
-  // Logo
+  // Logo (on white background — no white block issue)
   if (logoBase64) {
     content.push({
       image: logoBase64,
-      width: 150,
+      width: 160,
       alignment: "center" as const,
-      margin: [0, 80, 0, 20] as [number, number, number, number],
+      margin: [0, 50, 0, 25] as [number, number, number, number],
     });
   }
 
-  // Decorative line
+  // Decorative teal line
   content.push({
     canvas: [
-      { type: "line", x1: 180, y1: 0, x2: 315, y2: 0, lineWidth: 2, lineColor: C.teal },
+      { type: "line", x1: 170, y1: 0, x2: 325, y2: 0, lineWidth: 2.5, lineColor: C.teal },
     ],
-    margin: [0, 10, 0, 15] as [number, number, number, number],
+    margin: [0, 5, 0, 20] as [number, number, number, number],
   });
 
-  // Title
+  // Report type label
   content.push({
     text: isId ? "LAPORAN RESMI" : "OFFICIAL REPORT",
-    fontSize: 11,
-    color: C.tealMuted,
+    fontSize: 10,
+    color: C.grayMedium,
     alignment: "center" as const,
-    characterSpacing: 4,
+    characterSpacing: 5,
     margin: [0, 0, 0, 8] as [number, number, number, number],
   });
+
+  // Main title
   content.push({
     text: isId ? "Tes Bakat AI" : "AI Aptitude Test",
-    fontSize: 28,
-    color: C.white,
+    fontSize: 30,
+    color: C.navy,
     alignment: "center" as const,
     bold: true,
     margin: [0, 0, 0, 8] as [number, number, number, number],
   });
+
+  // Subtitle
   content.push({
-    text: isId ? "Analisis Komprehensif Minat & Kecerdasan" : "Comprehensive Interest & Intelligence Analysis",
-    fontSize: 13,
-    color: C.grayLight,
+    text: isId ? "Analisis Komprehensif Minat, Kecerdasan & Kepribadian" : "Comprehensive Interest, Intelligence & Personality Analysis",
+    fontSize: 12,
+    color: C.gray,
     alignment: "center" as const,
-    margin: [0, 0, 0, 30] as [number, number, number, number],
+    margin: [0, 0, 0, 35] as [number, number, number, number],
   });
 
-  // Student info card
+  // Student info card (navy box)
   content.push({
     table: {
       widths: [4, "*"],
@@ -379,60 +474,60 @@ export async function generatePdfReport(data: PdfReportData): Promise<Buffer> {
         { text: "", fillColor: C.teal, border: [false, false, false, false] },
         {
           stack: [
-            { text: isId ? "DISIAPKAN UNTUK" : "PREPARED FOR", fontSize: 8, color: C.grayMedium, characterSpacing: 2, margin: [0, 0, 0, 6] as [number, number, number, number] },
-            { text: data.studentName, fontSize: 20, color: C.white, bold: true, margin: [0, 0, 0, 6] as [number, number, number, number] },
+            { text: isId ? "DISIAPKAN UNTUK" : "PREPARED FOR", fontSize: 8, color: C.grayLight, characterSpacing: 2, margin: [0, 0, 0, 6] as [number, number, number, number] },
+            { text: data.studentName, fontSize: 22, color: C.white, bold: true, margin: [0, 0, 0, 6] as [number, number, number, number] },
             { text: dateStr, fontSize: 9, color: C.grayLight },
           ],
-          fillColor: C.navyLight,
-          margin: [12, 10, 12, 10] as [number, number, number, number],
+          fillColor: C.navy,
+          margin: [14, 12, 14, 12] as [number, number, number, number],
           border: [false, false, false, false],
         }
       ]],
     },
-    layout: {
-      hLineWidth: () => 0,
-      vLineWidth: () => 0,
-      paddingLeft: () => 0,
-      paddingRight: () => 0,
-      paddingTop: () => 0,
-      paddingBottom: () => 0,
-    },
-    margin: [80, 0, 80, 25] as [number, number, number, number],
+    layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+    margin: [70, 0, 70, 20] as [number, number, number, number],
   });
 
   // Holland Code badge
   content.push({
     table: {
-      widths: [100],
+      widths: [110],
       body: [[{
         stack: [
-          { text: "HOLLAND CODE", fontSize: 7, color: C.tealMuted, alignment: "center" as const, characterSpacing: 2, margin: [0, 0, 0, 4] as [number, number, number, number] },
-          { text: data.hollandCode, fontSize: 26, color: C.white, alignment: "center" as const, bold: true },
+          { text: "HOLLAND CODE", fontSize: 7, color: C.white, alignment: "center" as const, characterSpacing: 2, margin: [0, 0, 0, 4] as [number, number, number, number] },
+          { text: data.hollandCode, fontSize: 28, color: C.white, alignment: "center" as const, bold: true },
         ],
         fillColor: C.teal,
         margin: [0, 8, 0, 8] as [number, number, number, number],
         border: [false, false, false, false],
       }]],
     },
-    layout: {
-      hLineWidth: () => 0,
-      vLineWidth: () => 0,
-      paddingLeft: () => 10,
-      paddingRight: () => 10,
-      paddingTop: () => 0,
-      paddingBottom: () => 0,
-    },
+    layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 12, paddingRight: () => 12, paddingTop: () => 0, paddingBottom: () => 0 },
     alignment: "center" as const,
-    margin: [185, 0, 185, 40] as [number, number, number, number],
+    margin: [180, 0, 180, 30] as [number, number, number, number],
+  });
+
+  // Top traits summary
+  const topTraitsText = isId
+    ? `Tipe dominan: ${topRiasec.map(([k]) => riasecLabels[k]?.id || k).join(", ")} | Kecerdasan utama: ${topMi.map(([k]) => miLabels[k]?.id || k).join(", ")}`
+    : `Dominant types: ${topRiasec.map(([k]) => riasecLabels[k]?.en || k).join(", ")} | Top intelligences: ${topMi.map(([k]) => miLabels[k]?.en || k).join(", ")}`;
+
+  content.push({
+    text: topTraitsText,
+    fontSize: 9,
+    color: C.gray,
+    alignment: "center" as const,
+    lineHeight: 1.4,
+    margin: [40, 0, 40, 40] as [number, number, number, number],
   });
 
   // Bottom contact info
   content.push({
-    text: "spectaeducation.com  |  wa.me/6281287878055",
+    text: "spectaeducation.com  |  wa.me/6281287878055  |  info@spectaeducation.com",
     fontSize: 8,
     color: C.grayMedium,
     alignment: "center" as const,
-    margin: [0, 30, 0, 5] as [number, number, number, number],
+    margin: [0, 10, 0, 5] as [number, number, number, number],
   });
   content.push({
     text: isId ? "Dokumen ini bersifat rahasia dan hanya untuk penggunaan pribadi" : "This document is confidential and for personal use only",
@@ -441,264 +536,434 @@ export async function generatePdfReport(data: PdfReportData): Promise<Buffer> {
     alignment: "center" as const,
   });
 
+  // Bottom teal accent bar
+  content.push({
+    canvas: [
+      { type: "rect", x: -50, y: 0, w: 595, h: 6, color: C.teal },
+    ],
+    absolutePosition: { x: 0, y: 836 },
+  } as any);
+
   // ===== PAGE BREAK =====
   content.push({ text: "", pageBreak: "after" as const });
 
-  // ===== PERSONALITY PROFILE CARD =====
+  // ===================================================================
+  // PAGE 2: PERSONALITY PROFILE & BIG FIVE
+  // ===================================================================
+
+  // Personality snapshot card
   const snapTitle = stripEmoji(snapshot.title || (isId ? "Profil Anda" : "Your Profile"));
-  const snapDesc = stripEmoji((snapshot.description || "").substring(0, 300));
+  const snapDesc = stripEmoji(snapshot.description || "");
 
   content.push({
     table: {
-      widths: [4, "*", 80],
+      widths: [4, "*", 85],
       body: [[
         { text: "", fillColor: C.teal, border: [false, false, false, false] },
         {
           stack: [
-            { text: isId ? "PROFIL KEPRIBADIAN" : "PERSONALITY PROFILE", fontSize: 8, color: C.tealMuted, characterSpacing: 2, margin: [0, 0, 0, 4] as [number, number, number, number] },
-            { text: snapTitle, fontSize: 16, color: C.white, bold: true, margin: [0, 0, 0, 6] as [number, number, number, number] },
-            { text: snapDesc, fontSize: 8.5, color: C.grayLight, lineHeight: 1.4 },
+            { text: isId ? "PROFIL KEPRIBADIAN" : "PERSONALITY PROFILE", fontSize: 8, color: C.grayLight, characterSpacing: 2, margin: [0, 0, 0, 5] as [number, number, number, number] },
+            { text: snapTitle, fontSize: 16, color: C.white, bold: true, margin: [0, 0, 0, 8] as [number, number, number, number] },
+            { text: snapDesc, fontSize: 9, color: C.grayLight, lineHeight: 1.45 },
           ],
           fillColor: C.navy,
-          margin: [12, 10, 8, 10] as [number, number, number, number],
+          margin: [14, 12, 10, 12] as [number, number, number, number],
           border: [false, false, false, false],
         },
         {
           stack: [
-            { text: "HOLLAND CODE", fontSize: 7, color: C.grayMedium, alignment: "center" as const, characterSpacing: 1, margin: [0, 8, 0, 4] as [number, number, number, number] },
-            { text: data.hollandCode, fontSize: 22, color: C.teal, alignment: "center" as const, bold: true },
+            { text: "HOLLAND CODE", fontSize: 7, color: C.grayMedium, alignment: "center" as const, characterSpacing: 1, margin: [0, 10, 0, 5] as [number, number, number, number] },
+            { text: data.hollandCode, fontSize: 24, color: C.teal, alignment: "center" as const, bold: true },
           ],
           fillColor: C.navyLight,
           border: [false, false, false, false],
         }
       ]],
     },
-    layout: {
-      hLineWidth: () => 0,
-      vLineWidth: () => 0,
-      paddingLeft: () => 0,
-      paddingRight: () => 0,
-      paddingTop: () => 0,
-      paddingBottom: () => 0,
-    },
-    margin: [0, 0, 0, 15] as [number, number, number, number],
+    layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+    margin: [0, 0, 0, 16] as [number, number, number, number],
   });
 
-  // ===== RIASEC ANALYSIS =====
-  if (data.aiAnalysis?.riasecAnalysis) {
-    content.push(sectionTitle(isId ? "Analisis Minat & Kepribadian" : "Interest & Personality Analysis", C.teal));
-    content.push(dividerLine());
-    content.push({ text: stripEmoji(data.aiAnalysis.riasecAnalysis), fontSize: 9.5, color: C.gray, lineHeight: 1.5, margin: [0, 0, 0, 10] as [number, number, number, number] });
+  // Big Five Personality Profile
+  if (bigFive && Object.keys(bigFive).length > 0) {
+    content.push(sectionTitle(isId ? "Profil Kepribadian Big Five" : "Big Five Personality Profile", C.purple));
+    content.push(dividerLine(C.purple));
+    content.push(paragraph(
+      isId
+        ? "Model Big Five adalah kerangka psikologi yang paling banyak diterima secara ilmiah untuk memahami kepribadian. Berikut adalah profil kepribadian Anda berdasarkan lima dimensi utama:"
+        : "The Big Five model is the most scientifically accepted psychological framework for understanding personality. Here is your personality profile across the five key dimensions:"
+    ));
+
+    for (const [trait, data_bf] of Object.entries(bigFive) as [string, any][]) {
+      const label = bigFiveLabels[trait];
+      if (!label || !data_bf) continue;
+      const level = stripEmoji(data_bf.level || "");
+      const desc = stripEmoji(data_bf.description || "");
+      content.push({
+        table: {
+          widths: [4, "*"],
+          body: [[
+            { text: "", fillColor: C.purple, border: [false, false, false, false] },
+            {
+              stack: [
+                {
+                  columns: [
+                    { text: isId ? label.id : label.en, fontSize: 10, color: C.dark, bold: true, width: "*" },
+                    { text: level, fontSize: 9, color: C.purple, bold: true, alignment: "right" as const, width: 80 },
+                  ],
+                  margin: [0, 0, 0, 4] as [number, number, number, number],
+                },
+                { text: desc, fontSize: 9, color: C.gray, lineHeight: 1.45 },
+              ],
+              margin: [10, 8, 10, 8] as [number, number, number, number],
+              fillColor: C.purpleLight,
+              border: [false, false, false, false],
+            }
+          ]],
+        },
+        layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+        margin: [0, 0, 0, 6] as [number, number, number, number],
+      });
+    }
   }
 
-  // ===== RIASEC SCORES =====
+  // ===================================================================
+  // RIASEC ANALYSIS (detailed)
+  // ===================================================================
+  if (data.aiAnalysis?.riasecAnalysis) {
+    content.push(sectionTitle(isId ? "Analisis Minat & Kepribadian (RIASEC)" : "Interest & Personality Analysis (RIASEC)", C.teal));
+    content.push(dividerLine(C.teal));
+    content.push(paragraph(data.aiAnalysis.riasecAnalysis));
+  }
+
+  // RIASEC Scores with descriptions for top 3
   content.push(sectionTitle(isId ? "Skor RIASEC" : "RIASEC Scores", C.teal));
   content.push(dividerLine(C.teal));
+  content.push(paragraph(
+    isId
+      ? "Skor RIASEC mengukur enam dimensi minat karir berdasarkan teori Holland. Skor yang lebih tinggi menunjukkan kecocokan yang lebih kuat dengan tipe tersebut."
+      : "RIASEC scores measure six career interest dimensions based on Holland's theory. Higher scores indicate stronger alignment with that type."
+  ));
 
-  for (const [key, score] of sortedRiasec) {
-    const lbl = riasecLabels[key] || { id: key, en: key };
+  for (let i = 0; i < sortedRiasec.length; i++) {
+    const [key, score] = sortedRiasec[i];
+    const lbl = riasecLabels[key] || { id: key, en: key, desc_id: "", desc_en: "" };
     const label = `${isId ? lbl.id : lbl.en} (${key})`;
-    content.push(scoreBar(label, score as number, C.teal, C.tealLight));
+    // Show description for top 3 types
+    const desc = i < 3 ? (isId ? lbl.desc_id : lbl.desc_en) : undefined;
+    content.push(scoreBar(label, score as number, C.teal, C.tealLight, desc));
   }
 
-  // ===== MI ANALYSIS =====
+  // ===================================================================
+  // MI ANALYSIS (detailed)
+  // ===================================================================
   if (data.aiAnalysis?.miAnalysis) {
     content.push(sectionTitle(isId ? "Analisis Kecerdasan Majemuk" : "Multiple Intelligence Analysis", C.purple));
-    content.push(dividerLine());
-    content.push({ text: stripEmoji(data.aiAnalysis.miAnalysis), fontSize: 9.5, color: C.gray, lineHeight: 1.5, margin: [0, 0, 0, 10] as [number, number, number, number] });
+    content.push(dividerLine(C.purple));
+    content.push(paragraph(data.aiAnalysis.miAnalysis));
   }
 
-  // ===== MI SCORES =====
+  // MI Scores with descriptions for top 3
   content.push(sectionTitle(isId ? "Skor Kecerdasan Majemuk" : "Multiple Intelligence Scores", C.purple));
   content.push(dividerLine(C.purple));
+  content.push(paragraph(
+    isId
+      ? "Teori Kecerdasan Majemuk Howard Gardner mengidentifikasi delapan jenis kecerdasan. Setiap orang memiliki kombinasi unik dari kecerdasan-kecerdasan ini."
+      : "Howard Gardner's Multiple Intelligence theory identifies eight types of intelligence. Each person has a unique combination of these intelligences."
+  ));
 
-  for (const [key, score] of sortedMi) {
-    const lbl = miLabels[key] || { id: key, en: key };
-    const label = `${isId ? lbl.id : lbl.en}`;
-    content.push(scoreBar(label, score as number, C.purple, C.purpleLight));
+  for (let i = 0; i < sortedMi.length; i++) {
+    const [key, score] = sortedMi[i];
+    const lbl = miLabels[key] || { id: key, en: key, desc_id: "", desc_en: "" };
+    const label = isId ? lbl.id : lbl.en;
+    const desc = i < 3 ? (isId ? lbl.desc_id : lbl.desc_en) : undefined;
+    content.push(scoreBar(label, score as number, C.purple, C.purpleLight, desc));
   }
 
-  // ===== CROSS-DIMENSIONAL INSIGHT =====
+  // ===================================================================
+  // CROSS-DIMENSIONAL INSIGHT
+  // ===================================================================
   const crossAnalysis = data.aiAnalysis?.crossAnalysis || data.aiAnalysis?.crossDimensionalInsight;
   if (crossAnalysis) {
-    content.push(sectionTitle(isId ? "Insight Unik Kamu" : "Your Unique Insight", C.teal));
-    content.push(dividerLine());
-    content.push({ text: stripEmoji(crossAnalysis), fontSize: 9.5, color: C.gray, lineHeight: 1.5, margin: [0, 0, 0, 10] as [number, number, number, number] });
+    content.push(sectionTitle(isId ? "Insight Lintas Dimensi" : "Cross-Dimensional Insight", C.teal));
+    content.push(dividerLine(C.teal));
+    content.push(paragraph(
+      isId
+        ? "Bagian ini menganalisis bagaimana kombinasi unik profil RIASEC dan Kecerdasan Majemuk Anda menciptakan kekuatan yang tidak dimiliki oleh satu dimensi saja."
+        : "This section analyzes how your unique combination of RIASEC profile and Multiple Intelligences creates strengths that no single dimension alone possesses."
+    ));
+    content.push(infoBox(crossAnalysis, C.tealLight, C.dark));
   }
 
-  // ===== SOFT SKILLS =====
+  // ===================================================================
+  // SOFT SKILLS ANALYSIS
+  // ===================================================================
   if (data.aiAnalysis?.softSkillsAnalysis) {
     content.push(sectionTitle(isId ? "Analisis Soft Skills" : "Soft Skills Analysis", C.teal));
-    content.push(dividerLine());
-    content.push({ text: stripEmoji(data.aiAnalysis.softSkillsAnalysis), fontSize: 9.5, color: C.gray, lineHeight: 1.5, margin: [0, 0, 0, 10] as [number, number, number, number] });
+    content.push(dividerLine(C.teal));
+    content.push(paragraph(
+      isId
+        ? "Soft skills adalah keterampilan non-teknis yang sangat penting untuk kesuksesan di dunia kerja dan akademik. Berikut adalah analisis soft skills Anda berdasarkan profil tes:"
+        : "Soft skills are non-technical abilities crucial for success in both academic and professional settings. Here is your soft skills analysis based on your test profile:"
+    ));
+    content.push(paragraph(data.aiAnalysis.softSkillsAnalysis));
   }
 
-  // ===== CREATIVE THINKING =====
+  // ===================================================================
+  // CREATIVE THINKING ANALYSIS
+  // ===================================================================
   if (data.aiAnalysis?.creativeThinkingAnalysis) {
     content.push(sectionTitle(isId ? "Analisis Pemikiran Kreatif" : "Creative Thinking Analysis", C.purple));
-    content.push(dividerLine());
-    content.push({ text: stripEmoji(data.aiAnalysis.creativeThinkingAnalysis), fontSize: 9.5, color: C.gray, lineHeight: 1.5, margin: [0, 0, 0, 10] as [number, number, number, number] });
+    content.push(dividerLine(C.purple));
+    content.push(paragraph(
+      isId
+        ? "Kemampuan berpikir kreatif adalah salah satu keterampilan paling dicari di abad ke-21. Berikut adalah analisis gaya berpikir kreatif Anda:"
+        : "Creative thinking ability is one of the most sought-after skills in the 21st century. Here is an analysis of your creative thinking style:"
+    ));
+    content.push(paragraph(data.aiAnalysis.creativeThinkingAnalysis));
   }
 
-  // ===== VALUES =====
+  // ===================================================================
+  // VALUES & PRIORITIES
+  // ===================================================================
   if (data.aiAnalysis?.valuesAnalysis) {
     content.push(sectionTitle(isId ? "Analisis Nilai & Prioritas" : "Values & Priorities Analysis", C.teal));
-    content.push(dividerLine());
-    content.push({ text: stripEmoji(data.aiAnalysis.valuesAnalysis), fontSize: 9.5, color: C.gray, lineHeight: 1.5, margin: [0, 0, 0, 10] as [number, number, number, number] });
+    content.push(dividerLine(C.teal));
+    content.push(paragraph(
+      isId
+        ? "Memahami nilai-nilai inti Anda sangat penting untuk memilih karir dan jurusan yang akan memberikan kepuasan jangka panjang, bukan hanya kesuksesan finansial."
+        : "Understanding your core values is essential for choosing a career and major that will provide long-term fulfillment, not just financial success."
+    ));
+    content.push(paragraph(data.aiAnalysis.valuesAnalysis));
   }
 
-  // ===== RECOMMENDED MAJORS =====
+  // ===================================================================
+  // RECOMMENDED MAJORS (expanded)
+  // ===================================================================
   if (majors.length > 0) {
     content.push(sectionTitle(isId ? "Rekomendasi Jurusan" : "Recommended Majors", C.navy));
-    content.push(dividerLine());
+    content.push(dividerLine(C.navy));
+    content.push(paragraph(
+      isId
+        ? `Berdasarkan analisis komprehensif profil RIASEC, Kecerdasan Majemuk, kepribadian, dan nilai-nilai Anda, berikut adalah ${majors.length} jurusan yang paling sesuai dengan potensi Anda. Setiap rekomendasi disertai dengan alasan detail mengapa jurusan tersebut cocok untuk Anda.`
+        : `Based on a comprehensive analysis of your RIASEC profile, Multiple Intelligences, personality, and values, here are the ${majors.length} majors that best match your potential. Each recommendation includes a detailed explanation of why that major suits you.`
+    ));
+
     for (let i = 0; i < majors.length; i++) {
       content.push(majorCard(majors[i], i, isId));
       if (i < majors.length - 1) {
         content.push({
-          canvas: [{ type: "line", x1: 15, y1: 0, x2: 480, y2: 0, lineWidth: 0.5, lineColor: "#e2e8f0" }],
+          canvas: [{ type: "line", x1: 30, y1: 0, x2: 465, y2: 0, lineWidth: 0.5, lineColor: "#e2e8f0" }],
           margin: [0, 0, 0, 8] as [number, number, number, number],
         });
       }
     }
   }
 
-  // ===== STRENGTHS & AREAS FOR GROWTH =====
+  // ===================================================================
+  // STRENGTHS & AREAS FOR GROWTH
+  // ===================================================================
   const sw = data.aiAnalysis?.strengthsAndWeaknesses;
   if (sw) {
     content.push(sectionTitle(isId ? "Kekuatan & Area Pengembangan" : "Strengths & Areas for Growth", C.teal));
-    content.push(dividerLine());
+    content.push(dividerLine(C.teal));
+    content.push(paragraph(
+      isId
+        ? "Mengenali kekuatan Anda membantu membangun kepercayaan diri, sementara memahami area pengembangan memungkinkan Anda untuk tumbuh secara strategis."
+        : "Recognizing your strengths builds confidence, while understanding growth areas enables you to develop strategically."
+    ));
 
     if (sw.strengths?.length) {
-      content.push({ text: isId ? "Kekuatan" : "Strengths", fontSize: 10, color: C.green, bold: true, margin: [0, 0, 0, 6] as [number, number, number, number] });
+      content.push({ text: isId ? "Kekuatan Utama" : "Key Strengths", fontSize: 10.5, color: C.green, bold: true, margin: [0, 4, 0, 8] as [number, number, number, number] });
       content.push(bulletList(sw.strengths, C.green, "+"));
     }
     if (sw.areasForGrowth?.length) {
-      content.push({ text: isId ? "Area Pengembangan" : "Areas for Growth", fontSize: 10, color: C.amber, bold: true, margin: [0, 8, 0, 6] as [number, number, number, number] });
+      content.push({ text: isId ? "Area Pengembangan" : "Areas for Growth", fontSize: 10.5, color: C.amber, bold: true, margin: [0, 10, 0, 8] as [number, number, number, number] });
       content.push(bulletList(sw.areasForGrowth, C.amber, ">"));
     }
   }
 
-  // ===== LEARNING STYLE =====
+  // ===================================================================
+  // LEARNING STYLE
+  // ===================================================================
   if (data.aiAnalysis?.learningStyle) {
     content.push(sectionTitle(isId ? "Gaya Belajar" : "Learning Style", C.blue));
-    content.push(dividerLine());
-    content.push({ text: stripEmoji(data.aiAnalysis.learningStyle), fontSize: 9.5, color: C.gray, lineHeight: 1.5, margin: [0, 0, 0, 10] as [number, number, number, number] });
+    content.push(dividerLine(C.blue));
+    content.push(paragraph(
+      isId
+        ? "Memahami gaya belajar Anda akan membantu Anda memilih universitas dan program studi yang paling sesuai dengan cara Anda menyerap informasi."
+        : "Understanding your learning style will help you choose universities and study programs that best match how you absorb information."
+    ));
+    content.push(infoBox(data.aiAnalysis.learningStyle, C.lightBg, C.dark));
   }
 
-  // ===== CAREER OUTLOOK =====
+  // ===================================================================
+  // CAREER OUTLOOK
+  // ===================================================================
   if (data.aiAnalysis?.careerOutlook) {
     content.push(sectionTitle(isId ? "Prospek Karir" : "Career Outlook", C.blue));
-    content.push(dividerLine());
-    content.push({ text: stripEmoji(data.aiAnalysis.careerOutlook), fontSize: 9.5, color: C.gray, lineHeight: 1.5, margin: [0, 0, 0, 10] as [number, number, number, number] });
+    content.push(dividerLine(C.blue));
+    content.push(paragraph(
+      isId
+        ? "Berdasarkan tren pasar kerja global dan profil unik Anda, berikut adalah pandangan tentang prospek karir Anda di masa depan."
+        : "Based on global job market trends and your unique profile, here is an outlook on your future career prospects."
+    ));
+    content.push(paragraph(data.aiAnalysis.careerOutlook));
   }
 
-  // ===== ACTION PLAN =====
+  // ===================================================================
+  // ACTION PLAN
+  // ===================================================================
   if (data.aiAnalysis?.actionPlan?.length) {
-    content.push(sectionTitle(isId ? "Langkah Selanjutnya" : "Action Plan", C.teal));
-    content.push(dividerLine());
+    content.push(sectionTitle(isId ? "Langkah Selanjutnya" : "Your Action Plan", C.teal));
+    content.push(dividerLine(C.teal));
+    content.push(paragraph(
+      isId
+        ? "Berikut adalah langkah-langkah konkret yang dapat Anda ambil sekarang untuk memulai perjalanan studi Anda:"
+        : "Here are concrete steps you can take now to begin your study journey:"
+    ));
     for (let i = 0; i < data.aiAnalysis.actionPlan.length; i++) {
-      content.push(actionStep(data.aiAnalysis.actionPlan[i], i));
+      content.push(numberedStep(data.aiAnalysis.actionPlan[i], i));
     }
   }
 
-  // ===== PARENT SUMMARY =====
+  // ===================================================================
+  // PARENT SUMMARY
+  // ===================================================================
   if (data.aiAnalysis?.parentSummary) {
     content.push(sectionTitle(isId ? "Ringkasan untuk Orang Tua" : "Parent Summary", C.gold));
     content.push(dividerLine(C.gold));
+    content.push(paragraph(
+      isId
+        ? "Bagian ini ditujukan untuk orang tua/wali. Silakan bagikan halaman ini kepada mereka untuk membantu mereka memahami potensi dan arah karir putra/putri mereka."
+        : "This section is intended for parents/guardians. Please share this page with them to help them understand their child's potential and career direction.",
+      { italic: true, color: C.grayMedium }
+    ));
     content.push({
       table: {
-        widths: ["*"],
-        body: [[{
-          text: stripEmoji(data.aiAnalysis.parentSummary),
-          fontSize: 9.5,
-          color: C.amber,
-          lineHeight: 1.5,
-          margin: [12, 10, 12, 10] as [number, number, number, number],
-          border: [false, false, false, false],
-        }]],
+        widths: [4, "*"],
+        body: [[
+          { text: "", fillColor: C.gold, border: [false, false, false, false] },
+          {
+            text: stripEmoji(data.aiAnalysis.parentSummary),
+            fontSize: 9.5,
+            color: C.amber,
+            lineHeight: 1.55,
+            margin: [14, 12, 14, 12] as [number, number, number, number],
+            border: [false, false, false, false],
+          }
+        ]],
       },
       layout: {
         hLineWidth: () => 0,
         vLineWidth: () => 0,
-        fillColor: () => "#fffbeb",
+        fillColor: (_i: number, _node: any, col: number) => col === 1 ? "#fffbeb" : null,
       },
-      margin: [0, 0, 0, 15] as [number, number, number, number],
+      margin: [0, 0, 0, 16] as [number, number, number, number],
     });
   }
 
-  // ===== CTA BOX =====
+  // ===================================================================
+  // BACK COVER PAGE
+  // ===================================================================
   content.push({
-    canvas: [{ type: "line", x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 1.5, lineColor: C.teal }],
-    margin: [0, 15, 0, 15] as [number, number, number, number],
+    text: "",
+    pageBreak: "before" as const,
+  });
+
+  // Spacer to push content to center of page
+  content.push({
+    text: "",
+    margin: [0, 180, 0, 0] as [number, number, number, number],
+  });
+
+  // Logo on back cover
+  if (logoBase64) {
+    content.push({
+      image: logoBase64,
+      width: 140,
+      alignment: "center" as const,
+      margin: [0, 0, 0, 30] as [number, number, number, number],
+    });
+  }
+
+  content.push({
+    text: isId ? "Siap Memulai Perjalanan Studi Anda?" : "Ready to Start Your Study Journey?",
+    fontSize: 20,
+    color: C.navy,
+    bold: true,
+    alignment: "center" as const,
+    margin: [0, 0, 0, 12] as [number, number, number, number],
   });
 
   content.push({
-    table: {
-      widths: ["*"],
-      body: [[{
-        stack: [
-          {
-            canvas: [{ type: "rect", x: -12, y: -4, w: 519, h: 4, color: C.teal }],
-          },
-          {
-            text: isId ? "Siap Memulai Perjalanan Studi Anda?" : "Ready to Start Your Study Journey?",
-            fontSize: 14,
+    text: isId
+      ? "Tim konselor berpengalaman kami siap membantu Anda menemukan universitas dan jurusan yang tepat.\nKonsultasi pertama GRATIS!"
+      : "Our experienced counselor team is ready to help you find the right university and major.\nFirst consultation is FREE!",
+    fontSize: 10,
+    color: C.grayMedium,
+    alignment: "center" as const,
+    lineHeight: 1.5,
+    margin: [30, 0, 30, 20] as [number, number, number, number],
+  });
+
+  // WhatsApp CTA - centered using columns trick
+  content.push({
+    columns: [
+      { width: "*", text: "" },
+      {
+        width: "auto",
+        table: {
+          widths: ["auto"],
+          body: [[{
+            text: "WhatsApp: +62 812-8787-8055",
+            fontSize: 13,
             color: C.white,
             bold: true,
             alignment: "center" as const,
-            margin: [0, 10, 0, 8] as [number, number, number, number],
-          },
-          {
-            text: isId
-              ? "Tim konselor berpengalaman kami siap membantu Anda menemukan universitas dan jurusan yang tepat."
-              : "Our experienced counselor team is ready to help you find the right university and major.",
-            fontSize: 9.5,
-            color: C.grayLight,
-            alignment: "center" as const,
-            lineHeight: 1.4,
-            margin: [20, 0, 20, 10] as [number, number, number, number],
-          },
-          {
-            text: "WhatsApp: +62 812-8787-8055",
-            fontSize: 10,
-            color: C.teal,
-            alignment: "center" as const,
-            bold: true,
-            margin: [0, 0, 0, 4] as [number, number, number, number],
-          },
-          {
-            text: "www.spectaeducation.com  |  info@spectaeducation.com",
-            fontSize: 9,
-            color: C.grayLight,
-            alignment: "center" as const,
-          },
-        ],
-        fillColor: C.navy,
-        margin: [0, 0, 0, 0] as [number, number, number, number],
-        border: [false, false, false, false],
-      }]],
-    },
-    layout: {
-      hLineWidth: () => 0,
-      vLineWidth: () => 0,
-      paddingLeft: () => 12,
-      paddingRight: () => 12,
-      paddingTop: () => 4,
-      paddingBottom: () => 12,
-    },
-    margin: [0, 0, 0, 15] as [number, number, number, number],
+            margin: [30, 10, 30, 10] as [number, number, number, number],
+            border: [false, false, false, false],
+          }]],
+        },
+        layout: {
+          hLineWidth: () => 0,
+          vLineWidth: () => 0,
+          fillColor: () => C.teal,
+          paddingLeft: () => 0,
+          paddingRight: () => 0,
+          paddingTop: () => 0,
+          paddingBottom: () => 0,
+        },
+      },
+      { width: "*", text: "" },
+    ],
+    margin: [0, 0, 0, 16] as [number, number, number, number],
+  });
+
+  content.push({
+    text: "www.spectaeducation.com  |  info@spectaeducation.com",
+    fontSize: 9,
+    color: C.grayMedium,
+    alignment: "center" as const,
+    margin: [0, 0, 0, 40] as [number, number, number, number],
+  });
+
+  // Divider line
+  content.push({
+    canvas: [{ type: "line", x1: 150, y1: 0, x2: 345, y2: 0, lineWidth: 1, lineColor: C.grayLight }],
+    margin: [0, 0, 0, 16] as [number, number, number, number],
   });
 
   // Disclaimer
   content.push({
     text: isId
-      ? "Laporan ini dihasilkan oleh teknologi AI SpecTa Education dan dimaksudkan sebagai panduan. Hasil tes harus diinterpretasikan bersama dengan konselor pendidikan profesional. Semua data bersifat rahasia."
-      : "This report was generated by SpecTa Education AI technology and is intended as guidance. Test results should be interpreted together with a professional education counselor. All data is confidential.",
+      ? "Laporan ini dihasilkan oleh teknologi AI SpecTa Education dan dimaksudkan sebagai panduan profesional. Hasil tes harus diinterpretasikan bersama dengan konselor pendidikan profesional untuk mendapatkan manfaat maksimal. Semua data bersifat rahasia dan dilindungi oleh kebijakan privasi kami."
+      : "This report was generated by SpecTa Education AI technology and is intended as professional guidance. Test results should be interpreted together with a professional education counselor for maximum benefit. All data is confidential and protected by our privacy policy.",
     fontSize: 7,
-    color: C.grayMedium,
+    color: C.grayLight,
     alignment: "center" as const,
     lineHeight: 1.4,
-    margin: [0, 0, 0, 8] as [number, number, number, number],
+    margin: [40, 0, 40, 8] as [number, number, number, number],
   });
 
   content.push({
@@ -724,8 +989,8 @@ export async function generatePdfReport(data: PdfReportData): Promise<Buffer> {
         color: C.dark,
       },
     } as StyleDictionary,
-    header: (currentPage: number, pageCount: number) => {
-      if (currentPage === 1) return null; // no header on cover
+    header: (currentPage: number, _pageCount: number) => {
+      if (currentPage === 1) return null;
       return {
         stack: [
           {
@@ -745,7 +1010,7 @@ export async function generatePdfReport(data: PdfReportData): Promise<Buffer> {
       };
     },
     footer: (currentPage: number, pageCount: number) => {
-      if (currentPage === 1) return null; // no footer on cover
+      if (currentPage === 1) return null;
       return {
         columns: [
           { text: `\u00A9 ${new Date().getFullYear()} SpecTa Education`, fontSize: 7, color: C.grayMedium, margin: [50, 0, 0, 0] as [number, number, number, number] },
