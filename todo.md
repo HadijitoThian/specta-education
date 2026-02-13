@@ -801,3 +801,8 @@
 - [x] Fix keywords: added bilingual keywords (EN/ID) directly in index.html
 - [x] Root cause: previous SEO tags were only set via JavaScript useEffect (not visible to crawlers)
 - [x] Solution: placed meta tags in static index.html AND kept useEffect as client-side reinforcement
+
+### 81. SEO Meta Tags for IELTS and Scholarships Pages
+- [x] Add document.title + meta description + meta keywords to IELTS page
+- [x] Add document.title + meta description + meta keywords to Scholarships page
+- [x] Verify tags are detectable in raw HTML or set on page load

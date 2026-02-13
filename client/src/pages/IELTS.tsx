@@ -149,6 +149,26 @@ export default function IELTS() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    // SEO meta tags
+    document.title = "IELTS Preparation Courses - SpecTa Education Indonesia";
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Prepare for IELTS with SpecTa Education. VIP guarantee, private, and group courses with flexible schedules. Score guarantee with money-back policy.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Prepare for IELTS with SpecTa Education. VIP guarantee, private, and group courses with flexible schedules. Score guarantee with money-back policy.';
+      document.head.appendChild(meta);
+    }
+    const metaKeywords = document.querySelector('meta[name="keywords"]');
+    if (metaKeywords) {
+      metaKeywords.setAttribute('content', 'IELTS preparation, IELTS course, IELTS Indonesia, IELTS score guarantee, kursus IELTS, persiapan IELTS, les IELTS Jakarta, IELTS private, IELTS online, SpecTa Education');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'keywords';
+      meta.content = 'IELTS preparation, IELTS course, IELTS Indonesia, IELTS score guarantee, kursus IELTS, persiapan IELTS, les IELTS Jakarta, IELTS private, IELTS online, SpecTa Education';
+      document.head.appendChild(meta);
+    }
   }, []);
 
   useEffect(() => {
