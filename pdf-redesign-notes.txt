@@ -1,0 +1,23 @@
+SpecTa Education Logo URL:
+https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/QxrYSewOYzAuPIEN.jpeg
+
+SpecTa AI Mascot URL:
+https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png
+
+Current PDF Generator: server/pdfGenerator.ts
+- Uses pdfkit
+- Has color palette, score bars, section titles
+- Includes: personality snapshot, RIASEC scores, MI scores, cross-dimensional insight, soft skills, creative thinking, values, recommended majors, strengths/weaknesses, learning style, career outlook, action plan, parent summary
+- Footer has WhatsApp and website link
+- NO logo currently embedded
+- Basic design - teal header bar, rounded rects, score bars
+
+Needs:
+1. SpecTa Education logo on header
+2. Professional cover page
+3. Better typography and layout
+4. Decorative elements (borders, dividers, watermarks)
+5. Page numbers
+6. Consistent branding throughout
+7. Better major cards design
+8. Visual hierarchy improvements

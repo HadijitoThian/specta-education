@@ -118,6 +118,9 @@ importers:
       '@types/pdfkit':
         specifier: ^0.17.5
         version: 0.17.5
+      '@types/pdfmake':
+        specifier: ^0.3.1
+        version: 0.3.1
       axios:
         specifier: ^1.12.0
         version: 1.12.2
@@ -184,6 +187,9 @@ importers:
       pdfkit:
         specifier: ^0.17.2
         version: 0.17.2
+      pdfmake:
+        specifier: ^0.3.3
+        version: 0.3.3
       react:
         specifier: ^19.2.1
         version: 19.2.1
@@ -2337,6 +2343,9 @@ packages:
   '@types/pdfkit@0.17.5':
     resolution: {integrity: sha512-T3ZHnvF91HsEco5ClhBCOuBwobZfPcI2jaiSHybkkKYq4KhVIIurod94JVKvDIG0JXT6o3KiERC0X0//m8dyrg==}
 
+  '@types/pdfmake@0.3.1':
+    resolution: {integrity: sha512-/pR77+t9o0yqrSNwdA2wfp79ohgaXAhF2dTwXF4hNiI2ArHxaDlJ1BlBr3SWCrPUkjWjDRRHJv2+qALG33YPTA==}
+
   '@types/qs@6.14.0':
     resolution: {integrity: sha512-eOunJqu0K1923aExK6y8p6fsihYEn/BYuQ4g0CxAAgFc4b/ZLN4CrsRZ55srTdqoiLzU2B2evC+apEIxprEzkQ==}
 
@@ -3791,6 +3800,10 @@ packages:
   pdfkit@0.17.2:
     resolution: {integrity: sha512-UnwF5fXy08f0dnp4jchFYAROKMNTaPqb/xgR8GtCzIcqoTnbOqtp3bwKvO4688oHI6vzEEs8Q6vqqEnC5IUELw==}
 
+  pdfmake@0.3.3:
+    resolution: {integrity: sha512-jSnF8rVLkbLLX37bnXWRFhEDO48quE7OIg7lgWBa6ihAbpCxASaBLWFOXNxSDeLBNt92304SBwpYcPkJnIArlA==}
+    engines: {node: '>=20'}
+
   performance-now@2.1.0:
     resolution: {integrity: sha512-7EAHlyLHI56VEIdK57uwHdHKIaAGbnXPiw0yWbarQZOKaKpvUIgW0jWRVLiatnM+XXlSwsanIBH/hzGMJulMow==}
 
@@ -4035,6 +4048,10 @@ packages:
 
   safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
+
+  sax@1.4.4:
+    resolution: {integrity: sha512-1n3r/tGXO6b6VXMdFT54SHzT9ytu9yr7TaELowdYpMqY/Ao7EnlQGmAQ1+RatX7Tkkdm6hONI2owqNx2aZj5Sw==}
+    engines: {node: '>=11.0.0'}
 
   scheduler@0.27.0:
     resolution: {integrity: sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==}
@@ -4475,6 +4492,10 @@ packages:
     resolution: {integrity: sha512-od5LGmndSUzntZkE2R5CHhoiJ7YMuTIbiXsa0Anytc2RATekgv4sfWRAxLEULBrp7ADzinWQw8g470lkT8+fOw==}
     peerDependencies:
       react: '>=16.8.0'
+
+  xmldoc@2.0.3:
+    resolution: {integrity: sha512-6gRk4NY/Jvg67xn7OzJuxLRsGgiXBaPUQplVJ/9l99uIugxh4FTOewYz5ic8WScj7Xx/2WvhENiQKwkK9RpE4w==}
+    engines: {node: '>=12.0.0'}
 
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
@@ -6828,6 +6849,11 @@ snapshots:
     dependencies:
       '@types/node': 24.7.0
 
+  '@types/pdfmake@0.3.1':
+    dependencies:
+      '@types/node': 24.7.0
+      '@types/pdfkit': 0.17.5
+
   '@types/qs@6.14.0': {}
 
   '@types/raf@3.4.3':
@@ -8561,6 +8587,12 @@ snapshots:
       linebreak: 1.1.0
       png-js: 1.0.0
 
+  pdfmake@0.3.3:
+    dependencies:
+      linebreak: 1.1.0
+      pdfkit: 0.17.2
+      xmldoc: 2.0.3
+
   performance-now@2.1.0:
     optional: true
 
@@ -8876,6 +8908,8 @@ snapshots:
   safe-buffer@5.2.1: {}
 
   safer-buffer@2.1.2: {}
+
+  sax@1.4.4: {}
 
   scheduler@0.27.0: {}
 
@@ -9348,6 +9382,10 @@ snapshots:
       react: 19.2.1
       regexparam: 3.0.0
       use-sync-external-store: 1.6.0(react@19.2.1)
+
+  xmldoc@2.0.3:
+    dependencies:
+      sax: 1.4.4
 
   yallist@3.1.1: {}
 

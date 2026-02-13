@@ -1,45 +1,60 @@
-import PDFDocument from "pdfkit";
+// @ts-ignore - pdfmake CJS module
+import PdfPrinterModule from "pdfmake/js/Printer";
+const PdfPrinter = (PdfPrinterModule as any).default || PdfPrinterModule;
 import { storagePut } from "./storage";
 import crypto from "crypto";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import type { TDocumentDefinitions, Content, ContentColumns, ContentStack, ContentText, ContentCanvas, StyleDictionary } from "pdfmake/interfaces";
+
+// ========== LOGO PATH ==========
+const __filename_esm = fileURLToPath(import.meta.url);
+const __dirname_esm = path.dirname(__filename_esm);
+const LOGO_PATH = path.join(__dirname_esm, "assets", "specta-logo.jpeg");
+const LOGO_CDN_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/oLYlgeIIkWTCNMTB.jpeg";
 
 // ========== LABELS ==========
-const riasecLabels: Record<string, { id: string; en: string; emoji: string }> = {
-  R: { id: "Realistis", en: "Realistic", emoji: "🔧" },
-  I: { id: "Investigatif", en: "Investigative", emoji: "🔬" },
-  A: { id: "Artistik", en: "Artistic", emoji: "🎨" },
-  S: { id: "Sosial", en: "Social", emoji: "🤝" },
-  E: { id: "Enterprising", en: "Enterprising", emoji: "💼" },
-  C: { id: "Konvensional", en: "Conventional", emoji: "📊" },
+const riasecLabels: Record<string, { id: string; en: string }> = {
+  R: { id: "Realistis", en: "Realistic" },
+  I: { id: "Investigatif", en: "Investigative" },
+  A: { id: "Artistik", en: "Artistic" },
+  S: { id: "Sosial", en: "Social" },
+  E: { id: "Enterprising", en: "Enterprising" },
+  C: { id: "Konvensional", en: "Conventional" },
 };
 
-const miLabels: Record<string, { id: string; en: string; emoji: string }> = {
-  linguistic: { id: "Linguistik", en: "Linguistic", emoji: "📝" },
-  logical: { id: "Logis-Matematis", en: "Logical-Mathematical", emoji: "🧮" },
-  spatial: { id: "Visual-Spasial", en: "Visual-Spatial", emoji: "🎯" },
-  musical: { id: "Musikal", en: "Musical", emoji: "🎵" },
-  kinesthetic: { id: "Kinestetik", en: "Kinesthetic", emoji: "🏃" },
-  interpersonal: { id: "Interpersonal", en: "Interpersonal", emoji: "👥" },
-  intrapersonal: { id: "Intrapersonal", en: "Intrapersonal", emoji: "🧘" },
-  naturalistic: { id: "Naturalis", en: "Naturalistic", emoji: "🌿" },
+const miLabels: Record<string, { id: string; en: string }> = {
+  linguistic: { id: "Linguistik", en: "Linguistic" },
+  logical: { id: "Logis-Matematis", en: "Logical-Mathematical" },
+  spatial: { id: "Visual-Spasial", en: "Visual-Spatial" },
+  musical: { id: "Musikal", en: "Musical" },
+  kinesthetic: { id: "Kinestetik", en: "Kinesthetic" },
+  interpersonal: { id: "Interpersonal", en: "Interpersonal" },
+  intrapersonal: { id: "Intrapersonal", en: "Intrapersonal" },
+  naturalistic: { id: "Naturalis", en: "Naturalistic" },
 };
 
-// ========== COLOR PALETTE ==========
-const COLORS = {
+// ========== COLORS ==========
+const C = {
+  navy: "#1a2744",
+  navyLight: "#2a3d5f",
   teal: "#0d9488",
-  tealLight: "#ccfbf1",
-  purple: "#7c3aed",
-  purpleLight: "#f5f3ff",
-  dark: "#0f172a",
+  tealLight: "#e0f7f5",
+  tealMuted: "#b2dfdb",
+  purple: "#6d28d9",
+  purpleLight: "#f3f0ff",
+  dark: "#1e293b",
   gray: "#475569",
-  lightGray: "#f1f5f9",
+  grayMedium: "#94a3b8",
+  grayLight: "#cbd5e1",
+  lightBg: "#f8fafc",
+  lighterBg: "#f1f5f9",
   white: "#ffffff",
-  green: "#16a34a",
-  greenLight: "#f0fdf4",
-  blue: "#1e40af",
-  blueLight: "#eff6ff",
-  amber: "#92400e",
-  amberLight: "#fffbeb",
-  red: "#ef4444",
+  green: "#059669",
+  amber: "#b45309",
+  blue: "#2563eb",
+  gold: "#d97706",
 };
 
 interface PdfReportData {
@@ -51,321 +66,715 @@ interface PdfReportData {
   aiAnalysis: any;
 }
 
-function drawScoreBar(
-  doc: PDFKit.PDFDocument,
-  x: number,
-  y: number,
-  width: number,
-  label: string,
-  score: number,
-  color: string
-): number {
-  // Label and score
-  doc.fontSize(9).fillColor(COLORS.dark).text(label, x, y, { width: width - 40 });
-  doc.fontSize(9).fillColor(color).text(`${score}%`, x + width - 35, y, { width: 35, align: "right" });
-
-  // Background bar
-  const barY = y + 13;
-  doc.roundedRect(x, barY, width, 7, 3).fill("#e2e8f0");
-  // Score bar
-  const barWidth = Math.max((score / 100) * width, 5);
-  doc.roundedRect(x, barY, barWidth, 7, 3).fill(color);
-
-  return barY + 14;
+// ========== Strip emoji ==========
+function stripEmoji(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, "")
+    .replace(/[\u2600-\u27BF]/g, "")
+    .replace(/[\uFE00-\uFE0F]/g, "")
+    .replace(/\u200D/g, "")
+    .replace(/\u20E3/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
-function addSectionTitle(doc: PDFKit.PDFDocument, text: string, color: string, y: number): number {
-  doc.fontSize(13).fillColor(color).text(text, 50, y);
-  return y + 20;
-}
-
-function addParagraph(doc: PDFKit.PDFDocument, text: string, y: number, options?: { width?: number; x?: number }): number {
-  const x = options?.x || 50;
-  const width = options?.width || 495;
-  doc.fontSize(9.5).fillColor(COLORS.gray);
-  doc.text(text || "", x, y, { width, lineGap: 3 });
-  return doc.y + 8;
-}
-
-function checkPageBreak(doc: PDFKit.PDFDocument, neededHeight: number): number {
-  if (doc.y + neededHeight > 750) {
-    doc.addPage();
-    return 50;
-  }
-  return doc.y;
-}
-
-export async function generatePdfReport(data: PdfReportData): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({
-      size: "A4",
-      margins: { top: 50, bottom: 50, left: 50, right: 50 },
-      info: {
-        Title: `AI Aptitude Test Report - ${data.studentName}`,
-        Author: "SpecTa Education",
-        Subject: "AI Aptitude Test Results",
+// ========== pdfmake helpers ==========
+function sectionTitle(title: string, accentColor: string): Content {
+  return {
+    margin: [0, 18, 0, 8] as [number, number, number, number],
+    columns: [
+      {
+        canvas: [
+          { type: "rect", x: 0, y: 0, w: 4, h: 20, r: 2, color: accentColor }
+        ],
+        width: 8,
       },
+      {
+        text: title,
+        style: "sectionHeading",
+        width: "*",
+        margin: [4, 1, 0, 0] as [number, number, number, number],
+      }
+    ],
+  };
+}
+
+function dividerLine(color?: string): Content {
+  return {
+    canvas: [
+      { type: "line", x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 0.5, lineColor: color || "#e2e8f0" }
+    ],
+    margin: [0, 2, 0, 8] as [number, number, number, number],
+  };
+}
+
+function scoreBar(label: string, score: number, barColor: string, bgColor: string): Content {
+  const barWidth = 350;
+  const fillWidth = Math.max((score / 100) * barWidth, 8);
+  return {
+    margin: [10, 0, 10, 6] as [number, number, number, number],
+    stack: [
+      {
+        columns: [
+          { text: label, fontSize: 9, color: C.dark, width: "*" },
+          {
+            table: {
+              widths: [36],
+              body: [[{
+                text: `${score}%`,
+                fontSize: 8,
+                color: C.white,
+                alignment: "center" as const,
+                fillColor: barColor,
+                margin: [0, 1, 0, 1] as [number, number, number, number],
+              }]],
+            },
+            layout: {
+              hLineWidth: () => 0,
+              vLineWidth: () => 0,
+              paddingLeft: () => 0,
+              paddingRight: () => 0,
+              paddingTop: () => 0,
+              paddingBottom: () => 0,
+            },
+            width: 40,
+          }
+        ],
+      },
+      {
+        canvas: [
+          { type: "rect", x: 0, y: 0, w: barWidth, h: 6, r: 3, color: bgColor },
+          { type: "rect", x: 0, y: 0, w: fillWidth, h: 6, r: 3, color: barColor },
+        ],
+        margin: [0, 3, 0, 4] as [number, number, number, number],
+      }
+    ],
+  };
+}
+
+function majorCard(m: any, index: number, isId: boolean): Content {
+  const cs = m.compatibilityScore || 0;
+  const pillColor = cs >= 80 ? C.green : cs >= 60 ? C.teal : C.amber;
+  const items: Content[] = [];
+
+  // Header row with rank, name, score
+  items.push({
+    columns: [
+      {
+        table: {
+          widths: [20],
+          body: [[{
+            text: `${index + 1}`,
+            fontSize: 10,
+            color: C.white,
+            alignment: "center" as const,
+            fillColor: C.navy,
+            margin: [0, 3, 0, 3] as [number, number, number, number],
+          }]],
+        },
+        layout: {
+          hLineWidth: () => 0,
+          vLineWidth: () => 0,
+          paddingLeft: () => 0,
+          paddingRight: () => 0,
+          paddingTop: () => 0,
+          paddingBottom: () => 0,
+        },
+        width: 24,
+      },
+      { text: m.name || "", fontSize: 12, color: C.dark, bold: true, width: "*", margin: [6, 3, 0, 0] as [number, number, number, number] },
+      {
+        table: {
+          widths: [58],
+          body: [[{
+            text: `${cs}% ${isId ? "cocok" : "match"}`,
+            fontSize: 8,
+            color: C.white,
+            alignment: "center" as const,
+            fillColor: pillColor,
+            margin: [0, 3, 0, 3] as [number, number, number, number],
+          }]],
+        },
+        layout: {
+          hLineWidth: () => 0,
+          vLineWidth: () => 0,
+          paddingLeft: () => 0,
+          paddingRight: () => 0,
+          paddingTop: () => 0,
+          paddingBottom: () => 0,
+        },
+        width: 62,
+      }
+    ],
+    margin: [0, 0, 0, 4] as [number, number, number, number],
+  });
+
+  if (m.reason) {
+    items.push({ text: stripEmoji(m.reason), fontSize: 9, color: C.gray, lineHeight: 1.4, margin: [30, 0, 0, 3] as [number, number, number, number] });
+  }
+  if (m.careers?.length) {
+    items.push({
+      text: [
+        { text: isId ? "Karir: " : "Careers: ", fontSize: 8, color: C.teal, bold: true },
+        { text: m.careers.join("  |  "), fontSize: 8, color: C.gray },
+      ],
+      margin: [30, 0, 0, 2] as [number, number, number, number],
     });
+  }
+  if (m.salaryRange || m.growthOutlook) {
+    const parts: string[] = [];
+    if (m.salaryRange) parts.push(`${isId ? "Gaji" : "Salary"}: ${m.salaryRange}`);
+    if (m.growthOutlook) parts.push(`${isId ? "Prospek" : "Outlook"}: ${m.growthOutlook}`);
+    items.push({ text: parts.join("  |  "), fontSize: 8, color: C.grayMedium, margin: [30, 0, 0, 2] as [number, number, number, number] });
+  }
 
-    const chunks: Buffer[] = [];
-    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-    doc.on("error", reject);
+  return {
+    stack: items,
+    margin: [0, 0, 0, 10] as [number, number, number, number],
+  };
+}
 
-    const isId = data.language === "id";
-    const snapshot = data.aiAnalysis?.personalitySnapshot || {};
-    const majors = data.aiAnalysis?.recommendedMajors || [];
-    const sortedRiasec = Object.entries(data.riasecScores).sort((a, b) => (b[1] as number) - (a[1] as number));
-    const sortedMi = Object.entries(data.miScores).sort((a, b) => (b[1] as number) - (a[1] as number));
+function bulletList(items: string[], color: string, prefix: string): Content {
+  return {
+    stack: items.map(item => ({
+      columns: [
+        { text: prefix, fontSize: 10, color: color, width: 14, bold: true },
+        { text: stripEmoji(item), fontSize: 9, color: C.gray, lineHeight: 1.4, width: "*" },
+      ],
+      margin: [10, 0, 0, 4] as [number, number, number, number],
+    })),
+  };
+}
 
-    // ===== PAGE 1: HEADER =====
-    // Teal header bar
-    doc.rect(0, 0, 595, 120).fill(COLORS.teal);
-    doc.fontSize(10).fillColor("rgba(255,255,255,0.7)").text("SPECTA EDUCATION", 50, 30, { align: "center" });
-    doc.fontSize(22).fillColor(COLORS.white).text(
-      isId ? "Laporan Tes Bakat AI" : "AI Aptitude Test Report",
-      50, 52, { align: "center" }
-    );
-    doc.fontSize(10).fillColor("rgba(255,255,255,0.8)").text(
-      `${data.studentName}  •  ${new Date().toLocaleDateString(isId ? "id-ID" : "en-US", { year: "numeric", month: "long", day: "numeric" })}`,
-      50, 82, { align: "center" }
-    );
+function actionStep(step: string, index: number): Content {
+  return {
+    columns: [
+      {
+        table: {
+          widths: [18],
+          body: [[{
+            text: `${index + 1}`,
+            fontSize: 8,
+            color: C.white,
+            alignment: "center" as const,
+            fillColor: C.teal,
+            margin: [0, 2, 0, 2] as [number, number, number, number],
+          }]],
+        },
+        layout: {
+          hLineWidth: () => 0,
+          vLineWidth: () => 0,
+          paddingLeft: () => 0,
+          paddingRight: () => 0,
+          paddingTop: () => 0,
+          paddingBottom: () => 0,
+        },
+        width: 22,
+      },
+      { text: stripEmoji(step), fontSize: 9.5, color: C.dark, lineHeight: 1.4, width: "*", margin: [6, 1, 0, 0] as [number, number, number, number] },
+    ],
+    margin: [0, 0, 0, 6] as [number, number, number, number],
+  };
+}
 
-    let y = 140;
+// ========== MAIN GENERATOR ==========
+export async function generatePdfReport(data: PdfReportData): Promise<Buffer> {
+  const printer = new PdfPrinter({
+    Helvetica: {
+      normal: "Helvetica",
+      bold: "Helvetica-Bold",
+      italics: "Helvetica-Oblique",
+      bolditalics: "Helvetica-BoldOblique",
+    },
+  });
 
-    // ===== PERSONALITY SNAPSHOT =====
-    doc.roundedRect(50, y, 495, 80, 10).fill(COLORS.teal);
-    doc.fontSize(10).fillColor("rgba(255,255,255,0.7)").text(
-      isId ? "Profil Kepribadian" : "Personality Profile", 65, y + 10
-    );
-    doc.fontSize(16).fillColor(COLORS.white).text(
-      `${snapshot.emoji || ""} ${snapshot.title || ""}`, 65, y + 26
-    );
-    doc.fontSize(8.5).fillColor("rgba(255,255,255,0.85)").text(
-      (snapshot.description || "").substring(0, 200), 65, y + 48, { width: 350, lineGap: 2 }
-    );
+  const isId = data.language === "id";
+  const snapshot = data.aiAnalysis?.personalitySnapshot || {};
+  const majors = data.aiAnalysis?.recommendedMajors || [];
+  const sortedRiasec = Object.entries(data.riasecScores).sort((a, b) => (b[1] as number) - (a[1] as number));
+  const sortedMi = Object.entries(data.miScores).sort((a, b) => (b[1] as number) - (a[1] as number));
+  const dateStr = new Date().toLocaleDateString(isId ? "id-ID" : "en-US", {
+    year: "numeric", month: "long", day: "numeric",
+  });
 
-    // Holland Code badge
-    doc.roundedRect(430, y + 12, 100, 55, 8).fill("rgba(255,255,255,0.2)");
-    doc.fontSize(8).fillColor("rgba(255,255,255,0.7)").text("Holland Code", 430, y + 18, { width: 100, align: "center" });
-    doc.fontSize(22).fillColor(COLORS.white).text(data.hollandCode, 430, y + 32, { width: 100, align: "center" });
-
-    y += 95;
-
-    // ===== RIASEC ANALYSIS =====
-    if (data.aiAnalysis?.riasecAnalysis) {
-      y = checkPageBreak(doc, 80);
-      y = addSectionTitle(doc, isId ? "Analisis Minat & Kepribadian" : "Interest & Personality Analysis", COLORS.teal, y);
-      y = addParagraph(doc, data.aiAnalysis.riasecAnalysis, y);
-    }
-
-    // ===== RIASEC SCORES =====
-    y = checkPageBreak(doc, 30 * sortedRiasec.length + 30);
-    doc.roundedRect(50, y, 495, sortedRiasec.length * 24 + 30, 8).fill(COLORS.lightGray);
-    y += 10;
-    doc.fontSize(11).fillColor(COLORS.dark).text(
-      isId ? "Skor RIASEC" : "RIASEC Scores", 65, y
-    );
-    y += 18;
-    for (const [key, score] of sortedRiasec) {
-      const label = `${riasecLabels[key]?.emoji || ""} ${isId ? riasecLabels[key]?.id : riasecLabels[key]?.en} (${key})`;
-      y = drawScoreBar(doc, 65, y, 465, label, score as number, COLORS.teal);
-    }
-    y += 10;
-
-    // ===== MI ANALYSIS =====
-    if (data.aiAnalysis?.miAnalysis) {
-      y = checkPageBreak(doc, 80);
-      y = addSectionTitle(doc, isId ? "Analisis Kecerdasan" : "Intelligence Analysis", COLORS.purple, y);
-      y = addParagraph(doc, data.aiAnalysis.miAnalysis, y);
-    }
-
-    // ===== MI SCORES =====
-    y = checkPageBreak(doc, 30 * sortedMi.length + 30);
-    doc.roundedRect(50, y, 495, sortedMi.length * 24 + 30, 8).fill(COLORS.lightGray);
-    y += 10;
-    doc.fontSize(11).fillColor(COLORS.dark).text(
-      isId ? "Skor Kecerdasan Majemuk" : "Multiple Intelligence Scores", 65, y
-    );
-    y += 18;
-    for (const [key, score] of sortedMi) {
-      const label = `${miLabels[key]?.emoji || ""} ${isId ? miLabels[key]?.id : miLabels[key]?.en}`;
-      y = drawScoreBar(doc, 65, y, 465, label, score as number, COLORS.purple);
-    }
-    y += 10;
-
-    // ===== CROSS-DIMENSIONAL INSIGHT =====
-    const crossAnalysis = data.aiAnalysis?.crossAnalysis || data.aiAnalysis?.crossDimensionalInsight;
-    if (crossAnalysis) {
-      y = checkPageBreak(doc, 80);
-      doc.roundedRect(50, y, 495, 10, 8).fill(COLORS.tealLight); // will be resized
-      y = addSectionTitle(doc, isId ? "Insight Unik Kamu" : "Your Unique Insight", COLORS.teal, y + 5);
-      y = addParagraph(doc, crossAnalysis, y);
-    }
-
-    // ===== SOFT SKILLS ANALYSIS =====
-    if (data.aiAnalysis?.softSkillsAnalysis) {
-      y = checkPageBreak(doc, 80);
-      y = addSectionTitle(doc, isId ? "Analisis Soft Skills" : "Soft Skills Analysis", COLORS.teal, y);
-      y = addParagraph(doc, data.aiAnalysis.softSkillsAnalysis, y);
-    }
-
-    // ===== CREATIVE THINKING ANALYSIS =====
-    if (data.aiAnalysis?.creativeThinkingAnalysis) {
-      y = checkPageBreak(doc, 80);
-      y = addSectionTitle(doc, isId ? "Analisis Pemikiran Kreatif" : "Creative Thinking Analysis", COLORS.purple, y);
-      y = addParagraph(doc, data.aiAnalysis.creativeThinkingAnalysis, y);
-    }
-
-    // ===== VALUES ANALYSIS =====
-    if (data.aiAnalysis?.valuesAnalysis) {
-      y = checkPageBreak(doc, 80);
-      y = addSectionTitle(doc, isId ? "Analisis Nilai & Prioritas" : "Values & Priorities Analysis", COLORS.teal, y);
-      y = addParagraph(doc, data.aiAnalysis.valuesAnalysis, y);
-    }
-
-    // ===== RECOMMENDED MAJORS =====
-    if (majors.length > 0) {
-      y = checkPageBreak(doc, 60);
-      y = addSectionTitle(doc, isId ? "Rekomendasi Jurusan" : "Recommended Majors", COLORS.dark, y);
-
-      for (let i = 0; i < majors.length; i++) {
-        const m = majors[i];
-        y = checkPageBreak(doc, 80);
-
-        // Major card
-        doc.roundedRect(50, y, 495, 10, 6).fill(COLORS.lightGray); // placeholder, actual height varies
-        doc.fontSize(11).fillColor(COLORS.dark).text(`#${i + 1} ${m.name}`, 60, y + 5);
-        doc.fontSize(9).fillColor(COLORS.teal).text(
-          `${m.compatibilityScore}% ${isId ? "cocok" : "match"}`,
-          440, y + 6, { width: 100, align: "right" }
-        );
-        y += 22;
-        doc.fontSize(9).fillColor(COLORS.gray).text(m.reason || "", 60, y, { width: 475, lineGap: 2 });
-        y = doc.y + 5;
-
-        // Careers
-        if (m.careers?.length) {
-          doc.fontSize(8).fillColor(COLORS.green);
-          doc.text(`${isId ? "Karir" : "Careers"}: ${m.careers.join(" • ")}`, 60, y, { width: 475 });
-          y = doc.y + 3;
-        }
-
-        // Salary & growth
-        if (m.salaryRange) {
-          doc.fontSize(8).fillColor(COLORS.gray);
-          doc.text(`${isId ? "Gaji" : "Salary"}: ${m.salaryRange}`, 60, y, { width: 475 });
-          y = doc.y + 3;
-        }
-        if (m.growthOutlook) {
-          doc.fontSize(8).fillColor(COLORS.gray);
-          doc.text(`${isId ? "Prospek" : "Outlook"}: ${m.growthOutlook}`, 60, y, { width: 475 });
-          y = doc.y + 3;
-        }
-
-        y += 8;
+  // Load logo as base64 (local file first, CDN fallback)
+  let logoBase64 = "";
+  try {
+    if (fs.existsSync(LOGO_PATH)) {
+      const logoBuffer = fs.readFileSync(LOGO_PATH);
+      logoBase64 = `data:image/jpeg;base64,${logoBuffer.toString("base64")}`;
+    } else {
+      // Fallback: fetch from CDN
+      const resp = await fetch(LOGO_CDN_URL);
+      if (resp.ok) {
+        const buf = Buffer.from(await resp.arrayBuffer());
+        logoBase64 = `data:image/jpeg;base64,${buf.toString("base64")}`;
       }
     }
+  } catch (_) {}
 
-    // ===== STRENGTHS & WEAKNESSES =====
-    const sw = data.aiAnalysis?.strengthsAndWeaknesses;
-    if (sw) {
-      y = checkPageBreak(doc, 100);
-      y = addSectionTitle(doc, isId ? "Kekuatan & Area Pengembangan" : "Strengths & Areas for Growth", COLORS.teal, y);
+  // ========== BUILD CONTENT ==========
+  const content: Content[] = [];
 
-      if (sw.strengths?.length) {
-        doc.fontSize(10).fillColor(COLORS.green).text(isId ? "Kekuatan:" : "Strengths:", 60, y);
-        y = doc.y + 4;
-        for (const s of sw.strengths) {
-          y = checkPageBreak(doc, 15);
-          doc.fontSize(9).fillColor(COLORS.gray).text(`  ✓  ${s}`, 60, y, { width: 475 });
-          y = doc.y + 2;
+  // ===== COVER PAGE =====
+  // Teal top accent bar
+  content.push({
+    canvas: [
+      { type: "rect", x: -50, y: -40, w: 595, h: 842, color: C.navy },
+      { type: "rect", x: -50, y: -40, w: 595, h: 6, color: C.teal },
+      { type: "rect", x: -50, y: 796, w: 595, h: 6, color: C.teal },
+    ],
+    absolutePosition: { x: 0, y: 0 },
+  } as any);
+
+  // Logo
+  if (logoBase64) {
+    content.push({
+      image: logoBase64,
+      width: 150,
+      alignment: "center" as const,
+      margin: [0, 80, 0, 20] as [number, number, number, number],
+    });
+  }
+
+  // Decorative line
+  content.push({
+    canvas: [
+      { type: "line", x1: 180, y1: 0, x2: 315, y2: 0, lineWidth: 2, lineColor: C.teal },
+    ],
+    margin: [0, 10, 0, 15] as [number, number, number, number],
+  });
+
+  // Title
+  content.push({
+    text: isId ? "LAPORAN RESMI" : "OFFICIAL REPORT",
+    fontSize: 11,
+    color: C.tealMuted,
+    alignment: "center" as const,
+    characterSpacing: 4,
+    margin: [0, 0, 0, 8] as [number, number, number, number],
+  });
+  content.push({
+    text: isId ? "Tes Bakat AI" : "AI Aptitude Test",
+    fontSize: 28,
+    color: C.white,
+    alignment: "center" as const,
+    bold: true,
+    margin: [0, 0, 0, 8] as [number, number, number, number],
+  });
+  content.push({
+    text: isId ? "Analisis Komprehensif Minat & Kecerdasan" : "Comprehensive Interest & Intelligence Analysis",
+    fontSize: 13,
+    color: C.grayLight,
+    alignment: "center" as const,
+    margin: [0, 0, 0, 30] as [number, number, number, number],
+  });
+
+  // Student info card
+  content.push({
+    table: {
+      widths: [4, "*"],
+      body: [[
+        { text: "", fillColor: C.teal, border: [false, false, false, false] },
+        {
+          stack: [
+            { text: isId ? "DISIAPKAN UNTUK" : "PREPARED FOR", fontSize: 8, color: C.grayMedium, characterSpacing: 2, margin: [0, 0, 0, 6] as [number, number, number, number] },
+            { text: data.studentName, fontSize: 20, color: C.white, bold: true, margin: [0, 0, 0, 6] as [number, number, number, number] },
+            { text: dateStr, fontSize: 9, color: C.grayLight },
+          ],
+          fillColor: C.navyLight,
+          margin: [12, 10, 12, 10] as [number, number, number, number],
+          border: [false, false, false, false],
         }
-        y += 5;
-      }
+      ]],
+    },
+    layout: {
+      hLineWidth: () => 0,
+      vLineWidth: () => 0,
+      paddingLeft: () => 0,
+      paddingRight: () => 0,
+      paddingTop: () => 0,
+      paddingBottom: () => 0,
+    },
+    margin: [80, 0, 80, 25] as [number, number, number, number],
+  });
 
-      if (sw.areasForGrowth?.length) {
-        y = checkPageBreak(doc, 15);
-        doc.fontSize(10).fillColor(COLORS.amber).text(isId ? "Area Pengembangan:" : "Areas for Growth:", 60, y);
-        y = doc.y + 4;
-        for (const a of sw.areasForGrowth) {
-          y = checkPageBreak(doc, 15);
-          doc.fontSize(9).fillColor(COLORS.gray).text(`  →  ${a}`, 60, y, { width: 475 });
-          y = doc.y + 2;
+  // Holland Code badge
+  content.push({
+    table: {
+      widths: [100],
+      body: [[{
+        stack: [
+          { text: "HOLLAND CODE", fontSize: 7, color: C.tealMuted, alignment: "center" as const, characterSpacing: 2, margin: [0, 0, 0, 4] as [number, number, number, number] },
+          { text: data.hollandCode, fontSize: 26, color: C.white, alignment: "center" as const, bold: true },
+        ],
+        fillColor: C.teal,
+        margin: [0, 8, 0, 8] as [number, number, number, number],
+        border: [false, false, false, false],
+      }]],
+    },
+    layout: {
+      hLineWidth: () => 0,
+      vLineWidth: () => 0,
+      paddingLeft: () => 10,
+      paddingRight: () => 10,
+      paddingTop: () => 0,
+      paddingBottom: () => 0,
+    },
+    alignment: "center" as const,
+    margin: [185, 0, 185, 40] as [number, number, number, number],
+  });
+
+  // Bottom contact info
+  content.push({
+    text: "spectaeducation.com  |  wa.me/6281287878055",
+    fontSize: 8,
+    color: C.grayMedium,
+    alignment: "center" as const,
+    margin: [0, 30, 0, 5] as [number, number, number, number],
+  });
+  content.push({
+    text: isId ? "Dokumen ini bersifat rahasia dan hanya untuk penggunaan pribadi" : "This document is confidential and for personal use only",
+    fontSize: 7,
+    color: C.grayMedium,
+    alignment: "center" as const,
+  });
+
+  // ===== PAGE BREAK =====
+  content.push({ text: "", pageBreak: "after" as const });
+
+  // ===== PERSONALITY PROFILE CARD =====
+  const snapTitle = stripEmoji(snapshot.title || (isId ? "Profil Anda" : "Your Profile"));
+  const snapDesc = stripEmoji((snapshot.description || "").substring(0, 300));
+
+  content.push({
+    table: {
+      widths: [4, "*", 80],
+      body: [[
+        { text: "", fillColor: C.teal, border: [false, false, false, false] },
+        {
+          stack: [
+            { text: isId ? "PROFIL KEPRIBADIAN" : "PERSONALITY PROFILE", fontSize: 8, color: C.tealMuted, characterSpacing: 2, margin: [0, 0, 0, 4] as [number, number, number, number] },
+            { text: snapTitle, fontSize: 16, color: C.white, bold: true, margin: [0, 0, 0, 6] as [number, number, number, number] },
+            { text: snapDesc, fontSize: 8.5, color: C.grayLight, lineHeight: 1.4 },
+          ],
+          fillColor: C.navy,
+          margin: [12, 10, 8, 10] as [number, number, number, number],
+          border: [false, false, false, false],
+        },
+        {
+          stack: [
+            { text: "HOLLAND CODE", fontSize: 7, color: C.grayMedium, alignment: "center" as const, characterSpacing: 1, margin: [0, 8, 0, 4] as [number, number, number, number] },
+            { text: data.hollandCode, fontSize: 22, color: C.teal, alignment: "center" as const, bold: true },
+          ],
+          fillColor: C.navyLight,
+          border: [false, false, false, false],
         }
-        y += 5;
+      ]],
+    },
+    layout: {
+      hLineWidth: () => 0,
+      vLineWidth: () => 0,
+      paddingLeft: () => 0,
+      paddingRight: () => 0,
+      paddingTop: () => 0,
+      paddingBottom: () => 0,
+    },
+    margin: [0, 0, 0, 15] as [number, number, number, number],
+  });
+
+  // ===== RIASEC ANALYSIS =====
+  if (data.aiAnalysis?.riasecAnalysis) {
+    content.push(sectionTitle(isId ? "Analisis Minat & Kepribadian" : "Interest & Personality Analysis", C.teal));
+    content.push(dividerLine());
+    content.push({ text: stripEmoji(data.aiAnalysis.riasecAnalysis), fontSize: 9.5, color: C.gray, lineHeight: 1.5, margin: [0, 0, 0, 10] as [number, number, number, number] });
+  }
+
+  // ===== RIASEC SCORES =====
+  content.push(sectionTitle(isId ? "Skor RIASEC" : "RIASEC Scores", C.teal));
+  content.push(dividerLine(C.teal));
+
+  for (const [key, score] of sortedRiasec) {
+    const lbl = riasecLabels[key] || { id: key, en: key };
+    const label = `${isId ? lbl.id : lbl.en} (${key})`;
+    content.push(scoreBar(label, score as number, C.teal, C.tealLight));
+  }
+
+  // ===== MI ANALYSIS =====
+  if (data.aiAnalysis?.miAnalysis) {
+    content.push(sectionTitle(isId ? "Analisis Kecerdasan Majemuk" : "Multiple Intelligence Analysis", C.purple));
+    content.push(dividerLine());
+    content.push({ text: stripEmoji(data.aiAnalysis.miAnalysis), fontSize: 9.5, color: C.gray, lineHeight: 1.5, margin: [0, 0, 0, 10] as [number, number, number, number] });
+  }
+
+  // ===== MI SCORES =====
+  content.push(sectionTitle(isId ? "Skor Kecerdasan Majemuk" : "Multiple Intelligence Scores", C.purple));
+  content.push(dividerLine(C.purple));
+
+  for (const [key, score] of sortedMi) {
+    const lbl = miLabels[key] || { id: key, en: key };
+    const label = `${isId ? lbl.id : lbl.en}`;
+    content.push(scoreBar(label, score as number, C.purple, C.purpleLight));
+  }
+
+  // ===== CROSS-DIMENSIONAL INSIGHT =====
+  const crossAnalysis = data.aiAnalysis?.crossAnalysis || data.aiAnalysis?.crossDimensionalInsight;
+  if (crossAnalysis) {
+    content.push(sectionTitle(isId ? "Insight Unik Kamu" : "Your Unique Insight", C.teal));
+    content.push(dividerLine());
+    content.push({ text: stripEmoji(crossAnalysis), fontSize: 9.5, color: C.gray, lineHeight: 1.5, margin: [0, 0, 0, 10] as [number, number, number, number] });
+  }
+
+  // ===== SOFT SKILLS =====
+  if (data.aiAnalysis?.softSkillsAnalysis) {
+    content.push(sectionTitle(isId ? "Analisis Soft Skills" : "Soft Skills Analysis", C.teal));
+    content.push(dividerLine());
+    content.push({ text: stripEmoji(data.aiAnalysis.softSkillsAnalysis), fontSize: 9.5, color: C.gray, lineHeight: 1.5, margin: [0, 0, 0, 10] as [number, number, number, number] });
+  }
+
+  // ===== CREATIVE THINKING =====
+  if (data.aiAnalysis?.creativeThinkingAnalysis) {
+    content.push(sectionTitle(isId ? "Analisis Pemikiran Kreatif" : "Creative Thinking Analysis", C.purple));
+    content.push(dividerLine());
+    content.push({ text: stripEmoji(data.aiAnalysis.creativeThinkingAnalysis), fontSize: 9.5, color: C.gray, lineHeight: 1.5, margin: [0, 0, 0, 10] as [number, number, number, number] });
+  }
+
+  // ===== VALUES =====
+  if (data.aiAnalysis?.valuesAnalysis) {
+    content.push(sectionTitle(isId ? "Analisis Nilai & Prioritas" : "Values & Priorities Analysis", C.teal));
+    content.push(dividerLine());
+    content.push({ text: stripEmoji(data.aiAnalysis.valuesAnalysis), fontSize: 9.5, color: C.gray, lineHeight: 1.5, margin: [0, 0, 0, 10] as [number, number, number, number] });
+  }
+
+  // ===== RECOMMENDED MAJORS =====
+  if (majors.length > 0) {
+    content.push(sectionTitle(isId ? "Rekomendasi Jurusan" : "Recommended Majors", C.navy));
+    content.push(dividerLine());
+    for (let i = 0; i < majors.length; i++) {
+      content.push(majorCard(majors[i], i, isId));
+      if (i < majors.length - 1) {
+        content.push({
+          canvas: [{ type: "line", x1: 15, y1: 0, x2: 480, y2: 0, lineWidth: 0.5, lineColor: "#e2e8f0" }],
+          margin: [0, 0, 0, 8] as [number, number, number, number],
+        });
       }
     }
+  }
 
-    // ===== LEARNING STYLE =====
-    if (data.aiAnalysis?.learningStyle) {
-      y = checkPageBreak(doc, 60);
-      y = addSectionTitle(doc, isId ? "Gaya Belajar" : "Learning Style", COLORS.blue, y);
-      y = addParagraph(doc, data.aiAnalysis.learningStyle, y);
+  // ===== STRENGTHS & AREAS FOR GROWTH =====
+  const sw = data.aiAnalysis?.strengthsAndWeaknesses;
+  if (sw) {
+    content.push(sectionTitle(isId ? "Kekuatan & Area Pengembangan" : "Strengths & Areas for Growth", C.teal));
+    content.push(dividerLine());
+
+    if (sw.strengths?.length) {
+      content.push({ text: isId ? "Kekuatan" : "Strengths", fontSize: 10, color: C.green, bold: true, margin: [0, 0, 0, 6] as [number, number, number, number] });
+      content.push(bulletList(sw.strengths, C.green, "+"));
     }
-
-    // ===== CAREER OUTLOOK =====
-    if (data.aiAnalysis?.careerOutlook) {
-      y = checkPageBreak(doc, 80);
-      doc.roundedRect(50, y, 495, 10, 8).fill(COLORS.lightGray);
-      y = addSectionTitle(doc, isId ? "Prospek Karir" : "Career Outlook", COLORS.dark, y + 5);
-      y = addParagraph(doc, data.aiAnalysis.careerOutlook, y);
+    if (sw.areasForGrowth?.length) {
+      content.push({ text: isId ? "Area Pengembangan" : "Areas for Growth", fontSize: 10, color: C.amber, bold: true, margin: [0, 8, 0, 6] as [number, number, number, number] });
+      content.push(bulletList(sw.areasForGrowth, C.amber, ">"));
     }
+  }
 
-    // ===== ACTION PLAN =====
-    if (data.aiAnalysis?.actionPlan?.length) {
-      y = checkPageBreak(doc, 80);
-      y = addSectionTitle(doc, isId ? "Langkah Selanjutnya" : "Action Plan", COLORS.teal, y);
-      for (let i = 0; i < data.aiAnalysis.actionPlan.length; i++) {
-        y = checkPageBreak(doc, 15);
-        doc.fontSize(9).fillColor(COLORS.dark).text(`${i + 1}. ${data.aiAnalysis.actionPlan[i]}`, 60, y, { width: 475, lineGap: 2 });
-        y = doc.y + 3;
-      }
-      y += 5;
+  // ===== LEARNING STYLE =====
+  if (data.aiAnalysis?.learningStyle) {
+    content.push(sectionTitle(isId ? "Gaya Belajar" : "Learning Style", C.blue));
+    content.push(dividerLine());
+    content.push({ text: stripEmoji(data.aiAnalysis.learningStyle), fontSize: 9.5, color: C.gray, lineHeight: 1.5, margin: [0, 0, 0, 10] as [number, number, number, number] });
+  }
+
+  // ===== CAREER OUTLOOK =====
+  if (data.aiAnalysis?.careerOutlook) {
+    content.push(sectionTitle(isId ? "Prospek Karir" : "Career Outlook", C.blue));
+    content.push(dividerLine());
+    content.push({ text: stripEmoji(data.aiAnalysis.careerOutlook), fontSize: 9.5, color: C.gray, lineHeight: 1.5, margin: [0, 0, 0, 10] as [number, number, number, number] });
+  }
+
+  // ===== ACTION PLAN =====
+  if (data.aiAnalysis?.actionPlan?.length) {
+    content.push(sectionTitle(isId ? "Langkah Selanjutnya" : "Action Plan", C.teal));
+    content.push(dividerLine());
+    for (let i = 0; i < data.aiAnalysis.actionPlan.length; i++) {
+      content.push(actionStep(data.aiAnalysis.actionPlan[i], i));
     }
+  }
 
-    // ===== PARENT SUMMARY =====
-    if (data.aiAnalysis?.parentSummary) {
-      y = checkPageBreak(doc, 100);
-      doc.roundedRect(50, y, 495, 10, 8).fill(COLORS.amberLight);
-      y += 5;
-      doc.fontSize(12).fillColor(COLORS.amber).text(
-        isId ? "Ringkasan untuk Orang Tua" : "Parent Summary", 65, y
-      );
-      y += 18;
-      doc.fontSize(8).fillColor(COLORS.amber).text(
-        isId ? "Bagikan bagian ini kepada orang tua Anda" : "Share this section with your parents",
-        65, y
-      );
-      y += 14;
-      doc.fontSize(9.5).fillColor(COLORS.amber).text(
-        data.aiAnalysis.parentSummary, 65, y, { width: 465, lineGap: 3 }
-      );
-      y = doc.y + 15;
+  // ===== PARENT SUMMARY =====
+  if (data.aiAnalysis?.parentSummary) {
+    content.push(sectionTitle(isId ? "Ringkasan untuk Orang Tua" : "Parent Summary", C.gold));
+    content.push(dividerLine(C.gold));
+    content.push({
+      table: {
+        widths: ["*"],
+        body: [[{
+          text: stripEmoji(data.aiAnalysis.parentSummary),
+          fontSize: 9.5,
+          color: C.amber,
+          lineHeight: 1.5,
+          margin: [12, 10, 12, 10] as [number, number, number, number],
+          border: [false, false, false, false],
+        }]],
+      },
+      layout: {
+        hLineWidth: () => 0,
+        vLineWidth: () => 0,
+        fillColor: () => "#fffbeb",
+      },
+      margin: [0, 0, 0, 15] as [number, number, number, number],
+    });
+  }
+
+  // ===== CTA BOX =====
+  content.push({
+    canvas: [{ type: "line", x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 1.5, lineColor: C.teal }],
+    margin: [0, 15, 0, 15] as [number, number, number, number],
+  });
+
+  content.push({
+    table: {
+      widths: ["*"],
+      body: [[{
+        stack: [
+          {
+            canvas: [{ type: "rect", x: -12, y: -4, w: 519, h: 4, color: C.teal }],
+          },
+          {
+            text: isId ? "Siap Memulai Perjalanan Studi Anda?" : "Ready to Start Your Study Journey?",
+            fontSize: 14,
+            color: C.white,
+            bold: true,
+            alignment: "center" as const,
+            margin: [0, 10, 0, 8] as [number, number, number, number],
+          },
+          {
+            text: isId
+              ? "Tim konselor berpengalaman kami siap membantu Anda menemukan universitas dan jurusan yang tepat."
+              : "Our experienced counselor team is ready to help you find the right university and major.",
+            fontSize: 9.5,
+            color: C.grayLight,
+            alignment: "center" as const,
+            lineHeight: 1.4,
+            margin: [20, 0, 20, 10] as [number, number, number, number],
+          },
+          {
+            text: "WhatsApp: +62 812-8787-8055",
+            fontSize: 10,
+            color: C.teal,
+            alignment: "center" as const,
+            bold: true,
+            margin: [0, 0, 0, 4] as [number, number, number, number],
+          },
+          {
+            text: "www.spectaeducation.com  |  info@spectaeducation.com",
+            fontSize: 9,
+            color: C.grayLight,
+            alignment: "center" as const,
+          },
+        ],
+        fillColor: C.navy,
+        margin: [0, 0, 0, 0] as [number, number, number, number],
+        border: [false, false, false, false],
+      }]],
+    },
+    layout: {
+      hLineWidth: () => 0,
+      vLineWidth: () => 0,
+      paddingLeft: () => 12,
+      paddingRight: () => 12,
+      paddingTop: () => 4,
+      paddingBottom: () => 12,
+    },
+    margin: [0, 0, 0, 15] as [number, number, number, number],
+  });
+
+  // Disclaimer
+  content.push({
+    text: isId
+      ? "Laporan ini dihasilkan oleh teknologi AI SpecTa Education dan dimaksudkan sebagai panduan. Hasil tes harus diinterpretasikan bersama dengan konselor pendidikan profesional. Semua data bersifat rahasia."
+      : "This report was generated by SpecTa Education AI technology and is intended as guidance. Test results should be interpreted together with a professional education counselor. All data is confidential.",
+    fontSize: 7,
+    color: C.grayMedium,
+    alignment: "center" as const,
+    lineHeight: 1.4,
+    margin: [0, 0, 0, 8] as [number, number, number, number],
+  });
+
+  content.push({
+    text: `\u00A9 ${new Date().getFullYear()} SpecTa Education. All rights reserved.`,
+    fontSize: 7,
+    color: C.grayLight,
+    alignment: "center" as const,
+  });
+
+  // ========== DOCUMENT DEFINITION ==========
+  const docDefinition: TDocumentDefinitions = {
+    pageSize: "A4" as const,
+    pageMargins: [50, 55, 50, 55] as [number, number, number, number],
+    defaultStyle: {
+      font: "Helvetica",
+      fontSize: 10,
+      color: C.dark,
+    },
+    styles: {
+      sectionHeading: {
+        fontSize: 13,
+        bold: true,
+        color: C.dark,
+      },
+    } as StyleDictionary,
+    header: (currentPage: number, pageCount: number) => {
+      if (currentPage === 1) return null; // no header on cover
+      return {
+        stack: [
+          {
+            canvas: [
+              { type: "rect", x: 0, y: 0, w: 595, h: 4, color: C.teal },
+              { type: "rect", x: 0, y: 4, w: 595, h: 28, color: C.navy },
+            ],
+          },
+          {
+            columns: [
+              { text: "SPECTA EDUCATION", fontSize: 7.5, color: C.grayLight, margin: [50, 0, 0, 0] as [number, number, number, number] },
+              { text: isId ? "Laporan Tes Bakat AI" : "AI Aptitude Test Report", fontSize: 7.5, color: C.grayLight, alignment: "right" as const, margin: [0, 0, 50, 0] as [number, number, number, number] },
+            ],
+            margin: [0, -18, 0, 0] as [number, number, number, number],
+          },
+        ],
+      };
+    },
+    footer: (currentPage: number, pageCount: number) => {
+      if (currentPage === 1) return null; // no footer on cover
+      return {
+        columns: [
+          { text: `\u00A9 ${new Date().getFullYear()} SpecTa Education`, fontSize: 7, color: C.grayMedium, margin: [50, 0, 0, 0] as [number, number, number, number] },
+          { text: "CONFIDENTIAL", fontSize: 6.5, color: C.grayMedium, alignment: "center" as const },
+          { text: `${currentPage} / ${pageCount}`, fontSize: 7, color: C.grayMedium, alignment: "right" as const, margin: [0, 0, 50, 0] as [number, number, number, number] },
+        ],
+        margin: [0, 10, 0, 0] as [number, number, number, number],
+      };
+    },
+    content,
+    info: {
+      title: `AI Aptitude Test Report - ${data.studentName}`,
+      author: "SpecTa Education",
+      subject: "AI Aptitude Test Results",
+      creator: "SpecTa Education AI Platform",
+    },
+  };
+
+  const pdfDoc = await (printer as any).createPdfKitDocument(docDefinition);
+  return new Promise((resolve, reject) => {
+    try {
+      const chunks: Buffer[] = [];
+      pdfDoc.on("data", (chunk: Buffer) => chunks.push(chunk));
+      pdfDoc.on("end", () => resolve(Buffer.concat(chunks)));
+      pdfDoc.on("error", reject);
+      pdfDoc.end();
+    } catch (err) {
+      reject(err);
     }
-
-    // ===== FOOTER =====
-    y = checkPageBreak(doc, 60);
-    doc.moveTo(50, y).lineTo(545, y).strokeColor("#e2e8f0").lineWidth(1).stroke();
-    y += 15;
-    doc.fontSize(8).fillColor("#94a3b8").text(
-      isId
-        ? "Laporan ini dihasilkan oleh AI SpecTa Education. Untuk konsultasi lebih lanjut:"
-        : "This report was generated by SpecTa Education AI. For further consultation:",
-      50, y, { align: "center" }
-    );
-    y += 12;
-    doc.fontSize(9).fillColor(COLORS.teal).text(
-      "wa.me/6281287878055  •  spectaeducation.com",
-      50, y, { align: "center" }
-    );
-    y += 14;
-    doc.fontSize(7).fillColor("#cbd5e1").text(
-      `© ${new Date().getFullYear()} SpecTa Education. All rights reserved.`,
-      50, y, { align: "center" }
-    );
-
-    doc.end();
   });
 }
 
