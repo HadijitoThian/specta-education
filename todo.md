@@ -786,3 +786,8 @@
 ### 77. Fix WhatsApp Number in PDF Report
 - [x] Updated cover page contact: wa.me/62819668278
 - [x] Updated back cover CTA: WhatsApp: +62 819 668 278
+
+### 78. Fix Homepage SEO Issues
+- [x] Add keywords meta tag to homepage (bilingual EN/ID: study abroad, IELTS, konsultan pendidikan, kuliah luar negeri, beasiswa)
+- [x] Fix title to 60 chars: "SpecTa Education - Study Abroad Consultant & IELTS Preparation"
+- [x] Add meta description (155 chars): helps students study abroad across 10+ countries with expert counseling, IELTS preparation, university matching, and scholarship guidance since 2005

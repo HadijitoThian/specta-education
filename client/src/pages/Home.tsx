@@ -104,6 +104,28 @@ function ReviewCard({ review, index }: { review: { name: string; branch: string;
 export default function Home() {
   const [isChatOpen, setIsChatOpen] = useState(false);
 
+  useEffect(() => {
+    document.title = "SpecTa Education - Study Abroad Consultant & IELTS Preparation";
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'SpecTa Education helps students study abroad across 10+ countries with expert counseling, IELTS preparation, university matching, and scholarship guidance since 2005.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'SpecTa Education helps students study abroad across 10+ countries with expert counseling, IELTS preparation, university matching, and scholarship guidance since 2005.';
+      document.head.appendChild(meta);
+    }
+    const metaKeywords = document.querySelector('meta[name="keywords"]');
+    if (metaKeywords) {
+      metaKeywords.setAttribute('content', 'study abroad, IELTS preparation, overseas education, university application, scholarship, SpecTa Education, konsultan pendidikan, kuliah luar negeri, beasiswa, persiapan IELTS');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'keywords';
+      meta.content = 'study abroad, IELTS preparation, overseas education, university application, scholarship, SpecTa Education, konsultan pendidikan, kuliah luar negeri, beasiswa, persiapan IELTS';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const handleOpenChat = () => {
     setIsChatOpen(true);
   };
