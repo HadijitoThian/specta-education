@@ -27,6 +27,7 @@ import StaffLogin from "./pages/StaffLogin";
 import StaffDashboard from "./pages/StaffDashboard";
 import AptitudeTest from "./pages/AptitudeTest";
 import AptitudeTestPro from "./pages/AptitudeTestPro";
+import MyJourney from "./pages/MyJourney";
 
 function Router() {
   return (
@@ -44,6 +45,7 @@ function Router() {
       <Route path={"/apply"} component={Apply} />
       <Route path={"/book"} component={BookConsultation} />
       <Route path={"/track"} component={TrackApplication} />
+      <Route path={"/my-journey"} component={MyJourney} />
       <Route path={"/track/:token"} component={TrackApplication} />
       <Route path={"/scholarships"} component={Scholarships} />
       <Route path={"/play"} component={Play} />

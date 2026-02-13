@@ -20,7 +20,10 @@ import {
   aptitudeResults, InsertAptitudeResult, AptitudeResult,
   aptitudeAccessTokens, InsertAptitudeAccessToken, AptitudeAccessToken,
   matchUniversities, InsertMatchUniversity, MatchUniversity,
-  matchPrograms, InsertMatchProgram, MatchProgram
+  matchPrograms, InsertMatchProgram, MatchProgram,
+  costOfLivingData, InsertCostOfLivingData, CostOfLivingData,
+  checklistItems, InsertChecklistItem, ChecklistItem,
+  userChecklistProgress, InsertUserChecklistProgress, UserChecklistProgress
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -959,4 +962,124 @@ export async function getActiveUniversitiesWithPrograms(): Promise<(MatchUnivers
     ...uni,
     programs: programs.filter(p => p.universityId === uni.id),
   }));
+}
+
+
+// =============================================
+// Cost of Living Calculator Helpers
+// =============================================
+
+export async function getCostOfLivingByCountry(countrySlug: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(costOfLivingData).where(and(eq(costOfLivingData.countrySlug, countrySlug), eq(costOfLivingData.isActive, true))).orderBy(costOfLivingData.city, costOfLivingData.category);
+}
+
+export async function getCostOfLivingCities(countrySlug: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.selectDistinct({ city: costOfLivingData.city }).from(costOfLivingData).where(and(eq(costOfLivingData.countrySlug, countrySlug), eq(costOfLivingData.isActive, true))).orderBy(costOfLivingData.city);
+  return rows.map(r => r.city);
+}
+
+export async function getAllCostOfLivingData() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(costOfLivingData).where(eq(costOfLivingData.isActive, true)).orderBy(costOfLivingData.country, costOfLivingData.city, costOfLivingData.category);
+}
+
+export async function createCostOfLivingEntry(data: InsertCostOfLivingData) {
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+  const result = await db.insert(costOfLivingData).values(data);
+  return result[0].insertId;
+}
+
+export async function updateCostOfLivingEntry(id: number, data: Partial<InsertCostOfLivingData>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(costOfLivingData).set(data).where(eq(costOfLivingData.id, id));
+}
+
+export async function deleteCostOfLivingEntry(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(costOfLivingData).set({ isActive: false }).where(eq(costOfLivingData.id, id));
+}
+
+// =============================================
+// Study Abroad Checklist Helpers
+// =============================================
+
+export async function getAllChecklistItems() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(checklistItems).where(eq(checklistItems.isActive, true)).orderBy(checklistItems.phase, checklistItems.sortOrder);
+}
+
+export async function createChecklistItem(data: InsertChecklistItem) {
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+  const result = await db.insert(checklistItems).values(data);
+  return result[0].insertId;
+}
+
+export async function updateChecklistItem(id: number, data: Partial<InsertChecklistItem>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(checklistItems).set(data).where(eq(checklistItems.id, id));
+}
+
+export async function deleteChecklistItem(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(checklistItems).set({ isActive: false }).where(eq(checklistItems.id, id));
+}
+
+export async function getUserChecklistProgress(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(userChecklistProgress).where(eq(userChecklistProgress.userId, userId));
+}
+
+export async function toggleChecklistProgress(userId: number, checklistItemId: number, isCompleted: boolean, notes?: string) {
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+  // Check if progress record exists
+  const existing = await db.select().from(userChecklistProgress).where(and(eq(userChecklistProgress.userId, userId), eq(userChecklistProgress.checklistItemId, checklistItemId)));
+  
+  if (existing.length > 0) {
+    await db.update(userChecklistProgress).set({ 
+      isCompleted, 
+      completedAt: isCompleted ? new Date() : null,
+      notes: notes ?? existing[0].notes 
+    }).where(eq(userChecklistProgress.id, existing[0].id));
+    return existing[0].id;
+  } else {
+    const result = await db.insert(userChecklistProgress).values({
+      userId,
+      checklistItemId,
+      isCompleted,
+      completedAt: isCompleted ? new Date() : null,
+      notes: notes ?? null,
+    });
+    return result[0].insertId;
+  }
+}
+
+export async function updateChecklistNotes(userId: number, checklistItemId: number, notes: string) {
+  const db = await getDb();
+  if (!db) return;
+  const existing = await db.select().from(userChecklistProgress).where(and(eq(userChecklistProgress.userId, userId), eq(userChecklistProgress.checklistItemId, checklistItemId)));
+  
+  if (existing.length > 0) {
+    await db.update(userChecklistProgress).set({ notes }).where(eq(userChecklistProgress.id, existing[0].id));
+  } else {
+    await db.insert(userChecklistProgress).values({
+      userId,
+      checklistItemId,
+      isCompleted: false,
+      notes,
+    });
+  }
 }

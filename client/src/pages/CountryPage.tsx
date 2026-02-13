@@ -6,6 +6,7 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import ChatBot from "@/components/ChatBot";
 import ChatBotButton from "@/components/ChatBotButton";
+import CostOfLivingCalculator from "@/components/CostOfLivingCalculator";
 import { motion, AnimatePresence } from "framer-motion";
 
 const countryData: Record<string, any> = {
@@ -635,42 +636,12 @@ export default function CountryPage() {
         </div>
       </section>
 
-      {/* Cost of Living */}
-      {country.costOfLiving && (
-        <section className="py-16">
-          <div className="container">
-            <motion.h2 
-              className="text-3xl font-bold text-center mb-12"
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-            >
-              Cost of Living
-            </motion.h2>
-            <div className="grid md:grid-cols-4 gap-6 max-w-4xl mx-auto">
-              {Object.entries(country.costOfLiving).map(([key, value]: [string, any], index: number) => (
-                <motion.div
-                  key={key}
-                  className="p-6 bg-card rounded-xl shadow-sm border border-border text-center"
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                    {key === 'tuition' && <GraduationCap className="w-5 h-5 text-primary" />}
-                    {key === 'accommodation' && <HomeIcon className="w-5 h-5 text-primary" />}
-                    {key === 'food' && <Heart className="w-5 h-5 text-primary" />}
-                    {key === 'transport' && <MapPin className="w-5 h-5 text-primary" />}
-                  </div>
-                  <h4 className="font-semibold capitalize mb-2">{key}</h4>
-                  <p className="text-sm text-primary font-medium">{value}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      {/* Cost of Living Calculator */}
+      <CostOfLivingCalculator 
+        countrySlug={slug} 
+        countryName={country.name} 
+        fallbackData={country.costOfLiving} 
+      />
 
       {/* Scholarships */}
       {country.scholarships && (

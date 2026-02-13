@@ -98,7 +98,20 @@ import {
   getMatchProgramById,
   updateMatchProgram,
   deleteMatchProgram,
-  getActiveUniversitiesWithPrograms
+  getActiveUniversitiesWithPrograms,
+  getCostOfLivingByCountry,
+  getCostOfLivingCities,
+  getAllCostOfLivingData,
+  createCostOfLivingEntry,
+  updateCostOfLivingEntry,
+  deleteCostOfLivingEntry,
+  getAllChecklistItems,
+  createChecklistItem,
+  updateChecklistItem,
+  deleteChecklistItem,
+  getUserChecklistProgress,
+  toggleChecklistProgress,
+  updateChecklistNotes
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail } from "./email";
@@ -2981,6 +2994,152 @@ IMPORTANT:
         // Sort by match score descending, take top 10
         recommendations.sort((a, b) => b.matchScore - a.matchScore);
         return recommendations.slice(0, 10);
+      }),
+  }),
+
+  // =============================================
+  // Cost of Living Calculator
+  // =============================================
+  costOfLiving: router({
+    getByCountry: publicProcedure
+      .input(z.object({ countrySlug: z.string() }))
+      .query(async ({ input }) => {
+        const data = await getCostOfLivingByCountry(input.countrySlug);
+        const cities = Array.from(new Set(data.map(d => d.city)));
+        const byCity: Record<string, typeof data> = {};
+        for (const row of data) {
+          if (!byCity[row.city]) byCity[row.city] = [];
+          byCity[row.city].push(row);
+        }
+        return { cities, byCity, country: data[0]?.country ?? '', localCurrency: data[0]?.localCurrency ?? 'USD' };
+      }),
+
+    getCities: publicProcedure
+      .input(z.object({ countrySlug: z.string() }))
+      .query(async ({ input }) => {
+        return getCostOfLivingCities(input.countrySlug);
+      }),
+
+    getAll: protectedProcedure.query(async () => {
+      return getAllCostOfLivingData();
+    }),
+
+    create: protectedProcedure
+      .input(z.object({
+        country: z.string(),
+        countrySlug: z.string(),
+        city: z.string(),
+        category: z.enum(["rent", "food", "transport", "utilities", "entertainment", "tuition"]),
+        amountMinUsd: z.number(),
+        amountMaxUsd: z.number(),
+        localCurrency: z.string(),
+        amountMinLocal: z.number(),
+        amountMaxLocal: z.number(),
+        notes: z.string().optional(),
+        notesId: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const id = await createCostOfLivingEntry(input);
+        return { id };
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        data: z.object({
+          amountMinUsd: z.number().optional(),
+          amountMaxUsd: z.number().optional(),
+          amountMinLocal: z.number().optional(),
+          amountMaxLocal: z.number().optional(),
+          notes: z.string().optional(),
+          notesId: z.string().optional(),
+        }),
+      }))
+      .mutation(async ({ input }) => {
+        await updateCostOfLivingEntry(input.id, input.data);
+        return { success: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteCostOfLivingEntry(input.id);
+        return { success: true };
+      }),
+  }),
+
+  // =============================================
+  // Study Abroad Checklist
+  // =============================================
+  checklist: router({
+    getItems: publicProcedure.query(async () => {
+      return getAllChecklistItems();
+    }),
+
+    getUserProgress: protectedProcedure.query(async ({ ctx }) => {
+      const progress = await getUserChecklistProgress(ctx.user.id);
+      return progress;
+    }),
+
+    toggleItem: protectedProcedure
+      .input(z.object({
+        checklistItemId: z.number(),
+        isCompleted: z.boolean(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const id = await toggleChecklistProgress(ctx.user.id, input.checklistItemId, input.isCompleted);
+        return { id, success: true };
+      }),
+
+    updateNotes: protectedProcedure
+      .input(z.object({
+        checklistItemId: z.number(),
+        notes: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await updateChecklistNotes(ctx.user.id, input.checklistItemId, input.notes);
+        return { success: true };
+      }),
+
+    // Admin: manage checklist items
+    createItem: protectedProcedure
+      .input(z.object({
+        phase: z.enum(["12_months", "9_months", "6_months", "3_months", "1_month", "2_weeks", "departure"]),
+        category: z.enum(["documents", "tests", "applications", "visa", "accommodation", "finances", "travel", "health"]),
+        title: z.string(),
+        titleId: z.string().optional(),
+        description: z.string().optional(),
+        descriptionId: z.string().optional(),
+        sortOrder: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const id = await createChecklistItem(input);
+        return { id };
+      }),
+
+    updateItem: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        data: z.object({
+          title: z.string().optional(),
+          titleId: z.string().optional(),
+          description: z.string().optional(),
+          descriptionId: z.string().optional(),
+          sortOrder: z.number().optional(),
+          phase: z.enum(["12_months", "9_months", "6_months", "3_months", "1_month", "2_weeks", "departure"]).optional(),
+          category: z.enum(["documents", "tests", "applications", "visa", "accommodation", "finances", "travel", "health"]).optional(),
+        }),
+      }))
+      .mutation(async ({ input }) => {
+        await updateChecklistItem(input.id, input.data);
+        return { success: true };
+      }),
+
+    deleteItem: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteChecklistItem(input.id);
+        return { success: true };
       }),
   }),
 });

@@ -726,3 +726,30 @@
 - [x] Exclude elite universities (Oxford, Cambridge, MIT, Harvard, Stanford, etc.)
 - [x] Write vitest tests for matching algorithm (18 tests, all passing)
 - [x] Bilingual support (English/Bahasa Indonesia) for university display
+
+### 73. Cost of Living Calculator (Embedded in Destination Pages)
+- [x] Design database schema for cost_of_living data (country, city, category, amount_usd)
+- [x] Run db:push to create new table
+- [x] Build tRPC endpoints: getCostOfLiving by country/city
+- [x] Build interactive Cost of Living Calculator UI component
+- [x] Embed calculator in each country Destination page
+- [x] Cover categories: rent, food, transport, utilities, entertainment, tuition
+- [x] Support 8 destination countries (Singapore, China, UK, Australia, Canada, USA, Ireland, Netherlands)
+- [x] Seed cost of living data: 78 entries across 8 countries, 12 cities
+- [x] Bilingual support (EN/ID)
+- [x] Write vitest tests (8 tests, all passing)
+
+### 74. Study Abroad Checklist (Personalized in Student Dashboard)
+- [x] Design database schema for checklist_items and user_checklist_progress
+- [x] Run db:push to create new tables
+- [x] Build tRPC endpoints: getItems, toggleItem, updateNotes, getUserProgress
+- [x] Build interactive checklist UI at /my-journey (requires login)
+- [x] Timeline-based layout: 7 phases (12 months to departure day)
+- [x] Save progress per user (requires login, optimistic updates)
+- [x] Categories: documents, tests, applications, visa, accommodation, finances, travel, health
+- [x] Progress bar / completion percentage with animated progress
+- [x] Personal notes per checklist item
+- [x] Bilingual support (EN/ID)
+- [x] Link from Track My Application page
+- [x] Write vitest tests (12 tests, all passing)
+- [x] Seeded 33 checklist items across 7 timeline phases

@@ -128,6 +128,20 @@ export default function TrackApplication() {
               <p className="text-xs text-gray-500">Your tracking link is valid for 24 hours and is tied to your email address. Only you can access your application details.</p>
             </div>
           </div>
+
+          {/* Study Abroad Checklist CTA */}
+          <a href="/my-journey" className="block mt-6 bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all hover:-translate-y-0.5 border border-gray-100">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+                <CheckCircle className="w-6 h-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-900">Study Abroad Checklist</h3>
+                <p className="text-sm text-gray-500">Track your preparation from 12 months before departure</p>
+              </div>
+              <ArrowRight className="w-5 h-5 text-gray-400" />
+            </div>
+          </a>
         </div>
       </div>
     );

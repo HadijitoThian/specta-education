@@ -425,3 +425,61 @@ export const matchPrograms = mysqlTable("matchPrograms", {
 
 export type MatchProgram = typeof matchPrograms.$inferSelect;
 export type InsertMatchProgram = typeof matchPrograms.$inferInsert;
+
+
+/**
+ * Cost of Living data - detailed city-level cost breakdowns for the calculator
+ */
+export const costOfLivingData = mysqlTable("costOfLivingData", {
+  id: int("id").autoincrement().primaryKey(),
+  country: varchar("country", { length: 100 }).notNull(),
+  countrySlug: varchar("countrySlug", { length: 100 }).notNull(),
+  city: varchar("city", { length: 100 }).notNull(),
+  category: mysqlEnum("category", ["rent", "food", "transport", "utilities", "entertainment", "tuition"]).notNull(),
+  amountMinUsd: int("amountMinUsd").notNull(), // monthly minimum in USD
+  amountMaxUsd: int("amountMaxUsd").notNull(), // monthly maximum in USD
+  localCurrency: varchar("localCurrency", { length: 10 }).notNull(), // e.g. "AUD", "GBP"
+  amountMinLocal: int("amountMinLocal").notNull(),
+  amountMaxLocal: int("amountMaxLocal").notNull(),
+  notes: text("notes"), // e.g. "Shared apartment in city center"
+  notesId: text("notesId"), // Indonesian notes
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CostOfLivingData = typeof costOfLivingData.$inferSelect;
+export type InsertCostOfLivingData = typeof costOfLivingData.$inferInsert;
+
+/**
+ * Study Abroad Checklist - predefined checklist items with timeline phases
+ */
+export const checklistItems = mysqlTable("checklistItems", {
+  id: int("id").autoincrement().primaryKey(),
+  phase: mysqlEnum("phase", ["12_months", "9_months", "6_months", "3_months", "1_month", "2_weeks", "departure"]).notNull(),
+  category: mysqlEnum("category", ["documents", "tests", "applications", "visa", "accommodation", "finances", "travel", "health"]).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  titleId: varchar("titleId", { length: 255 }), // Indonesian title
+  description: text("description"),
+  descriptionId: text("descriptionId"), // Indonesian description
+  sortOrder: int("sortOrder").default(0).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ChecklistItem = typeof checklistItems.$inferSelect;
+export type InsertChecklistItem = typeof checklistItems.$inferInsert;
+
+/**
+ * User Checklist Progress - tracks which items each user has completed
+ */
+export const userChecklistProgress = mysqlTable("userChecklistProgress", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  checklistItemId: int("checklistItemId").notNull(),
+  isCompleted: boolean("isCompleted").default(false).notNull(),
+  completedAt: timestamp("completedAt"),
+  notes: text("notes"), // user's personal notes for this item
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type UserChecklistProgress = typeof userChecklistProgress.$inferSelect;
+export type InsertUserChecklistProgress = typeof userChecklistProgress.$inferInsert;
