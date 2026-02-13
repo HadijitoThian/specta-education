@@ -782,3 +782,7 @@
 - [x] Add proper back cover page with logo, CTA, WhatsApp, and disclaimer
 - [x] Match content depth to the email version of results
 - [x] Test and verify improved PDF output (8 pages, all rendering correctly)
+
+### 77. Fix WhatsApp Number in PDF Report
+- [x] Updated cover page contact: wa.me/62819668278
+- [x] Updated back cover CTA: WhatsApp: +62 819 668 278

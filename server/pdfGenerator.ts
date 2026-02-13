@@ -523,7 +523,7 @@ export async function generatePdfReport(data: PdfReportData): Promise<Buffer> {
 
   // Bottom contact info
   content.push({
-    text: "spectaeducation.com  |  wa.me/6281287878055  |  info@spectaeducation.com",
+    text: "spectaeducation.com  |  wa.me/62819668278  |  info@spectaeducation.com",
     fontSize: 8,
     color: C.grayMedium,
     alignment: "center" as const,
@@ -916,7 +916,7 @@ export async function generatePdfReport(data: PdfReportData): Promise<Buffer> {
         table: {
           widths: ["auto"],
           body: [[{
-            text: "WhatsApp: +62 812-8787-8055",
+            text: "WhatsApp: +62 819 668 278",
             fontSize: 13,
             color: C.white,
             bold: true,
