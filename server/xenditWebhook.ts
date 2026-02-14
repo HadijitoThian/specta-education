@@ -1,0 +1,111 @@
+import { Express, Request, Response } from "express";
+import { verifyWebhookToken } from "./xenditService";
+import { getAccessTokenByToken, createAccessTokens, getAptitudeProOrderByExternalId, updateAptitudeProOrderStatus } from "./db";
+import { sendProAccessLinkEmail, sendPaymentConfirmationEmail } from "./resendService";
+import { notifyOwner } from "./_core/notification";
+import crypto from "crypto";
+
+/**
+ * Register the Xendit webhook endpoint on the Express app.
+ * This must be called BEFORE the Vite/static middleware so the route is reachable.
+ */
+export function registerXenditWebhook(app: Express) {
+  app.post("/api/xendit/webhook", async (req: Request, res: Response) => {
+    try {
+      // Verify webhook token
+      const callbackToken = req.headers["x-callback-token"] as string;
+      if (!callbackToken || !verifyWebhookToken(callbackToken)) {
+        console.error("[Xendit Webhook] Invalid callback token");
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const body = req.body;
+      console.log("[Xendit Webhook] Received:", JSON.stringify(body, null, 2));
+
+      // We only care about invoice paid events
+      if (body.status !== "PAID" && body.status !== "SETTLED") {
+        // Handle expired/failed
+        if (body.status === "EXPIRED" || body.status === "FAILED") {
+          const externalId = body.external_id;
+          if (externalId) {
+            await updateAptitudeProOrderStatus(externalId, body.status === "EXPIRED" ? "expired" : "failed");
+          }
+        }
+        return res.status(200).json({ received: true });
+      }
+
+      const externalId = body.external_id;
+      if (!externalId) {
+        console.error("[Xendit Webhook] No external_id in payload");
+        return res.status(400).json({ error: "Missing external_id" });
+      }
+
+      // Check if order exists
+      const order = await getAptitudeProOrderByExternalId(externalId);
+      if (!order) {
+        console.error(`[Xendit Webhook] Order not found: ${externalId}`);
+        return res.status(404).json({ error: "Order not found" });
+      }
+
+      // Skip if already processed
+      if (order.status === "paid") {
+        console.log(`[Xendit Webhook] Order already processed: ${externalId}`);
+        return res.status(200).json({ received: true, already_processed: true });
+      }
+
+      // Generate a single-use access token (valid for 7 days)
+      const tokenValue = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      const [createdToken] = await createAccessTokens([{
+        token: tokenValue,
+        status: "unused",
+        expiresAt,
+      }]);
+
+      // Update order status
+      await updateAptitudeProOrderStatus(externalId, "paid", {
+        xenditInvoiceId: body.id,
+        paidAt: new Date(),
+        accessTokenId: createdToken?.id,
+      });
+
+      // Determine base URL for the access link
+      const baseUrl = process.env.VITE_APP_URL || (process.env.NODE_ENV === "production" ? "https://spectaeducation.com" : "http://localhost:3000");
+
+      // Send access link email via Resend
+      await sendProAccessLinkEmail({
+        to: order.customerEmail,
+        customerName: order.customerName,
+        token: tokenValue,
+        baseUrl,
+      });
+
+      // Send payment confirmation email
+      await sendPaymentConfirmationEmail({
+        to: order.customerEmail,
+        customerName: order.customerName,
+        amount: order.amount,
+        orderId: externalId,
+      });
+
+      // Notify owner
+      const formattedAmount = new Intl.NumberFormat("id-ID", {
+        style: "currency",
+        currency: "IDR",
+        minimumFractionDigits: 0,
+      }).format(order.amount);
+
+      await notifyOwner({
+        title: `💰 New Pro Test Purchase: ${order.customerName}`,
+        content: `${order.customerName} (${order.customerEmail}) just purchased Tes Bakat AI Pro for ${formattedAmount}. Access link has been sent automatically. Order: ${externalId}`,
+      });
+
+      console.log(`[Xendit Webhook] Payment processed successfully for ${externalId}`);
+      return res.status(200).json({ received: true, success: true });
+    } catch (err) {
+      console.error("[Xendit Webhook] Error:", err);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  });
+}

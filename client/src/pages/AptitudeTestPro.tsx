@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import Navigation from "@/components/Navigation";
+import ProLandingPage from "@/components/ProLandingPage";
 import Footer from "@/components/Footer";
 import AptitudeReportDownload from "@/components/AptitudeReportPDF";
 import {
@@ -340,27 +341,9 @@ export default function AptitudeTestPro() {
     }
   }
 
-  // No token = no access
+  // No token = show landing page with purchase option
   if (!tokenParam) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
-          <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <ShieldCheck className="w-8 h-8 text-indigo-500" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">{lang === "id" ? "Akses Terbatas" : "Restricted Access"}</h2>
-          <p className="text-gray-600 mb-6">
-            {lang === "id"
-              ? "Tes Bakat AI Pro hanya bisa diakses melalui link khusus. Silakan hubungi SpecTa Education untuk mendapatkan link akses Anda."
-              : "AI Aptitude Test Pro can only be accessed via a special link. Please contact SpecTa Education to get your access link."}
-          </p>
-          <a href="https://wa.me/6281287878055" target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-green-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-green-600 transition-colors">
-            {lang === "id" ? "Hubungi Kami via WhatsApp" : "Contact Us via WhatsApp"}
-          </a>
-        </div>
-      </div>
-    );
+    return <ProLandingPage lang={lang} setLang={setLang} />;
   }
 
   // ========== HANDLERS ==========

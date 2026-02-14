@@ -483,3 +483,26 @@ export const userChecklistProgress = mysqlTable("userChecklistProgress", {
 });
 export type UserChecklistProgress = typeof userChecklistProgress.$inferSelect;
 export type InsertUserChecklistProgress = typeof userChecklistProgress.$inferInsert;
+
+/**
+ * Aptitude Pro Orders - tracks Xendit payment orders for Tes Bakat AI Pro
+ */
+export const aptitudeProOrders = mysqlTable("aptitudeProOrders", {
+  id: int("id").autoincrement().primaryKey(),
+  externalId: varchar("externalId", { length: 128 }).notNull().unique(), // unique order ref
+  xenditInvoiceId: varchar("xenditInvoiceId", { length: 128 }), // Xendit invoice ID
+  xenditInvoiceUrl: varchar("xenditInvoiceUrl", { length: 512 }), // Xendit payment URL
+  customerName: varchar("customerName", { length: 255 }).notNull(),
+  customerEmail: varchar("customerEmail", { length: 320 }).notNull(),
+  customerPhone: varchar("customerPhone", { length: 50 }),
+  amount: int("amount").notNull(), // in IDR (e.g. 79000)
+  status: mysqlEnum("status", ["pending", "paid", "expired", "failed"]).default("pending").notNull(),
+  accessTokenId: int("accessTokenId"), // links to aptitudeAccessTokens.id after payment
+  paidAt: timestamp("paidAt"),
+  source: varchar("source", { length: 50 }).default("landing").notNull(), // "landing" or "upsell"
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AptitudeProOrder = typeof aptitudeProOrders.$inferSelect;
+export type InsertAptitudeProOrder = typeof aptitudeProOrders.$inferInsert;

@@ -23,7 +23,8 @@ import {
   matchPrograms, InsertMatchProgram, MatchProgram,
   costOfLivingData, InsertCostOfLivingData, CostOfLivingData,
   checklistItems, InsertChecklistItem, ChecklistItem,
-  userChecklistProgress, InsertUserChecklistProgress, UserChecklistProgress
+  userChecklistProgress, InsertUserChecklistProgress, UserChecklistProgress,
+  aptitudeProOrders, InsertAptitudeProOrder, AptitudeProOrder
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1082,4 +1083,42 @@ export async function updateChecklistNotes(userId: number, checklistItemId: numb
       notes,
     });
   }
+}
+
+
+// =============================================
+// Aptitude Pro Orders (Xendit Payment)
+// =============================================
+
+export async function createAptitudeProOrder(data: InsertAptitudeProOrder): Promise<AptitudeProOrder | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(aptitudeProOrders).values(data);
+  const insertId = result[0].insertId;
+  const [row] = await db.select().from(aptitudeProOrders).where(eq(aptitudeProOrders.id, insertId));
+  return row || null;
+}
+
+export async function getAptitudeProOrderByExternalId(externalId: string): Promise<AptitudeProOrder | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(aptitudeProOrders).where(eq(aptitudeProOrders.externalId, externalId));
+  return row || null;
+}
+
+export async function updateAptitudeProOrderStatus(externalId: string, status: "pending" | "paid" | "expired" | "failed", extra?: { xenditInvoiceId?: string; paidAt?: Date; accessTokenId?: number }): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const updateData: Record<string, unknown> = { status };
+  if (extra?.xenditInvoiceId) updateData.xenditInvoiceId = extra.xenditInvoiceId;
+  if (extra?.paidAt) updateData.paidAt = extra.paidAt;
+  if (extra?.accessTokenId) updateData.accessTokenId = extra.accessTokenId;
+  const result = await db.update(aptitudeProOrders).set(updateData).where(eq(aptitudeProOrders.externalId, externalId));
+  return (result[0] as any).affectedRows > 0;
+}
+
+export async function listAptitudeProOrders(): Promise<AptitudeProOrder[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(aptitudeProOrders).orderBy(desc(aptitudeProOrders.createdAt));
 }

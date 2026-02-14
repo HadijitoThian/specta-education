@@ -12,4 +12,7 @@ export const ENV = {
   smtpUser: process.env.SMTP_USER ?? "",
   smtpPass: process.env.SMTP_PASS ?? "",
   smtpFrom: process.env.SMTP_FROM ?? "noreply@spectaeducation.com",
+  xenditSecretKey: process.env.XENDIT_SECRET_KEY ?? "",
+  xenditWebhookToken: process.env.XENDIT_WEBHOOK_TOKEN ?? "",
+  resendApiKey: process.env.RESEND_API_KEY ?? "",
 };

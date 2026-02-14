@@ -806,3 +806,13 @@
 - [x] Add document.title + meta description + meta keywords to IELTS page
 - [x] Add document.title + meta description + meta keywords to Scholarships page
 - [x] Verify tags are detectable in raw HTML or set on page load
+
+### 82. Tes Bakat AI Pro - Upsell Flow with Xendit Payment & Resend Email
+- [x] Validate Xendit API key with test
+- [x] Validate Resend API key with test
+- [x] Build Xendit payment integration (create invoice, webhook handler)
+- [x] Build Resend email integration (send access link from noreply@spectaeducation.com)
+- [x] Build upsell UI on free test results page (Free vs Pro comparison, Rp 79.000)
+- [x] Build standalone Pro landing page at /test/pro with payment flow
+- [x] Auto-generate token + send access link after successful payment
+- [x] Test full payment → email → access flow end-to-end

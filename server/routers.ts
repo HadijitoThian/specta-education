@@ -111,11 +111,17 @@ import {
   deleteChecklistItem,
   getUserChecklistProgress,
   toggleChecklistProgress,
-  updateChecklistNotes
+  updateChecklistNotes,
+  createAptitudeProOrder,
+  getAptitudeProOrderByExternalId,
+  updateAptitudeProOrderStatus,
+  listAptitudeProOrders
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail } from "./email";
 import crypto from "crypto";
+import { createProTestInvoice, verifyWebhookToken, generateExternalId, getProTestPrice } from "./xenditService";
+import { sendProAccessLinkEmail, sendPaymentConfirmationEmail } from "./resendService";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 
@@ -2748,6 +2754,66 @@ IMPORTANT:
         await markTokenCompleted(input.token, input.resultId);
         return { success: true };
       }),
+
+    // ---- Get Pro Test Price ----
+    getProPrice: publicProcedure.query(() => {
+      return { price: getProTestPrice(), currency: "IDR" };
+    }),
+
+    // ---- Create Xendit Invoice for Pro Test Purchase ----
+    createProOrder: publicProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        email: z.string().email(),
+        phone: z.string().optional(),
+        source: z.enum(["landing", "upsell"]).default("landing"),
+      }))
+      .mutation(async ({ input }) => {
+        const externalId = generateExternalId();
+        const baseUrl = process.env.VITE_APP_URL || (process.env.NODE_ENV === "production" ? "https://spectaeducation.com" : "http://localhost:3000");
+
+        // Create Xendit invoice
+        const invoice = await createProTestInvoice({
+          externalId,
+          customerName: input.name,
+          customerEmail: input.email,
+          customerPhone: input.phone,
+          successRedirectUrl: `${baseUrl}/test/pro/payment-success?order=${externalId}`,
+          failureRedirectUrl: `${baseUrl}/test/pro?payment=failed`,
+        });
+
+        // Save order to DB
+        await createAptitudeProOrder({
+          externalId,
+          xenditInvoiceId: invoice.id,
+          xenditInvoiceUrl: invoice.invoice_url,
+          customerName: input.name,
+          customerEmail: input.email,
+          customerPhone: input.phone || null,
+          amount: getProTestPrice(),
+          status: "pending",
+          source: input.source,
+        });
+
+        return {
+          invoiceUrl: invoice.invoice_url,
+          externalId,
+        };
+      }),
+
+    // ---- Check Order Status ----
+    checkOrderStatus: publicProcedure
+      .input(z.object({ externalId: z.string() }))
+      .query(async ({ input }) => {
+        const order = await getAptitudeProOrderByExternalId(input.externalId);
+        if (!order) return { found: false, status: null, accessTokenId: null };
+        return { found: true, status: order.status, accessTokenId: order.accessTokenId };
+      }),
+
+    // ---- Admin: List Pro Orders ----
+    listProOrders: protectedProcedure.query(async () => {
+      return await listAptitudeProOrders();
+    }),
   }),
 
   // ==========================================

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
+import ProUpsellCard from "@/components/ProUpsellCard";
 import { ArrowLeft, ArrowRight, Brain, ChevronDown, Globe2, GraduationCap, Heart, Sparkles, Users, BookOpen, Briefcase, BarChart3, Share2, RotateCcw, MessageCircle, ShieldX, Clock, AlertTriangle } from "lucide-react";
 import AptitudeReportDownload from "@/components/AptitudeReportPDF";
 import UniversityRecommendations from "@/components/UniversityRecommendations";
@@ -1241,6 +1242,14 @@ export default function AptitudeTest() {
               <p className="text-sm text-blue-800 leading-relaxed whitespace-pre-line">{aiResult.studyTips}</p>
             </motion.div>
           )}
+
+          {/* Pro Upsell Card */}
+          <ProUpsellCard
+            lang={lang}
+            studentName={leadInfo.name}
+            studentEmail={leadInfo.email}
+            studentPhone={leadInfo.phone}
+          />
 
           {/* CTA Section */}
           <motion.div
