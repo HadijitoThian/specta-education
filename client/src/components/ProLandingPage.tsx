@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { trpc } from "@/lib/trpc";
 import {
@@ -15,6 +15,32 @@ interface ProLandingPageProps {
   lang: Lang;
   setLang: (lang: Lang) => void;
 }
+
+const DISCOUNT_DURATION_MS = 24 * 60 * 60 * 1000;
+const DISCOUNT_PRICE = 59000;
+const REGULAR_PRICE = 79000;
+const STORAGE_KEY = "proLandingTimerStart";
+
+function getTimerStart(): number {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored) return parseInt(stored, 10);
+  const now = Date.now();
+  localStorage.setItem(STORAGE_KEY, now.toString());
+  return now;
+}
+
+function getTimeRemaining(startTime: number) {
+  const remaining = DISCOUNT_DURATION_MS - (Date.now() - startTime);
+  if (remaining <= 0) return { hours: 0, minutes: 0, seconds: 0, expired: true };
+  return {
+    hours: Math.floor(remaining / (1000 * 60 * 60)),
+    minutes: Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60)),
+    seconds: Math.floor((remaining % (1000 * 60)) / 1000),
+    expired: false,
+  };
+}
+
+const pad = (n: number) => n.toString().padStart(2, "0");
 
 const sections = [
   { icon: BookOpen, color: "from-blue-500 to-blue-600", title: { id: "Profil Diri", en: "Personal Profile" }, desc: { id: "Data dasar untuk personalisasi", en: "Basic data for personalization" }, duration: "2 min" },
@@ -38,6 +64,19 @@ export default function ProLandingPage({ lang, setLang }: ProLandingPageProps) {
   const [phone, setPhone] = useState("");
   const [showForm, setShowForm] = useState(false);
 
+  // Discount timer
+  const [timerStart] = useState(() => getTimerStart());
+  const [timeLeft, setTimeLeft] = useState(() => getTimeRemaining(timerStart));
+
+  useEffect(() => {
+    const interval = setInterval(() => setTimeLeft(getTimeRemaining(timerStart)), 1000);
+    return () => clearInterval(interval);
+  }, [timerStart]);
+
+  const isDiscounted = !timeLeft.expired;
+  const currentPrice = isDiscounted ? DISCOUNT_PRICE : REGULAR_PRICE;
+  const priceLabel = `Rp ${currentPrice.toLocaleString("id-ID")}`;
+
   const createOrderMutation = trpc.aptitude.createProOrder.useMutation();
 
   const handlePurchase = async () => {
@@ -48,6 +87,7 @@ export default function ProLandingPage({ lang, setLang }: ProLandingPageProps) {
         email: email.trim(),
         phone: phone.trim() || undefined,
         source: "landing",
+        useDiscountPrice: isDiscounted,
       });
       window.location.href = result.invoiceUrl;
     } catch (err) {
@@ -58,6 +98,31 @@ export default function ProLandingPage({ lang, setLang }: ProLandingPageProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       <Navigation currentPage="aptitude-pro" />
+
+      {/* Sticky Discount Banner */}
+      {isDiscounted && (
+        <div className="sticky top-0 z-50 bg-gradient-to-r from-red-500 via-orange-500 to-red-500 px-4 py-2.5 text-center shadow-md">
+          <div className="flex items-center justify-center gap-3 text-white flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <Zap className="w-4 h-4 text-yellow-200 animate-pulse" />
+              <span className="text-sm font-bold">
+                {lang === "id" ? "PROMO TERBATAS!" : "LIMITED TIME OFFER!"}
+              </span>
+            </div>
+            <div className="flex gap-1">
+              <span className="bg-white/20 rounded px-1.5 py-0.5 font-mono font-bold text-sm">{pad(timeLeft.hours)}</span>
+              <span className="font-bold">:</span>
+              <span className="bg-white/20 rounded px-1.5 py-0.5 font-mono font-bold text-sm">{pad(timeLeft.minutes)}</span>
+              <span className="font-bold">:</span>
+              <span className="bg-white/20 rounded px-1.5 py-0.5 font-mono font-bold text-sm">{pad(timeLeft.seconds)}</span>
+            </div>
+            <span className="text-sm font-semibold">
+              {lang === "id" ? `Hanya ${priceLabel}!` : `Only ${priceLabel}!`}
+            </span>
+            <span className="text-xs text-white/80 line-through">Rp 79.000</span>
+          </div>
+        </div>
+      )}
 
       {/* Hero Section */}
       <section className="relative overflow-hidden pt-12 pb-20">
@@ -70,13 +135,13 @@ export default function ProLandingPage({ lang, setLang }: ProLandingPageProps) {
                 onClick={() => setLang("id")}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${lang === "id" ? "bg-indigo-500 text-white shadow" : "text-gray-600 hover:text-gray-800"}`}
               >
-                🇮🇩 Bahasa Indonesia
+                Bahasa Indonesia
               </button>
               <button
                 onClick={() => setLang("en")}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${lang === "en" ? "bg-indigo-500 text-white shadow" : "text-gray-600 hover:text-gray-800"}`}
               >
-                🇬🇧 English
+                English
               </button>
             </div>
           </div>
@@ -124,86 +189,131 @@ export default function ProLandingPage({ lang, setLang }: ProLandingPageProps) {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2 }}
-              className="max-w-md mx-auto bg-white rounded-2xl shadow-xl border border-gray-100 p-8"
+              className="max-w-md mx-auto bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
             >
-              <div className="mb-4">
-                <span className="text-gray-400 text-sm line-through mr-2">Rp 149.000</span>
-                <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded-full">
-                  {lang === "id" ? "HEMAT 47%" : "SAVE 47%"}
-                </span>
-              </div>
-              <div className="text-4xl font-bold text-gray-900 mb-1">Rp 79.000</div>
-              <p className="text-gray-500 text-sm mb-6">{lang === "id" ? "Sekali bayar, akses selamanya" : "One-time payment, lifetime access"}</p>
-
-              {!showForm ? (
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-4 px-8 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-lg"
-                >
-                  {lang === "id" ? "Beli Sekarang" : "Buy Now"}
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-              ) : (
-                <div className="space-y-3 text-left">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{lang === "id" ? "Nama Lengkap" : "Full Name"} *</label>
-                    <input
-                      type="text"
-                      placeholder={lang === "id" ? "Nama lengkap kamu" : "Your full name"}
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm"
-                    />
+              {/* Discount timer inside card */}
+              {isDiscounted && (
+                <div className="bg-gradient-to-r from-red-500 via-orange-500 to-red-500 px-4 py-3 text-center">
+                  <div className="flex items-center justify-center gap-2 text-white">
+                    <Zap className="w-4 h-4 text-yellow-200 animate-pulse" />
+                    <span className="text-sm font-bold">
+                      {lang === "id" ? "PROMO TERBATAS — Hemat Rp 20.000!" : "LIMITED OFFER — Save Rp 20,000!"}
+                    </span>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                    <input
-                      type="email"
-                      placeholder="email@contoh.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm"
-                    />
+                  <div className="flex items-center justify-center gap-2 mt-1.5">
+                    <Clock className="w-3.5 h-3.5 text-yellow-200" />
+                    <div className="flex gap-1 text-white font-mono font-bold text-sm">
+                      <span className="bg-white/20 rounded px-1.5 py-0.5">{pad(timeLeft.hours)}</span>
+                      <span>:</span>
+                      <span className="bg-white/20 rounded px-1.5 py-0.5">{pad(timeLeft.minutes)}</span>
+                      <span>:</span>
+                      <span className="bg-white/20 rounded px-1.5 py-0.5">{pad(timeLeft.seconds)}</span>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{lang === "id" ? "No. WhatsApp" : "WhatsApp Number"} ({lang === "id" ? "opsional" : "optional"})</label>
-                    <input
-                      type="tel"
-                      placeholder="08xxxxxxxxxx"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm"
-                    />
-                  </div>
-                  <button
-                    onClick={handlePurchase}
-                    disabled={!name.trim() || !email.trim() || createOrderMutation.isPending}
-                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-4 px-8 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-base"
-                  >
-                    {createOrderMutation.isPending ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        {lang === "id" ? "Memproses..." : "Processing..."}
-                      </>
-                    ) : (
-                      <>
-                        {lang === "id" ? "Bayar Rp 79.000" : "Pay Rp 79.000"}
-                        <ArrowRight className="w-5 h-5" />
-                      </>
-                    )}
-                  </button>
-                  {createOrderMutation.isError && (
-                    <p className="text-red-500 text-xs text-center">
-                      {lang === "id" ? "Gagal membuat pembayaran. Silakan coba lagi." : "Failed to create payment. Please try again."}
-                    </p>
-                  )}
-                  <p className="text-gray-400 text-xs text-center pt-1">
-                    {lang === "id"
-                      ? "Pembayaran aman via Xendit • Transfer bank, e-wallet, QRIS"
-                      : "Secure payment via Xendit • Bank transfer, e-wallet, QRIS"}
-                  </p>
                 </div>
               )}
+
+              <div className="p-8">
+                <div className="mb-4">
+                  <span className="text-gray-400 text-sm line-through mr-2">Rp 149.000</span>
+                  {isDiscounted ? (
+                    <>
+                      <span className="text-gray-400 text-sm line-through mr-2">Rp 79.000</span>
+                      <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                        {lang === "id" ? "HEMAT 60%" : "SAVE 60%"}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded-full">
+                      {lang === "id" ? "HEMAT 47%" : "SAVE 47%"}
+                    </span>
+                  )}
+                </div>
+                <div className={`text-4xl font-bold mb-1 ${isDiscounted ? "text-red-600" : "text-gray-900"}`}>
+                  {priceLabel}
+                </div>
+                <p className="text-gray-500 text-sm mb-6">{lang === "id" ? "Sekali bayar, akses selamanya" : "One-time payment, lifetime access"}</p>
+
+                {!showForm ? (
+                  <button
+                    onClick={() => setShowForm(true)}
+                    className={`w-full font-bold py-4 px-8 rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-lg ${
+                      isDiscounted
+                        ? "bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white"
+                        : "bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700"
+                    }`}
+                  >
+                    {isDiscounted
+                      ? lang === "id" ? "Ambil Promo Sekarang!" : "Claim Discount Now!"
+                      : lang === "id" ? "Beli Sekarang" : "Buy Now"}
+                    <ArrowRight className="w-5 h-5" />
+                  </button>
+                ) : (
+                  <div className="space-y-3 text-left">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{lang === "id" ? "Nama Lengkap" : "Full Name"} *</label>
+                      <input
+                        type="text"
+                        placeholder={lang === "id" ? "Nama lengkap kamu" : "Your full name"}
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                      <input
+                        type="email"
+                        placeholder="email@contoh.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{lang === "id" ? "No. WhatsApp" : "WhatsApp Number"} ({lang === "id" ? "opsional" : "optional"})</label>
+                      <input
+                        type="tel"
+                        placeholder="08xxxxxxxxxx"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm"
+                      />
+                    </div>
+                    <button
+                      onClick={handlePurchase}
+                      disabled={!name.trim() || !email.trim() || createOrderMutation.isPending}
+                      className={`w-full font-bold py-4 px-8 rounded-xl transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-base ${
+                        isDiscounted
+                          ? "bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white"
+                          : "bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700"
+                      }`}
+                    >
+                      {createOrderMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          {lang === "id" ? "Memproses..." : "Processing..."}
+                        </>
+                      ) : (
+                        <>
+                          {lang === "id" ? `Bayar ${priceLabel}` : `Pay ${priceLabel}`}
+                          <ArrowRight className="w-5 h-5" />
+                        </>
+                      )}
+                    </button>
+                    {createOrderMutation.isError && (
+                      <p className="text-red-500 text-xs text-center">
+                        {lang === "id" ? "Gagal membuat pembayaran. Silakan coba lagi." : "Failed to create payment. Please try again."}
+                      </p>
+                    )}
+                    <p className="text-gray-400 text-xs text-center pt-1">
+                      {lang === "id"
+                        ? "Pembayaran aman via Xendit \u2022 Transfer bank, e-wallet, QRIS"
+                        : "Secure payment via Xendit \u2022 Bank transfer, e-wallet, QRIS"}
+                    </p>
+                  </div>
+                )}
+              </div>
             </motion.div>
           </motion.div>
         </div>
@@ -370,15 +480,36 @@ export default function ProLandingPage({ lang, setLang }: ProLandingPageProps) {
           </p>
           <div className="max-w-sm mx-auto">
             <div className="mb-4">
-              <span className="text-white/60 text-sm line-through mr-2">Rp 149.000</span>
-              <span className="text-4xl font-bold">Rp 79.000</span>
+              {isDiscounted ? (
+                <>
+                  <span className="text-white/40 text-sm line-through mr-2">Rp 149.000</span>
+                  <span className="text-white/60 text-base line-through mr-2">Rp 79.000</span>
+                  <span className="text-4xl font-bold text-yellow-300">{priceLabel}</span>
+                  <div className="mt-2">
+                    <span className="inline-block bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
+                      {lang === "id" ? "HEMAT Rp 20.000!" : "SAVE Rp 20,000!"}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span className="text-white/60 text-sm line-through mr-2">Rp 149.000</span>
+                  <span className="text-4xl font-bold">Rp 79.000</span>
+                </>
+              )}
             </div>
             {!showForm ? (
               <button
                 onClick={() => { setShowForm(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-                className="w-full bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold py-4 px-8 rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-lg"
+                className={`w-full font-bold py-4 px-8 rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-lg ${
+                  isDiscounted
+                    ? "bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-300 hover:to-orange-300 text-gray-900"
+                    : "bg-yellow-400 hover:bg-yellow-300 text-gray-900"
+                }`}
               >
-                {lang === "id" ? "Beli Sekarang" : "Buy Now"}
+                {isDiscounted
+                  ? lang === "id" ? "Ambil Promo Sekarang!" : "Claim Discount Now!"
+                  : lang === "id" ? "Beli Sekarang" : "Buy Now"}
                 <ArrowRight className="w-5 h-5" />
               </button>
             ) : (
@@ -392,8 +523,8 @@ export default function ProLandingPage({ lang, setLang }: ProLandingPageProps) {
             )}
             <p className="text-white/50 text-xs mt-4">
               {lang === "id"
-                ? "Pembayaran aman via Xendit • Transfer bank, e-wallet, QRIS"
-                : "Secure payment via Xendit • Bank transfer, e-wallet, QRIS"}
+                ? "Pembayaran aman via Xendit \u2022 Transfer bank, e-wallet, QRIS"
+                : "Secure payment via Xendit \u2022 Bank transfer, e-wallet, QRIS"}
             </p>
           </div>
         </div>

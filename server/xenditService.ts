@@ -3,6 +3,7 @@ import crypto from "crypto";
 
 const XENDIT_API_BASE = "https://api.xendit.co";
 const PRO_TEST_PRICE = 79000; // Rp 79.000
+const PRO_TEST_DISCOUNT_PRICE = 59000; // Rp 59.000 (24-hour discount)
 
 interface CreateInvoiceParams {
   externalId: string;
@@ -12,6 +13,7 @@ interface CreateInvoiceParams {
   description?: string;
   successRedirectUrl?: string;
   failureRedirectUrl?: string;
+  useDiscountPrice?: boolean;
 }
 
 interface XenditInvoiceResponse {
@@ -31,7 +33,7 @@ export async function createProTestInvoice(params: CreateInvoiceParams): Promise
 
   const body: Record<string, unknown> = {
     external_id: externalId,
-    amount: PRO_TEST_PRICE,
+    amount: params.useDiscountPrice ? PRO_TEST_DISCOUNT_PRICE : PRO_TEST_PRICE,
     currency: "IDR",
     description: description || "Tes Bakat AI Pro - Comprehensive Aptitude Assessment",
     customer: {
@@ -78,8 +80,12 @@ export function verifyWebhookToken(headerToken: string): boolean {
 /**
  * Get the pro test price
  */
-export function getProTestPrice(): number {
-  return PRO_TEST_PRICE;
+export function getProTestPrice(discounted?: boolean): number {
+  return discounted ? PRO_TEST_DISCOUNT_PRICE : PRO_TEST_PRICE;
+}
+
+export function getProTestDiscountPrice(): number {
+  return PRO_TEST_DISCOUNT_PRICE;
 }
 
 /**

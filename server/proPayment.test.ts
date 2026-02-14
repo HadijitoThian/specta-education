@@ -36,6 +36,18 @@ describe("Pro Payment Flow", () => {
       const mod = await import("./xenditService");
       expect(mod.getProTestPrice()).toBe(79000);
     });
+
+    it("should export getProTestDiscountPrice function returning 59000", async () => {
+      const mod = await import("./xenditService");
+      expect(mod.getProTestDiscountPrice()).toBeDefined();
+      expect(mod.getProTestDiscountPrice()).toBe(59000);
+    });
+
+    it("should return discount price when discounted flag is true", async () => {
+      const mod = await import("./xenditService");
+      expect(mod.getProTestPrice(true)).toBe(59000);
+      expect(mod.getProTestPrice(false)).toBe(79000);
+    });
   });
 
   describe("Resend Service", () => {

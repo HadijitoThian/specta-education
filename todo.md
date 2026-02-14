@@ -816,3 +816,12 @@
 - [x] Build standalone Pro landing page at /test/pro with payment flow
 - [x] Auto-generate token + send access link after successful payment
 - [x] Test full payment → email → access flow end-to-end
+
+### 83. Pro Test Follow-ups
+- [x] Test real Xendit payment flow (create invoice via API)
+- [x] Admin dashboard: Pro purchases tracking (orders, statuses, customer info)
+- [x] Admin dashboard: Revenue overview (total revenue, chart, recent transactions)
+- [x] Limited-time 24-hour discount timer on upsell card (Rp 59.000 within 24hrs)
+- [x] Discount timer on Pro landing page as well
+- [x] Write tests for new features (12 tests passing)
+- [x] Upsell card placed on emailSent phase (Hasil Sudah Dikirim screen)

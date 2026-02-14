@@ -10,7 +10,8 @@ import {
   Calendar, Clock, ChevronRight, ExternalLink, Loader2,
   LogOut, Home, CalendarCheck, BookOpen, Search, ClipboardList, Edit, Save, X,
   UserPlus, Shield, Briefcase, BarChart3, Trash2, ToggleLeft, ToggleRight, Download,
-  Upload, Eye, EyeOff, KeyRound, UserCog, RefreshCw, Link2, Copy, Plus, CheckCircle2, Building2
+  Upload, Eye, EyeOff, KeyRound, UserCog, RefreshCw, Link2, Copy, Plus, CheckCircle2, Building2,
+  CreditCard, TrendingUp, DollarSign
 } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
@@ -18,7 +19,7 @@ import { getLoginUrl } from "@/const";
 import AptitudeReportDownload from "@/components/AptitudeReportPDF";
 import UniversityManager from "@/components/UniversityManager";
 
-type TabType = "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staff" | "accessLinks" | "universities";
+type TabType = "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staff" | "accessLinks" | "universities" | "proOrders";
 
 const APP_STATUS_OPTIONS = [
   "submitted", "reviewing", "processing", "on_hold", 
@@ -272,6 +273,11 @@ export default function AdminDashboard() {
   // Access links queries & mutations
   const { data: accessLinksData, isLoading: accessLinksLoading } = trpc.aptitude.listLinks.useQuery(undefined, {
     enabled: isAuthenticated && user?.role === 'admin' && activeTab === 'accessLinks'
+  });
+
+  // Pro Orders tracking
+  const { data: proOrdersData, isLoading: proOrdersLoading } = trpc.aptitude.listProOrders.useQuery(undefined, {
+    enabled: isAuthenticated && user?.role === 'admin' && activeTab === 'proOrders'
   });
 
   const generateLinksMutation = trpc.aptitude.generateLinks.useMutation({
@@ -544,6 +550,9 @@ export default function AdminDashboard() {
               </Button>
               <Button variant={activeTab === 'universities' ? 'default' : 'outline'} onClick={() => setActiveTab('universities')} size="sm">
                 <Building2 className="w-4 h-4 mr-2" /> Universities
+              </Button>
+              <Button variant={activeTab === 'proOrders' ? 'default' : 'outline'} onClick={() => setActiveTab('proOrders')} size="sm">
+                <CreditCard className="w-4 h-4 mr-2" /> Pro Orders
               </Button>
             </>
           )}
@@ -1905,6 +1914,131 @@ export default function AdminDashboard() {
           {/* ===== UNIVERSITIES TAB ===== */}
           {activeTab === 'universities' && user?.role === 'admin' && (
             <UniversityManager />
+          )}
+
+          {/* ===== PRO ORDERS TAB (Admin Only) ===== */}
+          {activeTab === 'proOrders' && user?.role === 'admin' && (
+            <div>
+              {/* Revenue Summary Cards */}
+              {!proOrdersLoading && proOrdersData && (
+                <div className="p-4 border-b border-border">
+                  <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                    Tes Bakat AI Pro — Revenue Dashboard
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div className="bg-green-50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-green-700">
+                        Rp {((proOrdersData as any[]).filter((o: any) => o.status === 'paid').reduce((sum: number, o: any) => sum + (o.amount || 0), 0)).toLocaleString('id-ID')}
+                      </div>
+                      <div className="text-xs text-green-600 mt-1">Total Revenue</div>
+                    </div>
+                    <div className="bg-blue-50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-blue-700">
+                        {(proOrdersData as any[]).filter((o: any) => o.status === 'paid').length}
+                      </div>
+                      <div className="text-xs text-blue-600 mt-1">Paid Orders</div>
+                    </div>
+                    <div className="bg-yellow-50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-yellow-700">
+                        {(proOrdersData as any[]).filter((o: any) => o.status === 'pending').length}
+                      </div>
+                      <div className="text-xs text-yellow-600 mt-1">Pending</div>
+                    </div>
+                    <div className="bg-purple-50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-purple-700">
+                        {(proOrdersData as any[]).length}
+                      </div>
+                      <div className="text-xs text-purple-600 mt-1">Total Orders</div>
+                    </div>
+                  </div>
+
+                  {/* Source Breakdown */}
+                  <div className="flex gap-4 text-sm">
+                    <span className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full">
+                      Landing: {(proOrdersData as any[]).filter((o: any) => o.source === 'landing').length}
+                    </span>
+                    <span className="bg-orange-50 text-orange-700 px-3 py-1 rounded-full">
+                      Upsell: {(proOrdersData as any[]).filter((o: any) => o.source === 'upsell').length}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Orders Table */}
+              {proOrdersLoading ? (
+                <div className="p-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></div>
+              ) : !proOrdersData || (proOrdersData as any[]).length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>No Pro orders yet. Orders will appear here when students purchase the Tes Bakat AI Pro.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/50">
+                        <th className="text-left p-3 font-medium">Order ID</th>
+                        <th className="text-left p-3 font-medium">Customer</th>
+                        <th className="text-left p-3 font-medium">Email</th>
+                        <th className="text-left p-3 font-medium">Amount</th>
+                        <th className="text-left p-3 font-medium">Status</th>
+                        <th className="text-left p-3 font-medium">Source</th>
+                        <th className="text-left p-3 font-medium">Date</th>
+                        <th className="text-left p-3 font-medium">Payment</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(proOrdersData as any[]).map((order: any) => (
+                        <tr key={order.id} className="border-b border-border hover:bg-muted/30 transition-colors">
+                          <td className="p-3">
+                            <span className="font-mono text-xs bg-muted px-2 py-1 rounded">{order.externalId}</span>
+                          </td>
+                          <td className="p-3 font-medium">{order.customerName}</td>
+                          <td className="p-3 text-muted-foreground">{order.customerEmail}</td>
+                          <td className="p-3 font-medium">Rp {(order.amount || 0).toLocaleString('id-ID')}</td>
+                          <td className="p-3">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              order.status === 'paid' ? 'bg-green-100 text-green-800' :
+                              order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              order.status === 'expired' ? 'bg-gray-100 text-gray-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {order.status}
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              order.source === 'upsell' ? 'bg-orange-50 text-orange-700' : 'bg-indigo-50 text-indigo-700'
+                            }`}>
+                              {order.source}
+                            </span>
+                          </td>
+                          <td className="p-3 text-muted-foreground text-xs">
+                            {order.createdAt ? new Date(order.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                          </td>
+                          <td className="p-3">
+                            {order.xenditInvoiceUrl && order.status === 'pending' ? (
+                              <a href={order.xenditInvoiceUrl} target="_blank" rel="noopener noreferrer">
+                                <Button size="sm" variant="outline" className="text-xs">
+                                  <ExternalLink className="w-3 h-3 mr-1" /> Invoice
+                                </Button>
+                              </a>
+                            ) : order.paidAt ? (
+                              <span className="text-xs text-green-600">
+                                Paid {new Date(order.paidAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

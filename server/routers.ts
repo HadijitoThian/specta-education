@@ -120,7 +120,7 @@ import {
 import { notifyOwner } from "./_core/notification";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail } from "./email";
 import crypto from "crypto";
-import { createProTestInvoice, verifyWebhookToken, generateExternalId, getProTestPrice } from "./xenditService";
+import { createProTestInvoice, verifyWebhookToken, generateExternalId, getProTestPrice, getProTestDiscountPrice } from "./xenditService";
 import { sendProAccessLinkEmail, sendPaymentConfirmationEmail } from "./resendService";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
@@ -2757,7 +2757,7 @@ IMPORTANT:
 
     // ---- Get Pro Test Price ----
     getProPrice: publicProcedure.query(() => {
-      return { price: getProTestPrice(), currency: "IDR" };
+      return { price: getProTestPrice(), discountPrice: getProTestDiscountPrice(), currency: "IDR" };
     }),
 
     // ---- Create Xendit Invoice for Pro Test Purchase ----
@@ -2767,10 +2767,12 @@ IMPORTANT:
         email: z.string().email(),
         phone: z.string().optional(),
         source: z.enum(["landing", "upsell"]).default("landing"),
+        useDiscountPrice: z.boolean().default(false),
       }))
       .mutation(async ({ input }) => {
         const externalId = generateExternalId();
         const baseUrl = process.env.VITE_APP_URL || (process.env.NODE_ENV === "production" ? "https://spectaeducation.com" : "http://localhost:3000");
+        const price = input.useDiscountPrice ? getProTestDiscountPrice() : getProTestPrice();
 
         // Create Xendit invoice
         const invoice = await createProTestInvoice({
@@ -2780,6 +2782,7 @@ IMPORTANT:
           customerPhone: input.phone,
           successRedirectUrl: `${baseUrl}/test/pro/payment-success?order=${externalId}`,
           failureRedirectUrl: `${baseUrl}/test/pro?payment=failed`,
+          useDiscountPrice: input.useDiscountPrice,
         });
 
         // Save order to DB
@@ -2790,7 +2793,7 @@ IMPORTANT:
           customerName: input.name,
           customerEmail: input.email,
           customerPhone: input.phone || null,
-          amount: getProTestPrice(),
+          amount: price,
           status: "pending",
           source: input.source,
         });

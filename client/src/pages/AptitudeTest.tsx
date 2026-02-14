@@ -947,14 +947,14 @@ export default function AptitudeTest() {
   // ========== EMAIL SENT CONFIRMATION PHASE ==========
   if (phase === "emailSent") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
+      <div className="min-h-screen bg-gray-50 px-4 py-12">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
-          className="max-w-md w-full text-center"
+          className="max-w-2xl w-full mx-auto text-center"
         >
-          <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+          <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 mb-8">
             <div className="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <span className="text-4xl">📧</span>
             </div>
@@ -1013,6 +1013,14 @@ export default function AptitudeTest() {
               </button>
             </div>
           </div>
+
+          {/* Pro Upsell Card - shown prominently after results are sent */}
+          <ProUpsellCard
+            lang={lang}
+            studentName={leadInfo.name}
+            studentEmail={leadInfo.email}
+            studentPhone={leadInfo.phone}
+          />
         </motion.div>
       </div>
     );
