@@ -825,3 +825,15 @@
 - [x] Discount timer on Pro landing page as well
 - [x] Write tests for new features (12 tests passing)
 - [x] Upsell card placed on emailSent phase (Hasil Sudah Dikirim screen)
+
+### 84. Bug: Free Test Result Email Not Delivered
+- [x] Investigate why free aptitude test result email is not arriving at student's email (root cause: SMTP not configured)
+- [x] Fix email delivery issue (switched from SMTP to Resend)
+- [x] Test and verify email is received (confirmed via real Resend API call)
+
+### 85. Switch All Emails from SMTP to Resend
+- [x] Rewrite core sendEmail function to use Resend API instead of nodemailer/SMTP
+- [x] Ensure all existing email functions (aptitude results, staff welcome, notifications, etc.) work with Resend
+- [x] Support attachments (PDF) via Resend (base64 encoding)
+- [x] Test email delivery with Resend (215 tests passing, real email sent successfully)
+- [x] Removed nodemailer import, now using fetch to Resend API

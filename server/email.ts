@@ -1,38 +1,10 @@
-import nodemailer from "nodemailer";
 import { ENV } from "./_core/env";
 
-// Create reusable transporter
-function createTransporter() {
-  if (!ENV.smtpHost || !ENV.smtpUser || !ENV.smtpPass) {
-    console.warn("[Email] SMTP not configured, emails will be skipped");
-    return null;
-  }
-
-  return nodemailer.createTransport({
-    host: ENV.smtpHost,
-    port: ENV.smtpPort,
-    secure: ENV.smtpPort === 465,
-    auth: {
-      user: ENV.smtpUser,
-      pass: ENV.smtpPass,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
-  });
-}
-
-let transporter: nodemailer.Transporter | null = null;
-
-function getTransporter() {
-  if (!transporter) {
-    transporter = createTransporter();
-  }
-  return transporter;
-}
+const RESEND_API_BASE = "https://api.resend.com";
+const FROM_EMAIL = `SpecTa Education <${ENV.smtpFrom || "noreply@spectaeducation.com"}>`;
 
 // ==========================================
-// CORE SEND EMAIL FUNCTION
+// CORE SEND EMAIL FUNCTION (via Resend)
 // ==========================================
 export async function sendEmail({
   to,
@@ -47,26 +19,48 @@ export async function sendEmail({
   text?: string;
   attachments?: Array<{ filename: string; content: Buffer; contentType?: string }>;
 }): Promise<boolean> {
-  const transport = getTransporter();
-  if (!transport) {
-    console.warn(`[Email] Skipped sending to ${to}: SMTP not configured`);
+  if (!ENV.resendApiKey) {
+    console.warn(`[Email] Skipped sending to ${to}: Resend API key not configured`);
     return false;
   }
 
   try {
-    await transport.sendMail({
-      from: `"SpecTa Education" <${ENV.smtpFrom}>`,
-      to,
+    // Build Resend-compatible attachments (base64 encoded)
+    const resendAttachments = attachments?.map(a => ({
+      filename: a.filename,
+      content: a.content.toString("base64"),
+      type: a.contentType || "application/octet-stream",
+    }));
+
+    const body: Record<string, any> = {
+      from: FROM_EMAIL,
+      to: [to],
       subject,
       html,
-      text: text || html.replace(/<[^>]*>/g, ""),
-      attachments: attachments?.map(a => ({
-        filename: a.filename,
-        content: a.content,
-        contentType: a.contentType || "application/octet-stream",
-      })),
+    };
+
+    if (text) body.text = text;
+    if (resendAttachments && resendAttachments.length > 0) {
+      body.attachments = resendAttachments;
+    }
+
+    const response = await fetch(`${RESEND_API_BASE}/emails`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${ENV.resendApiKey}`,
+      },
+      body: JSON.stringify(body),
     });
-    console.log(`[Email] Sent "${subject}" to ${to}`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[Email] Resend failed to send to ${to}: ${response.status} ${errorText}`);
+      return false;
+    }
+
+    const result = await response.json();
+    console.log(`[Email] Sent "${subject}" to ${to} via Resend (id: ${result.id})`);
     return true;
   } catch (error) {
     console.error(`[Email] Failed to send to ${to}:`, error);
@@ -75,17 +69,18 @@ export async function sendEmail({
 }
 
 // ==========================================
-// VERIFY SMTP CONNECTION
+// VERIFY EMAIL CONNECTION (Resend)
 // ==========================================
 export async function verifySmtpConnection(): Promise<boolean> {
-  const transport = getTransporter();
-  if (!transport) return false;
+  if (!ENV.resendApiKey) return false;
 
   try {
-    await transport.verify();
-    return true;
+    const response = await fetch(`${RESEND_API_BASE}/domains`, {
+      headers: { Authorization: `Bearer ${ENV.resendApiKey}` },
+    });
+    return response.ok;
   } catch (error) {
-    console.error("[Email] SMTP verification failed:", error);
+    console.error("[Email] Resend verification failed:", error);
     return false;
   }
 }
