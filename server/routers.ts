@@ -115,7 +115,15 @@ import {
   createAptitudeProOrder,
   getAptitudeProOrderByExternalId,
   updateAptitudeProOrderStatus,
-  listAptitudeProOrders
+  listAptitudeProOrders,
+  getAnalyticsKPIs,
+  getLeadsOverTime,
+  getApplicationPipeline,
+  getRevenueOverTime,
+  getLeadsBySource,
+  getTopCountries,
+  getCounselorPerformance,
+  getScholarshipLeadsOverTime
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail } from "./email";
@@ -3208,7 +3216,92 @@ IMPORTANT:
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await deleteChecklistItem(input.id);
-        return { success: true };
+         return { success: true };
+      }),
+  }),
+
+  // ==================== ANALYTICS ====================
+  analytics: router({
+    kpis: protectedProcedure
+      .input(z.object({
+        startDate: z.string(),
+        endDate: z.string(),
+      }))
+      .query(async ({ input }) => {
+        return getAnalyticsKPIs({
+          startDate: new Date(input.startDate),
+          endDate: new Date(input.endDate),
+        });
+      }),
+
+    leadsOverTime: protectedProcedure
+      .input(z.object({
+        startDate: z.string(),
+        endDate: z.string(),
+      }))
+      .query(async ({ input }) => {
+        return getLeadsOverTime({
+          startDate: new Date(input.startDate),
+          endDate: new Date(input.endDate),
+        });
+      }),
+
+    applicationPipeline: protectedProcedure
+      .query(async () => {
+        return getApplicationPipeline();
+      }),
+
+    revenueOverTime: protectedProcedure
+      .input(z.object({
+        startDate: z.string(),
+        endDate: z.string(),
+      }))
+      .query(async ({ input }) => {
+        return getRevenueOverTime({
+          startDate: new Date(input.startDate),
+          endDate: new Date(input.endDate),
+        });
+      }),
+
+    leadsBySource: protectedProcedure
+      .input(z.object({
+        startDate: z.string(),
+        endDate: z.string(),
+      }))
+      .query(async ({ input }) => {
+        return getLeadsBySource({
+          startDate: new Date(input.startDate),
+          endDate: new Date(input.endDate),
+        });
+      }),
+
+    topCountries: protectedProcedure
+      .input(z.object({
+        startDate: z.string(),
+        endDate: z.string(),
+      }))
+      .query(async ({ input }) => {
+        return getTopCountries({
+          startDate: new Date(input.startDate),
+          endDate: new Date(input.endDate),
+        });
+      }),
+
+    counselorPerformance: protectedProcedure
+      .query(async () => {
+        return getCounselorPerformance();
+      }),
+
+    scholarshipLeadsOverTime: protectedProcedure
+      .input(z.object({
+        startDate: z.string(),
+        endDate: z.string(),
+      }))
+      .query(async ({ input }) => {
+        return getScholarshipLeadsOverTime({
+          startDate: new Date(input.startDate),
+          endDate: new Date(input.endDate),
+        });
       }),
   }),
 });

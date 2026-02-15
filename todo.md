@@ -837,3 +837,24 @@
 - [x] Support attachments (PDF) via Resend (base64 encoding)
 - [x] Test email delivery with Resend (215 tests passing, real email sent successfully)
 - [x] Removed nodemailer import, now using fetch to Resend API
+
+### 86. Fix: Incorrect Pro Test Section Count
+- [ ] Verify actual section count in AptitudeTestPro.tsx
+- [ ] Fix all references (upsell card, landing page, access link email) to correct count
+
+### 87. Analytics Dashboard
+- [x] Backend: Analytics aggregate queries (KPIs, charts data)
+- [x] Backend: tRPC procedures for analytics (admin-only)
+- [x] Frontend: KPI cards with period-over-period comparison
+- [x] Frontend: Leads over time chart
+- [x] Frontend: Application pipeline funnel
+- [x] Frontend: Revenue trend chart
+- [x] Frontend: Leads by source pie chart
+- [x] Frontend: Top countries bar chart
+- [x] Frontend: Counselor performance table
+- [x] Frontend: Scholarship leads over time chart
+- [x] Time filter (week/month/quarter/year/all)
+- [x] Integrate as first tab in AdminDashboard (default view)
+- [x] Write tests for analytics procedures (10 tests, all passing)
+- [x] Optimized counselor performance query (N+1 → batch, 30s → <1s)
+- [x] All 225 tests passing across 25 test files

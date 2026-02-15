@@ -18,8 +18,9 @@ import { useState } from "react";
 import { getLoginUrl } from "@/const";
 import AptitudeReportDownload from "@/components/AptitudeReportPDF";
 import UniversityManager from "@/components/UniversityManager";
+import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 
-type TabType = "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staff" | "accessLinks" | "universities" | "proOrders";
+type TabType = "analytics" | "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staff" | "accessLinks" | "universities" | "proOrders";
 
 const APP_STATUS_OPTIONS = [
   "submitted", "reviewing", "processing", "on_hold", 
@@ -45,7 +46,7 @@ const SPECIALIZATIONS = [
 
 export default function AdminDashboard() {
   const { user, loading, isAuthenticated, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>("leads");
+  const [activeTab, setActiveTab] = useState<TabType>("analytics");
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
   const [editingAppId, setEditingAppId] = useState<number | null>(null);
@@ -513,6 +514,9 @@ export default function AdminDashboard() {
 
         {/* Tabs */}
         <div className="flex flex-wrap gap-2 mb-6">
+          <Button variant={activeTab === 'analytics' ? 'default' : 'outline'} onClick={() => setActiveTab('analytics')} size="sm">
+            <BarChart3 className="w-4 h-4 mr-2" /> Analytics
+          </Button>
           <Button variant={activeTab === 'leads' ? 'default' : 'outline'} onClick={() => setActiveTab('leads')} size="sm">
             <Users className="w-4 h-4 mr-2" /> Leads
           </Button>
@@ -561,6 +565,12 @@ export default function AdminDashboard() {
         {/* Content */}
         <div className="bg-card rounded-xl border border-border overflow-hidden">
           {/* ===== LEADS TAB ===== */}
+          {activeTab === 'analytics' && (
+            <div className="p-4">
+              <AnalyticsDashboard />
+            </div>
+          )}
+
           {activeTab === 'leads' && (
             <div>
               {leadsLoading ? (

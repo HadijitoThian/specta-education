@@ -24,7 +24,8 @@ import {
   costOfLivingData, InsertCostOfLivingData, CostOfLivingData,
   checklistItems, InsertChecklistItem, ChecklistItem,
   userChecklistProgress, InsertUserChecklistProgress, UserChecklistProgress,
-  aptitudeProOrders, InsertAptitudeProOrder, AptitudeProOrder
+  aptitudeProOrders, InsertAptitudeProOrder, AptitudeProOrder,
+  whatsappMessages
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1121,4 +1122,217 @@ export async function listAptitudeProOrders(): Promise<AptitudeProOrder[]> {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(aptitudeProOrders).orderBy(desc(aptitudeProOrders.createdAt));
+}
+
+
+// ==================== ANALYTICS HELPERS ====================
+
+export interface AnalyticsTimeRange {
+  startDate: Date;
+  endDate: Date;
+}
+
+export interface AnalyticsKPIs {
+  totalLeads: number;
+  totalLeadsPrev: number;
+  totalApplications: number;
+  totalApplicationsPrev: number;
+  totalAppointments: number;
+  totalAppointmentsPrev: number;
+  totalProRevenue: number;
+  totalProRevenuePrev: number;
+  totalIeltsTests: number;
+  totalIeltsTestsPrev: number;
+  totalAptitudeTests: number;
+  totalAptitudeTestsPrev: number;
+  conversionRate: number;
+  enrolledCount: number;
+}
+
+function getPreviousPeriod(start: Date, end: Date): { prevStart: Date; prevEnd: Date } {
+  const diff = end.getTime() - start.getTime();
+  return {
+    prevStart: new Date(start.getTime() - diff),
+    prevEnd: new Date(start.getTime()),
+  };
+}
+
+export async function getAnalyticsKPIs(range: AnalyticsTimeRange): Promise<AnalyticsKPIs> {
+  const db = await getDb();
+  if (!db) return { totalLeads: 0, totalLeadsPrev: 0, totalApplications: 0, totalApplicationsPrev: 0, totalAppointments: 0, totalAppointmentsPrev: 0, totalProRevenue: 0, totalProRevenuePrev: 0, totalIeltsTests: 0, totalIeltsTestsPrev: 0, totalAptitudeTests: 0, totalAptitudeTestsPrev: 0, conversionRate: 0, enrolledCount: 0 };
+  const { startDate, endDate } = range;
+  const { prevStart, prevEnd } = getPreviousPeriod(startDate, endDate);
+
+  const [leadsCount] = await db.select({ count: sql<number>`count(*)` }).from(leads).where(and(gte(leads.createdAt, startDate), lte(leads.createdAt, endDate)));
+  const [leadsCountPrev] = await db.select({ count: sql<number>`count(*)` }).from(leads).where(and(gte(leads.createdAt, prevStart), lte(leads.createdAt, prevEnd)));
+
+  const [appsCount] = await db.select({ count: sql<number>`count(*)` }).from(applications).where(and(gte(applications.createdAt, startDate), lte(applications.createdAt, endDate)));
+  const [appsCountPrev] = await db.select({ count: sql<number>`count(*)` }).from(applications).where(and(gte(applications.createdAt, prevStart), lte(applications.createdAt, prevEnd)));
+
+  const [appointmentsCount] = await db.select({ count: sql<number>`count(*)` }).from(appointments).where(and(gte(appointments.createdAt, startDate), lte(appointments.createdAt, endDate)));
+  const [appointmentsCountPrev] = await db.select({ count: sql<number>`count(*)` }).from(appointments).where(and(gte(appointments.createdAt, prevStart), lte(appointments.createdAt, prevEnd)));
+
+  const [proRevenue] = await db.select({ total: sql<number>`COALESCE(SUM(amount), 0)` }).from(aptitudeProOrders).where(and(gte(aptitudeProOrders.createdAt, startDate), lte(aptitudeProOrders.createdAt, endDate), sql`${aptitudeProOrders.status} = 'paid'`));
+  const [proRevenuePrev] = await db.select({ total: sql<number>`COALESCE(SUM(amount), 0)` }).from(aptitudeProOrders).where(and(gte(aptitudeProOrders.createdAt, prevStart), lte(aptitudeProOrders.createdAt, prevEnd), sql`${aptitudeProOrders.status} = 'paid'`));
+
+  const [ieltsCount] = await db.select({ count: sql<number>`count(*)` }).from(ieltsPracticeResults).where(and(gte(ieltsPracticeResults.createdAt, startDate), lte(ieltsPracticeResults.createdAt, endDate)));
+  const [ieltsCountPrev] = await db.select({ count: sql<number>`count(*)` }).from(ieltsPracticeResults).where(and(gte(ieltsPracticeResults.createdAt, prevStart), lte(ieltsPracticeResults.createdAt, prevEnd)));
+
+  const [aptitudeCount] = await db.select({ count: sql<number>`count(*)` }).from(aptitudeResults).where(and(gte(aptitudeResults.createdAt, startDate), lte(aptitudeResults.createdAt, endDate)));
+  const [aptitudeCountPrev] = await db.select({ count: sql<number>`count(*)` }).from(aptitudeResults).where(and(gte(aptitudeResults.createdAt, prevStart), lte(aptitudeResults.createdAt, prevEnd)));
+
+  const [enrolledCount] = await db.select({ count: sql<number>`count(*)` }).from(applications).where(sql`${applications.status} = 'enrolled'`);
+  const [totalAppsAll] = await db.select({ count: sql<number>`count(*)` }).from(applications);
+  const conversionRate = totalAppsAll.count > 0 ? (enrolledCount.count / totalAppsAll.count) * 100 : 0;
+
+  return {
+    totalLeads: leadsCount.count,
+    totalLeadsPrev: leadsCountPrev.count,
+    totalApplications: appsCount.count,
+    totalApplicationsPrev: appsCountPrev.count,
+    totalAppointments: appointmentsCount.count,
+    totalAppointmentsPrev: appointmentsCountPrev.count,
+    totalProRevenue: Number(proRevenue.total) || 0,
+    totalProRevenuePrev: Number(proRevenuePrev.total) || 0,
+    totalIeltsTests: ieltsCount.count,
+    totalIeltsTestsPrev: ieltsCountPrev.count,
+    totalAptitudeTests: aptitudeCount.count,
+    totalAptitudeTestsPrev: aptitudeCountPrev.count,
+    conversionRate: Math.round(conversionRate * 10) / 10,
+    enrolledCount: enrolledCount.count,
+  };
+}
+
+export async function getLeadsOverTime(range: AnalyticsTimeRange) {
+  const db = await getDb();
+  if (!db) return [];
+  const { startDate, endDate } = range;
+  const result = await db.execute(sql`
+    SELECT DATE(createdAt) as date, COUNT(*) as count
+    FROM leads
+    WHERE createdAt >= ${startDate} AND createdAt <= ${endDate}
+    GROUP BY DATE(createdAt)
+    ORDER BY DATE(createdAt)
+  `);
+  return (result[0] as unknown as any[]).map((r: any) => ({ date: String(r.date), count: Number(r.count) }));
+}
+
+export async function getApplicationPipeline() {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select({
+    status: applications.status,
+    count: sql<number>`count(*)`,
+  }).from(applications)
+    .groupBy(applications.status);
+  return rows;
+}
+
+export async function getRevenueOverTime(range: AnalyticsTimeRange) {
+  const db = await getDb();
+  if (!db) return [];
+  const { startDate, endDate } = range;
+  const result = await db.execute(sql`
+    SELECT DATE(createdAt) as date, COALESCE(SUM(amount), 0) as total, COUNT(*) as count
+    FROM aptitudeProOrders
+    WHERE createdAt >= ${startDate} AND createdAt <= ${endDate} AND status = 'paid'
+    GROUP BY DATE(createdAt)
+    ORDER BY DATE(createdAt)
+  `);
+  return (result[0] as unknown as any[]).map((r: any) => ({ date: String(r.date), total: Number(r.total) || 0, count: Number(r.count) }));
+}
+
+export async function getLeadsBySource(range: AnalyticsTimeRange) {
+  const db = await getDb();
+  if (!db) return [];
+  const { startDate, endDate } = range;
+  const chatbotLeads = await db.select({ count: sql<number>`count(*)` }).from(leads)
+    .where(and(gte(leads.createdAt, startDate), lte(leads.createdAt, endDate)));
+  const scholarshipLeadsCount = await db.select({ count: sql<number>`count(*)` }).from(scholarshipLeads)
+    .where(and(gte(scholarshipLeads.createdAt, startDate), lte(scholarshipLeads.createdAt, endDate)));
+  const whatsappCount = await db.select({ count: sql<number>`count(*)` }).from(whatsappMessages)
+    .where(and(gte(whatsappMessages.createdAt, startDate), lte(whatsappMessages.createdAt, endDate)));
+  const aptitudeLeads = await db.select({ count: sql<number>`count(*)` }).from(aptitudeResults)
+    .where(and(gte(aptitudeResults.createdAt, startDate), lte(aptitudeResults.createdAt, endDate)));
+
+  return [
+    { source: "Chatbot", count: chatbotLeads[0]?.count || 0 },
+    { source: "Scholarship Page", count: scholarshipLeadsCount[0]?.count || 0 },
+    { source: "WhatsApp Form", count: whatsappCount[0]?.count || 0 },
+    { source: "Aptitude Test", count: aptitudeLeads[0]?.count || 0 },
+  ];
+}
+
+export async function getTopCountries(range: AnalyticsTimeRange) {
+  const db = await getDb();
+  if (!db) return [];
+  const { startDate, endDate } = range;
+  const rows = await db.select({
+    country: leads.preferredCountry,
+    count: sql<number>`count(*)`,
+  }).from(leads)
+    .where(and(
+      gte(leads.createdAt, startDate),
+      lte(leads.createdAt, endDate),
+      sql`${leads.preferredCountry} IS NOT NULL AND ${leads.preferredCountry} != ''`
+    ))
+    .groupBy(leads.preferredCountry)
+    .orderBy(sql`count(*) DESC`)
+    .limit(10);
+  return rows;
+}
+
+export async function getCounselorPerformance() {
+  const db = await getDb();
+  if (!db) return [];
+  const allCounselors = await db.select().from(counselors).where(sql`${counselors.isActive} = true`);
+  if (allCounselors.length === 0) return [];
+
+  // Batch queries instead of N+1
+  const appsByAssigned = await db.select({
+    counselor: applications.assignedCounselor,
+    count: sql<number>`count(*)`,
+  }).from(applications).groupBy(applications.assignedCounselor);
+
+  const enrolledByAssigned = await db.select({
+    counselor: applications.assignedCounselor,
+    count: sql<number>`count(*)`,
+  }).from(applications).where(sql`${applications.status} = 'enrolled'`).groupBy(applications.assignedCounselor);
+
+  const leadsByAssigned = await db.select({
+    counselor: leads.assignedTo,
+    count: sql<number>`count(*)`,
+  }).from(leads).where(sql`${leads.assignedTo} IS NOT NULL`).groupBy(leads.assignedTo);
+
+  const appsMap = new Map(appsByAssigned.map(r => [r.counselor, r.count]));
+  const enrolledMap = new Map(enrolledByAssigned.map(r => [r.counselor, r.count]));
+  const leadsMap = new Map(leadsByAssigned.map(r => [r.counselor, r.count]));
+
+  return allCounselors.map(c => {
+    const apps = appsMap.get(c.name) || 0;
+    const enrolled = enrolledMap.get(c.name) || 0;
+    const leadsAssigned = leadsMap.get(c.name) || 0;
+    return {
+      name: c.name,
+      specialization: c.specialization || "General",
+      leadsAssigned,
+      applicationsManaged: apps,
+      enrolled,
+      enrollmentRate: apps > 0 ? Math.round((enrolled / apps) * 100) : 0,
+    };
+  });
+}
+
+export async function getScholarshipLeadsOverTime(range: AnalyticsTimeRange) {
+  const db = await getDb();
+  if (!db) return [];
+  const { startDate, endDate } = range;
+  const result = await db.execute(sql`
+    SELECT DATE(createdAt) as date, COUNT(*) as count
+    FROM scholarshipLeads
+    WHERE createdAt >= ${startDate} AND createdAt <= ${endDate}
+    GROUP BY DATE(createdAt)
+    ORDER BY DATE(createdAt)
+  `);
+  return (result[0] as unknown as any[]).map((r: any) => ({ date: String(r.date), count: Number(r.count) }));
 }
