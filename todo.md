@@ -993,3 +993,8 @@
 - [x] Admin moderation: approve/reject/delete comments from Comments tab
 - [x] Comments default to pending status for moderation
 - [x] Write vitest tests for comments and ratings (11 tests passing)
+
+### 101. Fix Drip Campaign Timezone Bug
+- [x] Fixed getDueEnrollments() using JS new Date() instead of DB NOW() causing timezone mismatch
+- [x] Changed query to use database NOW() for consistent timezone comparison
+- [x] Manually triggered first batch of drip emails: 39 emails sent successfully, 0 errors

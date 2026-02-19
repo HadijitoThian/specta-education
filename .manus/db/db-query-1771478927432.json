@@ -1,0 +1,18 @@
+{
+  "query": "SELECT 'emails_sent' as metric, COUNT(*) as cnt FROM dripEmailLogs WHERE status = 'sent' UNION ALL SELECT 'emails_failed', COUNT(*) FROM dripEmailLogs WHERE status = 'failed';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT 'emails_sent' as metric, COUNT(*) as cnt FROM dripEmailLogs WHERE status = 'sent' UNION ALL SELECT 'emails_failed', COUNT(*) FROM dripEmailLogs WHERE status = 'failed';",
+  "rows": [
+    {
+      "metric": "emails_sent",
+      "cnt": "39"
+    },
+    {
+      "metric": "emails_failed",
+      "cnt": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "metric\tcnt\nemails_sent\t39\nemails_failed\t0\n",
+  "stderr": "",
+  "execution_time_ms": 1573
+}

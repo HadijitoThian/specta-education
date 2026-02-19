@@ -1,0 +1,13 @@
+{
+  "query": "SELECT COUNT(*) as total_sent FROM dripEmailLogs;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT COUNT(*) as total_sent FROM dripEmailLogs;",
+  "rows": [
+    {
+      "total_sent": "39"
+    }
+  ],
+  "messages": [],
+  "stdout": "total_sent\n39\n",
+  "stderr": "",
+  "execution_time_ms": 1610
+}

@@ -1,0 +1,115 @@
+{
+  "query": "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE();",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE();",
+  "rows": [
+    {
+      "TABLE_NAME": "__drizzle_migrations"
+    },
+    {
+      "TABLE_NAME": "users"
+    },
+    {
+      "TABLE_NAME": "conversations"
+    },
+    {
+      "TABLE_NAME": "documents"
+    },
+    {
+      "TABLE_NAME": "leads"
+    },
+    {
+      "TABLE_NAME": "messages"
+    },
+    {
+      "TABLE_NAME": "whatsappMessages"
+    },
+    {
+      "TABLE_NAME": "applications"
+    },
+    {
+      "TABLE_NAME": "applicationDocuments"
+    },
+    {
+      "TABLE_NAME": "applicationNotes"
+    },
+    {
+      "TABLE_NAME": "appointments"
+    },
+    {
+      "TABLE_NAME": "ieltsPracticeResults"
+    },
+    {
+      "TABLE_NAME": "trackingTokens"
+    },
+    {
+      "TABLE_NAME": "counselors"
+    },
+    {
+      "TABLE_NAME": "quizResults"
+    },
+    {
+      "TABLE_NAME": "personaResults"
+    },
+    {
+      "TABLE_NAME": "scholarshipLeads"
+    },
+    {
+      "TABLE_NAME": "staffAccounts"
+    },
+    {
+      "TABLE_NAME": "aptitudeResults"
+    },
+    {
+      "TABLE_NAME": "aptitudeAccessTokens"
+    },
+    {
+      "TABLE_NAME": "matchUniversities"
+    },
+    {
+      "TABLE_NAME": "matchPrograms"
+    },
+    {
+      "TABLE_NAME": "checklistItems"
+    },
+    {
+      "TABLE_NAME": "costOfLivingData"
+    },
+    {
+      "TABLE_NAME": "userChecklistProgress"
+    },
+    {
+      "TABLE_NAME": "aptitudeProOrders"
+    },
+    {
+      "TABLE_NAME": "dripCampaigns"
+    },
+    {
+      "TABLE_NAME": "dripEmailLogs"
+    },
+    {
+      "TABLE_NAME": "dripEmailSteps"
+    },
+    {
+      "TABLE_NAME": "dripEnrollments"
+    },
+    {
+      "TABLE_NAME": "blog_categories"
+    },
+    {
+      "TABLE_NAME": "blog_post_tags"
+    },
+    {
+      "TABLE_NAME": "blog_posts"
+    },
+    {
+      "TABLE_NAME": "blog_tags"
+    },
+    {
+      "TABLE_NAME": "blog_comments"
+    }
+  ],
+  "messages": [],
+  "stdout": "TABLE_NAME\n__drizzle_migrations\nusers\nconversations\ndocuments\nleads\nmessages\nwhatsappMessages\napplications\napplicationDocuments\napplicationNotes\nappointments\nieltsPracticeResults\ntrackingTokens\ncounselors\nquizResults\npersonaResults\nscholarshipLeads\nstaffAccounts\naptitudeResults\naptitudeAccessTokens\nmatchUniversities\nmatchPrograms\nchecklistItems\ncostOfLivingData\nuserChecklistProgress\naptitudeProOrders\ndripCampaigns\ndripEmailLogs\ndripEmailSteps\ndripEnrollments\nblog_categories\nblog_post_tags\nblog_posts\nblog_tags\nblog_comments\n",
+  "stderr": "",
+  "execution_time_ms": 1495
+}

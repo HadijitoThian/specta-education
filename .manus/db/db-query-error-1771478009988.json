@@ -1,0 +1,8 @@
+{
+  "query": "SELECT id, name, status, created_at FROM drip_campaigns ORDER BY created_at DESC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT id, name, status, created_at FROM drip_campaigns ORDER BY created_at DESC;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1146 (42S02) at line 1: Table 'hyzqfmgzlp8hwhgd2unqhz.drip_campaigns' doesn't exist"
+  ]
+}

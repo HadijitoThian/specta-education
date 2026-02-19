@@ -1,0 +1,24 @@
+{
+  "query": "SELECT id, name, isActive, triggerSource, createdAt FROM dripCampaigns;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT id, name, isActive, triggerSource, createdAt FROM dripCampaigns;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Tes Bakat AI Pro - Upsell",
+      "isActive": "1",
+      "triggerSource": "aptitude_test",
+      "createdAt": "2026-02-19 00:22:12"
+    },
+    {
+      "id": "6",
+      "name": "China Full Scholarship - Guaranteed Acceptance",
+      "isActive": "1",
+      "triggerSource": "manual",
+      "createdAt": "2026-02-19 01:35:40"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tisActive\ttriggerSource\tcreatedAt\n1\tTes Bakat AI Pro - Upsell\t1\taptitude_test\t2026-02-19 00:22:12\n6\tChina Full Scholarship - Guaranteed Acceptance\t1\tmanual\t2026-02-19 01:35:40\n",
+  "stderr": "",
+  "execution_time_ms": 1597
+}

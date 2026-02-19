@@ -1,0 +1,28 @@
+{
+  "query": "SELECT status, COUNT(*) as cnt FROM dripEnrollments GROUP BY status; SELECT COUNT(*) as total_logs FROM dripEmailLogs; SELECT contactEmail, status, currentStepOrder, nextSendAt, lastEmailSentAt FROM dripEnrollments WHERE status = 'active' LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT status, COUNT(*) as cnt FROM dripEnrollments GROUP BY status; SELECT COUNT(*) as total_logs FROM dripEmailLogs; SELECT contactEmail, status, currentStepOrder, nextSendAt, lastEmailSentAt FROM dripEnrollments WHERE status = 'active' LIMIT 10;",
+  "rows": [
+    {
+      "status": "active",
+      "cnt": "41"
+    }
+  ],
+  "messages": [
+    "total_logs",
+    "0",
+    "contactEmail\tstatus\tcurrentStepOrder\tnextSendAt\tlastEmailSentAt",
+    "dewitina727@gmail.com\tactive\t0\t2026-02-24 00:45:42\tNULL",
+    "dewitina727@gmail.com\tactive\t0\t2026-02-24 00:45:42\tNULL",
+    "soviindah19@gmail.com\tactive\t0\t2026-02-22 01:18:06\tNULL",
+    "erzetfour@gmail.com\tactive\t0\t2026-02-22 01:32:40\tNULL",
+    "adhityamaulana09@gmail.com\tactive\t0\t2026-02-22 01:32:40\tNULL",
+    "bevrai303@gmail.com\tactive\t0\t2026-02-22 01:32:40\tNULL",
+    "nezwa@spectaeducation.com\tactive\t0\t2026-02-22 01:32:40\tNULL",
+    "Fitriana@spectaeducation.com\tactive\t0\t2026-02-22 01:32:40\tNULL",
+    "hadijitothian@gmail.com\tactive\t0\t2026-02-22 01:32:40\tNULL",
+    "kilzrh119@gmail.com\tactive\t0\t2026-02-22 01:32:40\tNULL"
+  ],
+  "stdout": "status\tcnt\nactive\t41\ntotal_logs\n0\ncontactEmail\tstatus\tcurrentStepOrder\tnextSendAt\tlastEmailSentAt\ndewitina727@gmail.com\tactive\t0\t2026-02-24 00:45:42\tNULL\ndewitina727@gmail.com\tactive\t0\t2026-02-24 00:45:42\tNULL\nsoviindah19@gmail.com\tactive\t0\t2026-02-22 01:18:06\tNULL\nerzetfour@gmail.com\tactive\t0\t2026-02-22 01:32:40\tNULL\nadhityamaulana09@gmail.com\tactive\t0\t2026-02-22 01:32:40\tNULL\nbevrai303@gmail.com\tactive\t0\t2026-02-22 01:32:40\tNULL\nnezwa@spectaeducation.com\tactive\t0\t2026-02-22 01:32:40\tNULL\nFitriana@spectaeducation.com\tactive\t0\t2026-02-22 01:32:40\tNULL\nhadijitothian@gmail.com\tactive\t0\t2026-02-22 01:32:40\tNULL\nkilzrh119@gmail.com\tactive\t0\t2026-02-22 01:32:40\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 1966
+}

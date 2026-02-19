@@ -1483,9 +1483,9 @@ export async function getDripEnrollmentByUnsubscribeToken(token: string): Promis
 export async function getDueEnrollments(): Promise<DripEnrollment[]> {
   const db = await getDb();
   if (!db) return [];
-  const now = new Date();
+  // Use database NOW() instead of JS new Date() to avoid timezone mismatch
   return db.select().from(dripEnrollments)
-    .where(sql`${dripEnrollments.status} = 'active' AND ${dripEnrollments.nextSendAt} IS NOT NULL AND ${dripEnrollments.nextSendAt} <= ${now}`)
+    .where(sql`${dripEnrollments.status} = 'active' AND ${dripEnrollments.nextSendAt} IS NOT NULL AND ${dripEnrollments.nextSendAt} <= NOW()`)
     .orderBy(dripEnrollments.nextSendAt);
 }
 

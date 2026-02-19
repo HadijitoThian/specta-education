@@ -1,0 +1,115 @@
+{
+  "query": "SHOW TABLES;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SHOW TABLES;",
+  "rows": [
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "__drizzle_migrations"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "applicationDocuments"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "applicationNotes"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "applications"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "appointments"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "aptitudeAccessTokens"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "aptitudeProOrders"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "aptitudeResults"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "blog_categories"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "blog_comments"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "blog_post_tags"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "blog_posts"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "blog_tags"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "checklistItems"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "conversations"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "costOfLivingData"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "counselors"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "documents"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "dripCampaigns"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "dripEmailLogs"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "dripEmailSteps"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "dripEnrollments"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "ieltsPracticeResults"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "leads"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "matchPrograms"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "matchUniversities"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "messages"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "personaResults"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "quizResults"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "scholarshipLeads"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "staffAccounts"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "trackingTokens"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "userChecklistProgress"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "users"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ": "whatsappMessages"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ\n__drizzle_migrations\napplicationDocuments\napplicationNotes\napplications\nappointments\naptitudeAccessTokens\naptitudeProOrders\naptitudeResults\nblog_categories\nblog_comments\nblog_post_tags\nblog_posts\nblog_tags\nchecklistItems\nconversations\ncostOfLivingData\ncounselors\ndocuments\ndripCampaigns\ndripEmailLogs\ndripEmailSteps\ndripEnrollments\nieltsPracticeResults\nleads\nmatchPrograms\nmatchUniversities\nmessages\npersonaResults\nquizResults\nscholarshipLeads\nstaffAccounts\ntrackingTokens\nuserChecklistProgress\nusers\nwhatsappMessages\n",
+  "stderr": "",
+  "execution_time_ms": 1513
+}

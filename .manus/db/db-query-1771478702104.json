@@ -1,0 +1,70 @@
+{
+  "query": "SELECT contactEmail, status, currentStepOrder, nextSendAt FROM dripEnrollments WHERE status = 'active' LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT contactEmail, status, currentStepOrder, nextSendAt FROM dripEnrollments WHERE status = 'active' LIMIT 10;",
+  "rows": [
+    {
+      "contactEmail": "dewitina727@gmail.com",
+      "status": "active",
+      "currentStepOrder": "0",
+      "nextSendAt": "2026-02-19 05:24:55"
+    },
+    {
+      "contactEmail": "dewitina727@gmail.com",
+      "status": "active",
+      "currentStepOrder": "0",
+      "nextSendAt": "2026-02-19 05:24:55"
+    },
+    {
+      "contactEmail": "soviindah19@gmail.com",
+      "status": "active",
+      "currentStepOrder": "0",
+      "nextSendAt": "2026-02-19 05:24:55"
+    },
+    {
+      "contactEmail": "erzetfour@gmail.com",
+      "status": "active",
+      "currentStepOrder": "0",
+      "nextSendAt": "2026-02-19 05:24:55"
+    },
+    {
+      "contactEmail": "adhityamaulana09@gmail.com",
+      "status": "active",
+      "currentStepOrder": "0",
+      "nextSendAt": "2026-02-19 05:24:55"
+    },
+    {
+      "contactEmail": "bevrai303@gmail.com",
+      "status": "active",
+      "currentStepOrder": "0",
+      "nextSendAt": "2026-02-19 05:24:55"
+    },
+    {
+      "contactEmail": "nezwa@spectaeducation.com",
+      "status": "active",
+      "currentStepOrder": "0",
+      "nextSendAt": "2026-02-19 05:24:55"
+    },
+    {
+      "contactEmail": "Fitriana@spectaeducation.com",
+      "status": "active",
+      "currentStepOrder": "0",
+      "nextSendAt": "2026-02-19 05:24:55"
+    },
+    {
+      "contactEmail": "hadijitothian@gmail.com",
+      "status": "active",
+      "currentStepOrder": "0",
+      "nextSendAt": "2026-02-19 05:24:55"
+    },
+    {
+      "contactEmail": "kilzrh119@gmail.com",
+      "status": "active",
+      "currentStepOrder": "0",
+      "nextSendAt": "2026-02-19 05:24:55"
+    }
+  ],
+  "messages": [],
+  "stdout": "contactEmail\tstatus\tcurrentStepOrder\tnextSendAt\ndewitina727@gmail.com\tactive\t0\t2026-02-19 05:24:55\ndewitina727@gmail.com\tactive\t0\t2026-02-19 05:24:55\nsoviindah19@gmail.com\tactive\t0\t2026-02-19 05:24:55\nerzetfour@gmail.com\tactive\t0\t2026-02-19 05:24:55\nadhityamaulana09@gmail.com\tactive\t0\t2026-02-19 05:24:55\nbevrai303@gmail.com\tactive\t0\t2026-02-19 05:24:55\nnezwa@spectaeducation.com\tactive\t0\t2026-02-19 05:24:55\nFitriana@spectaeducation.com\tactive\t0\t2026-02-19 05:24:55\nhadijitothian@gmail.com\tactive\t0\t2026-02-19 05:24:55\nkilzrh119@gmail.com\tactive\t0\t2026-02-19 05:24:55\n",
+  "stderr": "",
+  "execution_time_ms": 1577
+}

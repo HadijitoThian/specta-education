@@ -1,0 +1,18 @@
+{
+  "query": "SELECT 'due_now' as metric, COUNT(*) as cnt FROM dripEnrollments WHERE status = 'active' AND nextSendAt IS NOT NULL AND nextSendAt <= NOW() UNION ALL SELECT 'total_active', COUNT(*) FROM dripEnrollments WHERE status = 'active';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT 'due_now' as metric, COUNT(*) as cnt FROM dripEnrollments WHERE status = 'active' AND nextSendAt IS NOT NULL AND nextSendAt <= NOW() UNION ALL SELECT 'total_active', COUNT(*) FROM dripEnrollments WHERE status = 'active';",
+  "rows": [
+    {
+      "metric": "total_active",
+      "cnt": "41"
+    },
+    {
+      "metric": "due_now",
+      "cnt": "41"
+    }
+  ],
+  "messages": [],
+  "stdout": "metric\tcnt\ntotal_active\t41\ndue_now\t41\n",
+  "stderr": "",
+  "execution_time_ms": 1493
+}

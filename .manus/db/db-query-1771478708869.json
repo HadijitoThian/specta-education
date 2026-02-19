@@ -1,0 +1,35 @@
+{
+  "query": "SELECT contactEmail, nextSendAt, NOW() as db_now FROM dripEnrollments WHERE status = 'active' LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT contactEmail, nextSendAt, NOW() as db_now FROM dripEnrollments WHERE status = 'active' LIMIT 5;",
+  "rows": [
+    {
+      "contactEmail": "dewitina727@gmail.com",
+      "nextSendAt": "2026-02-19 05:24:55",
+      "db_now": "2026-02-19 05:25:08"
+    },
+    {
+      "contactEmail": "dewitina727@gmail.com",
+      "nextSendAt": "2026-02-19 05:24:55",
+      "db_now": "2026-02-19 05:25:08"
+    },
+    {
+      "contactEmail": "soviindah19@gmail.com",
+      "nextSendAt": "2026-02-19 05:24:55",
+      "db_now": "2026-02-19 05:25:08"
+    },
+    {
+      "contactEmail": "erzetfour@gmail.com",
+      "nextSendAt": "2026-02-19 05:24:55",
+      "db_now": "2026-02-19 05:25:08"
+    },
+    {
+      "contactEmail": "adhityamaulana09@gmail.com",
+      "nextSendAt": "2026-02-19 05:24:55",
+      "db_now": "2026-02-19 05:25:08"
+    }
+  ],
+  "messages": [],
+  "stdout": "contactEmail\tnextSendAt\tdb_now\ndewitina727@gmail.com\t2026-02-19 05:24:55\t2026-02-19 05:25:08\ndewitina727@gmail.com\t2026-02-19 05:24:55\t2026-02-19 05:25:08\nsoviindah19@gmail.com\t2026-02-19 05:24:55\t2026-02-19 05:25:08\nerzetfour@gmail.com\t2026-02-19 05:24:55\t2026-02-19 05:25:08\nadhityamaulana09@gmail.com\t2026-02-19 05:24:55\t2026-02-19 05:25:08\n",
+  "stderr": "",
+  "execution_time_ms": 1564
+}

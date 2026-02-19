@@ -1,0 +1,28 @@
+{
+  "query": "SELECT * FROM dripCampaigns;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT * FROM dripCampaigns;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Tes Bakat AI Pro - Upsell",
+      "description": "Follow-up emails for students who completed the free aptitude test, encouraging them to upgrade to Pro",
+      "triggerSource": "aptitude_test",
+      "isActive": "1",
+      "createdAt": "2026-02-19 00:22:12",
+      "updatedAt": "2026-02-19 00:22:12"
+    },
+    {
+      "id": "6",
+      "name": "China Full Scholarship - Guaranteed Acceptance",
+      "description": "A 5-email drip campaign to nurture leads interested in studying abroad, specifically promoting the China Full Scholarship with guaranteed acceptance. The campaign aims to inform, build trust, and drive conversions through a friendly and calm tone.",
+      "triggerSource": "manual",
+      "isActive": "1",
+      "createdAt": "2026-02-19 01:35:40",
+      "updatedAt": "2026-02-19 01:35:40"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tdescription\ttriggerSource\tisActive\tcreatedAt\tupdatedAt\n1\tTes Bakat AI Pro - Upsell\tFollow-up emails for students who completed the free aptitude test, encouraging them to upgrade to Pro\taptitude_test\t1\t2026-02-19 00:22:12\t2026-02-19 00:22:12\n6\tChina Full Scholarship - Guaranteed Acceptance\tA 5-email drip campaign to nurture leads interested in studying abroad, specifically promoting the China Full Scholarship with guaranteed acceptance. The campaign aims to inform, build trust, and drive conversions through a friendly and calm tone.\tmanual\t1\t2026-02-19 01:35:40\t2026-02-19 01:35:40\n",
+  "stderr": "",
+  "execution_time_ms": 1508
+}

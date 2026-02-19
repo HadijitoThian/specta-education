@@ -1,0 +1,230 @@
+{
+  "query": "SELECT id, campaignId, contactEmail, contactName, currentStepOrder, status, enrolledAt, lastEmailSentAt, nextSendAt FROM dripEnrollments ORDER BY enrolledAt DESC LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT id, campaignId, contactEmail, contactName, currentStepOrder, status, enrolledAt, lastEmailSentAt, nextSendAt FROM dripEnrollments ORDER BY enrolledAt DESC LIMIT 20;",
+  "rows": [
+    {
+      "id": "366",
+      "campaignId": "1",
+      "contactEmail": "novantryhambabandju@gmail.com",
+      "contactName": "Novantryhambabandju ",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 04:59:24",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 04:59:24"
+    },
+    {
+      "id": "248",
+      "campaignId": "1",
+      "contactEmail": "putrishayla57@gmail.com",
+      "contactName": "Putri Shayla",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 04:01:34",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 04:01:35"
+    },
+    {
+      "id": "132",
+      "campaignId": "1",
+      "contactEmail": "manuel@indopora.com",
+      "contactName": "Manu",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 01:32:41",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 01:32:41"
+    },
+    {
+      "id": "131",
+      "campaignId": "1",
+      "contactEmail": "stefanieltan@gmail.com",
+      "contactName": "Stefanie Tan",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 01:32:41",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 01:32:41"
+    },
+    {
+      "id": "133",
+      "campaignId": "1",
+      "contactEmail": "thianraiden@gmail.com",
+      "contactName": "Raiden Thian",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 01:32:41",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 01:32:41"
+    },
+    {
+      "id": "115",
+      "campaignId": "1",
+      "contactEmail": "salsahtp@gmail.com",
+      "contactName": "Salsabil ",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 01:32:40",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 01:32:41"
+    },
+    {
+      "id": "106",
+      "campaignId": "1",
+      "contactEmail": "galih.nxs@gmail.com",
+      "contactName": "Galih",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 01:32:40",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 01:32:40"
+    },
+    {
+      "id": "98",
+      "campaignId": "1",
+      "contactEmail": "erzetfour@gmail.com",
+      "contactName": "Erick Brian ",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 01:32:40",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 01:32:40"
+    },
+    {
+      "id": "104",
+      "campaignId": "1",
+      "contactEmail": "kilzrh119@gmail.com",
+      "contactName": "Zaskia alzarah ",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 01:32:40",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 01:32:40"
+    },
+    {
+      "id": "100",
+      "campaignId": "1",
+      "contactEmail": "bevrai303@gmail.com",
+      "contactName": "bevrai303@gmail.com",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 01:32:40",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 01:32:40"
+    },
+    {
+      "id": "99",
+      "campaignId": "1",
+      "contactEmail": "adhityamaulana09@gmail.com",
+      "contactName": "adhitya",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 01:32:40",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 01:32:40"
+    },
+    {
+      "id": "105",
+      "campaignId": "1",
+      "contactEmail": "hafshoh.aini@gmail.com",
+      "contactName": "Astri sulvi",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 01:32:40",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 01:32:40"
+    },
+    {
+      "id": "103",
+      "campaignId": "1",
+      "contactEmail": "hadijitothian@gmail.com",
+      "contactName": "hadi",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 01:32:40",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 01:32:40"
+    },
+    {
+      "id": "107",
+      "campaignId": "1",
+      "contactEmail": "dewiiisusantiii15@gmail.com",
+      "contactName": "Diya",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 01:32:40",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 01:32:40"
+    },
+    {
+      "id": "110",
+      "campaignId": "1",
+      "contactEmail": "salmaaliza25@gemail.com",
+      "contactName": "Salma Alizatul Mustaqimah ",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 01:32:40",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 01:32:40"
+    },
+    {
+      "id": "112",
+      "campaignId": "1",
+      "contactEmail": "wanholl13@gmail.com",
+      "contactName": "Wanholl",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 01:32:40",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 01:32:40"
+    },
+    {
+      "id": "102",
+      "campaignId": "1",
+      "contactEmail": "Fitriana@spectaeducation.com",
+      "contactName": "Fitriana ",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 01:32:40",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 01:32:40"
+    },
+    {
+      "id": "113",
+      "campaignId": "1",
+      "contactEmail": "dewitina727@gmail.com",
+      "contactName": "Dewi Agustina ",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 01:32:40",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 01:32:40"
+    },
+    {
+      "id": "114",
+      "campaignId": "1",
+      "contactEmail": "phillysya2009@gmail.com",
+      "contactName": "Philly",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 01:32:40",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 01:32:40"
+    },
+    {
+      "id": "111",
+      "campaignId": "1",
+      "contactEmail": "nurinsiyahdiba@gmail.com",
+      "contactName": "Diba Nur Insiyah ",
+      "currentStepOrder": "0",
+      "status": "active",
+      "enrolledAt": "2026-02-19 01:32:40",
+      "lastEmailSentAt": "NULL",
+      "nextSendAt": "2026-02-22 01:32:40"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tcampaignId\tcontactEmail\tcontactName\tcurrentStepOrder\tstatus\tenrolledAt\tlastEmailSentAt\tnextSendAt\n366\t1\tnovantryhambabandju@gmail.com\tNovantryhambabandju \t0\tactive\t2026-02-19 04:59:24\tNULL\t2026-02-22 04:59:24\n248\t1\tputrishayla57@gmail.com\tPutri Shayla\t0\tactive\t2026-02-19 04:01:34\tNULL\t2026-02-22 04:01:35\n132\t1\tmanuel@indopora.com\tManu\t0\tactive\t2026-02-19 01:32:41\tNULL\t2026-02-22 01:32:41\n131\t1\tstefanieltan@gmail.com\tStefanie Tan\t0\tactive\t2026-02-19 01:32:41\tNULL\t2026-02-22 01:32:41\n133\t1\tthianraiden@gmail.com\tRaiden Thian\t0\tactive\t2026-02-19 01:32:41\tNULL\t2026-02-22 01:32:41\n115\t1\tsalsahtp@gmail.com\tSalsabil \t0\tactive\t2026-02-19 01:32:40\tNULL\t2026-02-22 01:32:41\n106\t1\tgalih.nxs@gmail.com\tGalih\t0\tactive\t2026-02-19 01:32:40\tNULL\t2026-02-22 01:32:40\n98\t1\terzetfour@gmail.com\tErick Brian \t0\tactive\t2026-02-19 01:32:40\tNULL\t2026-02-22 01:32:40\n104\t1\tkilzrh119@gmail.com\tZaskia alzarah \t0\tactive\t2026-02-19 01:32:40\tNULL\t2026-02-22 01:32:40\n100\t1\tbevrai303@gmail.com\tbevrai303@gmail.com\t0\tactive\t2026-02-19 01:32:40\tNULL\t2026-02-22 01:32:40\n99\t1\tadhityamaulana09@gmail.com\tadhitya\t0\tactive\t2026-02-19 01:32:40\tNULL\t2026-02-22 01:32:40\n105\t1\thafshoh.aini@gmail.com\tAstri sulvi\t0\tactive\t2026-02-19 01:32:40\tNULL\t2026-02-22 01:32:40\n103\t1\thadijitothian@gmail.com\thadi\t0\tactive\t2026-02-19 01:32:40\tNULL\t2026-02-22 01:32:40\n107\t1\tdewiiisusantiii15@gmail.com\tDiya\t0\tactive\t2026-02-19 01:32:40\tNULL\t2026-02-22 01:32:40\n110\t1\tsalmaaliza25@gemail.com\tSalma Alizatul Mustaqimah \t0\tactive\t2026-02-19 01:32:40\tNULL\t2026-02-22 01:32:40\n112\t1\twanholl13@gmail.com\tWanholl\t0\tactive\t2026-02-19 01:32:40\tNULL\t2026-02-22 01:32:40\n102\t1\tFitriana@spectaeducation.com\tFitriana \t0\tactive\t2026-02-19 01:32:40\tNULL\t2026-02-22 01:32:40\n113\t1\tdewitina727@gmail.com\tDewi Agustina \t0\tactive\t2026-02-19 01:32:40\tNULL\t2026-02-22 01:32:40\n114\t1\tphillysya2009@gmail.com\tPhilly\t0\tactive\t2026-02-19 01:32:40\tNULL\t2026-02-22 01:32:40\n111\t1\tnurinsiyahdiba@gmail.com\tDiba Nur Insiyah \t0\tactive\t2026-02-19 01:32:40\tNULL\t2026-02-22 01:32:40\n",
+  "stderr": "",
+  "execution_time_ms": 1491
+}

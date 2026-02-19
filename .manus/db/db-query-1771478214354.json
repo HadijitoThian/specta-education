@@ -1,0 +1,13 @@
+{
+  "query": "SELECT COUNT(*) as due_now FROM dripEnrollments WHERE status = 'active' AND nextSendAt IS NOT NULL AND nextSendAt <= NOW();",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT COUNT(*) as due_now FROM dripEnrollments WHERE status = 'active' AND nextSendAt IS NOT NULL AND nextSendAt <= NOW();",
+  "rows": [
+    {
+      "due_now": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "due_now\n0\n",
+  "stderr": "",
+  "execution_time_ms": 1539
+}

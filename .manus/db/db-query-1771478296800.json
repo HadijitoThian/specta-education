@@ -1,0 +1,26 @@
+{
+  "query": "SELECT id, campaignId, stepOrder, subject, delayDays, isActive FROM dripEmailSteps ORDER BY campaignId, stepOrder;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT id, campaignId, stepOrder, subject, delayDays, isActive FROM dripEmailSteps ORDER BY campaignId, stepOrder;",
+  "rows": [
+    {
+      "id": "1",
+      "campaignId": "1",
+      "stepOrder": "1",
+      "subject": "{{name}}, sudah lihat hasil tes bakat kamu? 🧠",
+      "delayDays": "3",
+      "isActive": "1"
+    },
+    {
+      "id": "2",
+      "campaignId": "1",
+      "stepOrder": "2",
+      "subject": "Siswa lain sudah menemukan jurusan impian mereka 🎓",
+      "delayDays": "3",
+      "isActive": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tcampaignId\tstepOrder\tsubject\tdelayDays\tisActive\n1\t1\t1\t{{name}}, sudah lihat hasil tes bakat kamu? 🧠\t3\t1\n2\t1\t2\tSiswa lain sudah menemukan jurusan impian mereka 🎓\t3\t1\n",
+  "stderr": "",
+  "execution_time_ms": 1514
+}

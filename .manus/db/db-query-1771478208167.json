@@ -1,0 +1,13 @@
+{
+  "query": "SELECT COUNT(*) as total_enrollments FROM dripEnrollments;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT COUNT(*) as total_enrollments FROM dripEnrollments;",
+  "rows": [
+    {
+      "total_enrollments": "41"
+    }
+  ],
+  "messages": [],
+  "stdout": "total_enrollments\n41\n",
+  "stderr": "",
+  "execution_time_ms": 1587
+}

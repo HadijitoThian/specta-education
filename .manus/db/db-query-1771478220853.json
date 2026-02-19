@@ -1,0 +1,26 @@
+{
+  "query": "SELECT 'total' as metric, COUNT(*) as val FROM dripEnrollments UNION ALL SELECT 'due_now', COUNT(*) FROM dripEnrollments WHERE status = 'active' AND nextSendAt IS NOT NULL AND nextSendAt <= NOW() UNION ALL SELECT 'active', COUNT(*) FROM dripEnrollments WHERE status = 'active' UNION ALL SELECT 'email_logs', COUNT(*) FROM dripEmailLogs;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT 'total' as metric, COUNT(*) as val FROM dripEnrollments UNION ALL SELECT 'due_now', COUNT(*) FROM dripEnrollments WHERE status = 'active' AND nextSendAt IS NOT NULL AND nextSendAt <= NOW() UNION ALL SELECT 'active', COUNT(*) FROM dripEnrollments WHERE status = 'active' UNION ALL SELECT 'email_logs', COUNT(*) FROM dripEmailLogs;",
+  "rows": [
+    {
+      "metric": "active",
+      "val": "41"
+    },
+    {
+      "metric": "total",
+      "val": "41"
+    },
+    {
+      "metric": "email_logs",
+      "val": "0"
+    },
+    {
+      "metric": "due_now",
+      "val": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "metric\tval\nactive\t41\ntotal\t41\nemail_logs\t0\ndue_now\t0\n",
+  "stderr": "",
+  "execution_time_ms": 1489
+}
