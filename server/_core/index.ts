@@ -79,6 +79,62 @@ async function startServer() {
     }
   });
 
+  // Dynamic sitemap.xml for SEO
+  app.get("/sitemap.xml", async (req, res) => {
+    try {
+      const { listPublishedBlogPosts } = await import("../db");
+      const baseUrl = "https://www.spectaeducation.com";
+      
+      // Static pages
+      const staticPages = [
+        { url: "/", priority: "1.0", changefreq: "weekly" },
+        { url: "/destinations/australia", priority: "0.9", changefreq: "monthly" },
+        { url: "/destinations/malaysia", priority: "0.9", changefreq: "monthly" },
+        { url: "/destinations/uk", priority: "0.9", changefreq: "monthly" },
+        { url: "/destinations/usa", priority: "0.8", changefreq: "monthly" },
+        { url: "/destinations/canada", priority: "0.8", changefreq: "monthly" },
+        { url: "/destinations/new-zealand", priority: "0.8", changefreq: "monthly" },
+        { url: "/destinations/singapore", priority: "0.8", changefreq: "monthly" },
+        { url: "/destinations/japan", priority: "0.8", changefreq: "monthly" },
+        { url: "/destinations/south-korea", priority: "0.8", changefreq: "monthly" },
+        { url: "/destinations/germany", priority: "0.8", changefreq: "monthly" },
+        { url: "/ielts", priority: "0.9", changefreq: "monthly" },
+        { url: "/scholarships", priority: "0.8", changefreq: "monthly" },
+        { url: "/country-quiz", priority: "0.7", changefreq: "monthly" },
+        { url: "/specta-play", priority: "0.7", changefreq: "monthly" },
+        { url: "/blog", priority: "0.8", changefreq: "daily" },
+      ];
+
+      // Dynamic blog posts
+      const { posts } = await listPublishedBlogPosts({ limit: 500 });
+      const blogUrls = posts.map(post => ({
+        url: `/blog/${post.slug}`,
+        priority: "0.6",
+        changefreq: "monthly",
+        lastmod: post.updatedAt ? new Date(post.updatedAt).toISOString().split("T")[0] : undefined,
+      }));
+
+      const allPages: Array<{ url: string; priority: string; changefreq: string; lastmod?: string }> = [...staticPages, ...blogUrls];
+      const today = new Date().toISOString().split("T")[0];
+
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${allPages.map(p => `  <url>
+    <loc>${baseUrl}${p.url}</loc>
+    <lastmod>${p.lastmod || today}</lastmod>
+    <changefreq>${p.changefreq}</changefreq>
+    <priority>${p.priority}</priority>
+  </url>`).join("\n")}
+</urlset>`;
+
+      res.set("Content-Type", "application/xml");
+      res.set("Cache-Control", "public, max-age=3600");
+      res.send(xml);
+    } catch (e) {
+      res.status(500).send("Error generating sitemap");
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

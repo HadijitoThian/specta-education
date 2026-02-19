@@ -48,7 +48,13 @@ const countryData: Record<string, any> = {
     visaInfo: "Student's Pass required. Apply through ICA (Immigration & Checkpoints Authority). Processing time: 2-4 weeks.",
     scholarships: ["ASEAN Scholarships", "Institution-specific merit scholarships", "Early bird discounts", "Sibling discounts"],
     requirements: ["Academic transcripts (SMA/SMK)", "English proficiency (IELTS 5.5-6.5 or equivalent)", "Passport copy", "Passport-sized photos", "Statement of Purpose"],
-    intakes: ["January", "April/May", "July/August", "October (varies by institution)"]
+    intakes: ["January", "April/May", "July/August", "October (varies by institution)"],
+    faqs: [
+      { q: "Do I need IELTS to study in Singapore?", a: "Most private institutions require IELTS 5.5-6.5 or equivalent. Some offer English placement tests as alternatives." },
+      { q: "How much does it cost to study in Singapore?", a: "Tuition at private institutions ranges from SGD 15,000-35,000/year. Living costs are approximately SGD 1,000-2,000/month." },
+      { q: "Can Indonesian students work while studying in Singapore?", a: "Student's Pass holders can work part-time during term (up to 16 hours/week) at approved institutions, and full-time during holidays." },
+      { q: "How long does it take to get a Singapore Student's Pass?", a: "Processing typically takes 2-4 weeks after your institution submits the application to ICA." }
+    ]
   },
   china: {
     name: "China",
@@ -98,7 +104,13 @@ const countryData: Record<string, any> = {
     visaInfo: "X1 Visa (study >180 days) or X2 Visa (study <180 days). Apply at Chinese Embassy. Processing: 1-2 weeks.",
     scholarships: ["Chinese Government Scholarship (CSC) - Full ride", "Confucius Institute Scholarship", "Provincial Government Scholarships", "University-specific scholarships", "Belt and Road Scholarship"],
     requirements: ["Academic transcripts", "HSK (for Chinese programs) or IELTS (for English programs)", "Health certificate", "No criminal record certificate", "Passport copy"],
-    intakes: ["September (Main)", "March (Some programs)"]
+    intakes: ["September (Main)", "March (Some programs)"],
+    faqs: [
+      { q: "Is it safe for Indonesian students to study in China?", a: "Yes, China is generally very safe with low crime rates. Universities have dedicated international student offices to assist with any issues." },
+      { q: "Do I need to speak Chinese to study in China?", a: "No, many universities offer English-taught programs. However, learning basic Chinese is recommended for daily life." },
+      { q: "How do I apply for the CSC Scholarship?", a: "Apply through the Chinese Embassy or directly to universities. Applications typically open in January-March for September intake." },
+      { q: "What is the cost of living in China for students?", a: "China is very affordable — expect CNY 2,000-4,000/month ($275-$550) for accommodation, food, and transport combined." }
+    ]
   },
   uk: {
     name: "United Kingdom",
@@ -148,7 +160,13 @@ const countryData: Record<string, any> = {
     visaInfo: "Student Visa (Tier 4). Apply online with CAS from university. Processing: 3-4 weeks.",
     scholarships: ["Chevening Scholarship (fully funded)", "Commonwealth Scholarship", "GREAT Scholarships", "University-specific scholarships", "Indonesia Endowment Fund (LPDP)"],
     requirements: ["Academic transcripts", "IELTS (6.0-7.0 depending on program)", "Personal statement", "References (2)", "Passport copy"],
-    intakes: ["September (Main)", "January (Some programs)"]
+    intakes: ["September (Main)", "January (Some programs)"],
+    faqs: [
+      { q: "How much does it cost to study in the UK?", a: "Tuition ranges from £12,000-£38,000/year depending on the program. Living costs are approximately £12,000-£15,000/year." },
+      { q: "Can I work while studying in the UK?", a: "Yes, international students can work up to 20 hours/week during term time and full-time during holidays." },
+      { q: "What is the Graduate Route visa?", a: "After completing your degree, you can stay in the UK for 2 years (3 years for PhD) to work or look for work without a sponsor." },
+      { q: "Do I need IELTS to study in the UK?", a: "Most UK universities require IELTS 6.0-7.0. Some accept alternative tests like TOEFL or PTE Academic." }
+    ]
   },
   australia: {
     name: "Australia",
@@ -198,7 +216,13 @@ const countryData: Record<string, any> = {
     visaInfo: "Student Visa (Subclass 500). Apply online through ImmiAccount. Processing: 4-8 weeks.",
     scholarships: ["Australia Awards Scholarship (fully funded)", "Destination Australia", "Research Training Program", "University-specific scholarships", "LPDP (Indonesian Government)"],
     requirements: ["Academic transcripts", "IELTS (6.0-7.0)", "Statement of Purpose", "Financial proof (GTE)", "Health insurance (OSHC)"],
-    intakes: ["February (Main)", "July (Second intake)"]
+    intakes: ["February (Main)", "July (Second intake)"],
+    faqs: [
+      { q: "Can I get permanent residency after studying in Australia?", a: "Yes, Australia offers post-study work visas (2-4 years) and pathways to permanent residency through skilled migration." },
+      { q: "How much does it cost to study in Australia?", a: "Tuition ranges from AUD 20,000-45,000/year. Living costs are approximately AUD 21,000-25,000/year." },
+      { q: "Is IELTS required for Australian universities?", a: "Most universities require IELTS 6.0-7.0. Some accept PTE Academic, TOEFL, or Cambridge English as alternatives." },
+      { q: "Can I work while studying in Australia?", a: "Yes, student visa holders can work up to 48 hours per fortnight during term and unlimited hours during holidays." }
+    ]
   },
   "new-zealand": {
     name: "New Zealand",
@@ -234,7 +258,13 @@ const countryData: Record<string, any> = {
     visaInfo: "Student Visa required. Apply online through Immigration New Zealand. Processing: 4-6 weeks.",
     scholarships: ["New Zealand Scholarships", "University-specific scholarships", "New Zealand Excellence Awards", "ASEAN Scholarships"],
     requirements: ["Academic transcripts", "IELTS (6.0-6.5)", "Statement of Purpose", "Financial proof", "Health & character certificates"],
-    intakes: ["February (Main)", "July (Second intake)"]
+    intakes: ["February (Main)", "July (Second intake)"],
+    faqs: [
+      { q: "Is New Zealand safe for international students?", a: "Yes, New Zealand is consistently ranked as one of the safest and most peaceful countries in the world." },
+      { q: "How much does it cost to study in New Zealand?", a: "Tuition ranges from NZD 22,000-40,000/year. Living costs are approximately NZD 1,200-2,000/month." },
+      { q: "Can I work after graduating in New Zealand?", a: "Yes, graduates can apply for a Post-Study Work Visa for 1-3 years depending on qualification level and location." },
+      { q: "Can I work while studying in New Zealand?", a: "Yes, student visa holders can work up to 20 hours/week during term and full-time during scheduled breaks." }
+    ]
   },
   canada: {
     name: "Canada",
@@ -284,7 +314,13 @@ const countryData: Record<string, any> = {
     visaInfo: "Study Permit required. Apply online through IRCC. Processing: 8-12 weeks.",
     scholarships: ["Vanier Canada Graduate Scholarships", "Ontario Trillium Scholarship", "University-specific scholarships", "LPDP (Indonesian Government)"],
     requirements: ["Academic transcripts", "IELTS (6.0-6.5)", "Statement of Purpose", "Financial proof", "Medical exam (if required)"],
-    intakes: ["September (Main)", "January", "May (Some programs)"]
+    intakes: ["September (Main)", "January", "May (Some programs)"],
+    faqs: [
+      { q: "Can I work in Canada after graduation?", a: "Yes, the Post-Graduation Work Permit (PGWP) allows you to work for up to 3 years after completing your studies." },
+      { q: "How much does it cost to study in Canada?", a: "Tuition ranges from CAD 15,000-35,000/year. Living costs are approximately CAD 10,000-15,000/year." },
+      { q: "Is Canada a good pathway to permanent residency?", a: "Yes, Canada has one of the most immigrant-friendly systems. Canadian education and work experience earn significant points for PR." },
+      { q: "Do I need IELTS for Canadian universities?", a: "Most universities require IELTS 6.0-6.5. Some accept TOEFL, PTE, or Duolingo English Test." }
+    ]
   },
   usa: {
     name: "United States",
@@ -334,7 +370,13 @@ const countryData: Record<string, any> = {
     visaInfo: "F-1 Student Visa. Apply at US Embassy after receiving I-20 from university. Processing: 2-4 weeks.",
     scholarships: ["Fulbright Scholarship (fully funded)", "University merit scholarships", "Need-based financial aid", "LPDP (Indonesian Government)", "EducationUSA advising"],
     requirements: ["Academic transcripts", "SAT/ACT (undergraduate) or GRE/GMAT (graduate)", "TOEFL/IELTS", "Essays/Personal statement", "Letters of recommendation", "Financial proof"],
-    intakes: ["Fall (August/September)", "Spring (January)"]
+    intakes: ["Fall (August/September)", "Spring (January)"],
+    faqs: [
+      { q: "How much does it cost to study in the USA?", a: "Tuition varies widely: $10,000-$55,000/year. Community colleges start from $8,000-$12,000/year as an affordable pathway." },
+      { q: "Can I work while studying in the USA?", a: "F-1 visa holders can work on-campus up to 20 hours/week. Off-campus work requires CPT or OPT authorization." },
+      { q: "What is OPT and how does it work?", a: "Optional Practical Training (OPT) allows 12 months of work after graduation. STEM graduates get a 24-month extension (total 36 months)." },
+      { q: "Do I need SAT/ACT for US universities?", a: "Many universities are now test-optional. Check individual requirements — some still require SAT/ACT for competitive programs." }
+    ]
   },
   ireland: {
     name: "Ireland",
@@ -370,7 +412,13 @@ const countryData: Record<string, any> = {
     visaInfo: "Study Visa (Stamp 2). Apply at Irish Embassy. Processing: 4-8 weeks.",
     scholarships: ["Government of Ireland Scholarships", "University-specific scholarships", "Science Foundation Ireland", "LPDP (Indonesian Government)"],
     requirements: ["Academic transcripts", "IELTS (6.0-6.5)", "Statement of Purpose", "Financial proof", "Health insurance"],
-    intakes: ["September (Main)", "January (Some programs)"]
+    intakes: ["September (Main)", "January (Some programs)"],
+    faqs: [
+      { q: "Is Ireland a good place for Indonesian students?", a: "Yes, Ireland is very welcoming with a growing Indonesian community. It's also a hub for tech companies like Google, Meta, and Apple." },
+      { q: "Can I work after graduating in Ireland?", a: "Yes, the Stay Back Visa allows graduates to stay for 1-2 years to seek employment in Ireland." },
+      { q: "How much does it cost to study in Ireland?", a: "Tuition ranges from €10,000-€25,000/year. Living costs are approximately €7,000-€12,000/year." },
+      { q: "Do I need IELTS for Irish universities?", a: "Most universities require IELTS 6.0-6.5. Some accept TOEFL or PTE Academic as alternatives." }
+    ]
   },
   netherlands: {
     name: "Netherlands",
@@ -406,7 +454,13 @@ const countryData: Record<string, any> = {
     visaInfo: "MVV (Entry Visa) + Residence Permit. University assists with application. Processing: 4-8 weeks.",
     scholarships: ["Holland Scholarship", "Orange Tulip Scholarship", "Erasmus Mundus", "University-specific scholarships", "StuNed (for Indonesians)"],
     requirements: ["Academic transcripts", "IELTS (6.0-6.5)", "Motivation letter", "CV", "Financial proof"],
-    intakes: ["September (Main)", "February (Some programs)"]
+    intakes: ["September (Main)", "February (Some programs)"],
+    faqs: [
+      { q: "Why study in the Netherlands?", a: "The Netherlands offers high-quality education with many English-taught programs, a multicultural environment, and affordable tuition compared to the UK." },
+      { q: "Can I work while studying in the Netherlands?", a: "Yes, international students can work up to 16 hours/week or full-time during June, July, and August." },
+      { q: "How much does it cost to study in the Netherlands?", a: "Tuition for non-EU students ranges from €6,000-€15,000/year. Living costs are approximately €800-€1,100/month." },
+      { q: "Is Dutch language required?", a: "No, the Netherlands has over 2,100 English-taught programs. Dutch is not required for most international programs." }
+    ]
   }
 };
 
@@ -728,6 +782,35 @@ export default function CountryPage() {
           </div>
         </div>
       </section>
+
+      {/* FAQ Section for SEO */}
+      {country.faqs && country.faqs.length > 0 && (
+        <section className="py-16 bg-muted/30">
+          <div className="container max-w-4xl">
+            <h2 className="text-3xl font-bold text-center mb-10">Frequently Asked Questions</h2>
+            <div className="space-y-4">
+              {country.faqs.map((faq: any, index: number) => (
+                <motion.details
+                  key={index}
+                  className="group bg-card rounded-xl border border-border overflow-hidden"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <summary className="flex items-center justify-between p-5 cursor-pointer hover:bg-muted/50 transition-colors font-semibold text-lg">
+                    {faq.q}
+                    <ChevronRight className="w-5 h-5 transition-transform group-open:rotate-90 text-primary flex-shrink-0 ml-4" />
+                  </summary>
+                  <div className="px-5 pb-5 text-muted-foreground leading-relaxed">
+                    {faq.a}
+                  </div>
+                </motion.details>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* CTA */}
       <section className="py-16 bg-gradient-specta">

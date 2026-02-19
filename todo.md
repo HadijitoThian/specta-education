@@ -949,3 +949,35 @@
 - [x] Integrate editor into DripCampaignManager step creation/editing flow
 - [x] Replace textarea with new editor in Add Step dialog
 - [x] Write vitest tests for AI refine endpoint
+### 96. SEO Optimization of Existing Pages
+- [x] Update meta titles for destination pages (e.g., "Study in Australia - SpecTa Education")
+- [x] Update meta descriptions for all destination and IELTS pages
+- [x] Update H1 headings from country name to "Study in [Country]" (already done in CountryPage)
+- [x] Add schema.org structured data (EducationalOrganization, Course, FAQ)
+- [x] Generate dynamic sitemap.xml with all pages including blog posts
+- [x] Add robots.txt
+- [x] Add Open Graph and Twitter meta tags for social sharing
+- [x] Improve internal linking between destination, IELTS, and scholarship pages
+### 97. Blog System with AI-Assisted Writing
+- [x] Create blog database tables (posts with full SEO fields)
+- [x] Push blog schema migrations
+- [x] Build blog CRUD API (create, update, delete, list, get by slug)
+- [x] Build AI article drafting endpoint (prompt → full article with SEO optimization)
+- [x] Build blog listing page at /blog (public, SEO-friendly)
+- [x] Build blog article page at /blog/:slug (public, SEO-friendly)
+- [x] Build admin "Blog" tab for managing articles (write, edit, publish, draft)
+- [x] Rich text editor for blog article writing
+- [x] AI-assisted article generation from topic/keyword prompt
+- [x] Auto-generate meta title, meta description, and slug from article content
+- [x] Tag management
+- [x] Cover image URL support
+- [x] Add blog link to footer under Quick Links next to SpecTa Play
+### 98. FAQ Sections for SEO
+- [x] Add FAQ section to all 12 destination pages (Australia, NZ, Malaysia, Singapore, Japan, Korea, Germany, UK, USA, Canada, Ireland, Netherlands)
+- [ ] Add FAQ section to IELTS pages (can be added in next iteration)
+- [x] FAQ accordion component with animation
+### 99. Blog Vitest Tests
+- [x] Write vitest tests for blog CRUD operations
+- [x] Write vitest tests for AI article drafting
+- [x] Write vitest tests for SEO slug generation and validation
+- [x] All 268 tests passing

@@ -143,7 +143,23 @@ import {
   getDripCampaignsWithStats,
   createDripEnrollment,
   getHotLeads,
-  getCampaignPerformanceMetrics
+  getCampaignPerformanceMetrics,
+  createBlogCategory,
+  listBlogCategories,
+  updateBlogCategory,
+  deleteBlogCategory,
+  createBlogTag,
+  listBlogTags,
+  deleteBlogTag,
+  createBlogPost,
+  updateBlogPost,
+  deleteBlogPost,
+  getBlogPostBySlug,
+  getBlogPostById,
+  listBlogPosts,
+  listPublishedBlogPosts,
+  setPostTags,
+  getPostTags
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail } from "./email";
@@ -3792,6 +3808,300 @@ Return a JSON object with "subject" (updated subject line) and "htmlContent" (up
           nextSendAt: null,
         });
         return { success: true, alreadyUnsubscribed: false };
+      }),
+  }),
+
+  // ==========================================
+  // Blog System Router
+  // ==========================================
+  blog: router({
+    // --- Categories (Admin) ---
+    listCategories: publicProcedure.query(async () => {
+      return listBlogCategories();
+    }),
+
+    createCategory: protectedProcedure
+      .input(z.object({ name: z.string().min(1), slug: z.string().min(1), description: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        return createBlogCategory(input);
+      }),
+
+    updateCategory: protectedProcedure
+      .input(z.object({ id: z.number(), name: z.string().optional(), slug: z.string().optional(), description: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { id, ...data } = input;
+        await updateBlogCategory(id, data);
+        return { success: true };
+      }),
+
+    deleteCategory: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        await deleteBlogCategory(input.id);
+        return { success: true };
+      }),
+
+    // --- Tags (Admin) ---
+    listTags: publicProcedure.query(async () => {
+      return listBlogTags();
+    }),
+
+    createTag: protectedProcedure
+      .input(z.object({ name: z.string().min(1), slug: z.string().min(1) }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        return createBlogTag(input);
+      }),
+
+    deleteTag: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        await deleteBlogTag(input.id);
+        return { success: true };
+      }),
+
+    // --- Posts (Admin CRUD) ---
+    listPosts: protectedProcedure
+      .input(z.object({
+        status: z.enum(["draft", "published", "archived"]).optional(),
+        categoryId: z.number().optional(),
+        limit: z.number().optional(),
+        offset: z.number().optional(),
+      }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        return listBlogPosts(input);
+      }),
+
+    getPost: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const post = await getBlogPostById(input.id);
+        if (!post) throw new TRPCError({ code: "NOT_FOUND" });
+        const tags = await getPostTags(post.id);
+        return { ...post, tags };
+      }),
+
+    createPost: protectedProcedure
+      .input(z.object({
+        title: z.string().min(1),
+        slug: z.string().min(1),
+        excerpt: z.string().optional(),
+        content: z.string().min(1),
+        featuredImage: z.string().optional(),
+        metaTitle: z.string().optional(),
+        metaDescription: z.string().optional(),
+        targetKeyword: z.string().optional(),
+        categoryId: z.number().optional(),
+        status: z.enum(["draft", "published", "archived"]).optional(),
+        tagIds: z.array(z.number()).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { tagIds, ...postData } = input;
+        const post = await createBlogPost({
+          ...postData,
+          authorId: ctx.user.id,
+          publishedAt: input.status === "published" ? new Date() : undefined,
+        });
+        if (post && tagIds && tagIds.length > 0) {
+          await setPostTags(post.id, tagIds);
+        }
+        return post;
+      }),
+
+    updatePost: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        slug: z.string().optional(),
+        excerpt: z.string().optional(),
+        content: z.string().optional(),
+        featuredImage: z.string().optional(),
+        metaTitle: z.string().optional(),
+        metaDescription: z.string().optional(),
+        targetKeyword: z.string().optional(),
+        categoryId: z.number().nullable().optional(),
+        status: z.enum(["draft", "published", "archived"]).optional(),
+        tagIds: z.array(z.number()).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { id, tagIds, ...data } = input;
+        // If publishing for the first time, set publishedAt
+        if (data.status === "published") {
+          const existing = await getBlogPostById(id);
+          if (existing && !existing.publishedAt) {
+            (data as any).publishedAt = new Date();
+          }
+        }
+        await updateBlogPost(id, data);
+        if (tagIds !== undefined) {
+          await setPostTags(id, tagIds);
+        }
+        return { success: true };
+      }),
+
+    deletePost: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        await deleteBlogPost(input.id);
+        return { success: true };
+      }),
+
+    // --- Public Blog Endpoints ---
+    getPublishedPosts: publicProcedure
+      .input(z.object({
+        categorySlug: z.string().optional(),
+        tagSlug: z.string().optional(),
+        limit: z.number().optional(),
+        offset: z.number().optional(),
+      }))
+      .query(async ({ input }) => {
+        return listPublishedBlogPosts(input);
+      }),
+
+    getPublishedPost: publicProcedure
+      .input(z.object({ slug: z.string() }))
+      .query(async ({ input }) => {
+        const post = await getBlogPostBySlug(input.slug);
+        if (!post || post.status !== "published") throw new TRPCError({ code: "NOT_FOUND" });
+        const tags = await getPostTags(post.id);
+        let categoryName: string | undefined;
+        if (post.categoryId) {
+          const cats = await listBlogCategories();
+          categoryName = cats.find(c => c.id === post.categoryId)?.name;
+        }
+        return { ...post, tags, categoryName };
+      }),
+
+    // --- AI Article Generation ---
+    generateArticle: protectedProcedure
+      .input(z.object({
+        topic: z.string().min(1),
+        targetKeyword: z.string().optional(),
+        tone: z.string().optional(),
+        language: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+
+        const lang = input.language || "bilingual (Indonesian primary, English secondary)";
+        const tone = input.tone || "professional, informative, and engaging";
+
+        const response = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert SEO content writer for SpecTa Education, an education consultancy helping Indonesian students study abroad. Write blog articles that are ${tone}. The content should be ${lang}. Always include practical information, tips, and a call-to-action to consult with SpecTa Education. Output must be valid JSON.`
+            },
+            {
+              role: "user",
+              content: `Write a comprehensive blog article about: "${input.topic}"
+${input.targetKeyword ? `Target SEO keyword: "${input.targetKeyword}"` : ""}
+
+Return JSON with this structure:
+{
+  "title": "SEO-optimized article title (include target keyword)",
+  "slug": "url-friendly-slug",
+  "excerpt": "2-3 sentence summary for preview cards",
+  "metaTitle": "SEO meta title (max 60 chars)",
+  "metaDescription": "SEO meta description (max 155 chars)",
+  "content": "Full article in HTML format with proper h2, h3, p, ul, ol tags. Include at least 1500 words. Use the target keyword naturally 3-5 times. Include a FAQ section at the end with 4-5 questions.",
+  "suggestedTags": ["tag1", "tag2", "tag3"]
+}`
+            }
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "blog_article",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  slug: { type: "string" },
+                  excerpt: { type: "string" },
+                  metaTitle: { type: "string" },
+                  metaDescription: { type: "string" },
+                  content: { type: "string" },
+                  suggestedTags: { type: "array", items: { type: "string" } }
+                },
+                required: ["title", "slug", "excerpt", "metaTitle", "metaDescription", "content", "suggestedTags"],
+                additionalProperties: false
+              }
+            }
+          }
+        });
+
+        const text = response.choices?.[0]?.message?.content as string | undefined;
+        if (!text) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI generation failed" });
+        return JSON.parse(text);
+      }),
+
+    // --- AI Article Refinement ---
+    refineArticle: protectedProcedure
+      .input(z.object({
+        currentContent: z.string(),
+        currentTitle: z.string(),
+        feedback: z.string().min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+
+        const response = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: "You are an expert SEO content editor for SpecTa Education. Refine the given article based on the feedback. Maintain SEO best practices. Output must be valid JSON."
+            },
+            {
+              role: "user",
+              content: `Current title: "${input.currentTitle}"
+Current content (HTML):
+${input.currentContent.substring(0, 8000)}
+
+Feedback: ${input.feedback}
+
+Return JSON with the refined article:
+{
+  "title": "Updated title if needed",
+  "content": "Full refined article in HTML format",
+  "metaTitle": "Updated SEO meta title",
+  "metaDescription": "Updated SEO meta description"
+}`
+            }
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "refined_article",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  content: { type: "string" },
+                  metaTitle: { type: "string" },
+                  metaDescription: { type: "string" }
+                },
+                required: ["title", "content", "metaTitle", "metaDescription"],
+                additionalProperties: false
+              }
+            }
+          }
+        });
+
+        const text = response.choices?.[0]?.message?.content as string | undefined;
+        if (!text) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI refinement failed" });
+        return JSON.parse(text);
       }),
   }),
 });

@@ -588,3 +588,70 @@ export const dripEmailLogs = mysqlTable("dripEmailLogs", {
 
 export type DripEmailLog = typeof dripEmailLogs.$inferSelect;
 export type InsertDripEmailLog = typeof dripEmailLogs.$inferInsert;
+
+
+// ==========================================
+// Blog System Tables
+// ==========================================
+
+/**
+ * Blog categories for organizing articles
+ */
+export const blogCategories = mysqlTable("blog_categories", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 255 }).notNull().unique(),
+  description: text("description"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type BlogCategory = typeof blogCategories.$inferSelect;
+export type InsertBlogCategory = typeof blogCategories.$inferInsert;
+
+/**
+ * Blog posts / articles
+ */
+export const blogPosts = mysqlTable("blog_posts", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 500 }).notNull(),
+  slug: varchar("slug", { length: 500 }).notNull().unique(),
+  excerpt: text("excerpt"),
+  content: text("content").notNull(),
+  featuredImage: text("featuredImage"),
+  metaTitle: varchar("metaTitle", { length: 500 }),
+  metaDescription: text("metaDescription"),
+  targetKeyword: varchar("targetKeyword", { length: 255 }),
+  categoryId: int("categoryId"),
+  authorId: int("authorId"),
+  status: mysqlEnum("status", ["draft", "published", "archived"]).default("draft").notNull(),
+  publishedAt: timestamp("publishedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type BlogPost = typeof blogPosts.$inferSelect;
+export type InsertBlogPost = typeof blogPosts.$inferInsert;
+
+/**
+ * Blog tags for flexible content labeling
+ */
+export const blogTags = mysqlTable("blog_tags", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 255 }).notNull().unique(),
+});
+
+export type BlogTag = typeof blogTags.$inferSelect;
+export type InsertBlogTag = typeof blogTags.$inferInsert;
+
+/**
+ * Many-to-many relationship between posts and tags
+ */
+export const blogPostTags = mysqlTable("blog_post_tags", {
+  id: int("id").autoincrement().primaryKey(),
+  postId: int("postId").notNull(),
+  tagId: int("tagId").notNull(),
+});
+
+export type BlogPostTag = typeof blogPostTags.$inferSelect;
+export type InsertBlogPostTag = typeof blogPostTags.$inferInsert;

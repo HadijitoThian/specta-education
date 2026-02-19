@@ -20,8 +20,9 @@ import AptitudeReportDownload from "@/components/AptitudeReportPDF";
 import UniversityManager from "@/components/UniversityManager";
 import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 import DripCampaignManager from "@/components/admin/DripCampaignManager";
+import BlogManager from "@/components/admin/BlogManager";
 
-type TabType = "analytics" | "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staff" | "accessLinks" | "universities" | "proOrders" | "campaigns";
+type TabType = "analytics" | "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staff" | "accessLinks" | "universities" | "proOrders" | "campaigns" | "blog";
 
 const APP_STATUS_OPTIONS = [
   "submitted", "reviewing", "processing", "on_hold", 
@@ -561,6 +562,9 @@ export default function AdminDashboard() {
               </Button>
               <Button variant={activeTab === 'campaigns' ? 'default' : 'outline'} onClick={() => setActiveTab('campaigns')} size="sm">
                 <Mail className="w-4 h-4 mr-2" /> Campaigns
+              </Button>
+              <Button variant={activeTab === 'blog' ? 'default' : 'outline'} onClick={() => setActiveTab('blog')} size="sm">
+                <FileText className="w-4 h-4 mr-2" /> Blog
               </Button>
             </>
           )}
@@ -2058,6 +2062,12 @@ export default function AdminDashboard() {
           {activeTab === 'campaigns' && user?.role === 'admin' && (
             <div className="p-4">
               <DripCampaignManager />
+            </div>
+          )}
+
+          {activeTab === 'blog' && user?.role === 'admin' && (
+            <div className="p-4">
+              <BlogManager />
             </div>
           )}
         </div>

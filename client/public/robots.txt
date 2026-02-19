@@ -12,5 +12,8 @@ Disallow: /api/
 # Disallow test/development pages
 Disallow: /showcase
 
+# Allow blog to be crawled
+Allow: /blog
+
 # Sitemap location
-Sitemap: https://spectaeducation.com/sitemap.xml
+Sitemap: https://www.spectaeducation.com/sitemap.xml
