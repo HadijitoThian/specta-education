@@ -936,3 +936,16 @@
 - [x] Visual ranking with fire indicators for top leads (score >= 30)
 - [x] Build tRPC endpoint for fetching hot leads across all campaigns
 - [x] Write vitest tests for hot leads and AI generation
+### 95. Professional Email Campaign Editor
+- [x] Install TipTap editor and @dnd-kit dependencies
+- [x] Build WYSIWYG rich text editor component (bold, italic, headings, lists, links, colors)
+- [x] Build drag-and-drop email blocks (Header, Text, Button/CTA, Image, Divider, Footer)
+- [x] Build live preview panel rendering email HTML in iframe
+- [x] Add desktop/mobile preview toggle (600px vs 375px)
+- [x] Add AI "Generate" button to create email content from prompt
+- [x] Add AI "Refine" button with feedback input to adjust existing content
+- [x] Auto-insert SpecTa Education logo and branding header in every email
+- [x] Generate email-safe HTML with inline styles and table-based layouts
+- [x] Integrate editor into DripCampaignManager step creation/editing flow
+- [x] Replace textarea with new editor in Add Step dialog
+- [x] Write vitest tests for AI refine endpoint

@@ -3692,6 +3692,71 @@ Return a JSON object with:
         }
       }),
 
+    // AI-refine existing email content based on feedback
+    refineEmailContent: protectedProcedure
+      .input(z.object({
+        currentHtml: z.string(),
+        currentSubject: z.string(),
+        feedback: z.string().min(3),
+        campaignName: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const systemPrompt = `You are an expert email marketing copywriter for SpecTa Education. You will refine an existing email based on the user's feedback. Keep the same overall structure but apply the requested changes.
+
+Rules:
+- Maintain SpecTa Education branding (red #E53E3E accent color)
+- Keep {{name}} and {{unsubscribe_url}} placeholders
+- Generate clean HTML with inline styles for email compatibility
+- Apply the user's feedback precisely
+- Keep the email professional and engaging`;
+
+        const userPrompt = `Current subject: ${input.currentSubject}
+
+Current email HTML:
+${input.currentHtml}
+
+${input.campaignName ? `Campaign: ${input.campaignName}` : ""}
+
+User's feedback: ${input.feedback}
+
+Return a JSON object with "subject" (updated subject line) and "htmlContent" (updated HTML email body).`;
+
+        const response = await invokeLLM({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "refined_email",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  subject: { type: "string", description: "Updated email subject line" },
+                  htmlContent: { type: "string", description: "Updated HTML email body" },
+                },
+                required: ["subject", "htmlContent"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+
+        const content = response.choices[0]?.message?.content;
+        if (!content || typeof content !== "string") {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI refinement failed" });
+        }
+
+        try {
+          const parsed = JSON.parse(content);
+          return { subject: parsed.subject, htmlContent: parsed.htmlContent };
+        } catch {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to parse AI response" });
+        }
+      }),
+
     // Get hot leads across all campaigns (sorted by engagement score)
     getHotLeads: protectedProcedure
       .input(z.object({ limit: z.number().min(1).max(100).default(20) }))

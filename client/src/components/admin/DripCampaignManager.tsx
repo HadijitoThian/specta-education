@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import EmailBlockEditor from "./EmailBlockEditor";
 
 type ViewMode = "list" | "detail" | "hotLeads" | "aiGenerate";
 
@@ -692,39 +693,11 @@ export default function DripCampaignManager() {
                 + Add Step
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-[95vw] w-[1200px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add Email Step</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                {/* AI Generate Section */}
-                <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
-                  <Label className="text-sm font-semibold text-purple-800">✨ Generate with AI</Label>
-                  <div className="flex gap-2 mt-2">
-                    <Input
-                      value={aiStepPrompt}
-                      onChange={(e) => setAiStepPrompt(e.target.value)}
-                      placeholder="e.g., Follow-up email about Pro Test benefits with a 20% discount"
-                      className="flex-1"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => generateEmailMutation.mutate({
-                        prompt: aiStepPrompt,
-                        campaignName: campaign?.name,
-                        stepNumber: newStep.stepOrder,
-                        totalSteps: steps.length + 1,
-                      })}
-                      disabled={aiStepPrompt.length < 5 || generateEmailMutation.isPending}
-                      className="border-purple-300 text-purple-700 hover:bg-purple-100"
-                    >
-                      {generateEmailMutation.isPending ? "Generating..." : "✨ Generate"}
-                    </Button>
-                  </div>
-                  <p className="text-xs text-purple-600 mt-1">AI will generate the subject line and HTML content for you</p>
-                </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Step Order</Label>
@@ -745,37 +718,15 @@ export default function DripCampaignManager() {
                     />
                   </div>
                 </div>
-                <div>
-                  <Label>Subject Line</Label>
-                  <Input
-                    value={newStep.subject}
-                    onChange={(e) => setNewStep({ ...newStep, subject: e.target.value })}
-                    placeholder='e.g., "{{name}}, sudah lihat hasil tes kamu?"'
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Use {"{{name}}"}, {"{{email}}"} for personalization</p>
-                </div>
-                <div>
-                  <Label>Email HTML Content</Label>
-                  <Textarea
-                    value={newStep.htmlContent}
-                    onChange={(e) => setNewStep({ ...newStep, htmlContent: e.target.value })}
-                    placeholder="Full HTML email body..."
-                    rows={10}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Variables: {"{{name}}"}, {"{{email}}"}, {"{{unsubscribe_url}}"}. Unsubscribe link is auto-added if using the template.
-                  </p>
-                </div>
-                {/* HTML Preview */}
-                {newStep.htmlContent && (
-                  <div>
-                    <Label className="text-sm text-gray-500">Preview</Label>
-                    <div
-                      className="mt-1 border rounded-lg p-4 bg-white text-sm max-h-48 overflow-y-auto"
-                      dangerouslySetInnerHTML={{ __html: newStep.htmlContent }}
-                    />
-                  </div>
-                )}
+                <EmailBlockEditor
+                  initialHtml={newStep.htmlContent}
+                  subject={newStep.subject}
+                  onSubjectChange={(subject) => setNewStep(prev => ({ ...prev, subject }))}
+                  onHtmlChange={(htmlContent) => setNewStep(prev => ({ ...prev, htmlContent }))}
+                  campaignName={campaign?.name}
+                  stepNumber={newStep.stepOrder}
+                  totalSteps={steps.length + 1}
+                />
               </div>
               <DialogFooter>
                 <DialogClose asChild>

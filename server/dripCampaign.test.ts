@@ -411,6 +411,28 @@ describe("Drip Campaign System", () => {
   });
 
   // ==========================================
+  // AI Refine Email Content
+  // ==========================================
+  describe("AI Refine Email Content", () => {
+    it("should refine existing email content based on feedback", { timeout: 60000 }, async () => {
+      const result = await adminCaller.dripCampaign.refineEmailContent({
+        currentHtml: "<p>Hi {{name}}, check out our Pro Test!</p>",
+        currentSubject: "Check out Pro Test",
+        feedback: "Make it more urgent and add a deadline",
+        campaignName: "Test Campaign",
+      });
+
+      expect(result).toBeDefined();
+      expect(result.subject).toBeDefined();
+      expect(typeof result.subject).toBe("string");
+      expect(result.subject.length).toBeGreaterThan(0);
+      expect(result.htmlContent).toBeDefined();
+      expect(typeof result.htmlContent).toBe("string");
+      expect(result.htmlContent.length).toBeGreaterThan(0);
+    });
+  });
+
+  // ==========================================
   // Cleanup
   // ==========================================
   describe("Cleanup", () => {
