@@ -998,3 +998,14 @@
 - [x] Fixed getDueEnrollments() using JS new Date() instead of DB NOW() causing timezone mismatch
 - [x] Changed query to use database NOW() for consistent timezone comparison
 - [x] Manually triggered first batch of drip emails: 39 emails sent successfully, 0 errors
+
+### 102. Pro Upsell CTA in Free Aptitude Test Results Email
+-- [x] Add Pro upsell CTA to to the free aptitude test results email template
+- [x] Include Free vs Pro comparison, pricing, and CTA button linking to /test/pro
+- [x] Apply 24-hour discount timer messaging in email
+
+### 103. Mandatory Phone Number in Free Aptitude Test + Admin Visibility
+- [x] Verify phone number field is mandatory in free aptitude test registration
+- [x] Ensure phone number is saved to leads/aptitude results table
+- [x] Ensure phone number is visible in admin dashboard leads and aptitude results
+- [x] Ensure phone number is included in the results email sent to admin/owner

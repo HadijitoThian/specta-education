@@ -2351,7 +2351,7 @@ IMPORTANT:
         // 7. Notify owner about new lead
         notifyOwner({
           title: "New Aptitude Test Completed",
-          content: `${input.studentName} (${input.studentEmail}) completed the aptitude test. Holland Code: ${hollandCode}. Top majors: ${(aiAnalysis.recommendedMajors || []).map((m: any) => m.name).join(", ")}.`,
+          content: `${input.studentName} (${input.studentEmail}) completed the aptitude test.\nPhone: ${input.studentPhone}\nHolland Code: ${hollandCode}\nTop majors: ${(aiAnalysis.recommendedMajors || []).map((m: any) => m.name).join(", ")}.`,
         }).catch(() => {});
 
         // Auto-enroll in drip campaign (aptitude test upsell)
@@ -2685,7 +2685,7 @@ IMPORTANT:
           console.error("[AptitudePro] PDF generation failed (email will be sent without attachment):", pdfErr);
         }
 
-        // Send premium results email with PDF attachment
+        // Send premium results email with PDF attachment (isPro = true, no upsell)
         sendAptitudeResultsEmail({
           to: input.studentEmail,
           studentName: input.studentName,
@@ -2695,6 +2695,7 @@ IMPORTANT:
           miScores: input.miScores,
           aiAnalysis,
           pdfBuffer,
+          isPro: true,
         }).catch((err: Error) => console.error("[AptitudePro] Failed to send results email:", err));
 
         return {

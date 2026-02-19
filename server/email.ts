@@ -417,6 +417,7 @@ export async function sendAptitudeResultsEmail({
   miScores,
   aiAnalysis,
   pdfBuffer,
+  isPro = false,
 }: {
   to: string;
   studentName: string;
@@ -426,6 +427,7 @@ export async function sendAptitudeResultsEmail({
   miScores: Record<string, number>;
   aiAnalysis: any;
   pdfBuffer?: Buffer;
+  isPro?: boolean;
 }): Promise<boolean> {
   const isId = language === "id";
 
@@ -579,6 +581,60 @@ export async function sendAptitudeResultsEmail({
       <p style="color: #78350f; font-size: 12px; margin: 0 0 8px;">${isId ? "Bagikan bagian ini kepada orang tua Anda" : "Share this section with your parents"}</p>
       <p style="color: #92400e; font-size: 14px; line-height: 1.6;">${aiAnalysis.parentSummary}</p>
     </div>` : ""}
+
+    <!-- PRO UPSELL (only for free test) -->
+    ${!isPro ? `
+    <div style="background: linear-gradient(135deg, #4f46e5, #7c3aed); border-radius: 16px; overflow: hidden; margin-bottom: 24px;">
+      <!-- Discount Banner -->
+      <div style="background: linear-gradient(90deg, #ef4444, #f97316, #ef4444); padding: 12px 16px; text-align: center;">
+        <span style="color: white; font-size: 14px; font-weight: bold;">⚡ ${isId ? "PROMO TERBATAS — Hemat Rp 20.000!" : "LIMITED OFFER — Save Rp 20,000!"} ⚡</span>
+      </div>
+      
+      <!-- Header -->
+      <div style="padding: 24px 24px 16px; text-align: center; color: white;">
+        <div style="display: inline-block; background: rgba(255,255,255,0.2); border-radius: 20px; padding: 6px 16px; margin-bottom: 12px;">
+          <span style="font-size: 13px; font-weight: 600;">👑 ${isId ? "Upgrade ke Pro" : "Upgrade to Pro"}</span>
+        </div>
+        <h3 style="margin: 0 0 8px; font-size: 22px; color: white;">${isId ? "Mau Tahu Lebih Dalam?" : "Want to Go Deeper?"}</h3>
+        <p style="margin: 0; color: rgba(255,255,255,0.8); font-size: 13px; line-height: 1.5;">${isId ? "Tes Bakat AI Pro menganalisis 7 dimensi kepribadian kamu secara mendalam — dari minat, kecerdasan, hingga kreativitas dan pengambilan keputusan." : "AI Aptitude Test Pro analyzes 7 dimensions of your personality in depth — from interests, intelligence, to creativity and decision-making."}</p>
+      </div>
+      
+      <!-- Comparison -->
+      <div style="padding: 0 24px 16px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+          <tr>
+            <td width="48%" valign="top" style="padding-right: 8px;">
+              <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 16px;">
+                <div style="color: rgba(255,255,255,0.6); font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 10px;">${isId ? "Versi Gratis" : "Free Version"}</div>
+                <div style="color: rgba(255,255,255,0.7); font-size: 12px; line-height: 1.8;">✓ ${isId ? "3 bagian tes" : "3 test sections"}<br/>✓ ${isId ? "RIASEC dasar" : "Basic RIASEC"}<br/>✓ ${isId ? "MI dasar" : "Basic MI"}<br/>✓ ${isId ? "Analisis AI singkat" : "Brief AI analysis"}<br/>✓ ${isId ? "Rekomendasi jurusan" : "Major recommendations"}</div>
+              </div>
+            </td>
+            <td width="48%" valign="top" style="padding-left: 8px;">
+              <div style="background: rgba(255,255,255,0.2); border-radius: 12px; padding: 16px; border: 1px solid rgba(255,255,255,0.2);">
+                <div style="color: #fbbf24; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 10px;">👑 ${isId ? "Versi Pro" : "Pro Version"}</div>
+                <div style="color: white; font-size: 12px; line-height: 1.8;">✓ ${isId ? "7 bagian tes mendalam" : "7 in-depth sections"}<br/>✓ ${isId ? "RIASEC Pro + Personality" : "RIASEC Pro + Personality"}<br/>✓ ${isId ? "Situational Judgment" : "Situational Judgment"}<br/>✓ ${isId ? "Creative Assessment" : "Creative Assessment"}<br/>✓ ${isId ? "Laporan PDF 10+ halaman" : "10+ page PDF report"}<br/>✓ ${isId ? "Analisis AI mendalam" : "Deep AI analysis"}<br/>✓ ${isId ? "Rekomendasi karir & gaji" : "Career & salary recs"}</div>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+      
+      <!-- Price & CTA -->
+      <div style="background: rgba(255,255,255,0.1); padding: 24px; text-align: center;">
+        <div style="margin-bottom: 16px;">
+          <span style="color: rgba(255,255,255,0.5); font-size: 14px; text-decoration: line-through;">Rp 149.000</span>
+          <span style="color: rgba(255,255,255,0.6); font-size: 14px; text-decoration: line-through; margin: 0 8px;">Rp 79.000</span>
+          <br/>
+          <span style="color: #fbbf24; font-size: 32px; font-weight: bold;">Rp 59.000</span>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <span style="display: inline-block; background: #ef4444; color: white; font-size: 12px; font-weight: bold; padding: 4px 14px; border-radius: 20px;">${isId ? "HEMAT Rp 20.000!" : "SAVE Rp 20,000!"}</span>
+        </div>
+        <a href="https://spectaeducation.com/test/pro" style="display: inline-block; background: linear-gradient(90deg, #fbbf24, #f59e0b); color: #1e1b4b; text-decoration: none; padding: 14px 36px; border-radius: 12px; font-weight: 700; font-size: 16px;">🚀 ${isId ? "Upgrade ke Pro Sekarang" : "Upgrade to Pro Now"}</a>
+        <p style="color: rgba(255,255,255,0.6); font-size: 11px; margin-top: 12px;">${isId ? "Pembayaran aman via Xendit • Hasil langsung ke email" : "Secure payment via Xendit • Results sent to your email"}</p>
+      </div>
+    </div>
+    ` : ""}
 
     <!-- CTA -->
     <div style="background: linear-gradient(135deg, #ef4444, #f43f5e); border-radius: 16px; padding: 24px; text-align: center; color: white; margin-bottom: 16px;">
