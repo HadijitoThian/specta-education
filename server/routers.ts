@@ -141,7 +141,9 @@ import {
   getDripEmailLogsByEnrollmentId,
   getDripCampaignAnalytics,
   getDripCampaignsWithStats,
-  createDripEnrollment
+  createDripEnrollment,
+  getHotLeads,
+  getCampaignPerformanceMetrics
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail } from "./email";
@@ -3546,6 +3548,155 @@ IMPORTANT:
       .mutation(async () => {
         const result = await processDripEmails();
         return result;
+      }),
+
+    // AI-generate email step content from a prompt
+    generateEmailContent: protectedProcedure
+      .input(z.object({
+        prompt: z.string().min(5),
+        campaignName: z.string().optional(),
+        stepNumber: z.number().optional(),
+        totalSteps: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const systemPrompt = `You are an expert email marketing copywriter for SpecTa Education, an Indonesian study abroad consultancy. Generate professional, engaging email content in Bahasa Indonesia (with some English terms where natural for education context).
+
+Rules:
+- Write warm, friendly, professional emails
+- Include a clear call-to-action
+- Use {{name}} for the recipient's name
+- Include {{unsubscribe_url}} at the bottom
+- Generate clean HTML with inline styles for email compatibility
+- Use SpecTa Education branding (red #E53E3E accent color)
+- Keep emails concise but compelling (150-300 words)
+- Do NOT use external images or links that don't exist`;
+
+        const userPrompt = `Generate an email for the following:
+${input.campaignName ? `Campaign: ${input.campaignName}` : ""}
+${input.stepNumber ? `This is email #${input.stepNumber}${input.totalSteps ? ` of ${input.totalSteps}` : ""}` : ""}
+
+User's request: ${input.prompt}
+
+Return a JSON object with "subject" (email subject line) and "htmlContent" (full HTML email body with inline styles).`;
+
+        const response = await invokeLLM({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "email_content",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  subject: { type: "string", description: "Email subject line" },
+                  htmlContent: { type: "string", description: "Full HTML email body with inline styles" },
+                },
+                required: ["subject", "htmlContent"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+
+        const content = response.choices[0]?.message?.content;
+        if (!content || typeof content !== "string") {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI generation failed" });
+        }
+
+        try {
+          const parsed = JSON.parse(content);
+          return { subject: parsed.subject, htmlContent: parsed.htmlContent };
+        } catch {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to parse AI response" });
+        }
+      }),
+
+    // Generate a full campaign (multiple steps) from a single prompt
+    generateFullCampaign: protectedProcedure
+      .input(z.object({
+        prompt: z.string().min(5),
+        numberOfEmails: z.number().min(1).max(10).default(5),
+      }))
+      .mutation(async ({ input }) => {
+        const systemPrompt = `You are an expert email marketing strategist for SpecTa Education, an Indonesian study abroad consultancy. Generate a complete email drip campaign in Bahasa Indonesia (with some English terms where natural).
+
+Rules:
+- Create a cohesive campaign with a clear progression
+- Each email should build on the previous one
+- Use {{name}} for recipient's name, {{unsubscribe_url}} for unsubscribe link
+- Generate clean HTML with inline styles for email compatibility
+- Use SpecTa Education branding (red #E53E3E accent color)
+- Keep each email concise (150-300 words)
+- Include clear CTAs that progress from soft (learn more) to hard (book now, buy now)
+- Suggest appropriate delay days between emails (typically 2-4 days)`;
+
+        const userPrompt = `Generate a complete ${input.numberOfEmails}-email drip campaign for:
+
+${input.prompt}
+
+Return a JSON object with:
+- "campaignName": suggested campaign name
+- "description": campaign description
+- "steps": array of email steps, each with "subject", "htmlContent", "delayDays" (number), and "stepOrder" (number starting from 1)`;
+
+        const response = await invokeLLM({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "full_campaign",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  campaignName: { type: "string" },
+                  description: { type: "string" },
+                  steps: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        subject: { type: "string" },
+                        htmlContent: { type: "string" },
+                        delayDays: { type: "number" },
+                        stepOrder: { type: "number" },
+                      },
+                      required: ["subject", "htmlContent", "delayDays", "stepOrder"],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ["campaignName", "description", "steps"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+
+        const content = response.choices[0]?.message?.content;
+        if (!content || typeof content !== "string") {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI generation failed" });
+        }
+
+        try {
+          return JSON.parse(content);
+        } catch {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to parse AI response" });
+        }
+      }),
+
+    // Get hot leads across all campaigns (sorted by engagement score)
+    getHotLeads: protectedProcedure
+      .input(z.object({ limit: z.number().min(1).max(100).default(20) }))
+      .query(async ({ input }) => {
+        return getHotLeads(input.limit);
       }),
 
     // Bulk enroll all leads into a campaign

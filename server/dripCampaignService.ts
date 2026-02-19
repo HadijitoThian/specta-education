@@ -12,6 +12,7 @@ import {
   getAllScholarshipLeads,
   getAllQuizResults,
   getAllAptitudeResults,
+  getCampaignPerformanceMetrics,
 } from "./db";
 import { sendEmail } from "./email";
 import { notifyOwner } from "./_core/notification";
@@ -356,6 +357,65 @@ export async function bulkEnrollAllLeads(campaignId: number): Promise<{ enrolled
   }
 
   return { enrolled, skipped, total: enrolled + skipped };
+}
+
+/**
+ * Check campaign performance and send smart alerts to owner.
+ * Called after processing drip emails or on a schedule.
+ * Alerts on: low open rates (<15%), high unsubscribe rates (>10%), low click rates (<3%)
+ */
+export async function checkCampaignPerformanceAlerts(): Promise<void> {
+  try {
+    const metrics = await getCampaignPerformanceMetrics();
+    if (metrics.length === 0) return;
+
+    const alerts: string[] = [];
+
+    for (const campaign of metrics) {
+      const issues: string[] = [];
+
+      // Low open rate alert (< 15%)
+      if (campaign.openRate < 15 && campaign.totalSent >= 20) {
+        issues.push(`⚠️ Low open rate: ${campaign.openRate}% (industry avg: 20-25%). Tip: Try more compelling subject lines, use personalization ({{name}}), or test sending at different times.`);
+      }
+
+      // High unsubscribe rate alert (> 10%)
+      if (campaign.unsubscribeRate > 10 && campaign.totalEnrolled >= 10) {
+        issues.push(`🚨 High unsubscribe rate: ${campaign.unsubscribeRate}%. Tip: Review email frequency (consider longer delays between emails), ensure content is relevant, or add more value before CTAs.`);
+      }
+
+      // Low click rate alert (< 3%)
+      if (campaign.clickRate < 3 && campaign.totalSent >= 20) {
+        issues.push(`📉 Low click rate: ${campaign.clickRate}%. Tip: Make CTAs more prominent, use action-oriented button text, and ensure links are relevant to the email content.`);
+      }
+
+      // Good performance recognition
+      if (campaign.openRate >= 30 && campaign.clickRate >= 8 && campaign.totalSent >= 20) {
+        issues.push(`🌟 Excellent performance! Open rate: ${campaign.openRate}%, Click rate: ${campaign.clickRate}%. This campaign is performing above industry averages.`);
+      }
+
+      if (issues.length > 0) {
+        alerts.push(`📊 Campaign: "${campaign.campaignName}"\n   Sent: ${campaign.totalSent} | Opens: ${campaign.openRate}% | Clicks: ${campaign.clickRate}% | Unsubs: ${campaign.unsubscribeRate}%\n   ${issues.join("\n   ")}`);
+      }
+    }
+
+    if (alerts.length > 0) {
+      await notifyOwner({
+        title: `📊 Campaign Performance Alert`,
+        content: [
+          `Campaign Performance Report`,
+          ``,
+          ...alerts,
+          ``,
+          `Time: ${new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" })}`,
+          `View detailed analytics in Admin Dashboard → Campaigns tab.`,
+        ].join("\n"),
+      });
+      console.log(`[DripCampaign] Sent performance alerts for ${alerts.length} campaigns`);
+    }
+  } catch (err) {
+    console.error("[DripCampaign] Error checking performance alerts:", err);
+  }
 }
 
 /**

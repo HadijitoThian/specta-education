@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
-type ViewMode = "list" | "detail";
+type ViewMode = "list" | "detail" | "hotLeads" | "aiGenerate";
 
 const TRIGGER_LABELS: Record<string, string> = {
   aptitude_test: "Aptitude Test (SpecTa Play)",
@@ -23,7 +23,6 @@ const TRIGGER_LABELS: Record<string, string> = {
 };
 
 export default function DripCampaignManager() {
-
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -52,6 +51,16 @@ export default function DripCampaignManager() {
     contactPhone: "",
   });
 
+  // AI generation state
+  const [aiStepPrompt, setAiStepPrompt] = useState("");
+  const [aiFullPrompt, setAiFullPrompt] = useState("");
+  const [aiFullEmailCount, setAiFullEmailCount] = useState(5);
+  const [generatedCampaign, setGeneratedCampaign] = useState<{
+    campaignName: string;
+    description: string;
+    steps: { subject: string; htmlContent: string; delayDays: number; stepOrder: number }[];
+  } | null>(null);
+
   // Queries
   const campaignsQuery = trpc.dripCampaign.listCampaigns.useQuery();
   const stepsQuery = trpc.dripCampaign.listSteps.useQuery(
@@ -69,6 +78,10 @@ export default function DripCampaignManager() {
   const campaignQuery = trpc.dripCampaign.getCampaign.useQuery(
     { id: selectedCampaignId! },
     { enabled: !!selectedCampaignId }
+  );
+  const hotLeadsQuery = trpc.dripCampaign.getHotLeads.useQuery(
+    { limit: 50 },
+    { enabled: viewMode === "hotLeads" }
   );
 
   // Mutations
@@ -163,6 +176,279 @@ export default function DripCampaignManager() {
     },
   });
 
+  const generateEmailMutation = trpc.dripCampaign.generateEmailContent.useMutation({
+    onSuccess: (result) => {
+      setNewStep(prev => ({ ...prev, subject: result.subject, htmlContent: result.htmlContent }));
+      toast.success("AI generated email content! Review and edit as needed.");
+    },
+    onError: (err) => {
+      toast.error(`AI generation failed: ${err.message}`);
+    },
+  });
+
+  const generateFullCampaignMutation = trpc.dripCampaign.generateFullCampaign.useMutation({
+    onSuccess: (result) => {
+      setGeneratedCampaign(result);
+      toast.success("AI generated full campaign! Review the emails below.");
+    },
+    onError: (err) => {
+      toast.error(`AI generation failed: ${err.message}`);
+    },
+  });
+
+  // ==========================================
+  // HOT LEADS VIEW
+  // ==========================================
+  if (viewMode === "hotLeads") {
+    const hotLeads = hotLeadsQuery.data || [];
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => setViewMode("list")}>
+              ← Back
+            </Button>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">🔥 Hot Leads</h2>
+              <p className="text-gray-500 text-sm mt-1">Leads ranked by email engagement score (opens +5, clicks +10)</p>
+            </div>
+          </div>
+        </div>
+
+        {hotLeadsQuery.isLoading ? (
+          <div className="text-center py-12 text-gray-500">Analyzing lead engagement...</div>
+        ) : hotLeads.length === 0 ? (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <p className="text-gray-500 text-lg mb-2">No engaged leads yet</p>
+              <p className="text-gray-400 text-sm">Once leads start opening and clicking your campaign emails, they'll appear here ranked by engagement.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="px-4 py-3 text-left font-medium text-gray-500">Rank</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-500">Score</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-500">Name</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-500">Email</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-500">Phone</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-500">Campaign</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-500">Opens</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-500">Clicks</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-500">Emails Sent</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-500">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hotLeads.map((lead, index) => (
+                      <tr key={lead.enrollmentId} className="border-b last:border-0 hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${
+                            index === 0 ? "bg-yellow-100 text-yellow-700" :
+                            index === 1 ? "bg-gray-100 text-gray-700" :
+                            index === 2 ? "bg-orange-100 text-orange-700" :
+                            "bg-gray-50 text-gray-500"
+                          }`}>
+                            {index + 1}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1 font-bold text-lg ${
+                            lead.engagementScore >= 30 ? "text-green-600" :
+                            lead.engagementScore >= 15 ? "text-blue-600" :
+                            "text-gray-600"
+                          }`}>
+                            {lead.engagementScore}
+                            {lead.engagementScore >= 30 && <span className="text-xs">🔥</span>}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-medium">{lead.contactName}</td>
+                        <td className="px-4 py-3 text-gray-600">{lead.contactEmail}</td>
+                        <td className="px-4 py-3 text-gray-600">{lead.contactPhone || "—"}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant="outline" className="text-xs">{lead.campaignName}</Badge>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="text-teal-600 font-medium">{lead.totalOpens}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="text-orange-600 font-medium">{lead.totalClicks}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center text-gray-500">{lead.totalEmailsSent}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant={
+                            lead.status === "active" ? "default" :
+                            lead.status === "completed" ? "secondary" :
+                            lead.status === "unsubscribed" ? "destructive" : "outline"
+                          } className="text-xs">
+                            {lead.status}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  }
+
+  // ==========================================
+  // AI FULL CAMPAIGN GENERATOR VIEW
+  // ==========================================
+  if (viewMode === "aiGenerate") {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => { setViewMode("list"); setGeneratedCampaign(null); setAiFullPrompt(""); }}>
+              ← Back
+            </Button>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">✨ AI Campaign Generator</h2>
+              <p className="text-gray-500 text-sm mt-1">Describe your campaign goal and AI will create the full email sequence</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Prompt Input */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <div>
+                <Label className="text-base font-semibold">Describe your campaign</Label>
+                <Textarea
+                  value={aiFullPrompt}
+                  onChange={(e) => setAiFullPrompt(e.target.value)}
+                  placeholder="e.g., Create a follow-up campaign for students who took the free aptitude test. Encourage them to upgrade to the Pro version with testimonials and a special discount on the last email. Tone should be friendly and supportive."
+                  rows={4}
+                  className="mt-2"
+                />
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="w-48">
+                  <Label>Number of emails</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={aiFullEmailCount}
+                    onChange={(e) => setAiFullEmailCount(parseInt(e.target.value) || 5)}
+                  />
+                </div>
+                <div className="flex-1 pt-5">
+                  <Button
+                    onClick={() => generateFullCampaignMutation.mutate({ prompt: aiFullPrompt, numberOfEmails: aiFullEmailCount })}
+                    disabled={aiFullPrompt.length < 5 || generateFullCampaignMutation.isPending}
+                    className="w-full"
+                  >
+                    {generateFullCampaignMutation.isPending ? (
+                      <span className="flex items-center gap-2">
+                        <span className="animate-spin">⚙️</span> Generating campaign...
+                      </span>
+                    ) : "✨ Generate Campaign with AI"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Generated Campaign Preview */}
+        {generatedCampaign && (
+          <div className="space-y-4">
+            <Card className="border-green-200 bg-green-50">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-green-800">{generatedCampaign.campaignName}</h3>
+                    <p className="text-green-700 text-sm">{generatedCampaign.description}</p>
+                    <p className="text-green-600 text-xs mt-1">{generatedCampaign.steps.length} emails generated</p>
+                  </div>
+                  <Button
+                    onClick={async () => {
+                      try {
+                        // Create the campaign
+                        await createCampaignMutation.mutateAsync({
+                          name: generatedCampaign.campaignName,
+                          description: generatedCampaign.description,
+                          triggerSource: "manual",
+                        });
+                        // Get the newly created campaign
+                        const campaigns = await utils.dripCampaign.listCampaigns.fetch();
+                        const newCamp = campaigns?.[0];
+                        if (newCamp) {
+                          // Create all steps
+                          for (const step of generatedCampaign.steps) {
+                            await createStepMutation.mutateAsync({
+                              campaignId: newCamp.id,
+                              subject: step.subject,
+                              htmlContent: step.htmlContent,
+                              delayDays: step.delayDays,
+                              stepOrder: step.stepOrder,
+                            });
+                          }
+                          toast.success("Campaign created with all email steps!");
+                          setGeneratedCampaign(null);
+                          setAiFullPrompt("");
+                          setSelectedCampaignId(newCamp.id);
+                          setViewMode("detail");
+                        }
+                      } catch (err: any) {
+                        toast.error(`Failed to create campaign: ${err.message}`);
+                      }
+                    }}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    ✅ Create This Campaign
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Email Preview Cards */}
+            {generatedCampaign.steps.map((step, index) => (
+              <Card key={index}>
+                <CardContent className="p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
+                        {step.stepOrder}
+                      </div>
+                      {index < generatedCampaign.steps.length - 1 && <div className="w-0.5 h-8 bg-blue-200 mt-1" />}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-medium">{step.subject}</h4>
+                        <Badge variant="outline" className="text-xs">
+                          Day {step.delayDays}
+                        </Badge>
+                      </div>
+                      <details className="mt-2">
+                        <summary className="text-xs text-blue-600 cursor-pointer hover:underline">Preview HTML content</summary>
+                        <div
+                          className="mt-2 border rounded-lg p-4 bg-white text-sm max-h-64 overflow-y-auto"
+                          dangerouslySetInnerHTML={{ __html: step.htmlContent }}
+                        />
+                      </details>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // ==========================================
   // LIST VIEW
   // ==========================================
@@ -179,10 +465,24 @@ export default function DripCampaignManager() {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setViewMode("hotLeads")}
+            >
+              🔥 Hot Leads
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => triggerProcessingMutation.mutate()}
               disabled={triggerProcessingMutation.isPending}
             >
               {triggerProcessingMutation.isPending ? "Processing..." : "⚡ Process Now"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setViewMode("aiGenerate"); setGeneratedCampaign(null); setAiFullPrompt(""); }}
+            >
+              ✨ AI Generate
             </Button>
             <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
               <DialogTrigger asChild>
@@ -266,40 +566,35 @@ export default function DripCampaignManager() {
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-semibold text-lg">{campaign.name}</h3>
                         <Badge variant={campaign.isActive ? "default" : "secondary"}>
                           {campaign.isActive ? "Active" : "Paused"}
                         </Badge>
-                        <Badge variant="outline">{TRIGGER_LABELS[campaign.triggerSource] || campaign.triggerSource}</Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {TRIGGER_LABELS[campaign.triggerSource] || campaign.triggerSource}
+                        </Badge>
                       </div>
-                      {campaign.description && (
-                        <p className="text-gray-500 text-sm mb-3">{campaign.description}</p>
-                      )}
-                      <div className="flex gap-6 text-sm">
-                        <div>
-                          <span className="text-gray-500">Steps:</span>{" "}
-                          <span className="font-medium">{campaign.stepCount}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Enrolled:</span>{" "}
-                          <span className="font-medium">{campaign.totalEnrolled}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Active:</span>{" "}
-                          <span className="font-medium text-green-600">{campaign.activeEnrolled}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Emails Sent:</span>{" "}
-                          <span className="font-medium">{campaign.totalSent}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Open Rate:</span>{" "}
-                          <span className="font-medium">{campaign.openRate}%</span>
-                        </div>
+                      <p className="text-gray-500 text-sm">{campaign.description}</p>
+                    </div>
+                    <div className="flex gap-4 text-center">
+                      <div>
+                        <p className="text-xl font-bold text-blue-600">{campaign.stepCount || 0}</p>
+                        <p className="text-xs text-gray-500">Steps</p>
+                      </div>
+                      <div>
+                        <p className="text-xl font-bold text-green-600">{campaign.totalEnrolled || 0}</p>
+                        <p className="text-xs text-gray-500">Enrolled</p>
+                      </div>
+                      <div>
+                        <p className="text-xl font-bold text-indigo-600">{campaign.totalSent || 0}</p>
+                        <p className="text-xs text-gray-500">Sent</p>
+                      </div>
+                      <div>
+                        <p className="text-xl font-bold text-teal-600">{campaign.openRate || 0}%</p>
+                        <p className="text-xs text-gray-500">Open Rate</p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm">View →</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -397,11 +692,39 @@ export default function DripCampaignManager() {
                 + Add Step
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add Email Step</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
+                {/* AI Generate Section */}
+                <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
+                  <Label className="text-sm font-semibold text-purple-800">✨ Generate with AI</Label>
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      value={aiStepPrompt}
+                      onChange={(e) => setAiStepPrompt(e.target.value)}
+                      placeholder="e.g., Follow-up email about Pro Test benefits with a 20% discount"
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => generateEmailMutation.mutate({
+                        prompt: aiStepPrompt,
+                        campaignName: campaign?.name,
+                        stepNumber: newStep.stepOrder,
+                        totalSteps: steps.length + 1,
+                      })}
+                      disabled={aiStepPrompt.length < 5 || generateEmailMutation.isPending}
+                      className="border-purple-300 text-purple-700 hover:bg-purple-100"
+                    >
+                      {generateEmailMutation.isPending ? "Generating..." : "✨ Generate"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-purple-600 mt-1">AI will generate the subject line and HTML content for you</p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Step Order</Label>
@@ -443,6 +766,16 @@ export default function DripCampaignManager() {
                     Variables: {"{{name}}"}, {"{{email}}"}, {"{{unsubscribe_url}}"}. Unsubscribe link is auto-added if using the template.
                   </p>
                 </div>
+                {/* HTML Preview */}
+                {newStep.htmlContent && (
+                  <div>
+                    <Label className="text-sm text-gray-500">Preview</Label>
+                    <div
+                      className="mt-1 border rounded-lg p-4 bg-white text-sm max-h-48 overflow-y-auto"
+                      dangerouslySetInnerHTML={{ __html: newStep.htmlContent }}
+                    />
+                  </div>
+                )}
               </div>
               <DialogFooter>
                 <DialogClose asChild>
@@ -539,58 +872,58 @@ export default function DripCampaignManager() {
               <DialogTrigger asChild>
                 <Button size="sm" variant="outline">+ Enroll Manually</Button>
               </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Enroll Contact</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>Name *</Label>
-                  <Input
-                    value={enrollForm.contactName}
-                    onChange={(e) => setEnrollForm({ ...enrollForm, contactName: e.target.value })}
-                    placeholder="Student name"
-                  />
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Enroll Contact</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label>Name *</Label>
+                    <Input
+                      value={enrollForm.contactName}
+                      onChange={(e) => setEnrollForm({ ...enrollForm, contactName: e.target.value })}
+                      placeholder="Student name"
+                    />
+                  </div>
+                  <div>
+                    <Label>Email *</Label>
+                    <Input
+                      type="email"
+                      value={enrollForm.contactEmail}
+                      onChange={(e) => setEnrollForm({ ...enrollForm, contactEmail: e.target.value })}
+                      placeholder="student@email.com"
+                    />
+                  </div>
+                  <div>
+                    <Label>Phone</Label>
+                    <Input
+                      value={enrollForm.contactPhone}
+                      onChange={(e) => setEnrollForm({ ...enrollForm, contactPhone: e.target.value })}
+                      placeholder="+62..."
+                    />
+                  </div>
                 </div>
-                <div>
-                  <Label>Email *</Label>
-                  <Input
-                    type="email"
-                    value={enrollForm.contactEmail}
-                    onChange={(e) => setEnrollForm({ ...enrollForm, contactEmail: e.target.value })}
-                    placeholder="student@email.com"
-                  />
-                </div>
-                <div>
-                  <Label>Phone</Label>
-                  <Input
-                    value={enrollForm.contactPhone}
-                    onChange={(e) => setEnrollForm({ ...enrollForm, contactPhone: e.target.value })}
-                    placeholder="+62..."
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="outline">Cancel</Button>
-                </DialogClose>
-                <Button
-                  onClick={() => {
-                    if (!selectedCampaignId) return;
-                    enrollContactMutation.mutate({
-                      campaignId: selectedCampaignId,
-                      contactName: enrollForm.contactName,
-                      contactEmail: enrollForm.contactEmail,
-                      contactPhone: enrollForm.contactPhone || undefined,
-                    });
-                  }}
-                  disabled={!enrollForm.contactName || !enrollForm.contactEmail || enrollContactMutation.isPending}
-                >
-                  {enrollContactMutation.isPending ? "Enrolling..." : "Enroll"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline">Cancel</Button>
+                  </DialogClose>
+                  <Button
+                    onClick={() => {
+                      if (!selectedCampaignId) return;
+                      enrollContactMutation.mutate({
+                        campaignId: selectedCampaignId,
+                        contactName: enrollForm.contactName,
+                        contactEmail: enrollForm.contactEmail,
+                        contactPhone: enrollForm.contactPhone || undefined,
+                      });
+                    }}
+                    disabled={!enrollForm.contactName || !enrollForm.contactEmail || enrollContactMutation.isPending}
+                  >
+                    {enrollContactMutation.isPending ? "Enrolling..." : "Enroll"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardHeader>
         <CardContent>

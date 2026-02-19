@@ -915,3 +915,24 @@
 - [x] Skip duplicate enrollments during bulk enroll
 - [x] Update admin UI with bulk enroll button and confirmation dialog
 - [x] Write tests for new features
+### 92. AI Campaign Content Generator
+- [x] Add "Generate with AI" button in email step creation dialog
+- [x] Build tRPC endpoint that calls invokeLLM to generate email subject + HTML content from a prompt
+- [x] Return structured JSON (subject, htmlContent) from LLM
+- [x] Pre-fill the step form with AI-generated content for user review/edit
+- [x] Add loading state during AI generation
+- [x] Add full campaign AI generator (prompt → complete multi-email sequence)
+- [x] Preview generated campaign with all email steps before creating
+- [x] Write vitest test for AI generation endpoint
+### 93. Campaign Performance Alerts
+- [x] Add smart alert logic in the drip email processor (low open rate, high unsubscribe rate)
+- [x] Notify owner with optimization suggestions when campaign metrics are poor
+- [x] Add daily campaign performance check with alerts
+- [x] Alert when open rate < 10%, unsubscribe rate > 5%, or no emails sent in 7 days
+### 94. Lead Scoring Based on Email Engagement
+- [x] Build engagement scoring system: +5 per open, +10 per click
+- [x] Build "Hot Leads" view in admin dashboard showing top-scored leads
+- [x] Hot leads table with rank, score, name, email, phone, campaign, opens, clicks, status
+- [x] Visual ranking with fire indicators for top leads (score >= 30)
+- [x] Build tRPC endpoint for fetching hot leads across all campaigns
+- [x] Write vitest tests for hot leads and AI generation

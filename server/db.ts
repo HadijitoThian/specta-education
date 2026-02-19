@@ -1588,3 +1588,96 @@ export async function getDripCampaignsWithStats() {
   }
   return result;
 }
+
+
+// ── Lead Scoring & Hot Leads ──────────────────────────────────────────────────
+
+/**
+ * Get hot leads across all campaigns, scored by email engagement.
+ * Scoring: +5 per open, +10 per click, -20 per unsubscribe
+ */
+export async function getHotLeads(limit: number = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  const results = await db.execute(sql`
+    SELECT 
+      e.id as enrollmentId,
+      e.contactEmail,
+      e.contactName,
+      e.contactPhone,
+      e.campaignId,
+      c.name as campaignName,
+      e.status,
+      e.enrolledAt,
+      e.source,
+      COALESCE(SUM(CASE WHEN el.openedAt IS NOT NULL THEN 5 ELSE 0 END), 0) +
+      COALESCE(SUM(CASE WHEN el.clickedAt IS NOT NULL THEN 10 ELSE 0 END), 0) +
+      CASE WHEN e.status = 'unsubscribed' THEN -20 ELSE 0 END as engagementScore,
+      COUNT(DISTINCT CASE WHEN el.openedAt IS NOT NULL THEN el.id END) as totalOpens,
+      COUNT(DISTINCT CASE WHEN el.clickedAt IS NOT NULL THEN el.id END) as totalClicks,
+      COUNT(DISTINCT el.id) as totalEmailsSent
+    FROM dripEnrollments e
+    JOIN dripCampaigns c ON c.id = e.campaignId
+    LEFT JOIN dripEmailLogs el ON el.enrollmentId = e.id
+    GROUP BY e.id, e.contactEmail, e.contactName, e.contactPhone, e.campaignId, c.name, e.status, e.enrolledAt, e.source
+    HAVING engagementScore > 0
+    ORDER BY engagementScore DESC
+    LIMIT ${limit}
+  `);
+  
+  const rows = (results as any)[0] || [];
+  return Array.from(rows).map((row: any) => ({
+    enrollmentId: row.enrollmentId,
+    contactEmail: row.contactEmail,
+    contactName: row.contactName,
+    contactPhone: row.contactPhone,
+    campaignId: row.campaignId,
+    campaignName: row.campaignName,
+    status: row.status,
+    enrolledAt: row.enrolledAt,
+    source: row.source,
+    engagementScore: Number(row.engagementScore),
+    totalOpens: Number(row.totalOpens),
+    totalClicks: Number(row.totalClicks),
+    totalEmailsSent: Number(row.totalEmailsSent),
+  }));
+}
+
+/**
+ * Get campaign performance metrics for alert evaluation
+ */
+export async function getCampaignPerformanceMetrics() {
+  const db = await getDb();
+  if (!db) return [];
+  const results = await db.execute(sql`
+    SELECT 
+      c.id as campaignId,
+      c.name as campaignName,
+      c.isActive,
+      COUNT(DISTINCT e.id) as totalEnrolled,
+      COUNT(DISTINCT CASE WHEN e.status = 'unsubscribed' THEN e.id END) as totalUnsubscribed,
+      COUNT(DISTINCT el.id) as totalSent,
+      COUNT(DISTINCT CASE WHEN el.openedAt IS NOT NULL THEN el.id END) as totalOpened,
+      COUNT(DISTINCT CASE WHEN el.clickedAt IS NOT NULL THEN el.id END) as totalClicked
+    FROM dripCampaigns c
+    LEFT JOIN dripEnrollments e ON e.campaignId = c.id
+    LEFT JOIN dripEmailLogs el ON el.enrollmentId = e.id
+    WHERE c.isActive = true
+    GROUP BY c.id, c.name, c.isActive
+    HAVING totalSent >= 10
+  `);
+  
+  const rows = (results as any)[0] || [];
+  return Array.from(rows).map((row: any) => ({
+    campaignId: Number(row.campaignId),
+    campaignName: row.campaignName,
+    totalEnrolled: Number(row.totalEnrolled),
+    totalUnsubscribed: Number(row.totalUnsubscribed),
+    totalSent: Number(row.totalSent),
+    totalOpened: Number(row.totalOpened),
+    totalClicked: Number(row.totalClicked),
+    openRate: Number(row.totalSent) > 0 ? Math.round((Number(row.totalOpened) / Number(row.totalSent)) * 100) : 0,
+    clickRate: Number(row.totalSent) > 0 ? Math.round((Number(row.totalClicked) / Number(row.totalSent)) * 100) : 0,
+    unsubscribeRate: Number(row.totalEnrolled) > 0 ? Math.round((Number(row.totalUnsubscribed) / Number(row.totalEnrolled)) * 100) : 0,
+  }));
+}

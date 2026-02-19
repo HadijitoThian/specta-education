@@ -8,7 +8,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { registerXenditWebhook } from "../xenditWebhook";
-import { processDripEmails } from "../dripCampaignService";
+import { processDripEmails, checkCampaignPerformanceAlerts } from "../dripCampaignService";
 import { seedDefaultCampaigns } from "../dripCampaignDefaults";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -145,6 +145,24 @@ async function startServer() {
         console.error("[DripCampaign] Scheduled processing failed:", e);
       }
     }, 60 * 60 * 1000); // Every 1 hour
+
+    // Check campaign performance alerts daily (every 24 hours)
+    // Also run once on startup (delayed by 30 seconds to let data load)
+    setTimeout(async () => {
+      try {
+        await checkCampaignPerformanceAlerts();
+      } catch (e) {
+        console.error("[DripCampaign] Initial performance check failed:", e);
+      }
+    }, 30 * 1000);
+
+    setInterval(async () => {
+      try {
+        await checkCampaignPerformanceAlerts();
+      } catch (e) {
+        console.error("[DripCampaign] Scheduled performance check failed:", e);
+      }
+    }, 24 * 60 * 60 * 1000); // Every 24 hours
   });
 }
 

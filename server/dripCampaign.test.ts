@@ -331,6 +331,86 @@ describe("Drip Campaign System", () => {
   });
 
   // ==========================================
+  // AI Content Generation
+  // ==========================================
+  describe("AI Content Generation", () => {
+    it("should generate email content from a prompt", { timeout: 60000 }, async () => {
+      const result = await adminCaller.dripCampaign.generateEmailContent({
+        prompt: "Write a welcome email for new students interested in studying abroad",
+        campaignName: "Test Campaign",
+        stepNumber: 1,
+        totalSteps: 3,
+      });
+
+      expect(result).toBeTruthy();
+      expect(typeof result.subject).toBe("string");
+      expect(result.subject.length).toBeGreaterThan(0);
+      expect(typeof result.htmlContent).toBe("string");
+      expect(result.htmlContent.length).toBeGreaterThan(0);
+    });
+
+    it("should generate a full campaign from a prompt", { timeout: 120000 }, async () => {
+      const result = await adminCaller.dripCampaign.generateFullCampaign({
+        prompt: "Create a campaign to follow up with students who took the free aptitude test and encourage them to try the Pro version",
+        numberOfEmails: 3,
+      });
+
+      expect(result).toBeTruthy();
+      expect(typeof result.campaignName).toBe("string");
+      expect(result.campaignName.length).toBeGreaterThan(0);
+      expect(typeof result.description).toBe("string");
+      expect(Array.isArray(result.steps)).toBe(true);
+      expect(result.steps.length).toBe(3);
+
+      // Verify each step has required fields
+      for (const step of result.steps) {
+        expect(typeof step.subject).toBe("string");
+        expect(step.subject.length).toBeGreaterThan(0);
+        expect(typeof step.htmlContent).toBe("string");
+        expect(step.htmlContent.length).toBeGreaterThan(0);
+        expect(typeof step.delayDays).toBe("number");
+        expect(step.delayDays).toBeGreaterThanOrEqual(0);
+        expect(typeof step.stepOrder).toBe("number");
+        expect(step.stepOrder).toBeGreaterThanOrEqual(1);
+      }
+    });
+  });
+
+  // ==========================================
+  // Hot Leads / Lead Scoring
+  // ==========================================
+  describe("Hot Leads", () => {
+    it("should return hot leads sorted by engagement score", async () => {
+      const hotLeads = await adminCaller.dripCampaign.getHotLeads({ limit: 20 });
+
+      expect(Array.isArray(hotLeads)).toBe(true);
+      // Verify structure if there are results
+      if (hotLeads.length > 0) {
+        const lead = hotLeads[0];
+        expect(typeof lead.enrollmentId).toBe("number");
+        expect(typeof lead.contactName).toBe("string");
+        expect(typeof lead.contactEmail).toBe("string");
+        expect(typeof lead.engagementScore).toBe("number");
+        expect(typeof lead.totalOpens).toBe("number");
+        expect(typeof lead.totalClicks).toBe("number");
+        expect(typeof lead.totalEmailsSent).toBe("number");
+        expect(typeof lead.campaignName).toBe("string");
+        expect(typeof lead.status).toBe("string");
+
+        // Verify sorted descending by score
+        for (let i = 1; i < hotLeads.length; i++) {
+          expect(hotLeads[i - 1].engagementScore).toBeGreaterThanOrEqual(hotLeads[i].engagementScore);
+        }
+      }
+    });
+
+    it("should respect the limit parameter", async () => {
+      const hotLeads = await adminCaller.dripCampaign.getHotLeads({ limit: 5 });
+      expect(hotLeads.length).toBeLessThanOrEqual(5);
+    });
+  });
+
+  // ==========================================
   // Cleanup
   // ==========================================
   describe("Cleanup", () => {
