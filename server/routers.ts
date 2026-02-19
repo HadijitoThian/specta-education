@@ -148,7 +148,7 @@ import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPa
 import crypto from "crypto";
 import { createProTestInvoice, verifyWebhookToken, generateExternalId, getProTestPrice, getProTestDiscountPrice } from "./xenditService";
 import { sendProAccessLinkEmail, sendPaymentConfirmationEmail } from "./resendService";
-import { autoEnrollContact, processDripEmails } from "./dripCampaignService";
+import { autoEnrollContact, processDripEmails, bulkEnrollAllLeads } from "./dripCampaignService";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 
@@ -3545,6 +3545,17 @@ IMPORTANT:
     triggerProcessing: protectedProcedure
       .mutation(async () => {
         const result = await processDripEmails();
+        return result;
+      }),
+
+    // Bulk enroll all leads into a campaign
+    bulkEnrollAllLeads: protectedProcedure
+      .input(z.object({ campaignId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const result = await bulkEnrollAllLeads(input.campaignId);
         return result;
       }),
 

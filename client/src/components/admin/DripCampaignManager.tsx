@@ -151,6 +151,18 @@ export default function DripCampaignManager() {
     },
   });
 
+  const bulkEnrollMutation = trpc.dripCampaign.bulkEnrollAllLeads.useMutation({
+    onSuccess: (result) => {
+      utils.dripCampaign.listEnrollments.invalidate();
+      utils.dripCampaign.listCampaigns.invalidate();
+      utils.dripCampaign.getCampaignAnalytics.invalidate();
+      toast.success(`Bulk enrollment complete: ${result.enrolled} enrolled, ${result.skipped} already enrolled (${result.total} total leads)`);
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    },
+  });
+
   // ==========================================
   // LIST VIEW
   // ==========================================
@@ -510,10 +522,23 @@ export default function DripCampaignManager() {
           <CardTitle className="text-lg">
             Enrolled Contacts ({enrollments.length})
           </CardTitle>
-          <Dialog open={showEnrollDialog} onOpenChange={setShowEnrollDialog}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline">+ Enroll Manually</Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                if (selectedCampaignId && confirm("This will enroll ALL leads from all sources (contact forms, scholarship forms, quizzes, aptitude tests) into this campaign. Already enrolled contacts will be skipped. Continue?")) {
+                  bulkEnrollMutation.mutate({ campaignId: selectedCampaignId });
+                }
+              }}
+              disabled={bulkEnrollMutation.isPending}
+            >
+              {bulkEnrollMutation.isPending ? "Enrolling..." : "📢 Enroll All Leads"}
+            </Button>
+            <Dialog open={showEnrollDialog} onOpenChange={setShowEnrollDialog}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline">+ Enroll Manually</Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Enroll Contact</DialogTitle>
@@ -566,6 +591,7 @@ export default function DripCampaignManager() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </CardHeader>
         <CardContent>
           {enrollments.length === 0 ? (

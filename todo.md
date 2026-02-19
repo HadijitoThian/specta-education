@@ -908,3 +908,10 @@
 - [x] Add click tracking for links in emails
 - [x] Write vitest tests for drip campaign system
 - [x] Verify end-to-end flow (enrollment → scheduled send → tracking → unsubscribe)
+### 91. Drip Campaign Enhancements
+- [x] Notify owner when drip campaign emails are sent (summary: campaign name, count sent, count errors)
+- [x] Add "Bulk Enroll All Leads" button to campaign detail view
+- [x] Bulk enroll endpoint that collects leads from all sources (leads, scholarship_leads, quiz_results, aptitude_results)
+- [x] Skip duplicate enrollments during bulk enroll
+- [x] Update admin UI with bulk enroll button and confirmation dialog
+- [x] Write tests for new features

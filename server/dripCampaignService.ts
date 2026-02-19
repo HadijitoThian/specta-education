@@ -8,8 +8,13 @@ import {
   createDripEnrollment,
   getDripEnrollmentByEmailAndCampaign,
   getAllDripCampaigns,
+  getAllLeads,
+  getAllScholarshipLeads,
+  getAllQuizResults,
+  getAllAptitudeResults,
 } from "./db";
 import { sendEmail } from "./email";
+import { notifyOwner } from "./_core/notification";
 
 /**
  * Process all due drip campaign emails.
@@ -125,6 +130,27 @@ export async function processDripEmails(): Promise<{ sent: number; errors: numbe
     console.error("[DripCampaign] Fatal error in processDripEmails:", err);
   }
 
+  // Notify owner if any emails were sent
+  if (sent > 0 || errors > 0) {
+    try {
+      await notifyOwner({
+        title: `📧 Drip Campaign Report: ${sent} emails sent`,
+        content: [
+          `Drip Campaign Email Processing Complete`,
+          ``,
+          `✅ Emails sent successfully: ${sent}`,
+          errors > 0 ? `❌ Errors: ${errors}` : ``,
+          ``,
+          `Time: ${new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" })}`,
+          ``,
+          `You can view detailed analytics in the Admin Dashboard → Campaigns tab.`,
+        ].filter(Boolean).join("\n"),
+      });
+    } catch (notifyErr) {
+      console.error("[DripCampaign] Failed to notify owner:", notifyErr);
+    }
+  }
+
   return { sent, errors };
 }
 
@@ -191,6 +217,145 @@ export async function autoEnrollContact({
   }
 
   return enrolled;
+}
+
+/**
+ * Bulk enroll all leads from all sources into a specific campaign.
+ * Collects leads from: leads table, scholarship_leads, quiz_results, aptitude_results.
+ * Skips contacts already enrolled in this campaign.
+ */
+export async function bulkEnrollAllLeads(campaignId: number): Promise<{ enrolled: number; skipped: number; total: number }> {
+  let enrolled = 0;
+  let skipped = 0;
+
+  try {
+    const campaign = await getDripCampaignById(campaignId);
+    if (!campaign) throw new Error("Campaign not found");
+
+    // Collect all unique email contacts from all sources
+    const contactMap = new Map<string, { email: string; name: string; phone?: string; source: string }>();
+
+    // 1. Leads table
+    try {
+      const leads = await getAllLeads();
+      for (const lead of leads) {
+        if (lead.studentEmail && !contactMap.has(lead.studentEmail)) {
+          contactMap.set(lead.studentEmail, {
+            email: lead.studentEmail,
+            name: lead.studentName || "Student",
+            phone: lead.studentPhone || undefined,
+            source: "contact_form",
+          });
+        }
+      }
+    } catch (e) {
+      console.error("[BulkEnroll] Error fetching leads:", e);
+    }
+
+    // 2. Scholarship leads
+    try {
+      const scholarshipLeads = await getAllScholarshipLeads();
+      for (const lead of scholarshipLeads) {
+        if (lead.studentEmail && !contactMap.has(lead.studentEmail)) {
+          contactMap.set(lead.studentEmail, {
+            email: lead.studentEmail,
+            name: lead.studentName || "Student",
+            phone: lead.studentPhone || undefined,
+            source: "scholarship_form",
+          });
+        }
+      }
+    } catch (e) {
+      console.error("[BulkEnroll] Error fetching scholarship leads:", e);
+    }
+
+    // 3. Quiz results
+    try {
+      const quizResults = await getAllQuizResults();
+      for (const result of quizResults) {
+        if (result.studentEmail && !contactMap.has(result.studentEmail)) {
+          contactMap.set(result.studentEmail, {
+            email: result.studentEmail,
+            name: result.studentName || "Student",
+            phone: result.studentPhone || undefined,
+            source: "quiz",
+          });
+        }
+      }
+    } catch (e) {
+      console.error("[BulkEnroll] Error fetching quiz results:", e);
+    }
+
+    // 4. Aptitude test results
+    try {
+      const aptitudeResults = await getAllAptitudeResults();
+      for (const result of aptitudeResults) {
+        if (result.studentEmail && !contactMap.has(result.studentEmail)) {
+          contactMap.set(result.studentEmail, {
+            email: result.studentEmail,
+            name: result.studentName || "Student",
+            phone: result.studentPhone || undefined,
+            source: "aptitude_test",
+          });
+        }
+      }
+    } catch (e) {
+      console.error("[BulkEnroll] Error fetching aptitude results:", e);
+    }
+
+    const total = contactMap.size;
+    console.log(`[BulkEnroll] Found ${total} unique contacts across all sources`);
+
+    // Get first step for nextSendAt calculation
+    const steps = await getDripEmailStepsByCampaignId(campaignId);
+    const firstStep = steps.find(s => s.isActive && s.stepOrder === 1);
+
+    const entries = Array.from(contactMap.entries());
+    for (const [email, contact] of entries) {
+      // Check if already enrolled
+      const existing = await getDripEnrollmentByEmailAndCampaign(email, campaignId);
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      let nextSendAt: Date | null = null;
+      if (firstStep) {
+        nextSendAt = new Date();
+        nextSendAt.setDate(nextSendAt.getDate() + firstStep.delayDays);
+      }
+
+      const unsubscribeToken = crypto.randomBytes(32).toString("hex");
+
+      await createDripEnrollment({
+        campaignId,
+        contactEmail: email,
+        contactName: contact.name,
+        contactPhone: contact.phone,
+        source: contact.source,
+        currentStepOrder: 0,
+        status: "active",
+        nextSendAt,
+        unsubscribeToken,
+      });
+
+      enrolled++;
+    }
+
+    console.log(`[BulkEnroll] Campaign "${campaign.name}": ${enrolled} enrolled, ${skipped} skipped (already enrolled)`);
+
+    // Notify owner
+    await notifyOwner({
+      title: `📢 Bulk Enrollment Complete: ${campaign.name}`,
+      content: `Bulk enrollment completed for campaign "${campaign.name}"\n\nTotal leads found: ${total}\nNewly enrolled: ${enrolled}\nAlready enrolled (skipped): ${skipped}`,
+    }).catch(() => {});
+
+  } catch (err) {
+    console.error("[BulkEnroll] Error:", err);
+    throw err;
+  }
+
+  return { enrolled, skipped, total: enrolled + skipped };
 }
 
 /**

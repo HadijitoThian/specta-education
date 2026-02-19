@@ -305,6 +305,32 @@ describe("Drip Campaign System", () => {
   });
 
   // ==========================================
+  // Bulk Enroll
+  // ==========================================
+  describe("Bulk Enroll All Leads", () => {
+    it("should bulk enroll all leads into a campaign", { timeout: 30000 }, async () => {
+      const result = await adminCaller.dripCampaign.bulkEnrollAllLeads({
+        campaignId: testCampaignId,
+      });
+
+      expect(typeof result.enrolled).toBe("number");
+      expect(typeof result.skipped).toBe("number");
+      expect(typeof result.total).toBe("number");
+      expect(result.total).toBe(result.enrolled + result.skipped);
+    });
+
+    it("should skip already enrolled contacts on second bulk enroll", { timeout: 30000 }, async () => {
+      const result = await adminCaller.dripCampaign.bulkEnrollAllLeads({
+        campaignId: testCampaignId,
+      });
+
+      // All contacts should be skipped since they were enrolled in the previous test
+      expect(result.enrolled).toBe(0);
+      expect(result.skipped).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  // ==========================================
   // Cleanup
   // ==========================================
   describe("Cleanup", () => {
