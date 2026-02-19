@@ -7,6 +7,7 @@ import Footer from "@/components/Footer";
 import ChatBot from "@/components/ChatBot";
 import ChatBotButton from "@/components/ChatBotButton";
 import { motion, AnimatePresence } from "framer-motion";
+import { SEO } from "@/components/SEO";
 
 // Leadership Team
 const leadershipTeam = [
@@ -121,8 +122,16 @@ export default function About() {
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + missionImages.length) % missionImages.length);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation currentPage="about" />
+    <>
+      <SEO
+        title="About Us - SpecTa Education Study Abroad Consultant"
+        description="SpecTa Education is Indonesia's trusted study abroad consultant since 2005. We help students achieve their dreams of studying in UK, USA, Australia, Canada, Singapore, Malaysia, and more."
+        keywords="about SpecTa Education, study abroad consultant Indonesia, konsultan pendidikan luar negeri, education consultant Jakarta, trusted study abroad agent"
+        canonical="https://spectaeducation.com/about"
+        ogImage="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"
+      />
+      <div className="min-h-screen bg-background">
+        <Navigation currentPage="about" />
 
       {/* Hero Section */}
       <motion.section 
@@ -391,6 +400,7 @@ export default function About() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+      </div>
+    </>
   );
 }

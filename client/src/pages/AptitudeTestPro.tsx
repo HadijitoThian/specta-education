@@ -10,6 +10,7 @@ import { trpc } from "@/lib/trpc";
 import Navigation from "@/components/Navigation";
 import ProLandingPage from "@/components/ProLandingPage";
 import Footer from "@/components/Footer";
+import { SEO } from "@/components/SEO";
 import AptitudeReportDownload from "@/components/AptitudeReportPDF";
 import {
   profilDiriFields,
@@ -466,7 +467,15 @@ export default function AptitudeTestPro() {
 
   // ========== RENDER ==========
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+    <>
+      <SEO
+        title="Tes Bakat AI Pro - Comprehensive Career & Major Assessment"
+        description="Unlock your full potential with our comprehensive AI-powered aptitude test. 7 sections including RIASEC, Multiple Intelligence, Personality, SJT, Creative Thinking. Get detailed PDF report. Only Rp 79.000."
+        keywords="tes bakat AI pro, comprehensive aptitude test, tes minat bakat lengkap, career assessment Indonesia, personality test, RIASEC pro, multiple intelligence assessment"
+        canonical="https://spectaeducation.com/test/pro"
+        ogImage="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"
+      />
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       <div ref={topRef} />
 
       {/* ===== INTRO PHASE ===== */}
@@ -1342,6 +1351,7 @@ export default function AptitudeTestPro() {
           </motion.div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

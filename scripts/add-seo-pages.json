@@ -1,0 +1,50 @@
+[
+  {
+    "file": "client/src/pages/About.tsx",
+    "title": "About Us - SpecTa Education Study Abroad Consultant",
+    "description": "SpecTa Education is Indonesia's trusted study abroad consultant since 2005. We help students achieve their dreams of studying in UK, USA, Australia, Canada, Singapore, Malaysia, and more.",
+    "keywords": "about SpecTa Education, study abroad consultant Indonesia, konsultan pendidikan luar negeri, education consultant Jakarta, trusted study abroad agent",
+    "canonical": "https://spectaeducation.com/about",
+    "ogImage": "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"
+  },
+  {
+    "file": "client/src/pages/Contact.tsx",
+    "title": "Contact Us - SpecTa Education Indonesia",
+    "description": "Get in touch with SpecTa Education. Visit our offices in PIK, Kelapa Gading, or Gading Serpong. WhatsApp, email, or book a free consultation with our education counselors.",
+    "keywords": "contact SpecTa Education, konsultan pendidikan Jakarta, study abroad consultant contact, education consultant PIK, Kelapa Gading, Gading Serpong",
+    "canonical": "https://spectaeducation.com/contact",
+    "ogImage": "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"
+  },
+  {
+    "file": "client/src/pages/Compare.tsx",
+    "title": "Compare Study Destinations - SpecTa Education",
+    "description": "Compare study abroad destinations side-by-side. Tuition costs, living expenses, visa requirements, post-study work options for UK, USA, Australia, Canada, Singapore, Malaysia, and more.",
+    "keywords": "compare study abroad destinations, biaya kuliah luar negeri, tuition fees comparison, study abroad cost calculator, visa requirements",
+    "canonical": "https://spectaeducation.com/compare",
+    "ogImage": "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"
+  },
+  {
+    "file": "client/src/pages/TrackApplication.tsx",
+    "title": "Track Your Application - SpecTa Education",
+    "description": "Track your study abroad application status in real-time. Check your progress, view updates, and stay informed throughout your application journey with SpecTa Education.",
+    "keywords": "track application, application status, study abroad application tracking, check application progress",
+    "canonical": "https://spectaeducation.com/track",
+    "ogImage": "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"
+  },
+  {
+    "file": "client/src/pages/Quiz.tsx",
+    "title": "Free Aptitude Test - Find Your Best Major | SpecTa Education",
+    "description": "Take our free AI-powered aptitude test to discover your ideal major and career path. RIASEC + Multiple Intelligence methodology. Get personalized recommendations in minutes.",
+    "keywords": "tes bakat gratis, free aptitude test, tes minat bakat online, career aptitude test, jurusan kuliah terbaik, RIASEC test, multiple intelligence test",
+    "canonical": "https://spectaeducation.com/quiz",
+    "ogImage": "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"
+  },
+  {
+    "file": "client/src/pages/AptitudeTestPro.tsx",
+    "title": "Tes Bakat AI Pro - Comprehensive Career & Major Assessment",
+    "description": "Unlock your full potential with our comprehensive AI-powered aptitude test. 7 sections including RIASEC, Multiple Intelligence, Personality, SJT, Creative Thinking. Get detailed PDF report. Only Rp 79.000.",
+    "keywords": "tes bakat AI pro, comprehensive aptitude test, tes minat bakat lengkap, career assessment Indonesia, personality test, RIASEC pro, multiple intelligence assessment",
+    "canonical": "https://spectaeducation.com/test/pro",
+    "ogImage": "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"
+  }
+]

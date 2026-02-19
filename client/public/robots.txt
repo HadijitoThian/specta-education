@@ -1,0 +1,16 @@
+# SpecTa Education - Robots.txt
+# Allow all crawlers to index public pages
+
+User-agent: *
+Allow: /
+
+# Disallow admin and staff areas
+Disallow: /admin
+Disallow: /staff
+Disallow: /api/
+
+# Disallow test/development pages
+Disallow: /showcase
+
+# Sitemap location
+Sitemap: https://spectaeducation.com/sitemap.xml

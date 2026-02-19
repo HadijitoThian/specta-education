@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Link } from "wouter";
+import { SEO } from "@/components/SEO";
 import { 
   Sparkles, ChevronRight, ChevronLeft, Globe, GraduationCap, 
   DollarSign, MapPin, BookOpen, Trophy, Download, Share2,
@@ -546,7 +547,15 @@ export default function Quiz() {
 
   // RESULTS SCREEN
   return (
-    <div className="min-h-screen bg-gray-50" ref={resultRef}>
+    <>
+      <SEO
+        title="Free Aptitude Test - Find Your Best Major | SpecTa Education"
+        description="Take our free AI-powered aptitude test to discover your ideal major and career path. RIASEC + Multiple Intelligence methodology. Get personalized recommendations in minutes."
+        keywords="tes bakat gratis, free aptitude test, tes minat bakat online, career aptitude test, jurusan kuliah terbaik, RIASEC test, multiple intelligence test"
+        canonical="https://spectaeducation.com/quiz"
+        ogImage="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"
+      />
+      <div className="min-h-screen bg-gray-50" ref={resultRef}>
       <ConfettiEffect />
 
       {/* Hero result */}
@@ -765,6 +774,7 @@ export default function Quiz() {
           animation: confetti linear forwards;
         }
       `}</style>
-    </div>
+      </div>
+    </>
   );
 }

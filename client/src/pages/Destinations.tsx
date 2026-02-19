@@ -7,6 +7,7 @@ import Footer from "@/components/Footer";
 import ChatBot from "@/components/ChatBot";
 import ChatBotButton from "@/components/ChatBotButton";
 import { motion, AnimatePresence } from "framer-motion";
+import { SEO } from "@/components/SEO";
 
 const destinations = [
   { name: "Malaysia", flag: "🇲🇾", slug: "malaysia", image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg", description: "Affordable quality education with cultural similarities and easy adaptation.", universities: ["Taylor's University", "Monash Malaysia", "UCSI University"], highlights: ["Affordable tuition", "Similar culture", "English medium"] },
@@ -48,7 +49,15 @@ export default function Destinations() {
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + carouselImages.length) % carouselImages.length);
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEO
+        title="Study Abroad Destinations - SpecTa Education Indonesia"
+        description="Explore 10+ study abroad destinations including UK, USA, Australia, Canada, Singapore, Malaysia, China, and more. Find the perfect country for your education journey with SpecTa Education."
+        keywords="study abroad destinations, kuliah luar negeri, study in UK, study in USA, study in Australia, study in Canada, study in Singapore, study in Malaysia, study in China, education consultant Indonesia"
+        canonical="https://spectaeducation.com/destinations"
+        ogImage="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"
+      />
+      <div className="min-h-screen bg-background">
       <Navigation currentPage="destinations" />
 
       {/* Hero Section with Carousel */}
@@ -220,6 +229,7 @@ export default function Destinations() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+      </div>
+    </>
   );
 }

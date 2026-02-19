@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { SEO } from "@/components/SEO";
 import { GraduationCap, Search, X, Sparkles, ArrowRight, DollarSign, MapPin, Trophy, BookOpen, Briefcase, MessageCircle, ChevronDown, Loader2, BarChart3, Send, Star, TrendingUp, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navigation from "@/components/Navigation";
@@ -323,7 +324,15 @@ export default function Compare() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <>
+      <SEO
+        title="Compare Study Destinations - SpecTa Education"
+        description="Compare study abroad destinations side-by-side. Tuition costs, living expenses, visa requirements, post-study work options for UK, USA, Australia, Canada, Singapore, Malaysia, and more."
+        keywords="compare study abroad destinations, biaya kuliah luar negeri, tuition fees comparison, study abroad cost calculator, visa requirements"
+        canonical="https://spectaeducation.com/compare"
+        ogImage="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"
+      />
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <Navigation currentPage="compare" />
 
       {/* Hero Section */}
@@ -855,6 +864,7 @@ export default function Compare() {
       </section>
 
       <Footer />
-    </div>
+      </div>
+    </>
   );
 }

@@ -858,3 +858,27 @@
 - [x] Write tests for analytics procedures (10 tests, all passing)
 - [x] Optimized counselor performance query (N+1 → batch, 30s → <1s)
 - [x] All 225 tests passing across 25 test files
+### 88. Technical SEO Improvements (2-Week Plan)
+- [ ] Generate sitemap.xml (auto-list all public pages)
+- [ ] Create robots.txt with proper crawler instructions
+- [ ] Add SEO meta tags to Destinations page
+- [ ] Add SEO meta tags to About Us page
+- [ ] Add SEO meta tags to Contact page
+- [ ] Add SEO meta tags to Compare page
+- [ ] Add SEO meta tags to Track Application page
+- [ ] Add SEO meta tags to Quiz/Aptitude- [x] Generate sitemap.xml with all public URLs (23 URLs generated)
+- [x] Create robots.txt with proper crawler instructions
+- [x] Create reusable SEO component with meta tags, Open Graph, canonical URLs
+- [x] Add SEO meta tags to Home, IELTS, Scholarships (already done earlier)
+- [x] Add SEO meta tags to Destinations page
+- [x] Add SEO meta tags to About page
+- [ ] Add SEO meta tags to remaining pages (Contact, Compare, Track, Quiz, Pro Test)
+- [ ] Add structured data (JSON-LD) for Organization
+- [ ] Add structured data (JSON-LD) for LocalBusiness (3 branches)
+- [ ] Add structured data (JSON-LD) for Course (IELTS)
+- [ ] Add structured data (JSON-LD) for FAQ
+- [ ] Internal linking audit and optimization
+- [ ] Page speed optimization (lazy loading, code splitting)
+- [ ] Mobile-friendly audit
+- [ ] Test all SEO improvements
+- [ ] Write Google Search Console submission instructions for user

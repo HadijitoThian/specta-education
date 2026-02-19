@@ -7,6 +7,7 @@ import Footer from "@/components/Footer";
 import ChatBot from "@/components/ChatBot";
 import ChatBotButton from "@/components/ChatBotButton";
 import { motion, AnimatePresence } from "framer-motion";
+import { SEO } from "@/components/SEO";
 
 const offices = [
   {
@@ -67,7 +68,15 @@ export default function Contact() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEO
+        title="Contact Us - SpecTa Education Indonesia"
+        description="Get in touch with SpecTa Education. Visit our offices in PIK, Kelapa Gading, or Gading Serpong. WhatsApp, email, or book a free consultation with our education counselors."
+        keywords="contact SpecTa Education, konsultan pendidikan Jakarta, study abroad consultant contact, education consultant PIK, Kelapa Gading, Gading Serpong"
+        canonical="https://spectaeducation.com/contact"
+        ogImage="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"
+      />
+      <div className="min-h-screen bg-background">
       <Navigation currentPage="contact" />
 
       {/* Hero Section */}
@@ -334,6 +343,7 @@ export default function Contact() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+      </div>
+    </>
   );
 }
