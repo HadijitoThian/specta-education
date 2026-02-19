@@ -2112,7 +2112,7 @@ Rules:
         personalAnswers: z.record(z.string(), z.union([z.string(), z.array(z.string())])),
         studentName: z.string().min(1),
         studentEmail: z.string().email(),
-        studentPhone: z.string().optional(),
+        studentPhone: z.string().min(1),
       }))
       .mutation(async ({ input }) => {
         // 1. Calculate RIASEC scores
@@ -2249,7 +2249,7 @@ IMPORTANT:
         const saved = await createAptitudeResult({
           studentName: input.studentName,
           studentEmail: input.studentEmail,
-          studentPhone: input.studentPhone || null,
+          studentPhone: input.studentPhone,
           language: input.language,
           riasecAnswers: JSON.stringify(input.riasecAnswers),
           miAnswers: JSON.stringify(input.miAnswers),

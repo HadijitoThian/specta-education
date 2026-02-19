@@ -882,3 +882,7 @@
 - [ ] Mobile-friendly audit
 - [ ] Test all SEO improvements
 - [ ] Write Google Search Console submission instructions for user
+### 89. Make Phone Number Mandatory in Free Aptitude Test
+- [x] Make phone number field required in the free aptitude test lead capture form
+- [x] Update frontend validation to enforce phone number (already had validation, removed || undefined fallback)
+- [x] Update backend validation (changed z.string().optional() to z.string().min(1))

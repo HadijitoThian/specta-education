@@ -392,7 +392,7 @@ export default function AptitudeTest() {
         personalAnswers,
         studentName: leadInfo.name,
         studentEmail: leadInfo.email,
-        studentPhone: leadInfo.phone || undefined,
+        studentPhone: leadInfo.phone,
       });
 
       const analysis = result.aiAnalysis || {};
