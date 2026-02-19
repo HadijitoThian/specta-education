@@ -29,7 +29,8 @@ import {
   blogCategories, InsertBlogCategory, BlogCategory,
   blogPosts, InsertBlogPost, BlogPost,
   blogTags, InsertBlogTag, BlogTag,
-  blogPostTags, InsertBlogPostTag, BlogPostTag
+  blogPostTags, InsertBlogPostTag, BlogPostTag,
+  blogComments, InsertBlogComment, BlogComment
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1884,4 +1885,108 @@ export async function getPostTags(postId: number): Promise<BlogTag[]> {
   if (pts.length === 0) return [];
   const tagIds = pts.map(p => p.tagId);
   return db.select().from(blogTags).where(inArray(blogTags.id, tagIds));
+}
+
+
+// Blog Comments functions
+export async function createBlogComment(data: InsertBlogComment): Promise<BlogComment | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(blogComments).values(data);
+  const insertId = result[0].insertId;
+  const [created] = await db.select().from(blogComments).where(eq(blogComments.id, insertId)).limit(1);
+  return created || null;
+}
+
+export async function getCommentsByPostId(postId: number, status?: string): Promise<BlogComment[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  if (status) {
+    return await db.select().from(blogComments)
+      .where(and(eq(blogComments.postId, postId), eq(blogComments.status, status as "pending" | "approved" | "rejected")))
+      .orderBy(desc(blogComments.createdAt));
+  }
+  return await db.select().from(blogComments)
+    .where(eq(blogComments.postId, postId))
+    .orderBy(desc(blogComments.createdAt));
+}
+
+export async function getAllBlogComments(limit = 50, offset = 0): Promise<BlogComment[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(blogComments)
+    .orderBy(desc(blogComments.createdAt))
+    .limit(limit)
+    .offset(offset);
+}
+
+export async function updateBlogCommentStatus(id: number, status: "pending" | "approved" | "rejected"): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(blogComments).set({ status }).where(eq(blogComments.id, id));
+}
+
+export async function deleteBlogComment(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.delete(blogComments).where(eq(blogComments.id, id));
+}
+
+export async function getPostRatingSummary(postId: number): Promise<{ averageRating: number; totalRatings: number }> {
+  const db = await getDb();
+  if (!db) return { averageRating: 0, totalRatings: 0 };
+
+  const [result] = await db.select({
+    avgRating: sql<number>`COALESCE(AVG(${blogComments.rating}), 0)`,
+    totalRatings: sql<number>`COUNT(${blogComments.rating})`,
+  }).from(blogComments)
+    .where(and(
+      eq(blogComments.postId, postId),
+      eq(blogComments.status, "approved"),
+      sql`${blogComments.rating} IS NOT NULL`
+    ));
+
+  return {
+    averageRating: Number(result?.avgRating || 0),
+    totalRatings: Number(result?.totalRatings || 0),
+  };
+}
+
+export async function getMultiplePostRatings(postIds: number[]): Promise<Record<number, { averageRating: number; totalRatings: number }>> {
+  const db = await getDb();
+  if (!db || postIds.length === 0) return {};
+
+  const results = await db.select({
+    postId: blogComments.postId,
+    avgRating: sql<number>`COALESCE(AVG(${blogComments.rating}), 0)`,
+    totalRatings: sql<number>`COUNT(${blogComments.rating})`,
+  }).from(blogComments)
+    .where(and(
+      inArray(blogComments.postId, postIds),
+      eq(blogComments.status, "approved"),
+      sql`${blogComments.rating} IS NOT NULL`
+    ))
+    .groupBy(blogComments.postId);
+
+  const map: Record<number, { averageRating: number; totalRatings: number }> = {};
+  for (const r of results) {
+    map[r.postId] = { averageRating: Number(r.avgRating), totalRatings: Number(r.totalRatings) };
+  }
+  return map;
+}
+
+export async function countCommentsByPostId(postId: number, status?: string): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+
+  const conditions = [eq(blogComments.postId, postId)];
+  if (status) conditions.push(eq(blogComments.status, status as "pending" | "approved" | "rejected"));
+
+  const [result] = await db.select({ count: sql<number>`count(*)` }).from(blogComments).where(and(...conditions));
+  return Number(result?.count || 0);
 }

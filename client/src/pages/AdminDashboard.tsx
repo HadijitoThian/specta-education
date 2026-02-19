@@ -21,8 +21,9 @@ import UniversityManager from "@/components/UniversityManager";
 import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 import DripCampaignManager from "@/components/admin/DripCampaignManager";
 import BlogManager from "@/components/admin/BlogManager";
+import CommentModeration from "@/components/admin/CommentModeration";
 
-type TabType = "analytics" | "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staff" | "accessLinks" | "universities" | "proOrders" | "campaigns" | "blog";
+type TabType = "analytics" | "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staff" | "accessLinks" | "universities" | "proOrders" | "campaigns" | "blog" | "comments";
 
 const APP_STATUS_OPTIONS = [
   "submitted", "reviewing", "processing", "on_hold", 
@@ -565,6 +566,9 @@ export default function AdminDashboard() {
               </Button>
               <Button variant={activeTab === 'blog' ? 'default' : 'outline'} onClick={() => setActiveTab('blog')} size="sm">
                 <FileText className="w-4 h-4 mr-2" /> Blog
+              </Button>
+              <Button variant={activeTab === 'comments' ? 'default' : 'outline'} onClick={() => setActiveTab('comments')} size="sm">
+                <MessageSquare className="w-4 h-4 mr-2" /> Comments
               </Button>
             </>
           )}
@@ -2068,6 +2072,12 @@ export default function AdminDashboard() {
           {activeTab === 'blog' && user?.role === 'admin' && (
             <div className="p-4">
               <BlogManager />
+            </div>
+          )}
+
+          {activeTab === 'comments' && user?.role === 'admin' && (
+            <div className="p-4">
+              <CommentModeration />
             </div>
           )}
         </div>

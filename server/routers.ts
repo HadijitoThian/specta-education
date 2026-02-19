@@ -159,7 +159,15 @@ import {
   listBlogPosts,
   listPublishedBlogPosts,
   setPostTags,
-  getPostTags
+  getPostTags,
+  createBlogComment,
+  getCommentsByPostId,
+  getAllBlogComments,
+  updateBlogCommentStatus,
+  deleteBlogComment,
+  getPostRatingSummary,
+  getMultiplePostRatings,
+  countCommentsByPostId
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail } from "./email";
@@ -4102,6 +4110,96 @@ Return JSON with the refined article:
         const text = response.choices?.[0]?.message?.content as string | undefined;
         if (!text) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI refinement failed" });
         return JSON.parse(text);
+      }),
+  }),
+
+  // Blog Comments & Ratings
+  blogComments: router({
+    // Public: submit a comment with optional rating
+    submit: publicProcedure
+      .input(z.object({
+        postId: z.number(),
+        name: z.string().min(1, "Name is required").max(255),
+        email: z.string().email("Valid email is required"),
+        content: z.string().min(1, "Comment is required").max(5000),
+        rating: z.number().min(1).max(5).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const comment = await createBlogComment({
+          postId: input.postId,
+          name: input.name,
+          email: input.email,
+          content: input.content,
+          rating: input.rating ?? null,
+          status: "approved", // auto-approve for now
+        });
+        if (!comment) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to submit comment" });
+        return comment;
+      }),
+
+    // Public: get approved comments for a post
+    getByPost: publicProcedure
+      .input(z.object({ postId: z.number() }))
+      .query(async ({ input }) => {
+        return await getCommentsByPostId(input.postId, "approved");
+      }),
+
+    // Public: get rating summary for a post
+    getRating: publicProcedure
+      .input(z.object({ postId: z.number() }))
+      .query(async ({ input }) => {
+        return await getPostRatingSummary(input.postId);
+      }),
+
+    // Public: get ratings for multiple posts (for blog listing)
+    getMultipleRatings: publicProcedure
+      .input(z.object({ postIds: z.array(z.number()) }))
+      .query(async ({ input }) => {
+        if (input.postIds.length === 0) return {};
+        return await getMultiplePostRatings(input.postIds);
+      }),
+
+    // Admin: list all comments with moderation
+    listAll: protectedProcedure
+      .input(z.object({
+        limit: z.number().default(50),
+        offset: z.number().default(0),
+      }))
+      .query(async ({ input }) => {
+        return await getAllBlogComments(input.limit, input.offset);
+      }),
+
+    // Admin: get all comments for a post (including pending/rejected)
+    getByPostAdmin: protectedProcedure
+      .input(z.object({ postId: z.number() }))
+      .query(async ({ input }) => {
+        return await getCommentsByPostId(input.postId);
+      }),
+
+    // Admin: update comment status (approve/reject)
+    updateStatus: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["pending", "approved", "rejected"]),
+      }))
+      .mutation(async ({ input }) => {
+        await updateBlogCommentStatus(input.id, input.status);
+        return { success: true };
+      }),
+
+    // Admin: delete a comment
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteBlogComment(input.id);
+        return { success: true };
+      }),
+
+    // Admin: get comment count for a post
+    countByPost: protectedProcedure
+      .input(z.object({ postId: z.number(), status: z.string().optional() }))
+      .query(async ({ input }) => {
+        return await countCommentsByPostId(input.postId, input.status);
       }),
   }),
 });

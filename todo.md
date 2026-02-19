@@ -981,3 +981,15 @@
 - [x] Write vitest tests for AI article drafting
 - [x] Write vitest tests for SEO slug generation and validation
 - [x] All 268 tests passing
+### 100. Blog Comments and Ratings
+- [x] Create blog_comments database table (id, postId, name, email, content, rating, status, createdAt)
+- [x] Create blog_ratings summary view/helper (average rating, total ratings per post)
+- [x] Push database migrations
+- [x] Build comments CRUD API (create comment, list comments by post, moderate/delete)
+- [x] Build ratings API (submit rating, get average rating per post)
+- [x] Build comment section UI on blog article page (name, email, comment, star rating)
+- [x] Display existing comments with star ratings below article
+- [x] Show average rating and total ratings on blog listing cards
+- [x] Admin moderation: approve/reject/delete comments from Comments tab
+- [x] Comments default to pending status for moderation
+- [x] Write vitest tests for comments and ratings (11 tests passing)

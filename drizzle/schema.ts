@@ -655,3 +655,21 @@ export const blogPostTags = mysqlTable("blog_post_tags", {
 
 export type BlogPostTag = typeof blogPostTags.$inferSelect;
 export type InsertBlogPostTag = typeof blogPostTags.$inferInsert;
+
+
+/**
+ * Blog comments with ratings for user engagement
+ */
+export const blogComments = mysqlTable("blog_comments", {
+  id: int("id").autoincrement().primaryKey(),
+  postId: int("postId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  content: text("content").notNull(),
+  rating: int("rating"), // 1-5 star rating, nullable (comment without rating)
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).notNull().default("pending"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type BlogComment = typeof blogComments.$inferSelect;
+export type InsertBlogComment = typeof blogComments.$inferInsert;

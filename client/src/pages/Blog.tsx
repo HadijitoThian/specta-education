@@ -5,8 +5,22 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar, Clock, ArrowRight, Search, BookOpen } from "lucide-react";
+import { Calendar, Clock, ArrowRight, Search, BookOpen, Star, MessageCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useMemo } from "react";
+
+function MiniStars({ rating }: { rating: number }) {
+  return (
+    <span className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((s) => (
+        <Star
+          key={s}
+          className={`w-3 h-3 ${s <= Math.round(rating) ? "fill-yellow-400 text-yellow-400" : "fill-gray-200 text-gray-200"}`}
+        />
+      ))}
+    </span>
+  );
+}
 
 export default function Blog() {
   const [page, setPage] = useState(0);
@@ -21,6 +35,13 @@ export default function Blog() {
   });
 
   const { data: categories } = trpc.blog.listCategories.useQuery();
+
+  // Fetch ratings for all visible posts
+  const postIds = useMemo(() => data?.posts?.map(p => p.id) ?? [], [data?.posts]);
+  const { data: ratingsMap } = trpc.blogComments.getMultipleRatings.useQuery(
+    { postIds },
+    { enabled: postIds.length > 0 }
+  );
 
   const filteredPosts = data?.posts?.filter(post =>
     !searchTerm || 
@@ -173,6 +194,12 @@ export default function Blog() {
                             <Clock className="w-4 h-4" />
                             {estimateReadTime(filteredPosts[0].content)} min read
                           </span>
+                          {ratingsMap && ratingsMap[filteredPosts[0].id] && ratingsMap[filteredPosts[0].id].totalRatings > 0 && (
+                            <span className="flex items-center gap-1">
+                              <MiniStars rating={ratingsMap[filteredPosts[0].id].averageRating} />
+                              <span className="text-yellow-600 font-medium">{ratingsMap[filteredPosts[0].id].averageRating.toFixed(1)}</span>
+                            </span>
+                          )}
                         </div>
                         <div className="mt-4 flex items-center gap-1 text-red-600 font-medium group-hover:gap-2 transition-all">
                           Baca Selengkapnya <ArrowRight className="w-4 h-4" />
@@ -217,14 +244,22 @@ export default function Blog() {
                           {post.excerpt}
                         </p>
                         <div className="flex items-center justify-between text-xs text-gray-400">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {formatDate(post.publishedAt)}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {estimateReadTime(post.content)} min
-                          </span>
+                          <div className="flex items-center gap-3">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {formatDate(post.publishedAt)}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {estimateReadTime(post.content)} min
+                            </span>
+                          </div>
+                          {ratingsMap && ratingsMap[post.id] && ratingsMap[post.id].totalRatings > 0 && (
+                            <span className="flex items-center gap-1">
+                              <MiniStars rating={ratingsMap[post.id].averageRating} />
+                              <span className="text-yellow-600 font-medium text-xs">{ratingsMap[post.id].averageRating.toFixed(1)}</span>
+                            </span>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
