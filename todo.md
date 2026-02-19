@@ -886,3 +886,25 @@
 - [x] Make phone number field required in the free aptitude test lead capture form
 - [x] Update frontend validation to enforce phone number (already had validation, removed || undefined fallback)
 - [x] Update backend validation (changed z.string().optional() to z.string().min(1))
+### 90. Email Drip Campaign System
+- [x] Design database schema (campaigns, email_sequences, enrollments, email_logs)
+- [x] Create drip campaign tables and push migrations
+- [x] Build campaign CRUD API (create, update, delete, list campaigns)
+- [x] Build email sequence CRUD API (add/edit/delete/reorder steps in a campaign)
+- [x] Build enrollment API (enroll leads, check enrollment status, unenroll)
+- [x] Build scheduled email sender (checks every hour, sends due emails)
+- [x] Auto-enroll leads from free aptitude test (SpecTa Play)
+- [x] Auto-enroll leads from contact form submissions
+- [x] Auto-enroll leads from scholarship form submissions
+- [x] Create default Pro Test upsell campaign (5-email sequence over 15 days)
+- [x] Create default general follow-up campaign (newsletters, tips)
+- [x] Build admin dashboard "Campaigns" tab with campaign list
+- [x] Build campaign detail view with email sequence editor
+- [x] Build enrollment management view (enrolled leads, status)
+- [x] Build campaign analytics (sent, opened, clicked, unsubscribed)
+- [x] Add unsubscribe page (/unsubscribe) with token-based unsubscribe
+- [x] Add unsubscribe link to all drip campaign emails
+- [x] Add email open tracking (tracking pixel)
+- [x] Add click tracking for links in emails
+- [x] Write vitest tests for drip campaign system
+- [x] Verify end-to-end flow (enrollment → scheduled send → tracking → unsubscribe)

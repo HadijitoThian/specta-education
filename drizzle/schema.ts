@@ -506,3 +506,85 @@ export const aptitudeProOrders = mysqlTable("aptitudeProOrders", {
 
 export type AptitudeProOrder = typeof aptitudeProOrders.$inferSelect;
 export type InsertAptitudeProOrder = typeof aptitudeProOrders.$inferInsert;
+
+
+/**
+ * Drip Campaigns - defines a named email sequence (e.g. "Pro Test Upsell", "General Follow-up")
+ */
+export const dripCampaigns = mysqlTable("dripCampaigns", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  triggerSource: mysqlEnum("triggerSource", [
+    "aptitude_test", "contact_form", "scholarship_form", "quiz", "manual", "pro_purchase"
+  ]).default("manual").notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DripCampaign = typeof dripCampaigns.$inferSelect;
+export type InsertDripCampaign = typeof dripCampaigns.$inferInsert;
+
+/**
+ * Drip Email Steps - individual emails in a campaign sequence
+ * delayDays = number of days after enrollment (or previous step) to send
+ */
+export const dripEmailSteps = mysqlTable("dripEmailSteps", {
+  id: int("id").autoincrement().primaryKey(),
+  campaignId: int("campaignId").notNull(),
+  stepOrder: int("stepOrder").notNull(), // 1, 2, 3...
+  subject: varchar("subject", { length: 500 }).notNull(),
+  htmlContent: text("htmlContent").notNull(), // full HTML email body
+  delayDays: int("delayDays").notNull(), // days after enrollment to send this step
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DripEmailStep = typeof dripEmailSteps.$inferSelect;
+export type InsertDripEmailStep = typeof dripEmailSteps.$inferInsert;
+
+/**
+ * Drip Enrollments - tracks which contacts are enrolled in which campaigns
+ */
+export const dripEnrollments = mysqlTable("dripEnrollments", {
+  id: int("id").autoincrement().primaryKey(),
+  campaignId: int("campaignId").notNull(),
+  contactEmail: varchar("contactEmail", { length: 320 }).notNull(),
+  contactName: varchar("contactName", { length: 255 }).notNull(),
+  contactPhone: varchar("contactPhone", { length: 50 }),
+  source: varchar("source", { length: 100 }), // where the lead came from
+  currentStepOrder: int("currentStepOrder").default(0).notNull(), // last completed step (0 = none sent yet)
+  status: mysqlEnum("status", ["active", "completed", "unsubscribed", "paused"]).default("active").notNull(),
+  enrolledAt: timestamp("enrolledAt").defaultNow().notNull(),
+  lastEmailSentAt: timestamp("lastEmailSentAt"),
+  nextSendAt: timestamp("nextSendAt"), // pre-calculated next send time
+  completedAt: timestamp("completedAt"),
+  unsubscribedAt: timestamp("unsubscribedAt"),
+  unsubscribeToken: varchar("unsubscribeToken", { length: 64 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DripEnrollment = typeof dripEnrollments.$inferSelect;
+export type InsertDripEnrollment = typeof dripEnrollments.$inferInsert;
+
+/**
+ * Drip Email Logs - tracks every email sent, with open/click tracking
+ */
+export const dripEmailLogs = mysqlTable("dripEmailLogs", {
+  id: int("id").autoincrement().primaryKey(),
+  enrollmentId: int("enrollmentId").notNull(),
+  stepId: int("stepId").notNull(),
+  contactEmail: varchar("contactEmail", { length: 320 }).notNull(),
+  subject: varchar("subject", { length: 500 }).notNull(),
+  status: mysqlEnum("status", ["sent", "failed", "bounced"]).default("sent").notNull(),
+  openedAt: timestamp("openedAt"),
+  clickedAt: timestamp("clickedAt"),
+  sentAt: timestamp("sentAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type DripEmailLog = typeof dripEmailLogs.$inferSelect;
+export type InsertDripEmailLog = typeof dripEmailLogs.$inferInsert;

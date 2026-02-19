@@ -123,13 +123,32 @@ import {
   getLeadsBySource,
   getTopCountries,
   getCounselorPerformance,
-  getScholarshipLeadsOverTime
+  getScholarshipLeadsOverTime,
+  createDripCampaign,
+  getAllDripCampaigns,
+  getDripCampaignById,
+  updateDripCampaign,
+  deleteDripCampaign,
+  createDripEmailStep,
+  getDripEmailStepsByCampaignId,
+  getDripEmailStepById,
+  updateDripEmailStep,
+  deleteDripEmailStep,
+  getDripEnrollmentsByCampaignId,
+  getDripEnrollmentByEmailAndCampaign,
+  updateDripEnrollment,
+  getDripEnrollmentByUnsubscribeToken,
+  getDripEmailLogsByEnrollmentId,
+  getDripCampaignAnalytics,
+  getDripCampaignsWithStats,
+  createDripEnrollment
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail } from "./email";
 import crypto from "crypto";
 import { createProTestInvoice, verifyWebhookToken, generateExternalId, getProTestPrice, getProTestDiscountPrice } from "./xenditService";
 import { sendProAccessLinkEmail, sendPaymentConfirmationEmail } from "./resendService";
+import { autoEnrollContact, processDripEmails } from "./dripCampaignService";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 
@@ -285,6 +304,20 @@ export const appRouter = router({
                     title: "New Lead from SpecTa AI",
                     content: `New lead captured!\n\nName: ${contactInfo.name || 'Not provided'}\nPhone: ${contactInfo.phone}\nEmail: ${contactInfo.email || 'Not provided'}\nCountry: ${contactInfo.country || 'Not specified'}\nStudy Level: ${contactInfo.studyLevel || 'Not specified'}`
                   });
+
+                  // Auto-enroll in drip campaign
+                  if (contactInfo.email) {
+                    try {
+                      await autoEnrollContact({
+                        email: contactInfo.email,
+                        name: contactInfo.name || "Student",
+                        phone: contactInfo.phone,
+                        triggerSource: "contact_form",
+                      });
+                    } catch (e) {
+                      console.error("[DripCampaign] Auto-enroll from chat failed:", e);
+                    }
+                  }
                 }
               }
 
@@ -1450,6 +1483,18 @@ Rules:
               title: '🎯 New Quiz Completed',
               content: `${input.studentName || 'A student'} (${input.studentEmail}) completed the Country Quiz. Top match: ${input.topMatch}.`,
             });
+
+            // Auto-enroll in drip campaign
+            try {
+              await autoEnrollContact({
+                email: input.studentEmail,
+                name: input.studentName || "Student",
+                phone: input.studentPhone,
+                triggerSource: "quiz",
+              });
+            } catch (e) {
+              console.error("[DripCampaign] Auto-enroll from quiz failed:", e);
+            }
           }
           return { success: true, result };
         } catch (error) {
@@ -1663,6 +1708,18 @@ Rules:
           title: `New Scholarship Lead: ${input.studentName}`,
           content: `A new scholarship lead has been captured!\n\nName: ${input.studentName}\nEmail: ${input.studentEmail}\nPhone: ${input.studentPhone}\nEducation: ${input.educationLevel}\nGPA: ${input.gpa}\nInterested in: ${scholarshipName}\nIELTS: ${input.ieltsStatus}${input.ieltsScore ? ` (Score: ${input.ieltsScore})` : ""}`,
         });
+
+        // Auto-enroll in drip campaign
+        try {
+          await autoEnrollContact({
+            email: input.studentEmail,
+            name: input.studentName,
+            phone: input.studentPhone,
+            triggerSource: "scholarship_form",
+          });
+        } catch (e) {
+          console.error("[DripCampaign] Auto-enroll from scholarship failed:", e);
+        }
 
         return { success: true, lead };
       }),
@@ -2270,6 +2327,18 @@ IMPORTANT:
           title: "New Aptitude Test Completed",
           content: `${input.studentName} (${input.studentEmail}) completed the aptitude test. Holland Code: ${hollandCode}. Top majors: ${(aiAnalysis.recommendedMajors || []).map((m: any) => m.name).join(", ")}.`,
         }).catch(() => {});
+
+        // Auto-enroll in drip campaign (aptitude test upsell)
+        try {
+          await autoEnrollContact({
+            email: input.studentEmail,
+            name: input.studentName,
+            phone: input.studentPhone,
+            triggerSource: "aptitude_test",
+          });
+        } catch (e) {
+          console.error("[DripCampaign] Auto-enroll from aptitude test failed:", e);
+        }
 
         // 8. Generate PDF and send results email with attachment
         let freePdfBuffer: Buffer | undefined;
@@ -3302,6 +3371,200 @@ IMPORTANT:
           startDate: new Date(input.startDate),
           endDate: new Date(input.endDate),
         });
+      }),
+  }),
+
+  // ==========================================
+  // DRIP CAMPAIGN ROUTES
+  // ==========================================
+  dripCampaign: router({
+    // List all campaigns with stats
+    listCampaigns: protectedProcedure
+      .query(async () => {
+        return getDripCampaignsWithStats();
+      }),
+
+    // Get single campaign by ID
+    getCampaign: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        return getDripCampaignById(input.id);
+      }),
+
+    // Create a new campaign
+    createCampaign: protectedProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        triggerSource: z.enum(["aptitude_test", "contact_form", "scholarship_form", "quiz", "manual", "pro_purchase"]),
+        isActive: z.boolean().default(true),
+      }))
+      .mutation(async ({ input }) => {
+        return createDripCampaign(input);
+      }),
+
+    // Update a campaign
+    updateCampaign: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).optional(),
+        description: z.string().optional(),
+        triggerSource: z.enum(["aptitude_test", "contact_form", "scholarship_form", "quiz", "manual", "pro_purchase"]).optional(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await updateDripCampaign(id, data);
+        return getDripCampaignById(id);
+      }),
+
+    // Delete a campaign
+    deleteCampaign: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteDripCampaign(input.id);
+        return { success: true };
+      }),
+
+    // List email steps for a campaign
+    listSteps: protectedProcedure
+      .input(z.object({ campaignId: z.number() }))
+      .query(async ({ input }) => {
+        return getDripEmailStepsByCampaignId(input.campaignId);
+      }),
+
+    // Create a new email step
+    createStep: protectedProcedure
+      .input(z.object({
+        campaignId: z.number(),
+        stepOrder: z.number().min(1),
+        subject: z.string().min(1),
+        htmlContent: z.string().min(1),
+        delayDays: z.number().min(0),
+        isActive: z.boolean().default(true),
+      }))
+      .mutation(async ({ input }) => {
+        return createDripEmailStep(input);
+      }),
+
+    // Update an email step
+    updateStep: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        subject: z.string().min(1).optional(),
+        htmlContent: z.string().min(1).optional(),
+        delayDays: z.number().min(0).optional(),
+        stepOrder: z.number().min(1).optional(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await updateDripEmailStep(id, data);
+        return getDripEmailStepById(id);
+      }),
+
+    // Delete an email step
+    deleteStep: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteDripEmailStep(input.id);
+        return { success: true };
+      }),
+
+    // List enrollments for a campaign
+    listEnrollments: protectedProcedure
+      .input(z.object({ campaignId: z.number() }))
+      .query(async ({ input }) => {
+        return getDripEnrollmentsByCampaignId(input.campaignId);
+      }),
+
+    // Manually enroll a contact
+    enrollContact: protectedProcedure
+      .input(z.object({
+        campaignId: z.number(),
+        contactEmail: z.string().email(),
+        contactName: z.string().min(1),
+        contactPhone: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const existing = await getDripEnrollmentByEmailAndCampaign(input.contactEmail, input.campaignId);
+        if (existing) {
+          throw new TRPCError({ code: "CONFLICT", message: "Contact is already enrolled in this campaign" });
+        }
+        const steps = await getDripEmailStepsByCampaignId(input.campaignId);
+        const firstStep = steps.find(s => s.isActive && s.stepOrder === 1);
+        let nextSendAt: Date | null = null;
+        if (firstStep) {
+          nextSendAt = new Date();
+          nextSendAt.setDate(nextSendAt.getDate() + firstStep.delayDays);
+        }
+        const unsubscribeToken = crypto.randomBytes(32).toString("hex");
+        return createDripEnrollment({
+          campaignId: input.campaignId,
+          contactEmail: input.contactEmail,
+          contactName: input.contactName,
+          contactPhone: input.contactPhone,
+          source: "manual",
+          currentStepOrder: 0,
+          status: "active",
+          nextSendAt,
+          unsubscribeToken,
+        });
+      }),
+
+    // Pause/resume an enrollment
+    updateEnrollmentStatus: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["active", "paused", "unsubscribed"]),
+      }))
+      .mutation(async ({ input }) => {
+        const updates: any = { status: input.status };
+        if (input.status === "unsubscribed") {
+          updates.unsubscribedAt = new Date();
+        }
+        await updateDripEnrollment(input.id, updates);
+        return { success: true };
+      }),
+
+    // Get campaign analytics
+    getCampaignAnalytics: protectedProcedure
+      .input(z.object({ campaignId: z.number() }))
+      .query(async ({ input }) => {
+        return getDripCampaignAnalytics(input.campaignId);
+      }),
+
+    // Get email logs for an enrollment
+    getEmailLogs: protectedProcedure
+      .input(z.object({ enrollmentId: z.number() }))
+      .query(async ({ input }) => {
+        return getDripEmailLogsByEnrollmentId(input.enrollmentId);
+      }),
+
+    // Manually trigger drip email processing (admin)
+    triggerProcessing: protectedProcedure
+      .mutation(async () => {
+        const result = await processDripEmails();
+        return result;
+      }),
+
+    // Unsubscribe endpoint (public)
+    unsubscribe: publicProcedure
+      .input(z.object({ token: z.string().min(1) }))
+      .mutation(async ({ input }) => {
+        const enrollment = await getDripEnrollmentByUnsubscribeToken(input.token);
+        if (!enrollment) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Invalid unsubscribe token" });
+        }
+        if (enrollment.status === "unsubscribed") {
+          return { success: true, alreadyUnsubscribed: true };
+        }
+        await updateDripEnrollment(enrollment.id, {
+          status: "unsubscribed",
+          unsubscribedAt: new Date(),
+          nextSendAt: null,
+        });
+        return { success: true, alreadyUnsubscribed: false };
       }),
   }),
 });

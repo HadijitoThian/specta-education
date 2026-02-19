@@ -8,6 +8,8 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { registerXenditWebhook } from "../xenditWebhook";
+import { processDripEmails } from "../dripCampaignService";
+import { seedDefaultCampaigns } from "../dripCampaignDefaults";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -38,6 +40,45 @@ async function startServer() {
   registerOAuthRoutes(app);
   // Xendit payment webhook
   registerXenditWebhook(app);
+  // Email open tracking pixel
+  app.get("/api/track/open/:logId", async (req, res) => {
+    try {
+      const logId = parseInt(req.params.logId);
+      if (!isNaN(logId)) {
+        const { getDripEmailLogById, updateDripEmailLog } = await import("../db");
+        const log = await getDripEmailLogById(logId);
+        if (log && !log.openedAt) {
+          await updateDripEmailLog(logId, { openedAt: new Date() });
+        }
+      }
+    } catch (e) {
+      // Silently fail - tracking should never break
+    }
+    // Return 1x1 transparent pixel
+    const pixel = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
+    res.set("Content-Type", "image/gif");
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.send(pixel);
+  });
+
+  // Email click tracking
+  app.get("/api/track/click/:logId", async (req, res) => {
+    try {
+      const logId = parseInt(req.params.logId);
+      const url = req.query.url as string;
+      if (!isNaN(logId)) {
+        const { getDripEmailLogById, updateDripEmailLog } = await import("../db");
+        const log = await getDripEmailLogById(logId);
+        if (log && !log.clickedAt) {
+          await updateDripEmailLog(logId, { clickedAt: new Date() });
+        }
+      }
+      res.redirect(url || "/");
+    } catch (e) {
+      res.redirect(req.query.url as string || "/");
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",
@@ -83,6 +124,27 @@ async function startServer() {
         console.error("[Cleanup] Scheduled cleanup failed:", e);
       }
     }, 24 * 60 * 60 * 1000); // Every 24 hours
+
+    // Seed default drip campaigns on first startup
+    (async () => {
+      try {
+        await seedDefaultCampaigns();
+      } catch (e) {
+        console.error("[DripCampaign] Seed failed:", e);
+      }
+    })();
+
+    // Process drip campaign emails every hour
+    setInterval(async () => {
+      try {
+        const result = await processDripEmails();
+        if (result.sent > 0 || result.errors > 0) {
+          console.log(`[DripCampaign] Processed: ${result.sent} sent, ${result.errors} errors`);
+        }
+      } catch (e) {
+        console.error("[DripCampaign] Scheduled processing failed:", e);
+      }
+    }, 60 * 60 * 1000); // Every 1 hour
   });
 }
 

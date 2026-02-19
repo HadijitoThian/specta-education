@@ -1336,3 +1336,255 @@ export async function getScholarshipLeadsOverTime(range: AnalyticsTimeRange) {
   `);
   return (result[0] as unknown as any[]).map((r: any) => ({ date: String(r.date), count: Number(r.count) }));
 }
+
+
+// ==========================================
+// DRIP CAMPAIGN FUNCTIONS
+// ==========================================
+import {
+  dripCampaigns, InsertDripCampaign, DripCampaign,
+  dripEmailSteps, InsertDripEmailStep, DripEmailStep,
+  dripEnrollments, InsertDripEnrollment, DripEnrollment,
+  dripEmailLogs, InsertDripEmailLog, DripEmailLog,
+} from "../drizzle/schema";
+
+// --- Campaigns ---
+export async function createDripCampaign(data: InsertDripCampaign): Promise<DripCampaign | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(dripCampaigns).values(data);
+  const insertId = (result as any)[0]?.insertId;
+  if (!insertId) return null;
+  return getDripCampaignById(insertId);
+}
+
+export async function getAllDripCampaigns(): Promise<DripCampaign[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(dripCampaigns).orderBy(sql`${dripCampaigns.createdAt} DESC`);
+}
+
+export async function getDripCampaignById(id: number): Promise<DripCampaign | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(dripCampaigns).where(eq(dripCampaigns.id, id)).limit(1);
+  return rows[0] || null;
+}
+
+export async function updateDripCampaign(id: number, data: Partial<InsertDripCampaign>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(dripCampaigns).set(data).where(eq(dripCampaigns.id, id));
+}
+
+export async function deleteDripCampaign(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  // Delete all related data
+  await db.delete(dripEmailLogs).where(
+    sql`${dripEmailLogs.enrollmentId} IN (SELECT id FROM dripEnrollments WHERE campaignId = ${id})`
+  );
+  await db.delete(dripEnrollments).where(eq(dripEnrollments.campaignId, id));
+  await db.delete(dripEmailSteps).where(eq(dripEmailSteps.campaignId, id));
+  await db.delete(dripCampaigns).where(eq(dripCampaigns.id, id));
+}
+
+// --- Email Steps ---
+export async function createDripEmailStep(data: InsertDripEmailStep): Promise<DripEmailStep | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(dripEmailSteps).values(data);
+  const insertId = (result as any)[0]?.insertId;
+  if (!insertId) return null;
+  return getDripEmailStepById(insertId);
+}
+
+export async function getDripEmailStepsByCampaignId(campaignId: number): Promise<DripEmailStep[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(dripEmailSteps).where(eq(dripEmailSteps.campaignId, campaignId)).orderBy(dripEmailSteps.stepOrder);
+}
+
+export async function getDripEmailStepById(id: number): Promise<DripEmailStep | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(dripEmailSteps).where(eq(dripEmailSteps.id, id)).limit(1);
+  return rows[0] || null;
+}
+
+export async function updateDripEmailStep(id: number, data: Partial<InsertDripEmailStep>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(dripEmailSteps).set(data).where(eq(dripEmailSteps.id, id));
+}
+
+export async function deleteDripEmailStep(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(dripEmailSteps).where(eq(dripEmailSteps.id, id));
+}
+
+// --- Enrollments ---
+export async function createDripEnrollment(data: InsertDripEnrollment): Promise<DripEnrollment | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(dripEnrollments).values(data);
+  const insertId = (result as any)[0]?.insertId;
+  if (!insertId) return null;
+  return getDripEnrollmentById(insertId);
+}
+
+export async function getDripEnrollmentById(id: number): Promise<DripEnrollment | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(dripEnrollments).where(eq(dripEnrollments.id, id)).limit(1);
+  return rows[0] || null;
+}
+
+export async function getDripEnrollmentsByCampaignId(campaignId: number): Promise<DripEnrollment[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(dripEnrollments).where(eq(dripEnrollments.campaignId, campaignId)).orderBy(sql`${dripEnrollments.enrolledAt} DESC`);
+}
+
+export async function getDripEnrollmentByEmailAndCampaign(email: string, campaignId: number): Promise<DripEnrollment | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(dripEnrollments)
+    .where(sql`${dripEnrollments.contactEmail} = ${email} AND ${dripEnrollments.campaignId} = ${campaignId}`)
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function updateDripEnrollment(id: number, data: Partial<InsertDripEnrollment>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(dripEnrollments).set(data).where(eq(dripEnrollments.id, id));
+}
+
+export async function getDripEnrollmentByUnsubscribeToken(token: string): Promise<DripEnrollment | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(dripEnrollments)
+    .where(eq(dripEnrollments.unsubscribeToken, token))
+    .limit(1);
+  return rows[0] || null;
+}
+
+/**
+ * Get all enrollments that are due for their next email.
+ * Finds active enrollments where nextSendAt <= now.
+ */
+export async function getDueEnrollments(): Promise<DripEnrollment[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const now = new Date();
+  return db.select().from(dripEnrollments)
+    .where(sql`${dripEnrollments.status} = 'active' AND ${dripEnrollments.nextSendAt} IS NOT NULL AND ${dripEnrollments.nextSendAt} <= ${now}`)
+    .orderBy(dripEnrollments.nextSendAt);
+}
+
+// --- Email Logs ---
+export async function createDripEmailLog(data: InsertDripEmailLog): Promise<DripEmailLog | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(dripEmailLogs).values(data);
+  const insertId = (result as any)[0]?.insertId;
+  if (!insertId) return null;
+  const rows = await db.select().from(dripEmailLogs).where(eq(dripEmailLogs.id, insertId)).limit(1);
+  return rows[0] || null;
+}
+
+export async function getDripEmailLogsByEnrollmentId(enrollmentId: number): Promise<DripEmailLog[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(dripEmailLogs).where(eq(dripEmailLogs.enrollmentId, enrollmentId)).orderBy(dripEmailLogs.sentAt);
+}
+
+export async function getDripEmailLogById(id: number): Promise<DripEmailLog | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(dripEmailLogs).where(eq(dripEmailLogs.id, id)).limit(1);
+  return rows[0] || null;
+}
+
+export async function updateDripEmailLog(id: number, data: Partial<InsertDripEmailLog>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(dripEmailLogs).set(data).where(eq(dripEmailLogs.id, id));
+}
+
+/**
+ * Get campaign analytics: total sent, opened, clicked, unsubscribed
+ */
+export async function getDripCampaignAnalytics(campaignId: number) {
+  const db = await getDb();
+  if (!db) return { totalEnrolled: 0, active: 0, completed: 0, unsubscribed: 0, totalSent: 0, totalOpened: 0, totalClicked: 0 };
+
+  const enrollmentStats = await db.select({
+    total: sql<number>`COUNT(*)`,
+    active: sql<number>`SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END)`,
+    completed: sql<number>`SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END)`,
+    unsubscribed: sql<number>`SUM(CASE WHEN status = 'unsubscribed' THEN 1 ELSE 0 END)`,
+  }).from(dripEnrollments).where(eq(dripEnrollments.campaignId, campaignId));
+
+  const emailStats = await db.select({
+    totalSent: sql<number>`COUNT(*)`,
+    totalOpened: sql<number>`SUM(CASE WHEN openedAt IS NOT NULL THEN 1 ELSE 0 END)`,
+    totalClicked: sql<number>`SUM(CASE WHEN clickedAt IS NOT NULL THEN 1 ELSE 0 END)`,
+  }).from(dripEmailLogs)
+    .where(sql`${dripEmailLogs.enrollmentId} IN (SELECT id FROM dripEnrollments WHERE campaignId = ${campaignId})`);
+
+  const es = enrollmentStats[0] || { total: 0, active: 0, completed: 0, unsubscribed: 0 };
+  const em = emailStats[0] || { totalSent: 0, totalOpened: 0, totalClicked: 0 };
+
+  return {
+    totalEnrolled: Number(es.total),
+    active: Number(es.active),
+    completed: Number(es.completed),
+    unsubscribed: Number(es.unsubscribed),
+    totalSent: Number(em.totalSent),
+    totalOpened: Number(em.totalOpened),
+    totalClicked: Number(em.totalClicked),
+  };
+}
+
+/**
+ * Get all campaigns with their step count and enrollment count for admin list view
+ */
+export async function getDripCampaignsWithStats() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const campaigns = await db.select().from(dripCampaigns).orderBy(sql`${dripCampaigns.createdAt} DESC`);
+  
+  const result = [];
+  for (const campaign of campaigns) {
+    const steps = await db.select({ count: sql<number>`COUNT(*)` })
+      .from(dripEmailSteps)
+      .where(eq(dripEmailSteps.campaignId, campaign.id));
+    
+    const enrollments = await db.select({
+      total: sql<number>`COUNT(*)`,
+      active: sql<number>`SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END)`,
+    }).from(dripEnrollments).where(eq(dripEnrollments.campaignId, campaign.id));
+
+    const emails = await db.select({
+      sent: sql<number>`COUNT(*)`,
+      opened: sql<number>`SUM(CASE WHEN openedAt IS NOT NULL THEN 1 ELSE 0 END)`,
+    }).from(dripEmailLogs)
+      .where(sql`${dripEmailLogs.enrollmentId} IN (SELECT id FROM dripEnrollments WHERE campaignId = ${campaign.id})`);
+
+    result.push({
+      ...campaign,
+      stepCount: Number(steps[0]?.count || 0),
+      totalEnrolled: Number(enrollments[0]?.total || 0),
+      activeEnrolled: Number(enrollments[0]?.active || 0),
+      totalSent: Number(emails[0]?.sent || 0),
+      openRate: Number(emails[0]?.sent || 0) > 0 
+        ? Math.round((Number(emails[0]?.opened || 0) / Number(emails[0]?.sent || 0)) * 100) 
+        : 0,
+    });
+  }
+  return result;
+}

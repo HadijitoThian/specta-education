@@ -19,8 +19,9 @@ import { getLoginUrl } from "@/const";
 import AptitudeReportDownload from "@/components/AptitudeReportPDF";
 import UniversityManager from "@/components/UniversityManager";
 import AnalyticsDashboard from "@/components/AnalyticsDashboard";
+import DripCampaignManager from "@/components/admin/DripCampaignManager";
 
-type TabType = "analytics" | "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staff" | "accessLinks" | "universities" | "proOrders";
+type TabType = "analytics" | "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staff" | "accessLinks" | "universities" | "proOrders" | "campaigns";
 
 const APP_STATUS_OPTIONS = [
   "submitted", "reviewing", "processing", "on_hold", 
@@ -557,6 +558,9 @@ export default function AdminDashboard() {
               </Button>
               <Button variant={activeTab === 'proOrders' ? 'default' : 'outline'} onClick={() => setActiveTab('proOrders')} size="sm">
                 <CreditCard className="w-4 h-4 mr-2" /> Pro Orders
+              </Button>
+              <Button variant={activeTab === 'campaigns' ? 'default' : 'outline'} onClick={() => setActiveTab('campaigns')} size="sm">
+                <Mail className="w-4 h-4 mr-2" /> Campaigns
               </Button>
             </>
           )}
@@ -2048,6 +2052,12 @@ export default function AdminDashboard() {
                   </table>
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'campaigns' && user?.role === 'admin' && (
+            <div className="p-4">
+              <DripCampaignManager />
             </div>
           )}
         </div>

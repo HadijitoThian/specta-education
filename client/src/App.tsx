@@ -29,6 +29,7 @@ import AptitudeTest from "./pages/AptitudeTest";
 import AptitudeTestPro from "./pages/AptitudeTestPro";
 import ProPaymentSuccess from "./pages/ProPaymentSuccess";
 import MyJourney from "./pages/MyJourney";
+import Unsubscribe from "./pages/Unsubscribe";
 
 function Router() {
   return (
@@ -60,6 +61,7 @@ function Router() {
       <Route path={"/staff-login"} component={StaffLogin} />
       <Route path={"/staff-dashboard"} component={StaffDashboard} />
       <Route path={"/admin"} component={AdminDashboard} />
+      <Route path={"/unsubscribe"} component={Unsubscribe} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
