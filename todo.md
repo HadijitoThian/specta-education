@@ -1009,3 +1009,8 @@
 - [x] Ensure phone number is saved to leads/aptitude results table
 - [x] Ensure phone number is visible in admin dashboard leads and aptitude results
 - [x] Ensure phone number is included in the results email sent to admin/owner
+
+### 104. Add Pro Upsell Page to Free Aptitude Test PDF Report
+- [x] Add a Pro upsell page at the end of the free test PDF report
+- [x] Include Free vs Pro comparison, pricing, and link to /test/pro
+- [x] Only show in free test PDF, not in Pro test PDF

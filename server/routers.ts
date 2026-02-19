@@ -2668,6 +2668,7 @@ IMPORTANT:
             riasecScores: input.riasecScores,
             miScores: input.miScores,
             aiAnalysis,
+            isPro: true,
           });
           console.log(`[AptitudePro] PDF generated for ${input.studentName} (${pdfBuffer.length} bytes)`);
 

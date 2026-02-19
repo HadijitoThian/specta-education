@@ -131,6 +131,7 @@ interface PdfReportData {
   riasecScores: Record<string, number>;
   miScores: Record<string, number>;
   aiAnalysis: any;
+  isPro?: boolean;
 }
 
 // ========== Strip emoji ==========
@@ -864,7 +865,210 @@ export async function generatePdfReport(data: PdfReportData): Promise<Buffer> {
   }
 
   // ===================================================================
-  // BACK COVER PAGE
+  // PRO UPSELL PAGE (only for free test)
+  // ===================================================================
+  if (!data.isPro) {
+    content.push({
+      text: "",
+      pageBreak: "before" as const,
+    });
+
+    // Purple gradient header background
+    content.push({
+      canvas: [
+        { type: "rect", x: -50, y: -55, w: 595, h: 280, color: "#4338ca" },
+      ],
+      absolutePosition: { x: 0, y: (content.length > 20 ? 0 : 0) },
+    } as any);
+
+    // Upsell header
+    content.push({
+      text: isId ? "MAU TAHU LEBIH DALAM?" : "WANT TO GO DEEPER?",
+      fontSize: 24,
+      bold: true,
+      color: C.white,
+      alignment: "center" as const,
+      margin: [0, 20, 0, 8] as [number, number, number, number],
+    });
+
+    content.push({
+      text: isId
+        ? "Upgrade ke Tes Bakat AI Pro untuk analisis 7 dimensi kepribadian secara mendalam"
+        : "Upgrade to AI Aptitude Test Pro for in-depth 7-dimension personality analysis",
+      fontSize: 11,
+      color: "#c7d2fe",
+      alignment: "center" as const,
+      lineHeight: 1.4,
+      margin: [30, 0, 30, 20] as [number, number, number, number],
+    });
+
+    // Discount badge
+    content.push({
+      columns: [
+        { width: "*", text: "" },
+        {
+          width: "auto",
+          table: {
+            widths: ["auto"],
+            body: [[{
+              text: isId ? "PROMO TERBATAS - HEMAT Rp 20.000!" : "LIMITED OFFER - SAVE Rp 20,000!",
+              fontSize: 10,
+              color: C.white,
+              bold: true,
+              alignment: "center" as const,
+              margin: [16, 6, 16, 6] as [number, number, number, number],
+              border: [false, false, false, false],
+            }]],
+          },
+          layout: {
+            hLineWidth: () => 0,
+            vLineWidth: () => 0,
+            fillColor: () => "#ef4444",
+          },
+        },
+        { width: "*", text: "" },
+      ],
+      margin: [0, 0, 0, 20] as [number, number, number, number],
+    });
+
+    // Comparison table
+    const freeItems = isId
+      ? ["3 bagian tes", "RIASEC dasar", "Multiple Intelligence dasar", "Analisis AI singkat", "Rekomendasi jurusan"]
+      : ["3 test sections", "Basic RIASEC", "Basic Multiple Intelligence", "Brief AI analysis", "Major recommendations"];
+    const proItems = isId
+      ? ["7 bagian tes mendalam", "RIASEC Pro + Personality", "Multiple Intelligence lengkap", "Situational Judgment Test", "Creative & Ranking Assessment", "Laporan PDF 10+ halaman", "Analisis AI mendalam", "Rekomendasi karir & gaji"]
+      : ["7 in-depth test sections", "RIASEC Pro + Personality", "Full Multiple Intelligence", "Situational Judgment Test", "Creative & Ranking Assessment", "10+ page PDF report", "Deep AI analysis", "Career & salary recommendations"];
+
+    const maxRows = Math.max(freeItems.length, proItems.length);
+    const tableBody: any[][] = [
+      [
+        { text: isId ? "VERSI GRATIS" : "FREE VERSION", fontSize: 9, bold: true, color: C.grayMedium, alignment: "center" as const, margin: [0, 6, 0, 6] as [number, number, number, number], border: [false, false, false, true], borderColor: ["#e2e8f0", "#e2e8f0", "#e2e8f0", "#e2e8f0"] },
+        { text: isId ? "VERSI PRO" : "PRO VERSION", fontSize: 9, bold: true, color: "#1e1b4b", alignment: "center" as const, margin: [0, 6, 0, 6] as [number, number, number, number], border: [false, false, false, true], borderColor: ["#e2e8f0", "#e2e8f0", "#e2e8f0", "#e2e8f0"] },
+      ],
+    ];
+    for (let i = 0; i < maxRows; i++) {
+      tableBody.push([
+        { text: freeItems[i] ? `  ${freeItems[i]}` : "", fontSize: 9, color: C.gray, margin: [0, 4, 0, 4] as [number, number, number, number], border: [false, false, false, false] },
+        { text: proItems[i] ? `  ${proItems[i]}` : "", fontSize: 9, color: C.dark, bold: true, margin: [0, 4, 0, 4] as [number, number, number, number], border: [false, false, false, false] },
+      ]);
+    }
+
+    content.push({
+      table: {
+        widths: ["*", "*"],
+        body: tableBody,
+      },
+      layout: {
+        hLineWidth: (i: number) => (i === 1 ? 0.5 : 0),
+        vLineWidth: (i: number) => (i === 1 ? 0.5 : 0),
+        hLineColor: () => "#e2e8f0",
+        vLineColor: () => "#e2e8f0",
+        fillColor: (rowIndex: number, _node: any, columnIndex: number) => {
+          if (rowIndex === 0) return columnIndex === 1 ? "#f3f0ff" : "#f8fafc";
+          return columnIndex === 1 ? "#faf5ff" : null;
+        },
+        paddingLeft: () => 10,
+        paddingRight: () => 10,
+      },
+      margin: [20, 0, 20, 24] as [number, number, number, number],
+    });
+
+    // Pricing section
+    content.push({
+      columns: [
+        { width: "*", text: "" },
+        {
+          width: "auto",
+          stack: [
+            {
+              text: [
+                { text: "Rp 149.000  ", fontSize: 12, color: C.grayLight, decoration: "lineThrough" as const },
+                { text: "Rp 79.000  ", fontSize: 14, color: C.grayMedium, decoration: "lineThrough" as const },
+              ],
+              alignment: "center" as const,
+              margin: [0, 0, 0, 4] as [number, number, number, number],
+            },
+            {
+              text: "Rp 59.000",
+              fontSize: 32,
+              bold: true,
+              color: C.purple,
+              alignment: "center" as const,
+              margin: [0, 0, 0, 4] as [number, number, number, number],
+            },
+            {
+              text: isId ? "Harga promo terbatas!" : "Limited time offer!",
+              fontSize: 10,
+              color: C.red,
+              bold: true,
+              alignment: "center" as const,
+              margin: [0, 0, 0, 16] as [number, number, number, number],
+            },
+          ],
+        },
+        { width: "*", text: "" },
+      ],
+    });
+
+    // CTA button
+    content.push({
+      columns: [
+        { width: "*", text: "" },
+        {
+          width: "auto",
+          table: {
+            widths: ["auto"],
+            body: [[{
+              text: isId ? "UPGRADE KE PRO SEKARANG" : "UPGRADE TO PRO NOW",
+              fontSize: 14,
+              color: C.white,
+              bold: true,
+              alignment: "center" as const,
+              margin: [30, 12, 30, 12] as [number, number, number, number],
+              border: [false, false, false, false],
+            }]],
+          },
+          layout: {
+            hLineWidth: () => 0,
+            vLineWidth: () => 0,
+            fillColor: () => C.purple,
+            paddingLeft: () => 0,
+            paddingRight: () => 0,
+            paddingTop: () => 0,
+            paddingBottom: () => 0,
+          },
+        },
+        { width: "*", text: "" },
+      ],
+      margin: [0, 0, 0, 12] as [number, number, number, number],
+    });
+
+    // URL
+    content.push({
+      text: "spectaeducation.com/test/pro",
+      fontSize: 11,
+      color: C.purple,
+      bold: true,
+      alignment: "center" as const,
+      decoration: "underline" as const,
+      link: "https://spectaeducation.com/test/pro",
+      margin: [0, 0, 0, 16] as [number, number, number, number],
+    });
+
+    // Payment info
+    content.push({
+      text: isId
+        ? "Pembayaran aman via Xendit  |  Hasil langsung ke email"
+        : "Secure payment via Xendit  |  Results sent to your email",
+      fontSize: 8.5,
+      color: C.grayMedium,
+      alignment: "center" as const,
+      margin: [0, 0, 0, 0] as [number, number, number, number],
+    });
+  }
+
+  // ===================================================================
+  // BACK COVER -- CTA
   // ===================================================================
   content.push({
     text: "",
