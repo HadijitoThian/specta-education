@@ -1,317 +1,286 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plane, Globe, GraduationCap, DollarSign, User, Sparkles } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { toast } from "sonner";
 
 export default function Simulator() {
   const [, setLocation] = useLocation();
-  const [formData, setFormData] = useState({
-    studentName: "",
-    studentEmail: "",
-    studentPhone: "",
-    country: "",
-    universityTier: "",
-    intendedMajor: "",
-    budgetLevel: "",
-    personalityType: "",
-  });
+
+  // Controlled form state - survives React re-renders
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [country, setCountry] = useState("");
+  const [tier, setTier] = useState("");
+  const [major, setMajor] = useState("");
+  const [budget, setBudget] = useState("");
+  const [personality, setPersonality] = useState("");
+
+  const [errorMsg, setErrorMsg] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const startSimulation = trpc.simulator.start.useMutation({
     onSuccess: (data) => {
-      // Save initial data to localStorage for experience page
       localStorage.setItem(`simulator_${data.sessionId}`, JSON.stringify({
         scenario: data.scenario,
         stats: data.stats,
         currentDay: data.currentDay,
       }));
-      // Navigate to simulation experience with session ID
       setLocation(`/simulator/experience?session=${data.sessionId}`);
     },
     onError: (error) => {
-      toast.error("Error", { description: error.message });
+      setIsSubmitting(false);
+      setErrorMsg("Server error: " + error.message);
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    console.log('Form submitted with data:', formData);
-    
-    if (!formData.studentName || !formData.studentEmail || !formData.country || 
-        !formData.universityTier || !formData.intendedMajor || !formData.budgetLevel) {
-      console.log('Validation failed. Missing fields:', {
-        studentName: !formData.studentName,
-        studentEmail: !formData.studentEmail,
-        country: !formData.country,
-        universityTier: !formData.universityTier,
-        intendedMajor: !formData.intendedMajor,
-        budgetLevel: !formData.budgetLevel
-      });
-      alert('Please fill in all required fields');
-      toast.error("Missing Information", { description: "Please fill in all required fields" });
+  const isPending = startSimulation.isPending || isSubmitting;
+
+  const handleSubmit = () => {
+    // Validate required fields
+    const missing: string[] = [];
+    if (!name.trim()) missing.push("Full Name");
+    if (!email.trim()) missing.push("Email");
+    if (!country) missing.push("Target Country");
+    if (!tier) missing.push("University Tier");
+    if (!major) missing.push("Intended Major");
+    if (!budget) missing.push("Budget Level");
+
+    if (missing.length > 0) {
+      setErrorMsg("Please fill in: " + missing.join(", "));
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
-    console.log('Starting simulation...');
-    startSimulation.mutate(formData);
+    setErrorMsg("");
+    setIsSubmitting(true);
+
+    startSimulation.mutate({
+      studentName: name.trim(),
+      studentEmail: email.trim(),
+      studentPhone: phone.trim(),
+      country,
+      universityTier: tier,
+      intendedMajor: major,
+      budgetLevel: budget,
+      personalityType: personality,
+    });
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #eff6ff, #ffffff, #faf5ff)" }}>
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-20">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <Sparkles className="w-8 h-8" />
-              <span className="text-sm font-semibold uppercase tracking-wider bg-white/20 px-4 py-1 rounded-full">
-                AI-Powered Experience
-              </span>
-            </div>
-            <h1 className="text-5xl font-bold mb-6">
-              Experience Your Future in 7 Days
-            </h1>
-            <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-              Live through a realistic simulation of studying abroad before you apply. 
-              Make choices, face challenges, and discover if you're truly ready.
-            </p>
-            <div className="flex items-center justify-center gap-8 text-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span>3-Day Prototype</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span>AI-Generated Scenarios</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span>Personalized Report</span>
-              </div>
-            </div>
+      <div style={{ background: "linear-gradient(to right, #2563eb, #7c3aed)", color: "white", padding: "80px 20px" }}>
+        <div style={{ maxWidth: "800px", margin: "0 auto", textAlign: "center" }}>
+          <div style={{ display: "inline-block", background: "rgba(255,255,255,0.2)", padding: "4px 16px", borderRadius: "20px", fontSize: "12px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", marginBottom: "16px" }}>
+            AI-Powered Experience
+          </div>
+          <h1 style={{ fontSize: "48px", fontWeight: 700, marginBottom: "24px", lineHeight: 1.1 }}>
+            Experience Your Future in 7 Days
+          </h1>
+          <p style={{ fontSize: "18px", color: "#bfdbfe", marginBottom: "32px", maxWidth: "600px", margin: "0 auto 32px" }}>
+            Live through a realistic simulation of studying abroad before you apply. 
+            Make choices, face challenges, and discover if you're truly ready.
+          </p>
+          <div style={{ display: "flex", justifyContent: "center", gap: "32px", fontSize: "14px" }}>
+            <span>3-Day Prototype</span>
+            <span>AI-Generated Scenarios</span>
+            <span>Personalized Report</span>
           </div>
         </div>
       </div>
 
       {/* Form Section */}
-      <div className="container mx-auto px-4 py-16">
-        <div className="max-w-3xl mx-auto">
-          <Card className="shadow-2xl border-2">
-            <CardHeader>
-              <CardTitle className="text-3xl">Start Your Simulation</CardTitle>
-              <CardDescription className="text-base">
-                Tell us about yourself and we'll create a personalized 3-day experience
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Personal Info */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <User className="w-5 h-5 text-blue-600" />
-                    Personal Information
-                  </h3>
-                  
-                  <div>
-                    <Label htmlFor="name">Full Name *</Label>
-                    <Input
-                      id="name"
-                      placeholder="Your full name"
-                      value={formData.studentName}
-                      onChange={(e) => setFormData({ ...formData, studentName: e.target.value })}
-                      required
-                    />
-                  </div>
+      <div style={{ maxWidth: "700px", margin: "0 auto", padding: "48px 20px" }}>
+        <div style={{ background: "white", borderRadius: "16px", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.15)", border: "2px solid #e5e7eb", padding: "40px" }}>
+          <h2 style={{ fontSize: "28px", fontWeight: 700, marginBottom: "8px" }}>Start Your Simulation</h2>
+          <p style={{ color: "#6b7280", marginBottom: "24px" }}>
+            Tell us about yourself and we'll create a personalized 3-day experience
+          </p>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="email">Email *</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="your@email.com"
-                        value={formData.studentEmail}
-                        onChange={(e) => setFormData({ ...formData, studentEmail: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="phone">Phone (Optional)</Label>
-                      <Input
-                        id="phone"
-                        placeholder="+62 xxx xxxx xxxx"
-                        value={formData.studentPhone}
-                        onChange={(e) => setFormData({ ...formData, studentPhone: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                </div>
+          {/* Error Message */}
+          {errorMsg && (
+            <div style={{ background: "#fef2f2", border: "2px solid #f87171", color: "#dc2626", padding: "16px", borderRadius: "8px", marginBottom: "24px", fontSize: "14px", fontWeight: 500 }}>
+              {errorMsg}
+            </div>
+          )}
 
-                {/* Study Preferences */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Globe className="w-5 h-5 text-purple-600" />
-                    Study Preferences
-                  </h3>
+          {/* Personal Info */}
+          <h3 style={{ fontSize: "18px", fontWeight: 600, marginBottom: "16px", color: "#1f2937" }}>
+            Personal Information
+          </h3>
+          
+          <div style={{ marginBottom: "16px" }}>
+            <label style={{ display: "block", fontSize: "14px", fontWeight: 500, marginBottom: "4px" }}>Full Name *</label>
+            <input
+              type="text"
+              placeholder="Your full name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              style={{ width: "100%", height: "44px", borderRadius: "8px", border: "1px solid #d1d5db", padding: "0 12px", fontSize: "14px", boxSizing: "border-box", outline: "none" }}
+            />
+          </div>
 
-                  <div>
-                    <Label htmlFor="country">Target Country *</Label>
-                    <select
-                      id="country"
-                      value={formData.country}
-                      onChange={(e) => {
-                        console.log('Country changed to:', e.target.value);
-                        setFormData({ ...formData, country: e.target.value });
-                      }}
-                      className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    >
-                      <option value="">Select country</option>
-                      <option value="australia">Australia</option>
-                      <option value="uk">United Kingdom</option>
-                      <option value="usa">United States</option>
-                      <option value="canada">Canada</option>
-                      <option value="malaysia">Malaysia</option>
-                    </select>
-                  </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
+            <div>
+              <label style={{ display: "block", fontSize: "14px", fontWeight: 500, marginBottom: "4px" }}>Email *</label>
+              <input
+                type="email"
+                placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{ width: "100%", height: "44px", borderRadius: "8px", border: "1px solid #d1d5db", padding: "0 12px", fontSize: "14px", boxSizing: "border-box", outline: "none" }}
+              />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: "14px", fontWeight: 500, marginBottom: "4px" }}>Phone (Optional)</label>
+              <input
+                type="text"
+                placeholder="+62 xxx xxxx xxxx"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                style={{ width: "100%", height: "44px", borderRadius: "8px", border: "1px solid #d1d5db", padding: "0 12px", fontSize: "14px", boxSizing: "border-box", outline: "none" }}
+              />
+            </div>
+          </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="tier">University Tier *</Label>
-                      <select
-                        id="tier"
-                        value={formData.universityTier}
-                        onChange={(e) => setFormData({ ...formData, universityTier: e.target.value })}
-                        className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      >
-                        <option value="">Select tier</option>
-                        <option value="top10">Top 10 (Prestigious)</option>
-                        <option value="mid_tier">Mid-Tier (Balanced)</option>
-                        <option value="budget">Budget-Friendly</option>
-                      </select>
-                    </div>
+          {/* Study Preferences */}
+          <h3 style={{ fontSize: "18px", fontWeight: 600, marginBottom: "16px", color: "#1f2937" }}>
+            Study Preferences
+          </h3>
 
-                    <div>
-                      <Label htmlFor="major">Intended Major *</Label>
-                      <select
-                        id="major"
-                        value={formData.intendedMajor}
-                        onChange={(e) => setFormData({ ...formData, intendedMajor: e.target.value })}
-                        className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      >
-                        <option value="">Select major</option>
-                        <option value="business">Business & Management</option>
-                        <option value="engineering">Engineering</option>
-                        <option value="computer_science">Computer Science</option>
-                        <option value="medicine">Medicine & Health</option>
-                        <option value="arts">Arts & Humanities</option>
-                        <option value="sciences">Natural Sciences</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
+          <div style={{ marginBottom: "16px" }}>
+            <label style={{ display: "block", fontSize: "14px", fontWeight: 500, marginBottom: "4px" }}>Target Country *</label>
+            <select
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              style={{ width: "100%", height: "44px", borderRadius: "8px", border: "1px solid #d1d5db", padding: "0 12px", fontSize: "14px", boxSizing: "border-box", background: "white", outline: "none" }}
+            >
+              <option value="">Select country</option>
+              <option value="australia">Australia</option>
+              <option value="uk">United Kingdom</option>
+              <option value="usa">United States</option>
+              <option value="canada">Canada</option>
+              <option value="malaysia">Malaysia</option>
+            </select>
+          </div>
 
-                {/* Financial & Personality */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-green-600" />
-                    Budget & Personality
-                  </h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
+            <div>
+              <label style={{ display: "block", fontSize: "14px", fontWeight: 500, marginBottom: "4px" }}>University Tier *</label>
+              <select
+                value={tier}
+                onChange={(e) => setTier(e.target.value)}
+                style={{ width: "100%", height: "44px", borderRadius: "8px", border: "1px solid #d1d5db", padding: "0 12px", fontSize: "14px", boxSizing: "border-box", background: "white", outline: "none" }}
+              >
+                <option value="">Select tier</option>
+                <option value="top10">Top 10 (Prestigious)</option>
+                <option value="mid_tier">Mid-Tier (Balanced)</option>
+                <option value="budget">Budget-Friendly</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: "14px", fontWeight: 500, marginBottom: "4px" }}>Intended Major *</label>
+              <select
+                value={major}
+                onChange={(e) => setMajor(e.target.value)}
+                style={{ width: "100%", height: "44px", borderRadius: "8px", border: "1px solid #d1d5db", padding: "0 12px", fontSize: "14px", boxSizing: "border-box", background: "white", outline: "none" }}
+              >
+                <option value="">Select major</option>
+                <option value="business">Business & Management</option>
+                <option value="engineering">Engineering</option>
+                <option value="computer_science">Computer Science</option>
+                <option value="medicine">Medicine & Health</option>
+                <option value="arts">Arts & Humanities</option>
+                <option value="sciences">Natural Sciences</option>
+              </select>
+            </div>
+          </div>
 
-                  <div>
-                    <Label htmlFor="budget">Budget Level *</Label>
-                    <select
-                      id="budget"
-                      value={formData.budgetLevel}
-                      onChange={(e) => setFormData({ ...formData, budgetLevel: e.target.value })}
-                      className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    >
-                      <option value="">Select budget level</option>
-                      <option value="tight">Tight (Need to watch every dollar)</option>
-                      <option value="moderate">Moderate (Some flexibility)</option>
-                      <option value="comfortable">Comfortable (Financial security)</option>
-                    </select>
-                  </div>
+          {/* Budget & Personality */}
+          <h3 style={{ fontSize: "18px", fontWeight: 600, marginBottom: "16px", color: "#1f2937" }}>
+            Budget & Personality
+          </h3>
 
-                  <div>
-                    <Label htmlFor="personality">Personality Type (Optional)</Label>
-                    <select
-                      id="personality"
-                      value={formData.personalityType}
-                      onChange={(e) => setFormData({ ...formData, personalityType: e.target.value })}
-                      className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    >
-                      <option value="">Select personality</option>
-                      <option value="extrovert">Extrovert (Social & Outgoing)</option>
-                      <option value="introvert">Introvert (Reserved & Thoughtful)</option>
-                      <option value="balanced">Balanced (Mix of Both)</option>
-                    </select>
-                  </div>
-                </div>
+          <div style={{ marginBottom: "16px" }}>
+            <label style={{ display: "block", fontSize: "14px", fontWeight: 500, marginBottom: "4px" }}>Budget Level *</label>
+            <select
+              value={budget}
+              onChange={(e) => setBudget(e.target.value)}
+              style={{ width: "100%", height: "44px", borderRadius: "8px", border: "1px solid #d1d5db", padding: "0 12px", fontSize: "14px", boxSizing: "border-box", background: "white", outline: "none" }}
+            >
+              <option value="">Select budget level</option>
+              <option value="tight">Tight (Need to watch every dollar)</option>
+              <option value="moderate">Moderate (Some flexibility)</option>
+              <option value="comfortable">Comfortable (Financial security)</option>
+            </select>
+          </div>
 
-                <Button 
-                  type="submit" 
-                  className="w-full h-14 text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                  disabled={startSimulation.isPending}
-                >
-                  {startSimulation.isPending ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Creating Your Experience...
-                    </>
-                  ) : (
-                    <>
-                      <Plane className="w-5 h-5 mr-2" />
-                      Start My 3-Day Journey
-                    </>
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+          <div style={{ marginBottom: "32px" }}>
+            <label style={{ display: "block", fontSize: "14px", fontWeight: 500, marginBottom: "4px" }}>Personality Type (Optional)</label>
+            <select
+              value={personality}
+              onChange={(e) => setPersonality(e.target.value)}
+              style={{ width: "100%", height: "44px", borderRadius: "8px", border: "1px solid #d1d5db", padding: "0 12px", fontSize: "14px", boxSizing: "border-box", background: "white", outline: "none" }}
+            >
+              <option value="">Select personality</option>
+              <option value="extrovert">Extrovert (Social & Outgoing)</option>
+              <option value="introvert">Introvert (Reserved & Thoughtful)</option>
+              <option value="balanced">Balanced (Mix of Both)</option>
+            </select>
+          </div>
 
-          {/* Info Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-            <Card>
-              <CardHeader>
-                <GraduationCap className="w-10 h-10 text-blue-600 mb-2" />
-                <CardTitle className="text-lg">Realistic Scenarios</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Experience authentic challenges international students face daily
-                </p>
-              </CardContent>
-            </Card>
+          {/* Submit Button */}
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={handleSubmit}
+            style={{
+              width: "100%",
+              height: "56px",
+              fontSize: "18px",
+              fontWeight: 600,
+              color: "white",
+              background: isPending ? "#9ca3af" : "linear-gradient(to right, #2563eb, #7c3aed)",
+              border: "none",
+              borderRadius: "12px",
+              cursor: isPending ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              transition: "all 0.2s",
+            }}
+          >
+            {isPending ? (
+              <>
+                <span style={{ display: "inline-block", width: "20px", height: "20px", border: "2px solid white", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                Creating Your Experience...
+              </>
+            ) : (
+              "Start My 3-Day Journey"
+            )}
+          </button>
 
-            <Card>
-              <CardHeader>
-                <Sparkles className="w-10 h-10 text-purple-600 mb-2" />
-                <CardTitle className="text-lg">AI-Powered</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Every choice generates unique, personalized responses
-                </p>
-              </CardContent>
-            </Card>
+          {/* Spinner animation */}
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
 
-            <Card>
-              <CardHeader>
-                <User className="w-10 h-10 text-green-600 mb-2" />
-                <CardTitle className="text-lg">Readiness Report</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Get detailed insights on your study abroad preparedness
-                </p>
-              </CardContent>
-            </Card>
+        {/* Info Cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "24px", marginTop: "48px" }}>
+          <div style={{ background: "white", borderRadius: "12px", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
+            <div style={{ fontSize: "32px", marginBottom: "12px" }}>🎓</div>
+            <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "8px" }}>Realistic Scenarios</h3>
+            <p style={{ fontSize: "14px", color: "#6b7280" }}>Experience authentic challenges international students face daily</p>
+          </div>
+          <div style={{ background: "white", borderRadius: "12px", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
+            <div style={{ fontSize: "32px", marginBottom: "12px" }}>✨</div>
+            <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "8px" }}>AI-Powered</h3>
+            <p style={{ fontSize: "14px", color: "#6b7280" }}>Every choice generates unique, personalized responses</p>
+          </div>
+          <div style={{ background: "white", borderRadius: "12px", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
+            <div style={{ fontSize: "32px", marginBottom: "12px" }}>📊</div>
+            <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "8px" }}>Readiness Report</h3>
+            <p style={{ fontSize: "14px", color: "#6b7280" }}>Get detailed insights on your study abroad preparedness</p>
           </div>
         </div>
       </div>
