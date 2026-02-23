@@ -76,7 +76,7 @@ Important guidelines:
 
 Contact information for SpecTa Education:
 - Main Office: Jl. Kelapa Nias Raya QE1 No. 14, Kelapa Gading, Jakarta Utara
-- Phone: +62 819 668 278
+- Phone: +62 811 8120 820
 - Email: info@spectaeducation.com`;
 
 export default function ChatBot() {
@@ -165,7 +165,7 @@ export default function ChatBot() {
       console.error("Chat error:", error);
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: "I apologize, but I'm having trouble connecting right now. Please try again or contact us directly at +62 819 668 278."
+        content: "I apologize, but I'm having trouble connecting right now. Please try again or contact us directly at +62 811 8120 820."
       }]);
     }
   });

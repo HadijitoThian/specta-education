@@ -1032,3 +1032,9 @@
 - [x] Verified webhook endpoint returns 200 OK (tested in Xendit dashboard)
 - [x] Manually processed pending payment for imanuelyowan@gmail.com (Imanuel ys)
 - [x] Sent Pro test access link via email successfully
+
+### 107. Update WhatsApp Phone Number Across All Templates
+- [x] Change all phone numbers to 0811 8120 820 (formatted as +62 811 8120 820 for WhatsApp links)
+- [x] Update PDF generator phone number
+- [x] Update any email templates with phone numbers
+- [x] Update frontend components with phone numbers

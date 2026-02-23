@@ -538,7 +538,7 @@ export default function Home() {
             <p className="text-white/90 max-w-2xl mx-auto mb-8">
               Chat with our AI assistant to get personalized guidance on studying abroad. We're here to help you every step of the way.
             </p>
-            <a href="https://wa.me/62819668278?text=Hi,%20I'm%20interested%20in%20studying%20abroad.%20Can%20you%20help%20me?" target="_blank" rel="noopener noreferrer">
+            <a href="https://wa.me/6281181208 20?text=Hi,%20I'm%20interested%20in%20studying%20abroad.%20Can%20you%20help%20me?" target="_blank" rel="noopener noreferrer">
               <Button 
                 size="lg" 
                 variant="secondary" 

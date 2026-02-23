@@ -241,7 +241,7 @@ Don't ask for all info at once. Collect naturally during conversation.
 - Encourage booking a consultation or trying Quick Apply when the time feels right.
 - NEVER be pushy. Be their friend first, counselor second.
 
-Contact: Jl. Kelapa Nias Raya QE1 No. 14, Kelapa Gading, Jakarta Utara | +62 819 668 278 | info@spectaeducation.com`;
+Contact: Jl. Kelapa Nias Raya QE1 No. 14, Kelapa Gading, Jakarta Utara | +62 811 8120 820 | info@spectaeducation.com`;
 
 export const appRouter = router({
   system: systemRouter,
@@ -364,7 +364,7 @@ export const appRouter = router({
           console.error("LLM error:", error);
           return { 
             success: false, 
-            message: "I apologize, but I'm having trouble connecting right now. Please try again or contact us directly at +62 819 668 278." 
+            message: "I apologize, but I'm having trouble connecting right now. Please try again or contact us directly at +62 811 8120 820." 
           };
         }
       }),

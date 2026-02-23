@@ -208,7 +208,7 @@ export default function Apply() {
             <Link href="/" className="px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl font-medium hover:shadow-lg transition-all">
               Back to Home
             </Link>
-            <a href="https://wa.me/62819668278?text=Hi%2C%20I%20just%20submitted%20my%20application%20on%20the%20website.%20My%20name%20is%20" target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition-all">
+            <a href="https://wa.me/6281181208 20?text=Hi%2C%20I%20just%20submitted%20my%20application%20on%20the%20website.%20My%20name%20is%20" target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition-all">
               Chat on WhatsApp
             </a>
           </div>
