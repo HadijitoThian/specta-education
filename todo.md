@@ -1046,3 +1046,9 @@
 - [x] Add clear CTA button linking to https://ielts-w.spectaeducation.com
 - [x] Ensure responsive design for mobile
 - [x] Test the banner and CTA link
+
+### 109. Update IELTS Breakthrough Banner Language to English
+- [x] Change banner text from Indonesian to English as primary language
+- [x] Update skill card labels from "TERSEDIA" to "AVAILABLE"
+- [x] Update all other Indonesian text to English
+- [x] Keep minimalist, professional design

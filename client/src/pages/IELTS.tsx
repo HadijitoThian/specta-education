@@ -380,11 +380,11 @@ export default function IELTS() {
                 NEW: Self-Study Platform
               </motion.div>
               <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
-                🎯 Belajar IELTS Mandiri dengan IELTS Breakthrough
+                🎯 Master IELTS Self-Study with IELTS Breakthrough
               </h2>
               <p className="text-white/90 text-lg max-w-3xl mx-auto leading-relaxed">
-                Kuasai semua 4 skill IELTS (Writing, Reading, Listening, Speaking) dalam satu platform. 
-                28 modul lengkap dengan audio lesson, PDF slides, dan handbook. Akses seumur hidup mulai dari <span className="font-bold text-yellow-300">Rp 149.000</span>.
+                Master all 4 IELTS skills (Writing, Reading, Listening, Speaking) in one platform. 
+                28 complete modules with audio lessons, PDF slides, and handbook. Lifetime access starting from <span className="font-bold text-yellow-300">Rp 149,000</span>.
               </p>
             </div>
 
@@ -411,7 +411,7 @@ export default function IELTS() {
                   <p className="text-white/70 text-sm">{skill.desc}</p>
                   <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-500/90 rounded-full text-white text-xs font-semibold">
                     <CheckCircle className="w-3.5 h-3.5" />
-                    TERSEDIA
+                    AVAILABLE
                   </div>
                 </motion.div>
               ))}
@@ -424,16 +424,16 @@ export default function IELTS() {
                 <div>
                   <h3 className="text-white font-bold text-xl mb-4 flex items-center gap-2">
                     <Zap className="w-5 h-5 text-yellow-300" />
-                    Yang Kamu Dapatkan:
+                    What You'll Get:
                   </h3>
                   <ul className="space-y-3">
                     {[
-                      "28 modul lengkap untuk semua 4 skill",
-                      "Audio lesson untuk setiap modul",
+                      "28 complete modules for all 4 skills",
+                      "Audio lessons for every module",
                       "PDF slides & handbook",
-                      "Akses seumur hidup (lifetime access)",
-                      "Belajar kapan saja, di mana saja",
-                      "Metode terbukti dari ahli IELTS 20+ tahun"
+                      "Lifetime access",
+                      "Learn anytime, anywhere",
+                      "Proven methods from 20+ years IELTS experts"
                     ].map((feature, i) => (
                       <motion.li
                         key={i}
@@ -454,12 +454,12 @@ export default function IELTS() {
                 <div className="flex flex-col justify-center">
                   <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-6 border border-white/30">
                     <div className="text-center mb-4">
-                      <p className="text-white/70 text-sm mb-2">Harga Mulai Dari</p>
+                      <p className="text-white/70 text-sm mb-2">Starting From</p>
                       <div className="flex items-center justify-center gap-3">
-                        <span className="text-white/50 line-through text-2xl">Rp 299.000</span>
-                        <span className="text-yellow-300 font-bold text-4xl">Rp 149.000</span>
+                        <span className="text-white/50 line-through text-2xl">Rp 299,000</span>
+                        <span className="text-yellow-300 font-bold text-4xl">Rp 149,000</span>
                       </div>
-                      <p className="text-white/80 text-sm mt-2">Akses Seumur Hidup • Semua Modul</p>
+                      <p className="text-white/80 text-sm mt-2">Lifetime Access • All Modules</p>
                     </div>
                     <div className="space-y-2 mb-4">
                       <div className="flex items-center justify-between text-white/80 text-sm">
@@ -481,11 +481,11 @@ export default function IELTS() {
                     </div>
                     <a href="https://ielts-w.spectaeducation.com" target="_blank" rel="noopener noreferrer" className="block">
                       <Button size="lg" className="w-full bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-gray-900 font-bold shadow-xl shadow-black/20 py-6 text-base rounded-xl group">
-                        Lihat Paket & Harga Lengkap
+                        View Full Packages & Pricing
                         <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                       </Button>
                     </a>
-                    <p className="text-white/60 text-xs text-center mt-3">Garansi uang kembali 100%</p>
+                    <p className="text-white/60 text-xs text-center mt-3">100% money-back guarantee</p>
                   </div>
                 </div>
               </div>
@@ -494,13 +494,13 @@ export default function IELTS() {
             {/* Bottom CTA */}
             <div className="text-center">
               <p className="text-white/80 text-sm mb-4">
-                📚 Sudah dipercaya oleh <span className="font-bold text-yellow-300">6,000+ siswa</span> sejak 2005
+                📚 Trusted by <span className="font-bold text-yellow-300">6,000+ students</span> since 2005
               </p>
               <div className="flex items-center justify-center gap-1">
                 {[...Array(5)].map((_, i) => (
                   <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />
                 ))}
-                <span className="text-white/90 ml-2 font-semibold">4.9/5.0 dari 276+ review</span>
+                <span className="text-white/90 ml-2 font-semibold">4.9/5.0 from 276+ reviews</span>
               </div>
             </div>
           </motion.div>
