@@ -1105,3 +1105,12 @@
 - [x] Verified backend simulator.start mutation works via curl test
 - [x] Wrote 4 vitest tests for query param handling (all pass)
 - [ ] Verify with real user testing
+
+### 115. Fix SimulatorExperience Page Layout - Text Overflow
+- [x] Choice option text overflows outside card boundaries
+- [x] Text for options A, B, C extends beyond the card width
+- [x] Replaced shadcn Button with native button elements for proper text wrapping
+- [x] Added break-words, whitespace-normal, overflow-hidden to choice text
+- [x] Added overflow-x-hidden to main wrapper and overflow-hidden to card
+- [x] Added responsive padding (p-6 sm:p-8) to card content
+- [x] Verified layout with long AI-generated text - all contained properly

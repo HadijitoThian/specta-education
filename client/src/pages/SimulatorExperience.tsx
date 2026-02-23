@@ -114,7 +114,7 @@ export default function SimulatorExperience() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 overflow-x-hidden">
       {/* Progress Header */}
       <div className="bg-white border-b shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
@@ -170,14 +170,14 @@ export default function SimulatorExperience() {
       {/* Scenario Content */}
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
-          <Card className="shadow-2xl border-2 mb-8">
+          <Card className="shadow-2xl border-2 mb-8 overflow-hidden">
             <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
               <CardTitle className="text-2xl">Day {currentDay}: {currentScenario.title}</CardTitle>
               <CardDescription className="text-blue-100">
                 Read the scenario carefully and make your choice
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-8">
+            <CardContent className="p-6 sm:p-8">
               <div className="prose max-w-none mb-8">
                 <p className="text-lg leading-relaxed text-gray-700">
                   {currentScenario.scenarioText}
@@ -188,20 +188,25 @@ export default function SimulatorExperience() {
                 <div className="space-y-4">
                   <h3 className="text-xl font-semibold mb-4">What do you do?</h3>
                   {currentScenario.choices.map((choice: any) => (
-                    <Button
+                    <button
                       key={choice.label}
-                      variant={selectedChoice === choice.label ? "default" : "outline"}
-                      className="w-full h-auto p-6 text-left justify-start"
+                      className={`w-full text-left p-5 rounded-xl border-2 transition-all duration-200 cursor-pointer ${
+                        selectedChoice === choice.label
+                          ? "border-blue-600 bg-blue-50 shadow-md"
+                          : "border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/50"
+                      } ${(submitChoice.isPending || selectedChoice !== null) ? "opacity-60 pointer-events-none" : ""}`}
                       onClick={() => handleChoiceSelect(choice.label, choice.text)}
                       disabled={submitChoice.isPending || selectedChoice !== null}
                     >
-                      <div className="flex items-start gap-4 w-full">
-                        <span className="text-2xl font-bold text-blue-600 min-w-[40px]">
+                      <div className="flex items-start gap-3">
+                        <span className="text-xl font-bold text-blue-600 shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
                           {choice.label}
                         </span>
-                        <span className="text-base flex-1">{choice.text}</span>
+                        <span className="text-sm leading-relaxed text-gray-700 break-words whitespace-normal overflow-hidden">
+                          {choice.text}
+                        </span>
                       </div>
-                    </Button>
+                    </button>
                   ))}
 
                   {submitChoice.isPending && (
