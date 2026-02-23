@@ -53,6 +53,7 @@ export default function Simulator() {
         intendedMajor: !formData.intendedMajor,
         budgetLevel: !formData.budgetLevel
       });
+      alert('Please fill in all required fields');
       toast.error("Missing Information", { description: "Please fill in all required fields" });
       return;
     }
@@ -161,59 +162,56 @@ export default function Simulator() {
 
                   <div>
                     <Label htmlFor="country">Target Country *</Label>
-                    <Select value={formData.country} onValueChange={(value) => {
-                      console.log('Country selected:', value);
-                      setFormData({ ...formData, country: value });
-                    }}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select country" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="australia">Australia</SelectItem>
-                        <SelectItem value="uk">United Kingdom</SelectItem>
-                        <SelectItem value="usa">United States</SelectItem>
-                        <SelectItem value="canada">Canada</SelectItem>
-                        <SelectItem value="malaysia">Malaysia</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <select
+                      id="country"
+                      value={formData.country}
+                      onChange={(e) => {
+                        console.log('Country changed to:', e.target.value);
+                        setFormData({ ...formData, country: e.target.value });
+                      }}
+                      className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      <option value="">Select country</option>
+                      <option value="australia">Australia</option>
+                      <option value="uk">United Kingdom</option>
+                      <option value="usa">United States</option>
+                      <option value="canada">Canada</option>
+                      <option value="malaysia">Malaysia</option>
+                    </select>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="tier">University Tier *</Label>
-                      <Select value={formData.universityTier} onValueChange={(value) => {
-                      console.log('Tier selected:', value);
-                      setFormData({ ...formData, universityTier: value });
-                    }}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select tier" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="top10">Top 10 (Prestigious)</SelectItem>
-                          <SelectItem value="mid_tier">Mid-Tier (Balanced)</SelectItem>
-                          <SelectItem value="budget">Budget-Friendly</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <select
+                        id="tier"
+                        value={formData.universityTier}
+                        onChange={(e) => setFormData({ ...formData, universityTier: e.target.value })}
+                        className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      >
+                        <option value="">Select tier</option>
+                        <option value="top10">Top 10 (Prestigious)</option>
+                        <option value="mid_tier">Mid-Tier (Balanced)</option>
+                        <option value="budget">Budget-Friendly</option>
+                      </select>
                     </div>
 
                     <div>
                       <Label htmlFor="major">Intended Major *</Label>
-                      <Select value={formData.intendedMajor} onValueChange={(value) => {
-                      console.log('Major selected:', value);
-                      setFormData({ ...formData, intendedMajor: value });
-                    }}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select major" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="business">Business & Management</SelectItem>
-                          <SelectItem value="engineering">Engineering</SelectItem>
-                          <SelectItem value="computer_science">Computer Science</SelectItem>
-                          <SelectItem value="medicine">Medicine & Health</SelectItem>
-                          <SelectItem value="arts">Arts & Humanities</SelectItem>
-                          <SelectItem value="sciences">Natural Sciences</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <select
+                        id="major"
+                        value={formData.intendedMajor}
+                        onChange={(e) => setFormData({ ...formData, intendedMajor: e.target.value })}
+                        className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      >
+                        <option value="">Select major</option>
+                        <option value="business">Business & Management</option>
+                        <option value="engineering">Engineering</option>
+                        <option value="computer_science">Computer Science</option>
+                        <option value="medicine">Medicine & Health</option>
+                        <option value="arts">Arts & Humanities</option>
+                        <option value="sciences">Natural Sciences</option>
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -227,30 +225,32 @@ export default function Simulator() {
 
                   <div>
                     <Label htmlFor="budget">Budget Level *</Label>
-                    <Select value={formData.budgetLevel} onValueChange={(value) => setFormData({ ...formData, budgetLevel: value })}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select budget level" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="tight">Tight (Need to watch every dollar)</SelectItem>
-                        <SelectItem value="moderate">Moderate (Some flexibility)</SelectItem>
-                        <SelectItem value="comfortable">Comfortable (Financial security)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <select
+                      id="budget"
+                      value={formData.budgetLevel}
+                      onChange={(e) => setFormData({ ...formData, budgetLevel: e.target.value })}
+                      className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      <option value="">Select budget level</option>
+                      <option value="tight">Tight (Need to watch every dollar)</option>
+                      <option value="moderate">Moderate (Some flexibility)</option>
+                      <option value="comfortable">Comfortable (Financial security)</option>
+                    </select>
                   </div>
 
                   <div>
                     <Label htmlFor="personality">Personality Type (Optional)</Label>
-                    <Select value={formData.personalityType} onValueChange={(value) => setFormData({ ...formData, personalityType: value })}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select personality" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="extrovert">Extrovert (Social & Outgoing)</SelectItem>
-                        <SelectItem value="introvert">Introvert (Reserved & Thoughtful)</SelectItem>
-                        <SelectItem value="balanced">Balanced (Mix of Both)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <select
+                      id="personality"
+                      value={formData.personalityType}
+                      onChange={(e) => setFormData({ ...formData, personalityType: e.target.value })}
+                      className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      <option value="">Select personality</option>
+                      <option value="extrovert">Extrovert (Social & Outgoing)</option>
+                      <option value="introvert">Introvert (Reserved & Thoughtful)</option>
+                      <option value="balanced">Balanced (Mix of Both)</option>
+                    </select>
                   </div>
                 </div>
 

@@ -1082,3 +1082,10 @@
 - [x] Add detailed logging to track Select value changes
 - [ ] Test complete flow end-to-end with user verification
 - [ ] Fix any remaining issues if user reports problems
+
+### 113. Fix Simulator Form - Select Values Not Saving to State
+- [ ] Investigate why Select component values aren't being saved to formData state
+- [ ] Check if onValueChange handlers are being triggered
+- [ ] Fix the root cause of Select state management issue
+- [ ] Ensure form validation error toasts display properly
+- [ ] Test complete form submission flow
