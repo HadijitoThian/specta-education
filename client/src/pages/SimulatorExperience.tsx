@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -9,8 +9,9 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
 export default function SimulatorExperience() {
-  const [location, setLocation] = useLocation();
-  const searchParams = new URLSearchParams(location.split('?')[1]);
+  const [, setLocation] = useLocation();
+  const searchString = useSearch();
+  const searchParams = new URLSearchParams(searchString);
   const sessionId = searchParams.get('session');
 
   const [currentScenario, setCurrentScenario] = useState<any>(null);

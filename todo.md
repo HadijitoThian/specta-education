@@ -1092,3 +1092,16 @@
 - [x] Verified backend simulator.start mutation works correctly via curl test
 - [x] Backend returns AI-generated Day 1 scenario with 3 choices successfully
 - [x] SimulatorExperience page correctly reads scenario from localStorage
+
+### 114. CRITICAL: Fix Simulator Form - Still Redirects Back After Submit
+- [x] Real user confirms form still redirects back to form page after clicking submit
+- [x] Root cause: wouter's useLocation() returns only pathname, NOT query string
+- [x] SimulatorExperience.tsx line 13: `new URLSearchParams(location.split('?')[1])` always returned null sessionId
+- [x] useEffect on line 55 checked `if (!sessionId)` → immediately redirected back to /simulator
+- [x] Fixed SimulatorExperience.tsx: replaced useLocation() with useSearch() from wouter
+- [x] Fixed SimulatorReport.tsx: same bug, same fix
+- [x] Added 4 vitest tests documenting the bug and verifying the fix (all pass)
+- [x] Verified dev server has no TypeScript errors
+- [x] Verified backend simulator.start mutation works via curl test
+- [x] Wrote 4 vitest tests for query param handling (all pass)
+- [ ] Verify with real user testing

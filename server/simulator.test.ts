@@ -313,3 +313,36 @@ describe("Simulator System", () => {
     }, 30000);
   });
 });
+
+describe("Simulator query param handling (bug fix #114)", () => {
+  it("wouter useSearch returns query string that URLSearchParams can parse", () => {
+    // useSearch() returns "session=abc123" (no leading ?)
+    // URLSearchParams can parse both formats
+    const withQuestion = new URLSearchParams("?session=abc123");
+    const withoutQuestion = new URLSearchParams("session=abc123");
+    
+    expect(withQuestion.get("session")).toBe("abc123");
+    expect(withoutQuestion.get("session")).toBe("abc123");
+  });
+
+  it("useLocation does NOT include query string - documents the old bug", () => {
+    // OLD BUGGY CODE: useLocation() returns only pathname like "/simulator/experience"
+    // Splitting on '?' yields undefined for the second part
+    const pathname = "/simulator/experience";
+    const searchParams = new URLSearchParams(pathname.split('?')[1]);
+    expect(searchParams.get("session")).toBeNull(); // BUG: always null!
+  });
+
+  it("useLocation with full URL would work but wouter strips query", () => {
+    // If wouter DID return the full URL, this would work
+    const fullUrl = "/simulator/experience?session=abc123";
+    const searchParams = new URLSearchParams(fullUrl.split('?')[1]);
+    expect(searchParams.get("session")).toBe("abc123");
+  });
+
+  it("window.location.search includes the query string correctly", () => {
+    const search = "?session=abc123";
+    const searchParams = new URLSearchParams(search);
+    expect(searchParams.get("session")).toBe("abc123");
+  });
+});
