@@ -32,6 +32,9 @@ import MyJourney from "./pages/MyJourney";
 import Unsubscribe from "./pages/Unsubscribe";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
+import Simulator from "./pages/Simulator";
+import SimulatorExperience from "./pages/SimulatorExperience";
+import SimulatorReport from "./pages/SimulatorReport";
 
 function Router() {
   return (
@@ -65,6 +68,9 @@ function Router() {
       <Route path={"/admin"} component={AdminDashboard} />
       <Route path={"/blog"} component={Blog} />
       <Route path={"/blog/:slug"} component={BlogPost} />
+      <Route path={"/simulator"} component={Simulator} />
+      <Route path={"/simulator/experience"} component={SimulatorExperience} />
+      <Route path={"/simulator/report"} component={SimulatorReport} />
       <Route path={"/unsubscribe"} component={Unsubscribe} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />

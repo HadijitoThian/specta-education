@@ -308,6 +308,75 @@ export const scholarshipLeads = mysqlTable("scholarshipLeads", {
 export type ScholarshipLead = typeof scholarshipLeads.$inferSelect;
 export type InsertScholarshipLead = typeof scholarshipLeads.$inferInsert;
 
+/**
+ * Simulator Sessions table - tracks each student's simulator journey
+ */
+export const simulatorSessions = mysqlTable("simulatorSessions", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: varchar("sessionId", { length: 64 }).notNull().unique(),
+  studentName: varchar("studentName", { length: 255 }).notNull(),
+  studentEmail: varchar("studentEmail", { length: 320 }).notNull(),
+  studentPhone: varchar("studentPhone", { length: 50 }),
+  country: varchar("country", { length: 100 }).notNull(), // australia, uk, usa, etc.
+  universityTier: varchar("universityTier", { length: 50 }).notNull(), // top10, mid_tier, budget
+  intendedMajor: varchar("intendedMajor", { length: 255 }).notNull(),
+  budgetLevel: varchar("budgetLevel", { length: 50 }).notNull(), // tight, moderate, comfortable
+  personalityType: varchar("personalityType", { length: 100 }), // from aptitude test or quick quiz
+  currentDay: int("currentDay").default(1).notNull(),
+  status: mysqlEnum("status", ["in_progress", "completed", "abandoned"]).default("in_progress").notNull(),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SimulatorSession = typeof simulatorSessions.$inferSelect;
+export type InsertSimulatorSession = typeof simulatorSessions.$inferInsert;
+
+/**
+ * Simulator Choices table - stores each choice made during simulation
+ */
+export const simulatorChoices = mysqlTable("simulatorChoices", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: varchar("sessionId", { length: 64 }).notNull(),
+  day: int("day").notNull(),
+  scenarioType: varchar("scenarioType", { length: 100 }).notNull(), // arrival, academic, social, financial, etc.
+  scenarioText: text("scenarioText").notNull(),
+  choiceOptions: text("choiceOptions").notNull(), // JSON: array of options
+  selectedChoice: varchar("selectedChoice", { length: 10 }).notNull(), // A, B, or C
+  choiceText: text("choiceText").notNull(),
+  aiResponse: text("aiResponse").notNull(),
+  impactBudget: int("impactBudget").default(0).notNull(), // +/- amount
+  impactMood: int("impactMood").default(0).notNull(), // +/- points
+  impactConnections: int("impactConnections").default(0).notNull(), // +/- points
+  impactAcademic: int("impactAcademic").default(0).notNull(), // +/- points
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SimulatorChoice = typeof simulatorChoices.$inferSelect;
+export type InsertSimulatorChoice = typeof simulatorChoices.$inferInsert;
+
+/**
+ * Simulator Results table - final readiness report for each completed simulation
+ */
+export const simulatorResults = mysqlTable("simulatorResults", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: varchar("sessionId", { length: 64 }).notNull().unique(),
+  readinessScore: int("readinessScore").notNull(), // 0-100
+  socialScore: int("socialScore").notNull(),
+  financialScore: int("financialScore").notNull(),
+  academicScore: int("academicScore").notNull(),
+  emotionalScore: int("emotionalScore").notNull(),
+  strengths: text("strengths").notNull(), // JSON array
+  weaknesses: text("weaknesses").notNull(), // JSON array
+  recommendations: text("recommendations").notNull(), // JSON array
+  reportSent: boolean("reportSent").default(false).notNull(),
+  bookedConsultation: boolean("bookedConsultation").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SimulatorResult = typeof simulatorResults.$inferSelect;
+export type InsertSimulatorResult = typeof simulatorResults.$inferInsert;
+
 /***
  * Staff Accounts table - separate login system for counselors and staff
  */

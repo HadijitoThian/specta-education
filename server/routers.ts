@@ -144,6 +144,17 @@ import {
   createDripEnrollment,
   getHotLeads,
   getCampaignPerformanceMetrics,
+  createSimulatorSession,
+  getSimulatorSessionBySessionId,
+  updateSimulatorSession,
+  getAllSimulatorSessions,
+  createSimulatorChoice,
+  getChoicesBySessionId,
+  createSimulatorResult,
+  getSimulatorResultBySessionId,
+  updateSimulatorResult,
+  getAllSimulatorResults,
+  getSimulatorCompletionStats,
   createBlogCategory,
   listBlogCategories,
   updateBlogCategory,
@@ -4204,6 +4215,491 @@ Return JSON with the refined article:
         return await countCommentsByPostId(input.postId, input.status);
       }),
   }),
+
+  // ==================== SIMULATOR ====================
+  simulator: router({
+    // Start new simulation session
+    start: publicProcedure
+      .input(z.object({
+        studentName: z.string().min(1),
+        studentEmail: z.string().email(),
+        studentPhone: z.string().optional(),
+        country: z.string(),
+        universityTier: z.string(),
+        intendedMajor: z.string(),
+        budgetLevel: z.string(),
+        personalityType: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const sessionId = nanoid();
+        const session = await createSimulatorSession({
+          sessionId,
+          ...input,
+          currentDay: 1,
+          status: "in_progress",
+        });
+        if (!session) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create session" });
+
+        // Generate first scenario (Day 1: Arrival)
+        const firstScenario = await generateScenario({
+          day: 1,
+          country: input.country,
+          universityTier: input.universityTier,
+          intendedMajor: input.intendedMajor,
+          budgetLevel: input.budgetLevel,
+          personalityType: input.personalityType,
+          previousChoices: [],
+        });
+
+        return {
+          sessionId,
+          scenario: firstScenario,
+          currentDay: 1,
+          stats: {
+            budget: input.budgetLevel === "tight" ? 400 : input.budgetLevel === "moderate" ? 500 : 600,
+            mood: 50,
+            connections: 0,
+            academic: 50,
+          },
+        };
+      }),
+
+    // Submit choice and get next scenario
+    submitChoice: publicProcedure
+      .input(z.object({
+        sessionId: z.string(),
+        day: z.number(),
+        scenarioType: z.string(),
+        scenarioText: z.string(),
+        choiceOptions: z.array(z.object({
+          label: z.string(),
+          text: z.string(),
+        })),
+        selectedChoice: z.string(),
+        choiceText: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const session = await getSimulatorSessionBySessionId(input.sessionId);
+        if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Session not found" });
+
+        // Get all previous choices
+        const previousChoices = await getChoicesBySessionId(input.sessionId);
+
+        // Generate AI response and impacts
+        const aiAnalysis = await analyzeChoice({
+          day: input.day,
+          scenarioType: input.scenarioType,
+          selectedChoice: input.selectedChoice,
+          choiceText: input.choiceText,
+          country: session.country,
+          budgetLevel: session.budgetLevel,
+          previousChoices: previousChoices.map(c => ({
+            day: c.day,
+            scenario: c.scenarioType,
+            choice: c.selectedChoice,
+          })),
+        });
+
+        // Save choice
+        await createSimulatorChoice({
+          sessionId: input.sessionId,
+          day: input.day,
+          scenarioType: input.scenarioType,
+          scenarioText: input.scenarioText,
+          choiceOptions: JSON.stringify(input.choiceOptions),
+          selectedChoice: input.selectedChoice,
+          choiceText: input.choiceText,
+          aiResponse: aiAnalysis.response,
+          impactBudget: aiAnalysis.impacts.budget,
+          impactMood: aiAnalysis.impacts.mood,
+          impactConnections: aiAnalysis.impacts.connections,
+          impactAcademic: aiAnalysis.impacts.academic,
+        });
+
+        // Check if simulation is complete (Day 3 for prototype)
+        const isComplete = input.day >= 3;
+
+        if (isComplete) {
+          // Generate final report
+          const allChoices = await getChoicesBySessionId(input.sessionId);
+          const report = await generateReadinessReport({
+            session,
+            choices: allChoices,
+          });
+
+          // Save result
+          await createSimulatorResult({
+            sessionId: input.sessionId,
+            readinessScore: report.readinessScore,
+            socialScore: report.socialScore,
+            financialScore: report.financialScore,
+            academicScore: report.academicScore,
+            emotionalScore: report.emotionalScore,
+            strengths: JSON.stringify(report.strengths),
+            weaknesses: JSON.stringify(report.weaknesses),
+            recommendations: JSON.stringify(report.recommendations),
+            reportSent: false,
+            bookedConsultation: false,
+          });
+
+          // Update session status
+          await updateSimulatorSession(input.sessionId, {
+            status: "completed",
+            completedAt: new Date(),
+          });
+
+          return {
+            complete: true,
+            report,
+            aiResponse: aiAnalysis.response,
+            impacts: aiAnalysis.impacts,
+          };
+        }
+
+        // Generate next scenario
+        const nextScenario = await generateScenario({
+          day: input.day + 1,
+          country: session.country,
+          universityTier: session.universityTier,
+          intendedMajor: session.intendedMajor,
+          budgetLevel: session.budgetLevel,
+          personalityType: session.personalityType,
+          previousChoices: [...previousChoices, {
+            day: input.day,
+            scenarioType: input.scenarioType,
+            selectedChoice: input.selectedChoice,
+            choiceText: input.choiceText,
+            aiResponse: aiAnalysis.response,
+            impactBudget: aiAnalysis.impacts.budget,
+            impactMood: aiAnalysis.impacts.mood,
+            impactConnections: aiAnalysis.impacts.connections,
+            impactAcademic: aiAnalysis.impacts.academic,
+          }],
+        });
+
+        // Update session day
+        await updateSimulatorSession(input.sessionId, {
+          currentDay: input.day + 1,
+        });
+
+        return {
+          complete: false,
+          nextScenario,
+          aiResponse: aiAnalysis.response,
+          impacts: aiAnalysis.impacts,
+        };
+      }),
+
+    // Get session status
+    getSession: publicProcedure
+      .input(z.object({ sessionId: z.string() }))
+      .query(async ({ input }) => {
+        const session = await getSimulatorSessionBySessionId(input.sessionId);
+        if (!session) throw new TRPCError({ code: "NOT_FOUND" });
+
+        const choices = await getChoicesBySessionId(input.sessionId);
+        const result = await getSimulatorResultBySessionId(input.sessionId);
+
+        return { session, choices, result };
+      }),
+
+    // Get final report
+    getReport: publicProcedure
+      .input(z.object({ sessionId: z.string() }))
+      .query(async ({ input }) => {
+        const result = await getSimulatorResultBySessionId(input.sessionId);
+        if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Report not found" });
+
+        return {
+          readinessScore: result.readinessScore,
+          socialScore: result.socialScore,
+          financialScore: result.financialScore,
+          academicScore: result.academicScore,
+          emotionalScore: result.emotionalScore,
+          strengths: JSON.parse(result.strengths),
+          weaknesses: JSON.parse(result.weaknesses),
+          recommendations: JSON.parse(result.recommendations),
+        };
+      }),
+
+    // Admin: Get all sessions
+    listSessions: protectedProcedure
+      .input(z.object({
+        limit: z.number().default(50),
+        offset: z.number().default(0),
+      }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return await getAllSimulatorSessions(input.limit, input.offset);
+      }),
+
+    // Admin: Get completion stats
+    getStats: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return await getSimulatorCompletionStats();
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
+
+// ==================== SIMULATOR AI HELPERS ====================
+
+interface GenerateScenarioParams {
+  day: number;
+  country: string;
+  universityTier: string;
+  intendedMajor: string;
+  budgetLevel: string;
+  personalityType?: string | null;
+  previousChoices: any[];
+}
+
+async function generateScenario(params: GenerateScenarioParams) {
+  const { day, country, universityTier, intendedMajor, budgetLevel, personalityType, previousChoices } = params;
+
+  const scenarioTypes = [
+    { day: 1, type: "arrival", title: "Arrival & Orientation" },
+    { day: 2, type: "social", title: "Making Friends" },
+    { day: 3, type: "academic", title: "Academic Pressure" },
+  ];
+
+  const currentScenario = scenarioTypes.find(s => s.day === day);
+  if (!currentScenario) throw new Error("Invalid day");
+
+  const prompt = `You are creating a realistic study abroad simulation for an Indonesian student going to ${country}.
+
+Student Profile:
+- University tier: ${universityTier}
+- Intended major: ${intendedMajor}
+- Budget level: ${budgetLevel}
+- Personality: ${personalityType || "balanced"}
+
+Day ${day}: ${currentScenario.title}
+
+${previousChoices.length > 0 ? `Previous choices:\n${previousChoices.map(c => `Day ${c.day}: ${c.scenarioType} - chose ${c.selectedChoice}`).join("\n")}` : "This is the first day."}
+
+Generate a realistic scenario for Day ${day} with:
+1. A vivid scenario description (2-3 sentences) that reflects the ${currentScenario.type} theme
+2. Three distinct choice options (A, B, C) that represent different approaches
+3. Each choice should have realistic consequences
+
+Return JSON with this structure:
+{
+  "scenarioText": "The scenario description",
+  "choices": [
+    { "label": "A", "text": "First option" },
+    { "label": "B", "text": "Second option" },
+    { "label": "C", "text": "Third option" }
+  ]
+}`;
+
+  const response = await invokeLLM({
+    messages: [
+      { role: "system", content: "You are a study abroad simulation expert. Create realistic, engaging scenarios." },
+      { role: "user", content: prompt },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "scenario",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            scenarioText: { type: "string" },
+            choices: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  label: { type: "string" },
+                  text: { type: "string" },
+                },
+                required: ["label", "text"],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ["scenarioText", "choices"],
+          additionalProperties: false,
+        },
+      },
+    },
+  });
+
+  const text = response.choices?.[0]?.message?.content;
+  if (!text || typeof text !== "string") throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI generation failed" });
+
+  const scenario = JSON.parse(text);
+  return {
+    day,
+    type: currentScenario.type,
+    title: currentScenario.title,
+    ...scenario,
+  };
+}
+
+interface AnalyzeChoiceParams {
+  day: number;
+  scenarioType: string;
+  selectedChoice: string;
+  choiceText: string;
+  country: string;
+  budgetLevel: string;
+  previousChoices: any[];
+}
+
+async function analyzeChoice(params: AnalyzeChoiceParams) {
+  const { day, scenarioType, selectedChoice, choiceText, country, budgetLevel, previousChoices } = params;
+
+  const prompt = `Analyze this choice made by an Indonesian student studying in ${country}:
+
+Day ${day} - ${scenarioType}
+Choice ${selectedChoice}: ${choiceText}
+Budget level: ${budgetLevel}
+
+Provide:
+1. A realistic 2-3 sentence response describing the immediate outcome
+2. Impact scores (-20 to +20) for: budget, mood, connections, academic
+
+Return JSON:
+{
+  "response": "What happens as a result of this choice",
+  "impacts": {
+    "budget": 0,
+    "mood": 0,
+    "connections": 0,
+    "academic": 0
+  }
+}`;
+
+  const response = await invokeLLM({
+    messages: [
+      { role: "system", content: "You are analyzing student choices in a study abroad simulation. Be realistic about consequences." },
+      { role: "user", content: prompt },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "choice_analysis",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            response: { type: "string" },
+            impacts: {
+              type: "object",
+              properties: {
+                budget: { type: "number" },
+                mood: { type: "number" },
+                connections: { type: "number" },
+                academic: { type: "number" },
+              },
+              required: ["budget", "mood", "connections", "academic"],
+              additionalProperties: false,
+            },
+          },
+          required: ["response", "impacts"],
+          additionalProperties: false,
+        },
+      },
+    },
+  });
+
+  const text = response.choices?.[0]?.message?.content;
+  if (!text || typeof text !== "string") throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI analysis failed" });
+
+  return JSON.parse(text);
+}
+
+interface GenerateReportParams {
+  session: any;
+  choices: any[];
+}
+
+async function generateReadinessReport(params: GenerateReportParams) {
+  const { session, choices } = params;
+
+  // Calculate scores from choices
+  const totalBudgetImpact = choices.reduce((sum, c) => sum + c.impactBudget, 0);
+  const totalMoodImpact = choices.reduce((sum, c) => sum + c.impactMood, 0);
+  const totalConnectionsImpact = choices.reduce((sum, c) => sum + c.impactConnections, 0);
+  const totalAcademicImpact = choices.reduce((sum, c) => sum + c.impactAcademic, 0);
+
+  const financialScore = Math.max(0, Math.min(100, 70 + totalBudgetImpact));
+  const emotionalScore = Math.max(0, Math.min(100, 70 + totalMoodImpact));
+  const socialScore = Math.max(0, Math.min(100, 70 + totalConnectionsImpact));
+  const academicScore = Math.max(0, Math.min(100, 70 + totalAcademicImpact));
+
+  const readinessScore = Math.round((financialScore + emotionalScore + socialScore + academicScore) / 4);
+
+  const prompt = `Generate a personalized study abroad readiness report for this student:
+
+Country: ${session.country}
+Major: ${session.intendedMajor}
+Scores:
+- Financial: ${financialScore}/100
+- Emotional: ${emotionalScore}/100
+- Social: ${socialScore}/100
+- Academic: ${academicScore}/100
+- Overall Readiness: ${readinessScore}/100
+
+Choices made:
+${choices.map(c => `Day ${c.day}: ${c.scenarioType} - ${c.selectedChoice} → ${c.aiResponse}`).join("\n")}
+
+Provide:
+1. 3-4 specific strengths based on their choices
+2. 2-3 areas to develop
+3. 4-5 actionable recommendations
+
+Return JSON:
+{
+  "strengths": ["strength 1", "strength 2", ...],
+  "weaknesses": ["area 1", "area 2", ...],
+  "recommendations": ["rec 1", "rec 2", ...]
+}`;
+
+  const response = await invokeLLM({
+    messages: [
+      { role: "system", content: "You are a study abroad counselor providing personalized feedback." },
+      { role: "user", content: prompt },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "readiness_report",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            strengths: { type: "array", items: { type: "string" } },
+            weaknesses: { type: "array", items: { type: "string" } },
+            recommendations: { type: "array", items: { type: "string" } },
+          },
+          required: ["strengths", "weaknesses", "recommendations"],
+          additionalProperties: false,
+        },
+      },
+    },
+  });
+
+  const text = response.choices?.[0]?.message?.content;
+  if (!text || typeof text !== "string") throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI report generation failed" });
+
+  const analysis = JSON.parse(text);
+
+  return {
+    readinessScore,
+    socialScore,
+    financialScore,
+    academicScore,
+    emotionalScore,
+    ...analysis,
+  };
+}

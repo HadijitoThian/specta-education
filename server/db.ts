@@ -30,7 +30,10 @@ import {
   blogPosts, InsertBlogPost, BlogPost,
   blogTags, InsertBlogTag, BlogTag,
   blogPostTags, InsertBlogPostTag, BlogPostTag,
-  blogComments, InsertBlogComment, BlogComment
+  blogComments, InsertBlogComment, BlogComment,
+  simulatorSessions, InsertSimulatorSession, SimulatorSession,
+  simulatorChoices, InsertSimulatorChoice, SimulatorChoice,
+  simulatorResults, InsertSimulatorResult, SimulatorResult
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1989,4 +1992,114 @@ export async function countCommentsByPostId(postId: number, status?: string): Pr
 
   const [result] = await db.select({ count: sql<number>`count(*)` }).from(blogComments).where(and(...conditions));
   return Number(result?.count || 0);
+}
+
+// ==================== SIMULATOR HELPERS ====================
+
+export async function createSimulatorSession(data: InsertSimulatorSession): Promise<SimulatorSession | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(simulatorSessions).values(data);
+  const insertId = result[0].insertId;
+  const [created] = await db.select().from(simulatorSessions).where(eq(simulatorSessions.id, insertId)).limit(1);
+  return created || null;
+}
+
+export async function getSimulatorSessionBySessionId(sessionId: string): Promise<SimulatorSession | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const [session] = await db.select().from(simulatorSessions).where(eq(simulatorSessions.sessionId, sessionId)).limit(1);
+  return session || null;
+}
+
+export async function updateSimulatorSession(sessionId: string, data: Partial<SimulatorSession>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(simulatorSessions).set(data).where(eq(simulatorSessions.sessionId, sessionId));
+}
+
+export async function getAllSimulatorSessions(limit = 50, offset = 0): Promise<SimulatorSession[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(simulatorSessions)
+    .orderBy(desc(simulatorSessions.createdAt))
+    .limit(limit)
+    .offset(offset);
+}
+
+export async function createSimulatorChoice(data: InsertSimulatorChoice): Promise<SimulatorChoice | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(simulatorChoices).values(data);
+  const insertId = result[0].insertId;
+  const [created] = await db.select().from(simulatorChoices).where(eq(simulatorChoices.id, insertId)).limit(1);
+  return created || null;
+}
+
+export async function getChoicesBySessionId(sessionId: string): Promise<SimulatorChoice[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(simulatorChoices)
+    .where(eq(simulatorChoices.sessionId, sessionId))
+    .orderBy(simulatorChoices.day, simulatorChoices.createdAt);
+}
+
+export async function createSimulatorResult(data: InsertSimulatorResult): Promise<SimulatorResult | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(simulatorResults).values(data);
+  const insertId = result[0].insertId;
+  const [created] = await db.select().from(simulatorResults).where(eq(simulatorResults.id, insertId)).limit(1);
+  return created || null;
+}
+
+export async function getSimulatorResultBySessionId(sessionId: string): Promise<SimulatorResult | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const [result] = await db.select().from(simulatorResults).where(eq(simulatorResults.sessionId, sessionId)).limit(1);
+  return result || null;
+}
+
+export async function updateSimulatorResult(sessionId: string, data: Partial<SimulatorResult>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(simulatorResults).set(data).where(eq(simulatorResults.sessionId, sessionId));
+}
+
+export async function getAllSimulatorResults(limit = 50, offset = 0): Promise<SimulatorResult[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(simulatorResults)
+    .orderBy(desc(simulatorResults.createdAt))
+    .limit(limit)
+    .offset(offset);
+}
+
+export async function getSimulatorCompletionStats(): Promise<{ total: number; completed: number; inProgress: number; abandoned: number }> {
+  const db = await getDb();
+  if (!db) return { total: 0, completed: 0, inProgress: 0, abandoned: 0 };
+
+  const [stats] = await db.select({
+    total: sql<number>`COUNT(*)`,
+    completed: sql<number>`SUM(CASE WHEN ${simulatorSessions.status} = 'completed' THEN 1 ELSE 0 END)`,
+    inProgress: sql<number>`SUM(CASE WHEN ${simulatorSessions.status} = 'in_progress' THEN 1 ELSE 0 END)`,
+    abandoned: sql<number>`SUM(CASE WHEN ${simulatorSessions.status} = 'abandoned' THEN 1 ELSE 0 END)`,
+  }).from(simulatorSessions);
+
+  return {
+    total: Number(stats?.total || 0),
+    completed: Number(stats?.completed || 0),
+    inProgress: Number(stats?.inProgress || 0),
+    abandoned: Number(stats?.abandoned || 0),
+  };
 }
