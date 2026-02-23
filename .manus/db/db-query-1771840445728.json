@@ -1,0 +1,17 @@
+{
+  "query": "SELECT customerEmail, customerName, customerPhone, externalId, status FROM aptitudeProOrders WHERE externalId LIKE '%mlymv64l%' LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT customerEmail, customerName, customerPhone, externalId, status FROM aptitudeProOrders WHERE externalId LIKE '%mlymv64l%' LIMIT 1;",
+  "rows": [
+    {
+      "customerEmail": "imanuelyowan@gmail.com",
+      "customerName": "Imanuel ys",
+      "customerPhone": "NULL",
+      "externalId": "TESBAKAT-PRO-mlymv64l-f13a16d6",
+      "status": "pending"
+    }
+  ],
+  "messages": [],
+  "stdout": "customerEmail\tcustomerName\tcustomerPhone\texternalId\tstatus\nimanuelyowan@gmail.com\tImanuel ys\tNULL\tTESBAKAT-PRO-mlymv64l-f13a16d6\tpending\n",
+  "stderr": "",
+  "execution_time_ms": 1538
+}

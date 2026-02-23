@@ -1,0 +1,8 @@
+{
+  "query": "SELECT email, studentName, studentPhone, referenceId, status, createdAt FROM aptitudeProOrders WHERE referenceId = 'TESBAKAT-PRO-mlymv64l-f13a16d6';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT email, studentName, studentPhone, referenceId, status, createdAt FROM aptitudeProOrders WHERE referenceId = 'TESBAKAT-PRO-mlymv64l-f13a16d6';",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'referenceid' in 'where clause'"
+  ]
+}

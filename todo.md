@@ -1014,3 +1014,21 @@
 - [x] Add a Pro upsell page at the end of the free test PDF report
 - [x] Include Free vs Pro comparison, pricing, and link to /test/pro
 - [x] Only show in free test PDF, not in Pro test PDF
+
+### 105. Pro Test Access Link Expiration (CANCELLED)
+- [x] User confirmed to keep single-use forever (no time expiration needed)
+
+### 106. Fix Missing Pro Test Link After Payment
+- [ ] Check database for payment record (ID REFERENSI: TESBAKAT-PRO-mlymv64l-f13a16d6)
+- [ ] Check webhook logs to see if webhook was received
+- [ ] Manually send access link to customer if webhook failed
+- [ ] Fix any webhook or email delivery issues found
+- [ ] Test the full payment flow end-to-end
+
+### 106. Fix Missing Pro Test Link After Payment (RESOLVED)
+- [x] Identified root cause: Xendit webhook URL was pointing to old domain (iqtest.pohon.ai)
+- [x] Updated Payments API webhook URL in Xendit dashboard to spectaeducation.com
+- [x] Updated Invoices webhook URL in Xendit dashboard to spectaeducation.com
+- [x] Verified webhook endpoint returns 200 OK (tested in Xendit dashboard)
+- [x] Manually processed pending payment for imanuelyowan@gmail.com (Imanuel ys)
+- [x] Sent Pro test access link via email successfully

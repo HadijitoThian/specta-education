@@ -1,0 +1,26 @@
+{
+  "query": "SELECT * FROM aptitudeProOrders WHERE externalId = 'TESBAKAT-PRO-mlymv64l-f13a16d6';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT * FROM aptitudeProOrders WHERE externalId = 'TESBAKAT-PRO-mlymv64l-f13a16d6';",
+  "rows": [
+    {
+      "id": "60001",
+      "externalId": "TESBAKAT-PRO-mlymv64l-f13a16d6",
+      "xenditInvoiceId": "699bcd37a9d15f4d13787806",
+      "xenditInvoiceUrl": "https://checkout.xendit.co/web/699bcd37a9d15f4d13787806",
+      "customerName": "Imanuel ys",
+      "customerEmail": "imanuelyowan@gmail.com",
+      "customerPhone": "NULL",
+      "amount": "59000",
+      "status": "pending",
+      "accessTokenId": "NULL",
+      "paidAt": "NULL",
+      "source": "landing",
+      "createdAt": "2026-02-23 03:44:55",
+      "updatedAt": "2026-02-23 03:44:55"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\texternalId\txenditInvoiceId\txenditInvoiceUrl\tcustomerName\tcustomerEmail\tcustomerPhone\tamount\tstatus\taccessTokenId\tpaidAt\tsource\tcreatedAt\tupdatedAt\n60001\tTESBAKAT-PRO-mlymv64l-f13a16d6\t699bcd37a9d15f4d13787806\thttps://checkout.xendit.co/web/699bcd37a9d15f4d13787806\tImanuel ys\timanuelyowan@gmail.com\tNULL\t59000\tpending\tNULL\tNULL\tlanding\t2026-02-23 03:44:55\t2026-02-23 03:44:55\n",
+  "stderr": "",
+  "execution_time_ms": 1570
+}

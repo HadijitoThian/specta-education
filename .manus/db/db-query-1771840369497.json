@@ -1,0 +1,19 @@
+{
+  "query": "SHOW TABLES LIKE '%pro%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SHOW TABLES LIKE '%pro%';",
+  "rows": [
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%pro%)": "aptitudeProOrders"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%pro%)": "matchPrograms"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%pro%)": "userChecklistProgress"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%pro%)\naptitudeProOrders\nmatchPrograms\nuserChecklistProgress\n",
+  "stderr": "",
+  "execution_time_ms": 1549
+}
