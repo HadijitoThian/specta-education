@@ -41,12 +41,23 @@ export default function Simulator() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('Form submitted with data:', formData);
+    
     if (!formData.studentName || !formData.studentEmail || !formData.country || 
         !formData.universityTier || !formData.intendedMajor || !formData.budgetLevel) {
+      console.log('Validation failed. Missing fields:', {
+        studentName: !formData.studentName,
+        studentEmail: !formData.studentEmail,
+        country: !formData.country,
+        universityTier: !formData.universityTier,
+        intendedMajor: !formData.intendedMajor,
+        budgetLevel: !formData.budgetLevel
+      });
       toast.error("Missing Information", { description: "Please fill in all required fields" });
       return;
     }
 
+    console.log('Starting simulation...');
     startSimulation.mutate(formData);
   };
 
@@ -150,8 +161,11 @@ export default function Simulator() {
 
                   <div>
                     <Label htmlFor="country">Target Country *</Label>
-                    <Select value={formData.country} onValueChange={(value) => setFormData({ ...formData, country: value })}>
-                      <SelectTrigger>
+                    <Select value={formData.country} onValueChange={(value) => {
+                      console.log('Country selected:', value);
+                      setFormData({ ...formData, country: value });
+                    }}>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select country" />
                       </SelectTrigger>
                       <SelectContent>
@@ -167,8 +181,11 @@ export default function Simulator() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="tier">University Tier *</Label>
-                      <Select value={formData.universityTier} onValueChange={(value) => setFormData({ ...formData, universityTier: value })}>
-                        <SelectTrigger>
+                      <Select value={formData.universityTier} onValueChange={(value) => {
+                      console.log('Tier selected:', value);
+                      setFormData({ ...formData, universityTier: value });
+                    }}>
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select tier" />
                         </SelectTrigger>
                         <SelectContent>
@@ -181,8 +198,11 @@ export default function Simulator() {
 
                     <div>
                       <Label htmlFor="major">Intended Major *</Label>
-                      <Select value={formData.intendedMajor} onValueChange={(value) => setFormData({ ...formData, intendedMajor: value })}>
-                        <SelectTrigger>
+                      <Select value={formData.intendedMajor} onValueChange={(value) => {
+                      console.log('Major selected:', value);
+                      setFormData({ ...formData, intendedMajor: value });
+                    }}>
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select major" />
                         </SelectTrigger>
                         <SelectContent>
@@ -208,7 +228,7 @@ export default function Simulator() {
                   <div>
                     <Label htmlFor="budget">Budget Level *</Label>
                     <Select value={formData.budgetLevel} onValueChange={(value) => setFormData({ ...formData, budgetLevel: value })}>
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select budget level" />
                       </SelectTrigger>
                       <SelectContent>
@@ -222,7 +242,7 @@ export default function Simulator() {
                   <div>
                     <Label htmlFor="personality">Personality Type (Optional)</Label>
                     <Select value={formData.personalityType} onValueChange={(value) => setFormData({ ...formData, personalityType: value })}>
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select personality" />
                       </SelectTrigger>
                       <SelectContent>
