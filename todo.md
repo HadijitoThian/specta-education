@@ -1038,3 +1038,11 @@
 - [x] Update PDF generator phone number
 - [x] Update any email templates with phone numbers
 - [x] Update frontend components with phone numbers
+
+### 108. Add IELTS Breakthrough Banner to IELTS Page
+- [x] Design and implement prominent banner after hero section on `/ielts` page
+- [x] Include 4 skill cards (Writing, Reading, Listening, Speaking) with "TERSEDIA" badges
+- [x] Add pricing information (Rp 149K starting price, lifetime access)
+- [x] Add clear CTA button linking to https://ielts-w.spectaeducation.com
+- [x] Ensure responsive design for mobile
+- [x] Test the banner and CTA link

@@ -352,6 +352,161 @@ export default function IELTS() {
         </div>
       </section>
 
+      {/* IELTS Breakthrough Self-Study Banner */}
+      <section className="py-16 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl" />
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl" />
+        </div>
+        
+        <div className="container relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            {/* Header */}
+            <div className="text-center mb-10">
+              <motion.div 
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/20 backdrop-blur-sm rounded-full text-white text-sm font-medium mb-4 border border-white/30"
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2 }}
+              >
+                <Sparkles className="w-4 h-4" />
+                NEW: Self-Study Platform
+              </motion.div>
+              <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
+                🎯 Belajar IELTS Mandiri dengan IELTS Breakthrough
+              </h2>
+              <p className="text-white/90 text-lg max-w-3xl mx-auto leading-relaxed">
+                Kuasai semua 4 skill IELTS (Writing, Reading, Listening, Speaking) dalam satu platform. 
+                28 modul lengkap dengan audio lesson, PDF slides, dan handbook. Akses seumur hidup mulai dari <span className="font-bold text-yellow-300">Rp 149.000</span>.
+              </p>
+            </div>
+
+            {/* 4 Skills Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-10">
+              {[
+                { icon: FileText, title: "Writing", desc: "Essay & Report" },
+                { icon: BookOpen, title: "Reading", desc: "Comprehension" },
+                { icon: Headphones, title: "Listening", desc: "Audio Practice" },
+                { icon: MessageCircle, title: "Speaking", desc: "Fluency & Pronunciation" }
+              ].map((skill, i) => (
+                <motion.div
+                  key={i}
+                  className="bg-white/15 backdrop-blur-md rounded-2xl p-6 border border-white/20 text-center group hover:bg-white/25 transition-all duration-300 hover:scale-105"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.3 + i * 0.1 }}
+                >
+                  <div className="w-14 h-14 mx-auto mb-4 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                    <skill.icon className="w-7 h-7 text-white" />
+                  </div>
+                  <h3 className="text-white font-bold text-lg mb-1">{skill.title}</h3>
+                  <p className="text-white/70 text-sm">{skill.desc}</p>
+                  <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-500/90 rounded-full text-white text-xs font-semibold">
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    TERSEDIA
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Features & Pricing */}
+            <div className="bg-white/10 backdrop-blur-md rounded-3xl p-8 border border-white/20 mb-8">
+              <div className="grid md:grid-cols-2 gap-8">
+                {/* Left: Features */}
+                <div>
+                  <h3 className="text-white font-bold text-xl mb-4 flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-yellow-300" />
+                    Yang Kamu Dapatkan:
+                  </h3>
+                  <ul className="space-y-3">
+                    {[
+                      "28 modul lengkap untuk semua 4 skill",
+                      "Audio lesson untuk setiap modul",
+                      "PDF slides & handbook",
+                      "Akses seumur hidup (lifetime access)",
+                      "Belajar kapan saja, di mana saja",
+                      "Metode terbukti dari ahli IELTS 20+ tahun"
+                    ].map((feature, i) => (
+                      <motion.li
+                        key={i}
+                        className="flex items-start gap-3 text-white/90"
+                        initial={{ opacity: 0, x: -20 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.5 + i * 0.05 }}
+                      >
+                        <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+                        <span>{feature}</span>
+                      </motion.li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Right: Pricing */}
+                <div className="flex flex-col justify-center">
+                  <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-6 border border-white/30">
+                    <div className="text-center mb-4">
+                      <p className="text-white/70 text-sm mb-2">Harga Mulai Dari</p>
+                      <div className="flex items-center justify-center gap-3">
+                        <span className="text-white/50 line-through text-2xl">Rp 299.000</span>
+                        <span className="text-yellow-300 font-bold text-4xl">Rp 149.000</span>
+                      </div>
+                      <p className="text-white/80 text-sm mt-2">Akses Seumur Hidup • Semua Modul</p>
+                    </div>
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center justify-between text-white/80 text-sm">
+                        <span>✍️ Writing Module</span>
+                        <span className="text-green-400 font-semibold">Included</span>
+                      </div>
+                      <div className="flex items-center justify-between text-white/80 text-sm">
+                        <span>📖 Reading Module</span>
+                        <span className="text-green-400 font-semibold">Included</span>
+                      </div>
+                      <div className="flex items-center justify-between text-white/80 text-sm">
+                        <span>🎧 Listening Module</span>
+                        <span className="text-green-400 font-semibold">Included</span>
+                      </div>
+                      <div className="flex items-center justify-between text-white/80 text-sm">
+                        <span>🗣️ Speaking Module</span>
+                        <span className="text-green-400 font-semibold">Included</span>
+                      </div>
+                    </div>
+                    <a href="https://ielts-w.spectaeducation.com" target="_blank" rel="noopener noreferrer" className="block">
+                      <Button size="lg" className="w-full bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-gray-900 font-bold shadow-xl shadow-black/20 py-6 text-base rounded-xl group">
+                        Lihat Paket & Harga Lengkap
+                        <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                      </Button>
+                    </a>
+                    <p className="text-white/60 text-xs text-center mt-3">Garansi uang kembali 100%</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom CTA */}
+            <div className="text-center">
+              <p className="text-white/80 text-sm mb-4">
+                📚 Sudah dipercaya oleh <span className="font-bold text-yellow-300">6,000+ siswa</span> sejak 2005
+              </p>
+              <div className="flex items-center justify-center gap-1">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+                ))}
+                <span className="text-white/90 ml-2 font-semibold">4.9/5.0 dari 276+ review</span>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* IELTS Test Types Section */}
       <section className="py-20">
         <div className="container">
