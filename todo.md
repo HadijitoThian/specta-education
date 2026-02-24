@@ -1114,3 +1114,8 @@
 - [x] Added overflow-x-hidden to main wrapper and overflow-hidden to card
 - [x] Added responsive padding (p-6 sm:p-8) to card content
 - [x] Verified layout with long AI-generated text - all contained properly
+
+### 116. Fix SEO - Reduce Homepage Keywords from 12 to 3-8
+- [x] Identified 12 keywords in Home.tsx and ~20 keywords in index.html
+- [x] Reduced to 6 focused keywords: study abroad consultant Jakarta, IELTS preparation Indonesia, kuliah luar negeri, SpecTa Education, overseas university application, beasiswa luar negeri
+- [x] Updated both index.html and Home.tsx

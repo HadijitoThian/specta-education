@@ -117,11 +117,11 @@ export default function Home() {
     }
     const metaKeywords = document.querySelector('meta[name="keywords"]');
     if (metaKeywords) {
-      metaKeywords.setAttribute('content', 'study abroad, IELTS preparation, overseas education, university application, scholarship, SpecTa Education, konsultan pendidikan, kuliah luar negeri, beasiswa, persiapan IELTS, study abroad consultant, education consultant Indonesia');
+      metaKeywords.setAttribute('content', 'study abroad consultant Jakarta, IELTS preparation Indonesia, kuliah luar negeri, SpecTa Education, overseas university application, beasiswa luar negeri');
     } else {
       const meta = document.createElement('meta');
       meta.name = 'keywords';
-      meta.content = 'study abroad, IELTS preparation, overseas education, university application, scholarship, SpecTa Education, konsultan pendidikan, kuliah luar negeri, beasiswa, persiapan IELTS, study abroad consultant, education consultant Indonesia';
+      meta.content = 'study abroad consultant Jakarta, IELTS preparation Indonesia, kuliah luar negeri, SpecTa Education, overseas university application, beasiswa luar negeri';
       document.head.appendChild(meta);
     }
   }, []);
