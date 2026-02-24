@@ -116,7 +116,7 @@ export default function BlogPost() {
       }
     }
     return () => {
-      document.title = "SpecTa Education - Study Abroad Consultant Jakarta | IELTS Preparation";
+      document.title = "SpecTa Education Blog - Study Abroad Tips";
     };
   }, [post]);
 

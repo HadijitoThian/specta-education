@@ -1123,3 +1123,16 @@
 ### 117. Fix SEO on /malaysia page - Title too short, Description too long
 - [x] Added useEffect to set document.title: "Study in Malaysia - Top Universities | SpecTa Education" (55 chars)
 - [x] Added meta description: "Explore top Malaysian universities with SpecTa Education. Affordable tuition, multicultural campus life, and globally recognized degrees." (137 chars)
+
+### 118. Audit & Fix SEO titles/descriptions on ALL pages
+- [x] Identified 32 pages across the project
+- [x] Audited each page for document.title and meta description
+- [x] Fixed 27 pages with missing or incorrect SEO tags
+- [x] Fixed pages using SEO component: About, Compare, Contact, Destinations, AptitudeTestPro, Quiz
+- [x] Fixed pages using document.title: IELTS, Scholarships, BlogPost (fallback title)
+- [x] Added useEffect SEO to 16 pages: Apply, BookConsultation, TrackApplication, MyJourney, Play, Persona, AptitudeTest, Articles, Blog, Simulator, SimulatorExperience, SimulatorReport, IELTSPractice, StaffLogin, StaffDashboard, AdminDashboard, Unsubscribe, NotFound
+- [x] Added dynamic SEO to CountryPage.tsx (title based on country.name)
+- [x] Added meta description to ProPaymentSuccess.tsx
+- [x] Fixed curly apostrophe syntax errors in BookConsultation.tsx and AptitudeTest.tsx
+- [x] Verified all 29 user-facing pages pass audit (2 dynamic pages + 1 dev-only page excluded)
+- [x] TypeScript compiles with 0 errors

@@ -26,6 +26,19 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function TrackApplication() {
+  useEffect(() => {
+    document.title = "Track Your Application | SpecTa Education";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'Track your study abroad application status with SpecTa Education. Real-time updates on your university application progress.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Track your study abroad application status with SpecTa Education. Real-time updates on your university application progress.';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const [, params] = useRoute("/track/:token");
   const token = params?.token || "";
 

@@ -326,8 +326,8 @@ export default function Compare() {
   return (
     <>
       <SEO
-        title="Compare Study Destinations - SpecTa Education"
-        description="Compare study abroad destinations side-by-side. Tuition costs, living expenses, visa requirements, post-study work options for UK, USA, Australia, Canada, Singapore, Malaysia, and more."
+        title="Compare Study Destinations | SpecTa Education"
+        description="Compare study abroad destinations side-by-side. Tuition costs, living expenses, visa requirements, and post-study work options."
         keywords="compare study abroad destinations, biaya kuliah luar negeri, tuition fees comparison, study abroad cost calculator, visa requirements"
         canonical="https://spectaeducation.com/compare"
         ogImage="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"

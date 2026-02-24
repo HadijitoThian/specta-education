@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,19 @@ import { Loader2, Eye, EyeOff, Lock, Mail, ArrowLeft } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 export default function StaffLogin() {
+  useEffect(() => {
+    document.title = "Staff Login | SpecTa Education";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'SpecTa Education staff portal login. Access the staff dashboard for managing student applications and consultations.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'SpecTa Education staff portal login. Access the staff dashboard for managing student applications and consultations.';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const [, setLocation] = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

@@ -1,10 +1,24 @@
 import { Button } from "@/components/ui/button";
+import { useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle, Home } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function NotFound() {
   const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    document.title = "Page Not Found | SpecTa Education";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'The page you are looking for could not be found. Return to SpecTa Education homepage to explore study abroad options.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'The page you are looking for could not be found. Return to SpecTa Education homepage to explore study abroad options.';
+      document.head.appendChild(meta);
+    }
+  }, []);
 
   const handleGoHome = () => {
     setLocation("/");

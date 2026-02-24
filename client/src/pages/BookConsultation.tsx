@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import Navigation from "@/components/Navigation";
 import { Calendar, Clock, User, Mail, Phone, MessageSquare, CheckCircle, MapPin, GraduationCap, ChevronLeft, ChevronRight, Globe } from "lucide-react";
@@ -16,6 +16,19 @@ const COUNTRIES = [
 ];
 
 export default function BookConsultation() {
+  useEffect(() => {
+    document.title = "Book a Consultation | SpecTa Education";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'Book a free consultation with SpecTa Education study abroad counselors. Get expert guidance on universities, visas, and scholarships.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Book a free consultation with SpecTa Education study abroad counselors. Get expert guidance on universities, visas, and scholarships.';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const [step, setStep] = useState(1);
   const [selectedType, setSelectedType] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>("");

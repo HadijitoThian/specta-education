@@ -18,6 +18,15 @@ export default function ProPaymentSuccess() {
 
   useEffect(() => {
     document.title = "Payment Successful - Tes Bakat AI Pro";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'Your Tes Bakat AI Pro payment was successful. Access your comprehensive career and major assessment results now.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Your Tes Bakat AI Pro payment was successful. Access your comprehensive career and major assessment results now.';
+      document.head.appendChild(meta);
+    }
   }, []);
 
   if (!orderId) {

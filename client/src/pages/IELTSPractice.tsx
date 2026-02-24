@@ -15,6 +15,19 @@ const SECTIONS = [
 ];
 
 export default function IELTSPractice() {
+  useEffect(() => {
+    document.title = "IELTS Practice Tests | SpecTa Education";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'Practice IELTS with SpecTa Education. Free practice tests for reading, writing, listening, and speaking sections.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Practice IELTS with SpecTa Education. Free practice tests for reading, writing, listening, and speaking sections.';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const [phase, setPhase] = useState<Phase>("register");
   const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [studentInfo, setStudentInfo] = useState({ name: "", email: "", phone: "" });

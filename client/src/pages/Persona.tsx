@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Link } from "wouter";
 import {
@@ -162,6 +162,19 @@ function ChatModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
 }
 
 export default function Persona() {
+  useEffect(() => {
+    document.title = "Student Persona Quiz | SpecTa Education";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'Discover your student persona with SpecTa Education. Find out what type of international student you are and get tailored advice.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Discover your student persona with SpecTa Education. Find out what type of international student you are and get tailored advice.';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const [phase, setPhase] = useState<"intro" | "questions" | "lead" | "generating" | "result">("intro");
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});

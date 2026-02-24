@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,19 @@ const DOC_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function StaffDashboard() {
+  useEffect(() => {
+    document.title = "Staff Dashboard | SpecTa Education";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'SpecTa Education staff dashboard. Manage student applications, track consultations, and monitor team performance.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'SpecTa Education staff dashboard. Manage student applications, track consultations, and monitor team performance.';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const [, setLocation] = useLocation();
   const { data: meData, isLoading: meLoading } = trpc.staffAuth.me.useQuery();
   const { data: appsData, isLoading: appsLoading, refetch: refetchApps } = trpc.staffAuth.getMyApplications.useQuery();

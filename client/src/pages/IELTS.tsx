@@ -150,23 +150,23 @@ export default function IELTS() {
   useEffect(() => {
     window.scrollTo(0, 0);
     // SEO meta tags
-    document.title = "IELTS Preparation Courses - SpecTa Education Indonesia";
+    document.title = "IELTS Preparation Courses | SpecTa Education";
     const metaDescription = document.querySelector('meta[name="description"]');
     if (metaDescription) {
-      metaDescription.setAttribute('content', 'Prepare for IELTS with SpecTa Education. VIP guarantee, private, and group courses with flexible schedules. Score guarantee with money-back policy.');
+      metaDescription.setAttribute('content', 'Prepare for IELTS with SpecTa Education. VIP guarantee, private, and group courses in Jakarta. Expert instructors and proven results.');
     } else {
       const meta = document.createElement('meta');
       meta.name = 'description';
-      meta.content = 'Prepare for IELTS with SpecTa Education. VIP guarantee, private, and group courses with flexible schedules. Score guarantee with money-back policy.';
+      meta.content = 'Prepare for IELTS with SpecTa Education. VIP guarantee, private, and group courses in Jakarta. Expert instructors and proven results.';
       document.head.appendChild(meta);
     }
     const metaKeywords = document.querySelector('meta[name="keywords"]');
     if (metaKeywords) {
-      metaKeywords.setAttribute('content', 'IELTS preparation, IELTS course, IELTS Indonesia, IELTS score guarantee, kursus IELTS, persiapan IELTS, les IELTS Jakarta, IELTS private, IELTS online, SpecTa Education');
+      metaKeywords.setAttribute('content', 'IELTS preparation Jakarta, IELTS course Indonesia, kursus IELTS, SpecTa Education, IELTS score guarantee');
     } else {
       const meta = document.createElement('meta');
       meta.name = 'keywords';
-      meta.content = 'IELTS preparation, IELTS course, IELTS Indonesia, IELTS score guarantee, kursus IELTS, persiapan IELTS, les IELTS Jakarta, IELTS private, IELTS online, SpecTa Education';
+      meta.content = 'IELTS preparation Jakarta, IELTS course Indonesia, kursus IELTS, SpecTa Education, IELTS score guarantee';
       document.head.appendChild(meta);
     }
   }, []);

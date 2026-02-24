@@ -9,6 +9,19 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
 export default function SimulatorExperience() {
+  useEffect(() => {
+    document.title = "Simulator Experience | SpecTa Education";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'Live the study abroad experience in our AI-powered simulator. Make choices, manage your budget, and build connections.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Live the study abroad experience in our AI-powered simulator. Make choices, manage your budget, and build connections.';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const [, setLocation] = useLocation();
   const searchString = useSearch();
   const searchParams = new URLSearchParams(searchString);

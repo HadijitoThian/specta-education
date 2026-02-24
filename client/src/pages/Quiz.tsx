@@ -549,8 +549,8 @@ export default function Quiz() {
   return (
     <>
       <SEO
-        title="Free Aptitude Test - Find Your Best Major | SpecTa Education"
-        description="Take our free AI-powered aptitude test to discover your ideal major and career path. RIASEC + Multiple Intelligence methodology. Get personalized recommendations in minutes."
+        title="Free Aptitude Test - Find Your Best Major"
+        description="Take our free AI-powered aptitude test to discover your ideal major and career path. Personalized recommendations from SpecTa Education."
         keywords="tes bakat gratis, free aptitude test, tes minat bakat online, career aptitude test, jurusan kuliah terbaik, RIASEC test, multiple intelligence test"
         canonical="https://spectaeducation.com/quiz"
         ogImage="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import StudyAbroadChecklist from "@/components/StudyAbroadChecklist";
@@ -11,6 +11,19 @@ import { ClipboardCheck, LogIn, Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function MyJourney() {
+  useEffect(() => {
+    document.title = "My Study Abroad Journey | SpecTa Education";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'Track your study abroad journey milestones with SpecTa Education. From application to arrival, stay organized and informed.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Track your study abroad journey milestones with SpecTa Education. From application to arrival, stay organized and informed.';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const { user, loading } = useAuth();
   const isLoading = loading;
   const [isChatOpen, setIsChatOpen] = useState(false);

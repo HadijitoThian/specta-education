@@ -255,23 +255,23 @@ export default function Scholarships() {
   useEffect(() => {
     window.scrollTo(0, 0);
     // SEO meta tags
-    document.title = "Study Abroad Scholarships - SpecTa Education Indonesia";
+    document.title = "Study Abroad Scholarships | SpecTa Education";
     const metaDescription = document.querySelector('meta[name="description"]');
     if (metaDescription) {
-      metaDescription.setAttribute('content', 'Find study abroad scholarships with SpecTa Education. 100% tuition scholarships to China, Malaysia, and LPDP guidance. 200+ students funded since 2005.');
+      metaDescription.setAttribute('content', 'Find study abroad scholarships with SpecTa Education. Full tuition scholarships for Australia, UK, USA, Canada, and more.');
     } else {
       const meta = document.createElement('meta');
       meta.name = 'description';
-      meta.content = 'Find study abroad scholarships with SpecTa Education. 100% tuition scholarships to China, Malaysia, and LPDP guidance. 200+ students funded since 2005.';
+      meta.content = 'Find study abroad scholarships with SpecTa Education. Full tuition scholarships for Australia, UK, USA, Canada, and more.';
       document.head.appendChild(meta);
     }
     const metaKeywords = document.querySelector('meta[name="keywords"]');
     if (metaKeywords) {
-      metaKeywords.setAttribute('content', 'study abroad scholarship, beasiswa kuliah luar negeri, beasiswa China, beasiswa Malaysia, LPDP, scholarship Indonesia, full scholarship, beasiswa S1, beasiswa S2, SpecTa Education');
+      metaKeywords.setAttribute('content', 'study abroad scholarship, beasiswa kuliah luar negeri, beasiswa China, beasiswa Australia, SpecTa Education');
     } else {
       const meta = document.createElement('meta');
       meta.name = 'keywords';
-      meta.content = 'study abroad scholarship, beasiswa kuliah luar negeri, beasiswa China, beasiswa Malaysia, LPDP, scholarship Indonesia, full scholarship, beasiswa S1, beasiswa S2, SpecTa Education';
+      meta.content = 'study abroad scholarship, beasiswa kuliah luar negeri, beasiswa China, beasiswa Australia, SpecTa Education';
       document.head.appendChild(meta);
     }
   }, []);

@@ -71,7 +71,7 @@ export default function Contact() {
     <>
       <SEO
         title="Contact Us - SpecTa Education Indonesia"
-        description="Get in touch with SpecTa Education. Visit our offices in PIK, Kelapa Gading, or Gading Serpong. WhatsApp, email, or book a free consultation with our education counselors."
+        description="Get in touch with SpecTa Education. Visit our offices in PIK, Kelapa Gading, or Surabaya. Call, email, or WhatsApp us today."
         keywords="contact SpecTa Education, konsultan pendidikan Jakarta, study abroad consultant contact, education consultant PIK, Kelapa Gading, Gading Serpong"
         canonical="https://spectaeducation.com/contact"
         ogImage="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"

@@ -28,6 +28,19 @@ const carouselImages = [
 ];
 
 export default function Articles() {
+  useEffect(() => {
+    document.title = "Study Abroad Articles | SpecTa Education";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'Read expert articles on studying abroad. Tips on IELTS, scholarships, visa applications, and university life from SpecTa Education.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Read expert articles on studying abroad. Tips on IELTS, scholarships, visa applications, and university life from SpecTa Education.';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedArticle, setSelectedArticle] = useState<typeof articles[0] | null>(null);
   const [currentSlide, setCurrentSlide] = useState(0);

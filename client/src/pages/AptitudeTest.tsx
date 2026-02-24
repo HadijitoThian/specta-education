@@ -246,6 +246,19 @@ function MiChart({ scores, lang }: { scores: Record<string, number>; lang: Lang 
 }
 
 export default function AptitudeTest() {
+  useEffect(() => {
+    document.title = "Free Aptitude Test | SpecTa Education";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'Take SpecTa Education free AI-powered aptitude test. Discover your strengths, ideal major, and career path in minutes.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Take SpecTa Education free AI-powered aptitude test. Discover your strengths, ideal major, and career path in minutes.';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const [, setLocation] = useLocation();
   const searchString = useSearch();
   const [lang, setLang] = useState<Lang>("id");

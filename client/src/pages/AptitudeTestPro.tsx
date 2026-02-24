@@ -469,8 +469,8 @@ export default function AptitudeTestPro() {
   return (
     <>
       <SEO
-        title="Tes Bakat AI Pro - Comprehensive Career & Major Assessment"
-        description="Unlock your full potential with our comprehensive AI-powered aptitude test. 7 sections including RIASEC, Multiple Intelligence, Personality, SJT, Creative Thinking. Get detailed PDF report. Only Rp 79.000."
+        title="Tes Bakat AI Pro - Career Assessment | SpecTa"
+        description="Comprehensive AI-powered career and major assessment. Get personalized recommendations for your ideal study path and career direction."
         keywords="tes bakat AI pro, comprehensive aptitude test, tes minat bakat lengkap, career assessment Indonesia, personality test, RIASEC pro, multiple intelligence assessment"
         canonical="https://spectaeducation.com/test/pro"
         ogImage="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"

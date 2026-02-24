@@ -1,8 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 
 export default function Simulator() {
+  useEffect(() => {
+    document.title = "Study Abroad Simulator | SpecTa Education";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'Experience studying abroad through our AI-powered 3-day simulator. Make real decisions and discover your readiness for international education.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Experience studying abroad through our AI-powered 3-day simulator. Make real decisions and discover your readiness for international education.';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const [, setLocation] = useLocation();
 
   // Controlled form state - survives React re-renders

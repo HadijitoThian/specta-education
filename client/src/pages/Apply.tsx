@@ -47,6 +47,19 @@ interface UploadedFile {
 }
 
 export default function Apply() {
+  useEffect(() => {
+    document.title = "Quick Apply - Study Abroad | SpecTa Education";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'Apply to study abroad with SpecTa Education. Quick application process for universities in Australia, UK, USA, Canada, and more.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Apply to study abroad with SpecTa Education. Quick application process for universities in Australia, UK, USA, Canada, and more.';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const [step, setStep] = useState(1);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");

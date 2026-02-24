@@ -8,6 +8,19 @@ import Footer from "@/components/Footer";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Play() {
+  useEffect(() => {
+    document.title = "SpecTa Play - Fun Learning Tools | SpecTa";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'Explore fun and interactive learning tools by SpecTa Education. Quizzes, personality tests, aptitude assessments, and more.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Explore fun and interactive learning tools by SpecTa Education. Quizzes, personality tests, aptitude assessments, and more.';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [, setLocation] = useLocation();
 

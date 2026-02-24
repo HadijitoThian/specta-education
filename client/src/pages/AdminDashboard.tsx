@@ -14,7 +14,7 @@ import {
   CreditCard, TrendingUp, DollarSign
 } from "lucide-react";
 import { Link } from "wouter";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getLoginUrl } from "@/const";
 import AptitudeReportDownload from "@/components/AptitudeReportPDF";
 import UniversityManager from "@/components/UniversityManager";
@@ -48,6 +48,19 @@ const SPECIALIZATIONS = [
 ];
 
 export default function AdminDashboard() {
+  useEffect(() => {
+    document.title = "Admin Dashboard | SpecTa Education";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'SpecTa Education admin dashboard. Manage content, users, analytics, and system settings for the education platform.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'SpecTa Education admin dashboard. Manage content, users, analytics, and system settings for the education platform.';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("analytics");
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);

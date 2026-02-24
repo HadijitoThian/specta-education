@@ -471,6 +471,24 @@ export default function CountryPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [, setLocation] = useLocation();
 
+
+  useEffect(() => {
+    if (country) {
+      const countryName = country.name || slug?.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Destination';
+      document.title = `Study in ${countryName} | SpecTa Education`;
+      const metaDesc = document.querySelector('meta[name="description"]');
+      const descText = country.description ? country.description.substring(0, 155) : `Explore universities and programs in ${countryName} with SpecTa Education.`;
+      if (metaDesc) {
+        metaDesc.setAttribute('content', descText);
+      } else {
+        const meta = document.createElement('meta');
+        meta.name = 'description';
+        meta.content = descText;
+        document.head.appendChild(meta);
+      }
+    }
+  }, [country, slug]);
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [slug]);

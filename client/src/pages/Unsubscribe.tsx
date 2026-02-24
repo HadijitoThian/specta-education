@@ -4,6 +4,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default function Unsubscribe() {
+  useEffect(() => {
+    document.title = "Unsubscribe | SpecTa Education";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'Manage your email subscription preferences for SpecTa Education notifications and updates.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Manage your email subscription preferences for SpecTa Education notifications and updates.';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const [token] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get("token") || "";

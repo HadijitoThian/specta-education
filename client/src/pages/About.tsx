@@ -124,8 +124,8 @@ export default function About() {
   return (
     <>
       <SEO
-        title="About Us - SpecTa Education Study Abroad Consultant"
-        description="SpecTa Education is Indonesia's trusted study abroad consultant since 2005. We help students achieve their dreams of studying in UK, USA, Australia, Canada, Singapore, Malaysia, and more."
+        title="About SpecTa Education - Study Abroad Consultant"
+        description="SpecTa Education is Indonesia's trusted study abroad consultant since 2005. Helping students achieve dreams of studying in UK, USA, Australia, and more."
         keywords="about SpecTa Education, study abroad consultant Indonesia, konsultan pendidikan luar negeri, education consultant Jakarta, trusted study abroad agent"
         canonical="https://spectaeducation.com/about"
         ogImage="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"

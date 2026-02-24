@@ -51,8 +51,8 @@ export default function Destinations() {
   return (
     <>
       <SEO
-        title="Study Abroad Destinations - SpecTa Education Indonesia"
-        description="Explore 10+ study abroad destinations including UK, USA, Australia, Canada, Singapore, Malaysia, China, and more. Find the perfect country for your education journey with SpecTa Education."
+        title="Study Abroad Destinations | SpecTa Education"
+        description="Explore 10+ study abroad destinations including UK, USA, Australia, Canada, Singapore, Malaysia, and more with SpecTa Education."
         keywords="study abroad destinations, kuliah luar negeri, study in UK, study in USA, study in Australia, study in Canada, study in Singapore, study in Malaysia, study in China, education consultant Indonesia"
         canonical="https://spectaeducation.com/destinations"
         ogImage="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"

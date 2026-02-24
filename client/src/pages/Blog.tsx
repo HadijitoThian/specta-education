@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +23,19 @@ function MiniStars({ rating }: { rating: number }) {
 }
 
 export default function Blog() {
+  useEffect(() => {
+    document.title = "Blog - Study Abroad Tips | SpecTa Education";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'Latest study abroad tips, guides, and news from SpecTa Education. Expert advice on universities, scholarships, and student life.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Latest study abroad tips, guides, and news from SpecTa Education. Expert advice on universities, scholarships, and student life.';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const [page, setPage] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
