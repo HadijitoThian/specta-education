@@ -1,0 +1,67 @@
+{
+  "query": "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'leads' ORDER BY ORDINAL_POSITION;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'leads' ORDER BY ORDINAL_POSITION;",
+  "rows": [
+    {
+      "COLUMN_NAME": "id"
+    },
+    {
+      "COLUMN_NAME": "conversationId"
+    },
+    {
+      "COLUMN_NAME": "studentName"
+    },
+    {
+      "COLUMN_NAME": "studentEmail"
+    },
+    {
+      "COLUMN_NAME": "studentPhone"
+    },
+    {
+      "COLUMN_NAME": "preferredCountry"
+    },
+    {
+      "COLUMN_NAME": "studyLevel"
+    },
+    {
+      "COLUMN_NAME": "intakeDate"
+    },
+    {
+      "COLUMN_NAME": "notes"
+    },
+    {
+      "COLUMN_NAME": "assignedTo"
+    },
+    {
+      "COLUMN_NAME": "status"
+    },
+    {
+      "COLUMN_NAME": "forwardedAt"
+    },
+    {
+      "COLUMN_NAME": "createdAt"
+    },
+    {
+      "COLUMN_NAME": "updatedAt"
+    },
+    {
+      "COLUMN_NAME": "intentSummary"
+    },
+    {
+      "COLUMN_NAME": "tags"
+    },
+    {
+      "COLUMN_NAME": "chatTranscript"
+    },
+    {
+      "COLUMN_NAME": "source"
+    },
+    {
+      "COLUMN_NAME": "isAnonymous"
+    }
+  ],
+  "messages": [],
+  "stdout": "COLUMN_NAME\nid\nconversationId\nstudentName\nstudentEmail\nstudentPhone\npreferredCountry\nstudyLevel\nintakeDate\nnotes\nassignedTo\nstatus\nforwardedAt\ncreatedAt\nupdatedAt\nintentSummary\ntags\nchatTranscript\nsource\nisAnonymous\n",
+  "stderr": "",
+  "execution_time_ms": 1617
+}

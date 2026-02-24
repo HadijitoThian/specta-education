@@ -181,7 +181,7 @@ import {
   countCommentsByPostId
 } from "./db";
 import { notifyOwner } from "./_core/notification";
-import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail } from "./email";
+import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail } from "./email";
 import crypto from "crypto";
 import { createProTestInvoice, verifyWebhookToken, generateExternalId, getProTestPrice, getProTestDiscountPrice } from "./xenditService";
 import { sendProAccessLinkEmail, sendPaymentConfirmationEmail } from "./resendService";
@@ -440,7 +440,7 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const conversation = await getConversationBySessionId(input.sessionId);
         if (!conversation) {
-          return { messages: [] };
+          return { messages: [], leadState: null };
         }
 
         const messages = await getMessagesByConversationId(conversation.id);
@@ -449,8 +449,143 @@ export const appRouter = router({
             role: m.role,
             content: m.content,
             createdAt: m.createdAt
-          }))
+          })),
+          leadState: conversation.studentName ? {
+            name: conversation.studentName,
+            phone: conversation.studentPhone
+          } : null
         };
+      }),
+
+    captureLead: publicProcedure
+      .input(z.object({
+        sessionId: z.string(),
+        name: z.string().min(1),
+        phone: z.string().optional(),
+        isAnonymous: z.boolean().optional()
+      }))
+      .mutation(async ({ input }) => {
+        const { sessionId, name, phone, isAnonymous } = input;
+
+        // Get or create conversation
+        let conversation = await getConversationBySessionId(sessionId);
+        if (!conversation) {
+          conversation = await createConversation({
+            sessionId,
+            studentName: name,
+            studentPhone: phone || null,
+            status: "lead_captured"
+          });
+        } else {
+          await updateConversation(conversation.sessionId, {
+            studentName: name,
+            studentPhone: phone || null,
+            status: "lead_captured"
+          });
+          // Refresh conversation after update
+          conversation = await getConversationBySessionId(sessionId) || conversation;
+        }
+
+        if (!conversation) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create conversation' });
+        }
+
+        // Create lead record
+        const lead = await createLead({
+          conversationId: conversation.id,
+          studentName: name,
+          studentPhone: phone || null,
+          isAnonymous: isAnonymous || false,
+          source: "chatbot",
+          status: "new"
+        });
+
+        // Send email notification (non-blocking)
+        sendLeadNotificationEmail({
+          leadName: name,
+          leadPhone: phone,
+          isAnonymous: isAnonymous || false
+        }).catch((err: unknown) => console.error("Lead notification email failed:", err));
+
+        // Notify owner (non-blocking)
+        notifyOwner({
+          title: `New Chatbot Lead: ${name}`,
+          content: `A visitor named ${name}${phone ? ` (${phone})` : ''} just started chatting with the AI assistant.`
+        }).catch((err: unknown) => console.error("Owner notification failed:", err));
+
+        // Auto-enroll in drip campaign (non-blocking) - needs email
+        // Skip drip enrollment since we only have phone, not email
+
+        return { success: true, leadId: lead?.id };
+      }),
+
+    summarizeIntent: publicProcedure
+      .input(z.object({
+        sessionId: z.string()
+      }))
+      .mutation(async ({ input }) => {
+        const conversation = await getConversationBySessionId(input.sessionId);
+        if (!conversation) {
+          return { success: false, error: "No conversation found" };
+        }
+
+        const messages = await getMessagesByConversationId(conversation.id);
+        const userMessages = messages.filter(m => m.role === "user");
+        if (userMessages.length < 3) {
+          return { success: false, error: "Not enough messages to summarize" };
+        }
+
+        // Build transcript
+        const transcript = messages.map(m => `${m.role === 'user' ? 'Student' : 'SpecTa'}: ${m.content}`).join('\n');
+
+        try {
+          const response = await invokeLLM({
+            messages: [
+              { role: "system" as const, content: `You are an intent analyzer for SpecTa Education, a study abroad consultancy. Analyze the chat transcript and return a JSON object with:
+- "summary": A 1-2 sentence summary of what the student is looking for
+- "tags": An array of relevant tags from this list: ["IELTS", "Australia", "UK", "USA", "Canada", "Singapore", "Malaysia", "China", "Ireland", "Netherlands", "New Zealand", "Scholarship", "Undergraduate", "Postgraduate", "Budget Conscious", "Quick Apply", "Consultation", "General Inquiry"]
+Only include tags that are clearly relevant. Return ONLY valid JSON, no markdown.` },
+              { role: "user" as const, content: transcript }
+            ]
+          });
+
+          const content = response.choices[0]?.message?.content;
+          if (typeof content !== 'string') {
+            return { success: false, error: "No response from LLM" };
+          }
+
+          let parsed: { summary: string; tags: string[] };
+          try {
+            parsed = JSON.parse(content);
+          } catch {
+            parsed = { summary: content.substring(0, 200), tags: [] };
+          }
+
+          // Update lead with intent summary
+          const allLeads = await getAllLeads();
+          const lead = allLeads.find(l => l.conversationId === conversation.id);
+          if (lead) {
+            await updateLead(lead.id, {
+              intentSummary: parsed.summary,
+              tags: JSON.stringify(parsed.tags),
+              chatTranscript: transcript
+            });
+
+            // Send enriched email notification
+            sendLeadNotificationEmail({
+              leadName: conversation.studentName || 'Anonymous',
+              leadPhone: conversation.studentPhone || undefined,
+              intentSummary: parsed.summary,
+              tags: parsed.tags,
+              isAnonymous: !conversation.studentPhone
+            }).catch(err => console.error("Enriched lead email failed:", err));
+          }
+
+          return { success: true, summary: parsed.summary, tags: parsed.tags };
+        } catch (error) {
+          console.error("Intent summarization failed:", error);
+          return { success: false, error: "Failed to summarize intent" };
+        }
       })
   }),
 

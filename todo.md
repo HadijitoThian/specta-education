@@ -1158,3 +1158,22 @@
 - [x] Improved CountryPage hero image alt text with descriptive SEO-friendly text
 - [x] Verified sitemap returns 46 URLs with all 9 country pages
 - [x] TypeScript compiles with 0 errors
+
+### 121. AI Chatbot Lead Capture System
+- [x] Added intentSummary, tags, chatTranscript, source, isAnonymous fields to leads table schema
+- [x] Created chat.captureLead tRPC procedure (creates conversation + lead, sends email + owner notification)
+- [x] Created chat.summarizeIntent tRPC procedure (AI-powered intent summarization with auto-tagging)
+- [x] Added sendLeadNotificationEmail function to email.ts with rich HTML template
+- [x] Modified chatbot to proactively collect name first, then phone/WhatsApp
+- [x] Allow visitors to skip phone (flagged as anonymous)
+- [x] Personalized chat header shows "Chatting as [Name]" after capture
+- [x] Input placeholders change contextually during lead capture flow
+- [x] Lead capture state persists across page reloads via localStorage
+- [x] Returning users see their name and skip lead capture
+- [x] Auto-trigger intent summarization after 3+ user messages
+- [x] Enhanced admin Leads tab with search bar, status filter, intent summary display
+- [x] Added tags display with colored badges in admin Leads tab
+- [x] Added expandable chat transcript viewer in admin Leads tab
+- [x] Added source badges (Chatbot, Anonymous) in admin Leads tab
+- [x] Written 8 vitest tests for captureLead, summarizeIntent, and getHistory (all passing)
+- [x] TypeScript compiles with 0 errors

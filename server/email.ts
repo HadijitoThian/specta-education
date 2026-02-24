@@ -663,3 +663,61 @@ export async function sendAptitudeResultsEmail({
     attachments,
   });
 }
+
+
+// ==========================================
+// LEAD NOTIFICATION EMAIL (Chatbot Lead Capture)
+// ==========================================
+export async function sendLeadNotificationEmail({
+  leadName,
+  leadPhone,
+  intentSummary,
+  tags,
+  isAnonymous,
+}: {
+  leadName: string;
+  leadPhone?: string;
+  intentSummary?: string;
+  tags?: string[];
+  isAnonymous?: boolean;
+}) {
+  const ownerEmail = ENV.smtpFrom || "info@spectaeducation.com";
+  const tagBadges = (tags || []).map(t => `<span style="display:inline-block;background:#E8F5E9;color:#2E7D32;padding:2px 10px;border-radius:12px;font-size:13px;margin:2px 4px;">${t}</span>`).join("");
+
+  const html = `
+  <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e0e0e0;">
+    <div style="background:linear-gradient(135deg,#E53935,#FF6F61);padding:24px 32px;">
+      <h1 style="color:#fff;margin:0;font-size:22px;">🎯 New Chatbot Lead Captured</h1>
+      <p style="color:rgba(255,255,255,0.9);margin:6px 0 0;font-size:14px;">A visitor just shared their contact info via the AI chatbot</p>
+    </div>
+    <div style="padding:24px 32px;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="padding:8px 0;color:#666;font-size:13px;width:120px;">Name</td>
+          <td style="padding:8px 0;font-weight:600;font-size:15px;">${leadName}${isAnonymous ? ' <span style="color:#999;font-weight:normal;">(anonymous)</span>' : ''}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;color:#666;font-size:13px;">Phone</td>
+          <td style="padding:8px 0;font-weight:600;font-size:15px;">${leadPhone || '<span style="color:#999;">Not provided</span>'}</td>
+        </tr>
+        ${intentSummary ? `<tr>
+          <td style="padding:8px 0;color:#666;font-size:13px;vertical-align:top;">Intent</td>
+          <td style="padding:8px 0;font-size:14px;line-height:1.5;">${intentSummary}</td>
+        </tr>` : ''}
+        ${tagBadges ? `<tr>
+          <td style="padding:8px 0;color:#666;font-size:13px;vertical-align:top;">Interests</td>
+          <td style="padding:8px 0;">${tagBadges}</td>
+        </tr>` : ''}
+      </table>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid #eee;">
+        <p style="color:#888;font-size:12px;margin:0;">This lead was captured automatically by the SpecTa AI chatbot. Log in to the admin dashboard to view the full conversation transcript and manage this lead.</p>
+      </div>
+    </div>
+  </div>`;
+
+  return sendEmail({
+    to: ownerEmail,
+    subject: `🎯 New Lead: ${leadName}${tags?.length ? ` — ${tags.slice(0, 3).join(', ')}` : ''}`,
+    html,
+  });
+}

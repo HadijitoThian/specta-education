@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { Loader2, Send, User, Paperclip, X, FileText, Image as ImageIcon, RotateCcw } from "lucide-react";
+import { Loader2, Send, User, Paperclip, X, FileText, Image as ImageIcon, RotateCcw, UserCircle, Phone } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Streamdown } from "streamdown";
 import { trpc } from "@/lib/trpc";
@@ -19,8 +19,12 @@ type UploadedFile = {
   url: string;
 };
 
+type LeadCaptureState = "idle" | "ask_name" | "ask_phone" | "captured";
+
 const STORAGE_KEY = "specta-chat-session-id";
 const STORAGE_TIMESTAMP_KEY = "specta-chat-last-active";
+const LEAD_NAME_KEY = "specta-lead-name";
+const LEAD_PHONE_KEY = "specta-lead-phone";
 const SESSION_EXPIRY_DAYS = 30;
 
 function getOrCreateSessionId(): { id: string; isExisting: boolean } {
@@ -29,12 +33,13 @@ function getOrCreateSessionId(): { id: string; isExisting: boolean } {
   const stored = localStorage.getItem(STORAGE_KEY);
   const lastActive = localStorage.getItem(STORAGE_TIMESTAMP_KEY);
 
-  // Check if session is expired (30 days of inactivity)
   if (stored && lastActive) {
     const daysSinceActive = (Date.now() - parseInt(lastActive, 10)) / (1000 * 60 * 60 * 24);
     if (daysSinceActive > SESSION_EXPIRY_DAYS) {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(STORAGE_TIMESTAMP_KEY);
+      localStorage.removeItem(LEAD_NAME_KEY);
+      localStorage.removeItem(LEAD_PHONE_KEY);
     } else {
       localStorage.setItem(STORAGE_TIMESTAMP_KEY, Date.now().toString());
       return { id: stored, isExisting: true };
@@ -47,7 +52,15 @@ function getOrCreateSessionId(): { id: string; isExisting: boolean } {
   return { id: newId, isExisting: false };
 }
 
-const GREETING_MESSAGE = "Hi there! 👋 I'm SpecTa, your friendly study abroad assistant. I'm here to help you explore exciting opportunities to study in countries like Australia, UK, USA, Canada, and more!\n\nWhat brings you here today? Are you thinking about studying abroad?";
+function getSavedLeadState(): { name: string | null; phone: string | null } {
+  if (typeof window === "undefined") return { name: null, phone: null };
+  return {
+    name: localStorage.getItem(LEAD_NAME_KEY),
+    phone: localStorage.getItem(LEAD_PHONE_KEY),
+  };
+}
+
+const GREETING_MESSAGE = "Hi there! 👋 I'm SpecTa, your friendly study abroad assistant. Before we start, could you tell me your name so I can help you better?";
 
 const SYSTEM_PROMPT = `You are SpecTa, a friendly and professional AI education consultant for SpecTa Education, an Indonesian study abroad consultancy. Your personality is warm, helpful, and knowledgeable - like a caring mentor who genuinely wants to help students achieve their dreams of studying abroad.
 
@@ -56,22 +69,21 @@ Your goals are:
 2. Understand their educational background, goals, and preferences
 3. Provide information about universities, programs, and requirements
 4. Guide them through the application process
-5. Collect their contact information (name, email, phone) when they're ready to proceed
-6. Encourage document uploads (passport, transcripts, certificates) when appropriate
+5. Encourage document uploads (passport, transcripts, certificates) when appropriate
 
 Conversation flow:
 - Start by warmly greeting and asking about their study abroad interests
 - Ask about their preferred country and field of study
 - Inquire about their current education level and when they plan to start
 - Discuss budget and scholarship options if relevant
-- When they seem interested, ask for their contact details to connect them with a counselor
 - Suggest uploading documents when they're ready to start the application process
 
 Important guidelines:
 - Be conversational and friendly, not robotic
 - Use simple, clear language
+- Keep replies SHORT: 2-3 sentences max per message
+- Ask ONE question at a time
 - Provide helpful information but encourage them to speak with human counselors for detailed advice
-- When collecting phone numbers, mention that a SpecTa counselor will reach out
 - Celebrate their decision to study abroad - it's an exciting journey!
 
 Contact information for SpecTa Education:
@@ -80,10 +92,19 @@ Contact information for SpecTa Education:
 - Email: info@spectaeducation.com`;
 
 export default function ChatBot() {
-  // Initialize session — track whether this is a returning visitor
   const [sessionInfo] = useState(() => getOrCreateSessionId());
   const [sessionId, setSessionId] = useState(sessionInfo.id);
   const [isReturningUser] = useState(sessionInfo.isExisting);
+
+  // Lead capture state
+  const [savedLead] = useState(() => getSavedLeadState());
+  const [leadCaptureState, setLeadCaptureState] = useState<LeadCaptureState>(
+    savedLead.name ? "captured" : "idle"
+  );
+  const [leadName, setLeadName] = useState(savedLead.name || "");
+  const [leadPhone, setLeadPhone] = useState(savedLead.phone || "");
+  const [userMessageCount, setUserMessageCount] = useState(0);
+  const [intentSummarized, setIntentSummarized] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>([
     { role: "system", content: SYSTEM_PROMPT }
@@ -98,13 +119,13 @@ export default function ChatBot() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Only fetch history if this is a returning user with an existing session
+  // Fetch history for returning users
   const historyQuery = trpc.chat.getHistory.useQuery(
     { sessionId },
     {
       enabled: isReturningUser && historyStatus === "loading",
       retry: 1,
-      staleTime: Infinity, // Don't refetch — we only need it once on mount
+      staleTime: Infinity,
     }
   );
 
@@ -114,6 +135,20 @@ export default function ChatBot() {
 
     if (historyQuery.data) {
       const serverMessages = historyQuery.data.messages;
+      // Restore lead state from server
+      if (historyQuery.data.leadState) {
+        const { name, phone } = historyQuery.data.leadState;
+        if (name) {
+          setLeadName(name);
+          setLeadCaptureState("captured");
+          localStorage.setItem(LEAD_NAME_KEY, name);
+          if (phone) {
+            setLeadPhone(phone);
+            localStorage.setItem(LEAD_PHONE_KEY, phone);
+          }
+        }
+      }
+
       if (serverMessages.length > 0) {
         const restored: Message[] = [
           { role: "system", content: SYSTEM_PROMPT },
@@ -123,9 +158,9 @@ export default function ChatBot() {
           }))
         ];
         setMessages(restored);
+        setUserMessageCount(serverMessages.filter(m => m.role === "user").length);
         setHistoryStatus("loaded");
       } else {
-        // Server has no messages for this session — treat as new
         setHistoryStatus("empty");
       }
     } else if (historyQuery.isError) {
@@ -133,23 +168,31 @@ export default function ChatBot() {
     }
   }, [historyQuery.data, historyQuery.isError, historyStatus]);
 
-  // Send initial greeting ONLY for new users or when history came back empty
+  // Send initial greeting for new users
   useEffect(() => {
-    if (historyStatus === "loading") return; // Still waiting for history
-    if (historyStatus === "loaded") return; // History was restored, no greeting needed
+    if (historyStatus === "loading") return;
+    if (historyStatus === "loaded") return;
 
-    // historyStatus is "empty" or "error" — show greeting
     const hasConversation = messages.some(m => m.role === "user" || m.role === "assistant");
     if (!hasConversation) {
       const timer = setTimeout(() => {
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: GREETING_MESSAGE
-        }]);
+        // If lead already captured (from localStorage), show a personalized greeting
+        if (leadCaptureState === "captured" && leadName) {
+          setMessages(prev => [...prev, {
+            role: "assistant",
+            content: `Welcome back, ${leadName}! 👋 Great to see you again. What would you like to explore about studying abroad today?`
+          }]);
+        } else {
+          setMessages(prev => [...prev, {
+            role: "assistant",
+            content: GREETING_MESSAGE
+          }]);
+          setLeadCaptureState("ask_name");
+        }
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [historyStatus]); // Only depends on historyStatus, not messages
+  }, [historyStatus]);
 
   const chatMutation = trpc.chat.sendMessage.useMutation({
     onSuccess: (response) => {
@@ -169,6 +212,9 @@ export default function ChatBot() {
       }]);
     }
   });
+
+  const captureLeadMutation = trpc.chat.captureLead.useMutation();
+  const summarizeIntentMutation = trpc.chat.summarizeIntent.useMutation();
 
   const uploadMutation = trpc.chat.uploadDocument.useMutation({
     onSuccess: (response) => {
@@ -195,17 +241,33 @@ export default function ChatBot() {
     }
   });
 
+  // Trigger intent summarization after 3+ user messages
+  useEffect(() => {
+    if (userMessageCount >= 3 && !intentSummarized && leadCaptureState === "captured") {
+      setIntentSummarized(true);
+      summarizeIntentMutation.mutate({ sessionId });
+    }
+  }, [userMessageCount, intentSummarized, leadCaptureState, sessionId]);
+
   const handleStartFresh = useCallback(() => {
     const newId = nanoid();
     localStorage.setItem(STORAGE_KEY, newId);
     localStorage.setItem(STORAGE_TIMESTAMP_KEY, Date.now().toString());
+    localStorage.removeItem(LEAD_NAME_KEY);
+    localStorage.removeItem(LEAD_PHONE_KEY);
     setSessionId(newId);
+    setLeadName("");
+    setLeadPhone("");
+    setLeadCaptureState("idle");
+    setUserMessageCount(0);
+    setIntentSummarized(false);
     setMessages([
       { role: "system", content: SYSTEM_PROMPT },
-      { role: "assistant", content: "Hi there! 👋 I'm SpecTa, your friendly study abroad assistant. Fresh start! How can I help you today?" }
+      { role: "assistant", content: GREETING_MESSAGE }
     ]);
     setUploadedFiles([]);
-    setHistoryStatus("loaded"); // Prevent any further history loading or greeting
+    setHistoryStatus("loaded");
+    setTimeout(() => setLeadCaptureState("ask_name"), 100);
   }, []);
 
   const displayMessages = messages.filter((msg) => msg.role !== "system");
@@ -229,15 +291,86 @@ export default function ChatBot() {
     scrollToBottom();
   }, [messages]);
 
+  // Handle lead capture flow
+  const handleLeadNameSubmit = () => {
+    const name = input.trim();
+    if (!name) return;
+
+    setLeadName(name);
+    setInput("");
+    localStorage.setItem(LEAD_NAME_KEY, name);
+
+    // Show user message
+    setMessages(prev => [...prev, { role: "user", content: name }]);
+
+    // Ask for phone
+    setTimeout(() => {
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: `Nice to meet you, ${name}! 😊 Could you share your phone or WhatsApp number? This way, one of our counselors can reach out to help you personally. (You can type "skip" if you prefer not to share)`
+      }]);
+      setLeadCaptureState("ask_phone");
+    }, 500);
+  };
+
+  const handleLeadPhoneSubmit = () => {
+    const phone = input.trim();
+    if (!phone) return;
+
+    setInput("");
+
+    const isSkipped = phone.toLowerCase() === "skip" || phone.toLowerCase() === "no" || phone.toLowerCase() === "later";
+
+    if (!isSkipped) {
+      setLeadPhone(phone);
+      localStorage.setItem(LEAD_PHONE_KEY, phone);
+    }
+
+    // Show user message
+    setMessages(prev => [...prev, { role: "user", content: phone }]);
+
+    // Capture lead
+    captureLeadMutation.mutate({
+      sessionId,
+      name: leadName,
+      phone: isSkipped ? undefined : phone,
+      isAnonymous: isSkipped
+    });
+
+    setLeadCaptureState("captured");
+
+    // Show transition message
+    setTimeout(() => {
+      const msg = isSkipped
+        ? `No worries at all, ${leadName}! You can always share it later. Now, what brings you here today? Are you thinking about studying abroad? 🌏`
+        : `Awesome, thanks ${leadName}! Our team will be in touch. Now let's explore your study abroad options! What country or field of study are you interested in? 🎓`;
+      setMessages(prev => [...prev, { role: "assistant", content: msg }]);
+    }, 500);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedInput = input.trim();
-    if (!trimmedInput || chatMutation.isPending) return;
+    if (!trimmedInput) return;
+
+    // Handle lead capture flow
+    if (leadCaptureState === "ask_name") {
+      handleLeadNameSubmit();
+      return;
+    }
+    if (leadCaptureState === "ask_phone") {
+      handleLeadPhoneSubmit();
+      return;
+    }
+
+    // Normal chat flow
+    if (chatMutation.isPending) return;
 
     const userMessage: Message = { role: "user", content: trimmedInput };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput("");
+    setUserMessageCount(prev => prev + 1);
 
     localStorage.setItem(STORAGE_TIMESTAMP_KEY, Date.now().toString());
 
@@ -275,7 +408,7 @@ export default function ChatBot() {
         documentType: file.type.includes('image') ? 'other' : 
                       file.name.toLowerCase().includes('passport') ? 'passport' :
                       file.name.toLowerCase().includes('transcript') ? 'transcript' :
-                      file.name.toLowerCase().includes('certificate') ? 'certificate' : 'other'
+                      'other'
       });
     };
     reader.readAsDataURL(file);
@@ -287,11 +420,35 @@ export default function ChatBot() {
 
   const isLoading = historyStatus === "loading";
 
+  // Determine placeholder text based on lead capture state
+  const getPlaceholder = () => {
+    switch (leadCaptureState) {
+      case "ask_name": return "Enter your name...";
+      case "ask_phone": return "Enter your phone/WhatsApp number (or type 'skip')...";
+      default: return "Type your message...";
+    }
+  };
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      {/* Header with Start Fresh button */}
-      {displayMessages.length > 2 && (
-        <div className="flex items-center justify-end px-3 py-1.5 border-b border-border/50 bg-muted/30">
+      {/* Header with lead info and Start Fresh */}
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/50 bg-muted/30">
+        {leadCaptureState === "captured" && leadName ? (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <UserCircle className="w-3.5 h-3.5 text-green-500" />
+            <span>Chatting as <strong className="text-foreground">{leadName}</strong></span>
+            {leadPhone && (
+              <>
+                <span className="mx-1">·</span>
+                <Phone className="w-3 h-3" />
+                <span>{leadPhone}</span>
+              </>
+            )}
+          </div>
+        ) : (
+          <div />
+        )}
+        {displayMessages.length > 2 && (
           <button
             onClick={handleStartFresh}
             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted"
@@ -300,8 +457,8 @@ export default function ChatBot() {
             <RotateCcw className="w-3 h-3" />
             Start Fresh
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Messages Area */}
       <div ref={scrollAreaRef} className="flex-1 overflow-hidden">
@@ -316,10 +473,10 @@ export default function ChatBot() {
             )}
 
             {/* Welcome back indicator for returning users */}
-            {historyStatus === "loaded" && displayMessages.length > 0 && (
+            {historyStatus === "loaded" && displayMessages.length > 0 && isReturningUser && (
               <div className="flex items-center justify-center">
                 <span className="text-xs text-muted-foreground bg-muted/50 px-3 py-1 rounded-full">
-                  Welcome back! Here's your previous conversation
+                  Welcome back{leadName ? `, ${leadName}` : ''}! Here's your previous conversation
                 </span>
               </div>
             )}
@@ -411,22 +568,24 @@ export default function ChatBot() {
           onChange={handleFileSelect}
           className="hidden"
         />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isUploading}
-          className="shrink-0 h-[38px] w-[38px]"
-        >
-          <Paperclip className="size-4" />
-        </Button>
+        {leadCaptureState === "captured" && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="shrink-0 h-[38px] w-[38px]"
+          >
+            <Paperclip className="size-4" />
+          </Button>
+        )}
         <Textarea
           ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Type your message..."
+          placeholder={getPlaceholder()}
           className="flex-1 max-h-32 resize-none min-h-9"
           rows={1}
         />

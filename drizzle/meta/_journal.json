@@ -141,6 +141,13 @@
       "when": 1771880644149,
       "tag": "0019_futuristic_leech",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1771961301664,
+      "tag": "0020_ordinary_jackal",
+      "breakpoints": true
     }
   ]
 }
