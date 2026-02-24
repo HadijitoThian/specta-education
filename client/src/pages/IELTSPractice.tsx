@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { SEO } from '@/components/SEO';
 import { trpc } from "@/lib/trpc";
 import Navigation from "@/components/Navigation";
 import { BookOpen, PenTool, Headphones, Mic, Clock, AlertTriangle, ArrowLeft, ArrowRight, CheckCircle, Star, Loader2, User, Mail, Phone, RefreshCw, Play, Pause, Volume2, RotateCcw } from "lucide-react";
@@ -156,6 +157,10 @@ export default function IELTSPractice() {
   if (phase === "register") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50">
+      <SEO
+        title="Free IELTS Practice Test | SpecTa Education"
+        description="Practice IELTS Reading, Writing, Listening, and Speaking with AI-powered questions. Get instant scoring and band score estimation."
+      />
         <Navigation />
         <div className="container max-w-lg pt-32 pb-20">
           <div className="text-center mb-8">

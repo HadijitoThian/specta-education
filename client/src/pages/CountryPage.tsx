@@ -513,7 +513,7 @@ export default function CountryPage() {
       {/* Hero Section */}
       <section className="pt-24 pb-20 px-4 relative overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <img src={country.heroImage} alt={country.name} className="w-full h-full object-cover" />
+          <img src={country.heroImage} alt={`Study in ${country.name} - top universities and programs for Indonesian students`} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-background"></div>
         </div>
 
@@ -829,6 +829,69 @@ export default function CountryPage() {
           </div>
         </section>
       )}
+
+      {/* Related Resources - Internal Linking for SEO */}
+      <section className="py-16 bg-muted/20">
+        <div className="container">
+          <motion.h2
+            className="text-3xl font-bold text-center mb-4"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+          >
+            Explore More Resources
+          </motion.h2>
+          <p className="text-center text-muted-foreground mb-10 max-w-2xl mx-auto">
+            Prepare for your study abroad journey with our AI-powered tools and expert guidance
+          </p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+            <Link href="/ielts">
+              <div className="p-6 bg-card rounded-xl border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group">
+                <BookOpen className="w-8 h-8 text-primary mb-3" />
+                <h3 className="font-semibold mb-2 group-hover:text-primary transition-colors">IELTS Preparation</h3>
+                <p className="text-sm text-muted-foreground">Practice tests, tips, and AI-powered scoring to achieve your target band score.</p>
+              </div>
+            </Link>
+            <Link href="/aptitude-test">
+              <div className="p-6 bg-card rounded-xl border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group">
+                <GraduationCap className="w-8 h-8 text-primary mb-3" />
+                <h3 className="font-semibold mb-2 group-hover:text-primary transition-colors">AI Aptitude Test</h3>
+                <p className="text-sm text-muted-foreground">Discover your ideal major with our RIASEC and Multiple Intelligence analysis.</p>
+              </div>
+            </Link>
+            <Link href="/scholarships">
+              <div className="p-6 bg-card rounded-xl border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group">
+                <Award className="w-8 h-8 text-primary mb-3" />
+                <h3 className="font-semibold mb-2 group-hover:text-primary transition-colors">Scholarships</h3>
+                <p className="text-sm text-muted-foreground">Find scholarships and funding opportunities for studying in {country.name}.</p>
+              </div>
+            </Link>
+            <Link href="/simulator">
+              <div className="p-6 bg-card rounded-xl border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group">
+                <Globe className="w-8 h-8 text-primary mb-3" />
+                <h3 className="font-semibold mb-2 group-hover:text-primary transition-colors">Study Abroad Simulator</h3>
+                <p className="text-sm text-muted-foreground">Experience a 3-day simulation of student life in {country.name} before you go.</p>
+              </div>
+            </Link>
+          </div>
+          {/* Other Destinations */}
+          <div className="mt-12 text-center">
+            <h3 className="text-lg font-semibold mb-4">Explore Other Destinations</h3>
+            <div className="flex flex-wrap justify-center gap-3">
+              {Object.entries(countryData)
+                .filter(([key]) => key !== slug)
+                .slice(0, 6)
+                .map(([key, c]: [string, any]) => (
+                  <Link key={key} href={`/destinations/${key}`}>
+                    <span className="inline-flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-full text-sm hover:border-primary/50 hover:shadow transition-all cursor-pointer">
+                      {c.flag} {c.name}
+                    </span>
+                  </Link>
+                ))}
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* CTA */}
       <section className="py-16 bg-gradient-specta">

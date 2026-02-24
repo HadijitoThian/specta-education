@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { BookOpen, CheckCircle, Clock, Users, Award, Star, ChevronLeft, ChevronRight, MessageCircle, X, Shield, Monitor, GraduationCap, UserCheck, RefreshCw, CalendarCheck, FileText, Headphones, Target, Zap, TrendingUp, Play, ArrowRight, Sparkles } from "lucide-react";
+import { BookOpen, CheckCircle, Clock, Users, Award, Star, ChevronLeft, ChevronRight, MessageCircle, X, Shield, Monitor, GraduationCap, UserCheck, RefreshCw, CalendarCheck, FileText, Headphones, Target, Zap, TrendingUp, Play, ArrowRight, Sparkles, Globe, MapPin } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import ChatBot from "@/components/ChatBot";
@@ -847,6 +847,43 @@ export default function IELTS() {
               </div>
             </div>
           </motion.div>
+        </div>
+      </section>
+
+      {/* Related Resources - Internal Linking for SEO */}
+      <section className="py-16 bg-muted/20">
+        <div className="container">
+          <h2 className="text-2xl font-bold text-center mb-8">Continue Your Study Abroad Journey</h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+            <Link href="/destinations">
+              <div className="p-5 bg-card rounded-xl border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group">
+                <MapPin className="w-7 h-7 text-primary mb-3" />
+                <h3 className="font-semibold mb-1 group-hover:text-primary transition-colors">Explore Destinations</h3>
+                <p className="text-sm text-muted-foreground">Compare top study destinations in Australia, UK, USA, Canada, and more.</p>
+              </div>
+            </Link>
+            <Link href="/aptitude-test">
+              <div className="p-5 bg-card rounded-xl border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group">
+                <GraduationCap className="w-7 h-7 text-primary mb-3" />
+                <h3 className="font-semibold mb-1 group-hover:text-primary transition-colors">AI Aptitude Test</h3>
+                <p className="text-sm text-muted-foreground">Discover your ideal university major with AI-powered analysis.</p>
+              </div>
+            </Link>
+            <Link href="/scholarships">
+              <div className="p-5 bg-card rounded-xl border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group">
+                <Award className="w-7 h-7 text-primary mb-3" />
+                <h3 className="font-semibold mb-1 group-hover:text-primary transition-colors">Scholarships</h3>
+                <p className="text-sm text-muted-foreground">Find scholarships and funding for your overseas education.</p>
+              </div>
+            </Link>
+            <Link href="/simulator">
+              <div className="p-5 bg-card rounded-xl border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group">
+                <Globe className="w-7 h-7 text-primary mb-3" />
+                <h3 className="font-semibold mb-1 group-hover:text-primary transition-colors">Study Abroad Simulator</h3>
+                <p className="text-sm text-muted-foreground">Experience 3 days of student life abroad before you go.</p>
+              </div>
+            </Link>
+          </div>
         </div>
       </section>
 

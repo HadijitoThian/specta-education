@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SEO } from '@/components/SEO';
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -103,6 +104,11 @@ export default function StaffLogin() {
   if (staffUser?.mustChangePassword || showChangePassword) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-pink-50 flex items-center justify-center p-4">
+      <SEO
+        title="Staff Login | SpecTa Education"
+        description="Staff login portal for SpecTa Education team members."
+        noindex
+      />
         <Card className="w-full max-w-md shadow-xl border-0">
           <CardHeader className="text-center space-y-2">
             <div className="mx-auto w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-2">

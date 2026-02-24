@@ -141,7 +141,7 @@ export default function About() {
         transition={{ duration: 0.6 }}
       >
         <div className="absolute inset-0 z-0">
-          <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/XFSKFfBDnwuNIcYC.jpg" alt="" className="w-full h-full object-cover" />
+          <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/XFSKFfBDnwuNIcYC.jpg" alt="SpecTa Education office - study abroad consultant in Jakarta" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-white/95 via-white/90 to-white"></div>
         </div>
         <div className="container relative z-10">

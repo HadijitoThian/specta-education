@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SEO } from '@/components/SEO';
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { FileText, Clock, ArrowRight, ChevronLeft, ChevronRight, MessageCircle, X } from "lucide-react";
@@ -66,6 +67,10 @@ export default function Articles() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Study Abroad Articles & Tips | SpecTa Education"
+        description="Read expert articles about studying abroad, IELTS preparation, scholarship tips, and student life in top destinations worldwide."
+      />
       <Navigation currentPage="articles" />
 
       {/* Hero Section with Carousel */}

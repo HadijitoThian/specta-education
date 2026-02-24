@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SEO } from '@/components/SEO';
 import { useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,6 +59,11 @@ export default function SimulatorReport() {
   if (isLoading || !report) {
     return (
       <div className="min-h-screen flex items-center justify-center">
+      <SEO
+        title="Simulator Report | SpecTa Education"
+        description="Your study abroad simulation readiness report."
+        noindex
+      />
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-gray-600">Generating your readiness report...</p>

@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from "react";
+import { SEO } from '@/components/SEO';
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -200,6 +201,11 @@ export default function StaffDashboard() {
   if (meLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <SEO
+        title="Staff Dashboard | SpecTa Education"
+        description="Staff management dashboard for SpecTa Education."
+        noindex
+      />
         <Loader2 className="w-8 h-8 animate-spin text-rose-600" />
       </div>
     );

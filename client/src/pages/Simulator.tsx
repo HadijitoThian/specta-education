@@ -1,3 +1,4 @@
+import { SEO } from '@/components/SEO';
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -81,6 +82,10 @@ export default function Simulator() {
 
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #eff6ff, #ffffff, #faf5ff)" }}>
+      <SEO
+        title="Study Abroad Simulator - 3-Day Experience | SpecTa Education"
+        description="Experience studying abroad with our AI-powered 3-day simulator. Make real decisions, manage your budget, and discover your readiness."
+      />
       {/* Hero Section */}
       <div style={{ background: "linear-gradient(to right, #2563eb, #7c3aed)", color: "white", padding: "80px 20px" }}>
         <div style={{ maxWidth: "800px", margin: "0 auto", textAlign: "center" }}>

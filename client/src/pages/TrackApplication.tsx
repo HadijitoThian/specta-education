@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SEO } from '@/components/SEO';
 import { trpc } from "@/lib/trpc";
 import Navigation from "@/components/Navigation";
 import { Search, Mail, CheckCircle, Clock, FileText, MessageSquare, Upload, AlertCircle, ArrowRight, Shield, Loader2, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
@@ -78,6 +79,10 @@ export default function TrackApplication() {
   if (phase === "enter_email") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      <SEO
+        title="Track Your Application | SpecTa Education"
+        description="Track your study abroad application status with SpecTa Education. Check updates, upload documents, and communicate with your counselor."
+      />
         <Navigation />
         <div className="container max-w-lg pt-32 pb-20">
           <div className="text-center mb-8">

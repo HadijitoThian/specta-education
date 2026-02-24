@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SEO } from '@/components/SEO';
 import { useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -121,6 +122,11 @@ export default function SimulatorExperience() {
   if (!sessionId || !currentScenario) {
     return (
       <div className="min-h-screen flex items-center justify-center">
+      <SEO
+        title="Simulator Experience | SpecTa Education"
+        description="Interactive study abroad simulation experience."
+        noindex
+      />
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );

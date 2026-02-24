@@ -1,3 +1,4 @@
+import { SEO } from '@/components/SEO';
 import { useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Link } from "wouter";
@@ -12,6 +13,10 @@ import { useMemo } from "react";
 function MiniStars({ rating }: { rating: number }) {
   return (
     <span className="flex items-center gap-0.5">
+      <SEO
+        title="SpecTa Education Blog | Study Abroad News & Updates"
+        description="Latest news, tips, and updates about studying abroad from SpecTa Education. Expert advice on IELTS, scholarships, and university admissions."
+      />
       {[1, 2, 3, 4, 5].map((s) => (
         <Star
           key={s}

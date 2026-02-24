@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { SEO } from '@/components/SEO';
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { GraduationCap, ChevronRight, ChevronDown, CheckCircle2, Sparkles, ArrowRight, Phone, Star, Quote, Award, BookOpen, FileText, Plane, Users, Globe, Target, Clock, DollarSign } from "lucide-react";
@@ -207,6 +208,10 @@ function GPASlider({ value, onChange }: { value: number; onChange: (v: number) =
 
   return (
     <div className="space-y-6 px-4">
+      <SEO
+        title="Study Abroad Scholarships 2026 | SpecTa Education"
+        description="Find scholarships for studying abroad in Australia, UK, USA, Canada, and more. SpecTa Education helps you secure funding for your education."
+      />
       <div className="text-center">
         <div className="text-6xl mb-2">{getEmoji(value)}</div>
         <div className="text-3xl font-bold text-white">{value.toFixed(1)}</div>

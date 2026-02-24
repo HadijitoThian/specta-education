@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SEO } from '@/components/SEO';
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import Navigation from "@/components/Navigation";
@@ -430,6 +431,10 @@ export default function Malaysia() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      <SEO
+        title="Study in Malaysia - Top Universities | SpecTa Education"
+        description="Explore top Malaysian universities with SpecTa Education. Affordable tuition, multicultural campus life, and globally recognized degrees."
+      />
       <Navigation currentPage="malaysia" />
 
       {/* Hero Section */}

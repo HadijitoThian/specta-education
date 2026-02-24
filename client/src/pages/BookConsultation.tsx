@@ -1,3 +1,4 @@
+import { SEO } from '@/components/SEO';
 import { useEffect, useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import Navigation from "@/components/Navigation";
@@ -105,6 +106,10 @@ export default function BookConsultation() {
   if (bookingComplete) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      <SEO
+        title="Book a Consultation | SpecTa Education"
+        description="Schedule a free consultation with SpecTa Education counselors. Get expert guidance on studying abroad, IELTS prep, and university selection."
+      />
         <Navigation />
         <div className="container max-w-2xl pt-32 pb-20">
           <div className="bg-white rounded-3xl shadow-xl p-10 text-center">

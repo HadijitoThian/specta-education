@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { SEO } from '@/components/SEO';
 import { useLocation, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import ProUpsellCard from "@/components/ProUpsellCard";
@@ -73,6 +74,10 @@ function getHollandCode(scores: Record<string, number>) {
 function LikertScale({ value, onChange, labels }: { value: number | undefined; onChange: (v: number) => void; labels: string[] }) {
   return (
     <div className="flex items-center justify-between gap-1 sm:gap-2 mt-4">
+      <SEO
+        title="AI Aptitude Test - Find Your Best Major | SpecTa Education"
+        description="Take our free AI-powered aptitude test to discover your ideal university major. RIASEC and Multiple Intelligence analysis in 10 minutes."
+      />
       {[1, 2, 3, 4, 5].map((v) => (
         <button
           key={v}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SEO } from '@/components/SEO';
 import { Link, useLocation } from "wouter";
 import { Sparkles, Globe, ArrowRight, Gamepad2, Star, Zap, Users, Trophy, Brain, GraduationCap } from "lucide-react";
 import ChatBot from "@/components/ChatBot";
@@ -30,6 +31,10 @@ export default function Play() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <SEO
+        title="SpecTa Play - Fun Educational Games | SpecTa Education"
+        description="Play fun educational games about studying abroad. Test your knowledge of countries, universities, and student life with SpecTa Play."
+      />
       <Navigation currentPage="play" />
 
       {/* Hero Section */}

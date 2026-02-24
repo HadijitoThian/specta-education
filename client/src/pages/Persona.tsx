@@ -1,3 +1,4 @@
+import { SEO } from '@/components/SEO';
 import { useEffect, useState, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Link } from "wouter";
@@ -123,6 +124,10 @@ type PersonaData = {
 function ChatModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   return (
     <AnimatePresence>
+      <SEO
+        title="Student Persona Quiz | SpecTa Education"
+        description="Discover your student persona and find the perfect study abroad destination. Take our fun personality quiz to match your learning style."
+      />
       {isOpen && (
         <motion.div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50"

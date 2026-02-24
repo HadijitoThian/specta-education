@@ -1,4 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import { SEO } from '@/components/SEO';
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -327,6 +328,11 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
+      <SEO
+        title="Admin Dashboard | SpecTa Education"
+        description="Administration dashboard for SpecTa Education management."
+        noindex
+      />
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );

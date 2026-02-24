@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { SEO } from '@/components/SEO';
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,11 @@ export default function Unsubscribe() {
   if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <SEO
+        title="Unsubscribe | SpecTa Education"
+        description="Manage your email subscription preferences for SpecTa Education."
+        noindex
+      />
         <Card className="max-w-md w-full">
           <CardContent className="p-8 text-center">
             <div className="text-5xl mb-4">⚠️</div>

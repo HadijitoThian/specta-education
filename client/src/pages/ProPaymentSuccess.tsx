@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SEO } from '@/components/SEO';
 import { useSearch, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { motion } from "framer-motion";
@@ -32,6 +33,11 @@ export default function ProPaymentSuccess() {
   if (!orderId) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <SEO
+        title="Payment Successful | SpecTa Education"
+        description="Your payment has been processed successfully."
+        noindex
+      />
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Invalid Link</h1>
           <p className="text-gray-600 mb-4">No order ID found.</p>

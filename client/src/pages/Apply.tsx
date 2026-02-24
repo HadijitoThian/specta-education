@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { SEO } from '@/components/SEO';
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { GraduationCap, Upload, FileText, CheckCircle, Plus, X, ChevronDown, Loader2, ArrowLeft, Sparkles, Shield, Clock, Globe } from "lucide-react";
@@ -184,6 +185,10 @@ export default function Apply() {
   if (submitted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-blue-50 flex items-center justify-center p-4">
+      <SEO
+        title="Quick Apply - Study Abroad Application | SpecTa Education"
+        description="Submit your study abroad application quickly with SpecTa Education. Upload transcripts, passport, and IELTS scores for fast processing."
+      />
         <div className="max-w-lg w-full text-center">
           <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg animate-bounce">
             <CheckCircle className="w-12 h-12 text-white" />

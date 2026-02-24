@@ -1,3 +1,4 @@
+import { SEO } from '@/components/SEO';
 import { useEffect, useState } from "react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -30,6 +31,10 @@ export default function MyJourney() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="My Study Abroad Journey | SpecTa Education"
+        description="Track your personalized study abroad journey with SpecTa Education. View your progress, recommendations, and next steps."
+      />
       <Navigation />
 
       {/* Hero Section */}

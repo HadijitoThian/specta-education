@@ -1145,3 +1145,16 @@
 - [x] Added BreadcrumbList schema for main navigation pages
 - [x] All 6 JSON-LD blocks validated as valid JSON
 - [x] TypeScript compiles with 0 errors
+
+### 120. Tier 1 SEO Improvements
+- [x] Fix sitemap.xml - added all 9 country pages, removed internal pages, added priority/changefreq (46 URLs total)
+- [x] Enhanced SEO component with default og:image, auto-canonical URL, and noindex support
+- [x] Generated default OG image (1200x630px) with SpecTa branding for social sharing
+- [x] Updated 21 pages to use enhanced SEO component with og:image and canonical URLs
+- [x] Added noindex to internal pages: staff-login, staff-dashboard, admin, unsubscribe, simulator/experience, simulator/report, payment-success
+- [x] Added Related Resources section to CountryPage with links to IELTS, Aptitude Test, Scholarships, Simulator + cross-links to other destinations
+- [x] Added Related Resources section to IELTS page with links to Destinations, Aptitude Test, Scholarships, Simulator
+- [x] Fixed empty alt text in About.tsx hero image
+- [x] Improved CountryPage hero image alt text with descriptive SEO-friendly text
+- [x] Verified sitemap returns 46 URLs with all 9 country pages
+- [x] TypeScript compiles with 0 errors

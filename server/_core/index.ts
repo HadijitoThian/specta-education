@@ -85,24 +85,46 @@ async function startServer() {
       const { listPublishedBlogPosts } = await import("../db");
       const baseUrl = "https://www.spectaeducation.com";
       
-      // Static pages
+      // Static pages - all public-facing pages with SEO value
+      // Excludes: /staff-login, /staff-dashboard, /admin, /unsubscribe, /simulator/experience, /simulator/report, /component-showcase
       const staticPages = [
+        // Core pages (highest priority)
         { url: "/", priority: "1.0", changefreq: "weekly" },
+        { url: "/about", priority: "0.8", changefreq: "monthly" },
+        { url: "/ielts", priority: "0.9", changefreq: "monthly" },
+        { url: "/ielts/practice", priority: "0.8", changefreq: "monthly" },
+        { url: "/destinations", priority: "0.9", changefreq: "monthly" },
+        { url: "/scholarships", priority: "0.8", changefreq: "monthly" },
+        { url: "/compare", priority: "0.7", changefreq: "monthly" },
+        { url: "/contact", priority: "0.8", changefreq: "monthly" },
+        { url: "/book", priority: "0.8", changefreq: "monthly" },
+        { url: "/apply", priority: "0.7", changefreq: "monthly" },
+        { url: "/blog", priority: "0.8", changefreq: "daily" },
+        { url: "/articles", priority: "0.7", changefreq: "weekly" },
+
+        // Destination country pages (high priority - these drive organic traffic)
+        { url: "/malaysia", priority: "0.9", changefreq: "monthly" },
         { url: "/destinations/australia", priority: "0.9", changefreq: "monthly" },
-        { url: "/destinations/malaysia", priority: "0.9", changefreq: "monthly" },
+        { url: "/destinations/singapore", priority: "0.8", changefreq: "monthly" },
         { url: "/destinations/uk", priority: "0.9", changefreq: "monthly" },
         { url: "/destinations/usa", priority: "0.8", changefreq: "monthly" },
         { url: "/destinations/canada", priority: "0.8", changefreq: "monthly" },
-        { url: "/destinations/new-zealand", priority: "0.8", changefreq: "monthly" },
-        { url: "/destinations/singapore", priority: "0.8", changefreq: "monthly" },
-        { url: "/destinations/japan", priority: "0.8", changefreq: "monthly" },
-        { url: "/destinations/south-korea", priority: "0.8", changefreq: "monthly" },
-        { url: "/destinations/germany", priority: "0.8", changefreq: "monthly" },
-        { url: "/ielts", priority: "0.9", changefreq: "monthly" },
-        { url: "/scholarships", priority: "0.8", changefreq: "monthly" },
+        { url: "/destinations/china", priority: "0.8", changefreq: "monthly" },
+        { url: "/destinations/ireland", priority: "0.7", changefreq: "monthly" },
+        { url: "/destinations/new-zealand", priority: "0.7", changefreq: "monthly" },
+        { url: "/destinations/netherlands", priority: "0.7", changefreq: "monthly" },
+
+        // Interactive tools (medium priority - unique differentiators)
         { url: "/country-quiz", priority: "0.7", changefreq: "monthly" },
-        { url: "/specta-play", priority: "0.7", changefreq: "monthly" },
-        { url: "/blog", priority: "0.8", changefreq: "daily" },
+        { url: "/aptitude-test", priority: "0.7", changefreq: "monthly" },
+        { url: "/aptitude-test/pro", priority: "0.6", changefreq: "monthly" },
+        { url: "/simulator", priority: "0.6", changefreq: "monthly" },
+        { url: "/specta-play", priority: "0.6", changefreq: "monthly" },
+        { url: "/persona", priority: "0.5", changefreq: "monthly" },
+
+        // Utility pages (lower priority)
+        { url: "/track", priority: "0.5", changefreq: "monthly" },
+        { url: "/my-journey", priority: "0.5", changefreq: "monthly" },
       ];
 
       // Dynamic blog posts
