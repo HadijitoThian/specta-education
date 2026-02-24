@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import Navigation from "@/components/Navigation";
@@ -414,6 +414,19 @@ const universities: University[] = [
 export default function Malaysia() {
   const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+
+  useEffect(() => {
+    document.title = "Study in Malaysia - Top Universities | SpecTa Education";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'Explore top Malaysian universities with SpecTa Education. Affordable tuition, multicultural campus life, and globally recognized degrees.');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Explore top Malaysian universities with SpecTa Education. Affordable tuition, multicultural campus life, and globally recognized degrees.';
+      document.head.appendChild(meta);
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">

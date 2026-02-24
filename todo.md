@@ -1119,3 +1119,7 @@
 - [x] Identified 12 keywords in Home.tsx and ~20 keywords in index.html
 - [x] Reduced to 6 focused keywords: study abroad consultant Jakarta, IELTS preparation Indonesia, kuliah luar negeri, SpecTa Education, overseas university application, beasiswa luar negeri
 - [x] Updated both index.html and Home.tsx
+
+### 117. Fix SEO on /malaysia page - Title too short, Description too long
+- [x] Added useEffect to set document.title: "Study in Malaysia - Top Universities | SpecTa Education" (55 chars)
+- [x] Added meta description: "Explore top Malaysian universities with SpecTa Education. Affordable tuition, multicultural campus life, and globally recognized degrees." (137 chars)
