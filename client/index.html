@@ -40,24 +40,47 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     
-    <!-- Schema.org Structured Data -->
+    <!-- Schema.org Structured Data: Organization -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "EducationalOrganization",
+      "@type": ["EducationalOrganization", "Organization"],
+      "@id": "https://www.spectaeducation.com/#organization",
       "name": "SpecTa Education",
+      "alternateName": "SpecTa Education Group",
       "url": "https://www.spectaeducation.com",
+      "logo": "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg",
+      "image": "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg",
       "description": "SpecTa Education helps Indonesian students study abroad in Australia, Malaysia, UK and 10+ countries with expert counseling, IELTS preparation, university matching and scholarship guidance since 2005.",
       "foundingDate": "2005",
-      "address": {
-        "@type": "PostalAddress",
-        "addressLocality": "Jakarta",
-        "addressRegion": "DKI Jakarta",
-        "addressCountry": "ID"
+      "founder": {
+        "@type": "Person",
+        "name": "Hadi Jito Thian",
+        "jobTitle": "CEO"
       },
-      "areaServed": [
-        { "@type": "Country", "name": "Indonesia" }
+      "numberOfEmployees": {
+        "@type": "QuantitativeValue",
+        "minValue": 10,
+        "maxValue": 50
+      },
+      "sameAs": [
+        "https://instagram.com/spectaedu",
+        "https://www.google.com/maps/search/SpecTa+Education"
       ],
+      "contactPoint": [
+        {
+          "@type": "ContactPoint",
+          "telephone": "+62-811-8120-820",
+          "contactType": "customer service",
+          "areaServed": "ID",
+          "availableLanguage": ["Indonesian", "English"]
+        }
+      ],
+      "areaServed": {
+        "@type": "Country",
+        "name": "Indonesia"
+      },
+      "knowsAbout": ["Study Abroad", "IELTS Preparation", "University Application", "Scholarship Guidance", "Student Visa", "Education Consulting"],
       "hasOfferCatalog": {
         "@type": "OfferCatalog",
         "name": "Education Services",
@@ -67,7 +90,7 @@
             "itemOffered": {
               "@type": "Service",
               "name": "Study Abroad Counseling",
-              "description": "Expert guidance for studying in Australia, Malaysia, UK, and 10+ countries"
+              "description": "Expert guidance for studying in Australia, Malaysia, UK, USA, Canada, Singapore, China, Ireland, Netherlands, and New Zealand"
             }
           },
           {
@@ -75,7 +98,8 @@
             "itemOffered": {
               "@type": "Course",
               "name": "IELTS Preparation Jakarta",
-              "description": "Comprehensive IELTS preparation course in Jakarta with experienced instructors"
+              "description": "Comprehensive IELTS preparation with VIP Guarantee, 80 Sessions, 40 Sessions, Short Course, and Private programs. Score guarantee with money-back option.",
+              "provider": { "@id": "https://www.spectaeducation.com/#organization" }
             }
           },
           {
@@ -83,11 +107,262 @@
             "itemOffered": {
               "@type": "Service",
               "name": "Scholarship Guidance",
-              "description": "Assistance with scholarship applications for international universities"
+              "description": "Assistance with scholarship applications including China 100% scholarships, Mila University Malaysia, and LPDP"
+            }
+          },
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "AI Aptitude Test (Tes Bakat AI)",
+              "description": "AI-powered career and major aptitude assessment with RIASEC, Multiple Intelligences, and personalized university recommendations"
             }
           }
         ]
       }
+    }
+    </script>
+
+    <!-- Schema.org Structured Data: LocalBusiness - Kelapa Gading (Head Office) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": ["LocalBusiness", "EducationalOrganization"],
+      "@id": "https://www.spectaeducation.com/#kelapa-gading",
+      "name": "SpecTa Education - Kelapa Gading (Head Office)",
+      "image": "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg",
+      "url": "https://www.spectaeducation.com",
+      "telephone": "+62-811-8120-820",
+      "priceRange": "$$",
+      "description": "SpecTa Education head office in Kelapa Gading, Jakarta. Study abroad consulting, IELTS preparation, scholarship guidance, and university application support since 2005.",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Jl. Kelapa Nias Raya QE1 No. 14",
+        "addressLocality": "Kelapa Gading",
+        "addressRegion": "Jakarta Utara",
+        "postalCode": "14240",
+        "addressCountry": "ID"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": -6.1572,
+        "longitude": 106.9065
+      },
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+          "opens": "10:00",
+          "closes": "18:00"
+        },
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": "Saturday",
+          "opens": "10:00",
+          "closes": "14:00"
+        }
+      ],
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.9",
+        "reviewCount": "173",
+        "bestRating": "5",
+        "worstRating": "1"
+      },
+      "parentOrganization": { "@id": "https://www.spectaeducation.com/#organization" },
+      "hasMap": "https://www.google.com/maps/search/SpecTa+Education+Kelapa+Gading"
+    }
+    </script>
+
+    <!-- Schema.org Structured Data: LocalBusiness - Pantai Indah Kapuk (PIK) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": ["LocalBusiness", "EducationalOrganization"],
+      "@id": "https://www.spectaeducation.com/#pik",
+      "name": "SpecTa Education - Pantai Indah Kapuk (PIK)",
+      "image": "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg",
+      "url": "https://www.spectaeducation.com",
+      "telephone": "+62-811-812-0820",
+      "priceRange": "$$",
+      "description": "SpecTa Education PIK branch. Study abroad consulting, IELTS preparation, scholarship guidance, and university application support for students in North Jakarta.",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Ruko Galeri Niaga Jl. Pantai Indah Utara II Blok J No. 8 B",
+        "addressLocality": "Pantai Indah Kapuk",
+        "addressRegion": "Jakarta Utara",
+        "postalCode": "14460",
+        "addressCountry": "ID"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": -6.1089,
+        "longitude": 106.7419
+      },
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+          "opens": "10:00",
+          "closes": "18:00"
+        },
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": "Saturday",
+          "opens": "10:00",
+          "closes": "14:00"
+        }
+      ],
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.9",
+        "reviewCount": "74",
+        "bestRating": "5",
+        "worstRating": "1"
+      },
+      "parentOrganization": { "@id": "https://www.spectaeducation.com/#organization" },
+      "hasMap": "https://www.google.com/maps/search/SpecTa+Education+PIK"
+    }
+    </script>
+
+    <!-- Schema.org Structured Data: LocalBusiness - Gading Serpong -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": ["LocalBusiness", "EducationalOrganization"],
+      "@id": "https://www.spectaeducation.com/#gading-serpong",
+      "name": "SpecTa Education - Gading Serpong",
+      "image": "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg",
+      "url": "https://www.spectaeducation.com",
+      "telephone": "+62-811-812-0203",
+      "priceRange": "$$",
+      "description": "SpecTa Education Gading Serpong branch. Study abroad consulting, IELTS preparation, scholarship guidance, and university application support for students in Tangerang.",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Jl. Paramount Boulevard Gading Serpong Pisa Grande A ext. 11",
+        "addressLocality": "Gading Serpong",
+        "addressRegion": "Tangerang",
+        "postalCode": "15810",
+        "addressCountry": "ID"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": -6.2564,
+        "longitude": 106.6310
+      },
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+          "opens": "10:00",
+          "closes": "18:00"
+        },
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": "Saturday",
+          "opens": "10:00",
+          "closes": "14:00"
+        }
+      ],
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "5.0",
+        "reviewCount": "29",
+        "bestRating": "5",
+        "worstRating": "1"
+      },
+      "parentOrganization": { "@id": "https://www.spectaeducation.com/#organization" },
+      "hasMap": "https://www.google.com/maps/search/SpecTa+Education+Gading+Serpong"
+    }
+    </script>
+
+    <!-- Schema.org Structured Data: FAQ -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What countries can I study abroad with SpecTa Education?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "SpecTa Education helps students study in 10+ countries including Australia, Malaysia, Singapore, United Kingdom, USA, Canada, China, Ireland, Netherlands, and New Zealand. We have partnerships with over 50 universities worldwide."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How much does IELTS preparation cost at SpecTa Education?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "SpecTa Education offers multiple IELTS programs: VIP Guarantee Program (80 sessions with score guarantee and money-back option), 80 Sessions Program (4 months), 40 Sessions Program (2 months), Short Course (20 sessions, 2 weeks), and Private 1-on-1 sessions (minimum 10 hours). Contact us for current pricing."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Where are SpecTa Education offices located?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "SpecTa Education has 3 offices: Head Office in Kelapa Gading (Jl. Kelapa Nias Raya QE1 No. 14, Jakarta Utara), PIK Branch (Ruko Galeri Niaga Jl. Pantai Indah Utara II Blok J No. 8 B), and Gading Serpong Branch (Jl. Paramount Boulevard Pisa Grande A ext. 11, Tangerang). All offices are open Mon-Fri 10AM-6PM and Saturday 10AM-2PM."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does SpecTa Education offer scholarship assistance?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes! SpecTa Education provides scholarship guidance including China 100% scholarships, Mila University Malaysia 100% scholarships, and LPDP scholarship preparation. Over 200 students have secured scholarships through our guidance."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the Tes Bakat AI (AI Aptitude Test)?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The Tes Bakat AI is an AI-powered career and major aptitude assessment that uses RIASEC Interest Assessment, Gardner Multiple Intelligences, and personality profiling to recommend the best university majors and career paths for students. Available in both free and Pro versions with detailed PDF reports."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- Schema.org Structured Data: BreadcrumbList -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://www.spectaeducation.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Destinations",
+          "item": "https://www.spectaeducation.com/destinations"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "IELTS",
+          "item": "https://www.spectaeducation.com/ielts"
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": "Scholarships",
+          "item": "https://www.spectaeducation.com/scholarships"
+        },
+        {
+          "@type": "ListItem",
+          "position": 5,
+          "name": "Contact",
+          "item": "https://www.spectaeducation.com/contact"
+        }
+      ]
     }
     </script>
   </head>

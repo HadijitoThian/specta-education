@@ -1136,3 +1136,12 @@
 - [x] Fixed curly apostrophe syntax errors in BookConsultation.tsx and AptitudeTest.tsx
 - [x] Verified all 29 user-facing pages pass audit (2 dynamic pages + 1 dev-only page excluded)
 - [x] TypeScript compiles with 0 errors
+
+### 119. Add LocalBusiness JSON-LD Structured Data for Google Search Visibility
+- [x] Researched all 3 branch details (PIK, Kelapa Gading, Gading Serpong) from Contact.tsx and Home.tsx
+- [x] Built JSON-LD LocalBusiness schema for each branch with address, geo coords, phone, hours, aggregateRating
+- [x] Enhanced EducationalOrganization schema with founder, logo, contactPoint, sameAs, knowsAbout, 4 services
+- [x] Added FAQPage schema with 5 key questions about SpecTa Education
+- [x] Added BreadcrumbList schema for main navigation pages
+- [x] All 6 JSON-LD blocks validated as valid JSON
+- [x] TypeScript compiles with 0 errors
