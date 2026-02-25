@@ -307,7 +307,7 @@ export default function ChatBot() {
     setTimeout(() => {
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: `Nice to meet you, ${name}! 😊 Could you share your phone or WhatsApp number? This way, one of our counselors can reach out to help you personally. (You can type "skip" if you prefer not to share)`
+        content: `Nice to meet you, ${name}! 😊 Could you share your phone or WhatsApp number? This way, one of our counselors can reach out to help you personally.`
       }]);
       setLeadCaptureState("ask_phone");
     }, 500);
@@ -319,33 +319,54 @@ export default function ChatBot() {
 
     setInput("");
 
-    const isSkipped = phone.toLowerCase() === "skip" || phone.toLowerCase() === "no" || phone.toLowerCase() === "later";
-
-    if (!isSkipped) {
-      setLeadPhone(phone);
-      localStorage.setItem(LEAD_PHONE_KEY, phone);
-    }
+    // Detect if the response looks like a phone number (contains mostly digits)
+    const digitsOnly = phone.replace(/[\s\-\+\(\)]/g, '');
+    const looksLikePhone = /^\d{7,15}$/.test(digitsOnly);
 
     // Show user message
     setMessages(prev => [...prev, { role: "user", content: phone }]);
 
-    // Capture lead
-    captureLeadMutation.mutate({
-      sessionId,
-      name: leadName,
-      phone: isSkipped ? undefined : phone,
-      isAnonymous: isSkipped
-    });
+    if (looksLikePhone) {
+      // It's a phone number — save it
+      setLeadPhone(phone);
+      localStorage.setItem(LEAD_PHONE_KEY, phone);
 
-    setLeadCaptureState("captured");
+      captureLeadMutation.mutate({
+        sessionId,
+        name: leadName,
+        phone: phone,
+        isAnonymous: false
+      });
 
-    // Show transition message
-    setTimeout(() => {
-      const msg = isSkipped
-        ? `No worries at all, ${leadName}! You can always share it later. Now, what brings you here today? Are you thinking about studying abroad? 🌏`
-        : `Awesome, thanks ${leadName}! Our team will be in touch. Now let's explore your study abroad options! What country or field of study are you interested in? 🎓`;
-      setMessages(prev => [...prev, { role: "assistant", content: msg }]);
-    }, 500);
+      setLeadCaptureState("captured");
+
+      setTimeout(() => {
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: `Awesome, thanks ${leadName}! Our team will be in touch. Now let's explore your study abroad options! What country or field of study are you interested in? 🎓`
+        }]);
+      }, 500);
+    } else {
+      // Not a phone number — they want to chat directly, capture as anonymous lead
+      captureLeadMutation.mutate({
+        sessionId,
+        name: leadName,
+        isAnonymous: true
+      });
+
+      setLeadCaptureState("captured");
+
+      // Treat their message as the first real chat message and send to AI
+      const userMessage: Message = { role: "user", content: phone };
+      const newMessages = [...messages, userMessage];
+      setUserMessageCount(prev => prev + 1);
+
+      chatMutation.mutate({
+        sessionId,
+        message: phone,
+        conversationHistory: newMessages.map(m => ({ role: m.role, content: m.content }))
+      });
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -424,7 +445,7 @@ export default function ChatBot() {
   const getPlaceholder = () => {
     switch (leadCaptureState) {
       case "ask_name": return "Enter your name...";
-      case "ask_phone": return "Enter your phone/WhatsApp number (or type 'skip')...";
+      case "ask_phone": return "Enter your phone/WhatsApp number...";
       default: return "Type your message...";
     }
   };

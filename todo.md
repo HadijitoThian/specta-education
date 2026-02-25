@@ -1177,3 +1177,8 @@
 - [x] Added source badges (Chatbot, Anonymous) in admin Leads tab
 - [x] Written 8 vitest tests for captureLead, summarizeIntent, and getHistory (all passing)
 - [x] TypeScript compiles with 0 errors
+
+### 122. Chatbot Lead Capture UX Fix
+- [x] Remove "skip" mention from phone request message — ask naturally
+- [x] Remove "skip" from input placeholder
+- [x] Detect non-phone responses and proceed to normal chat instead of requiring explicit skip
