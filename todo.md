@@ -1182,3 +1182,10 @@
 - [x] Remove "skip" mention from phone request message — ask naturally
 - [x] Remove "skip" from input placeholder
 - [x] Detect non-phone responses and proceed to normal chat instead of requiring explicit skip
+
+### 123. Bug Fix: Chat history not loading for returning users
+- [x] Diagnosed: Race condition between history processing useEffect and greeting useEffect
+- [x] Fixed history loading: restored messages now include all previous messages + welcome back note
+- [x] Added double-check in greeting useEffect using functional setState to prevent overwriting restored messages
+- [x] Returning users now see full chat history with "Welcome back" appended at the end
+- [x] TypeScript compiles with 0 errors, all 8 tests pass

@@ -1,0 +1,16 @@
+{
+  "query": "SELECT id, sessionId, studentName, status FROM conversations ORDER BY id DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT id, sessionId, studentName, status FROM conversations ORDER BY id DESC LIMIT 10;",
+  "rows": [
+    {
+      "id": "1830022",
+      "sessionId": "a1gm_x3K9fnnt_d2Rmjrq",
+      "studentName": "hadi",
+      "status": "lead_captured"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tsessionId\tstudentName\tstatus\n1830022\ta1gm_x3K9fnnt_d2Rmjrq\thadi\tlead_captured\n",
+  "stderr": "",
+  "execution_time_ms": 1534
+}

@@ -1,0 +1,8 @@
+{
+  "query": "SELECT c.id, c.session_id, c.student_name, c.status, COUNT(m.id) as msg_count FROM conversations c LEFT JOIN messages m ON m.conversation_id = c.id GROUP BY c.id ORDER BY c.created_at DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT c.id, c.session_id, c.student_name, c.status, COUNT(m.id) as msg_count FROM conversations c LEFT JOIN messages m ON m.conversation_id = c.id GROUP BY c.id ORDER BY c.created_at DESC LIMIT 10;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'm.conversation_id' in 'on clause'"
+  ]
+}

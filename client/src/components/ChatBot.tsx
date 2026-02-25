@@ -150,48 +150,60 @@ export default function ChatBot() {
       }
 
       if (serverMessages.length > 0) {
+        // Restore all previous messages and add a welcome back note
         const restored: Message[] = [
           { role: "system", content: SYSTEM_PROMPT },
           ...serverMessages.map(m => ({
             role: m.role as "system" | "user" | "assistant",
             content: m.content
-          }))
+          })),
+          { role: "assistant", content: `Welcome back${historyQuery.data.leadState?.name ? `, ${historyQuery.data.leadState.name}` : ""}! 👋 Here's our previous conversation. How can I help you today?` }
         ];
         setMessages(restored);
         setUserMessageCount(serverMessages.filter(m => m.role === "user").length);
         setHistoryStatus("loaded");
       } else {
+        // No messages found on server, but lead state exists in localStorage
         setHistoryStatus("empty");
       }
     } else if (historyQuery.isError) {
+      console.error("Failed to load chat history:", historyQuery.error);
       setHistoryStatus("error");
     }
   }, [historyQuery.data, historyQuery.isError, historyStatus]);
 
-  // Send initial greeting for new users
+  // Send initial greeting for new users or when history is empty/errored
   useEffect(() => {
     if (historyStatus === "loading") return;
     if (historyStatus === "loaded") return;
 
+    // Don't show greeting if messages already have user/assistant content (prevents race conditions)
     const hasConversation = messages.some(m => m.role === "user" || m.role === "assistant");
-    if (!hasConversation) {
-      const timer = setTimeout(() => {
+    if (hasConversation) return;
+
+    const timer = setTimeout(() => {
+      // Double-check messages haven't been updated by another effect
+      setMessages(prev => {
+        const alreadyHasContent = prev.some(m => m.role === "user" || m.role === "assistant");
+        if (alreadyHasContent) return prev;
+
         // If lead already captured (from localStorage), show a personalized greeting
         if (leadCaptureState === "captured" && leadName) {
-          setMessages(prev => [...prev, {
-            role: "assistant",
+          return [...prev, {
+            role: "assistant" as const,
             content: `Welcome back, ${leadName}! 👋 Great to see you again. What would you like to explore about studying abroad today?`
-          }]);
+          }];
         } else {
-          setMessages(prev => [...prev, {
-            role: "assistant",
-            content: GREETING_MESSAGE
-          }]);
+          // New user — start lead capture
           setLeadCaptureState("ask_name");
+          return [...prev, {
+            role: "assistant" as const,
+            content: GREETING_MESSAGE
+          }];
         }
-      }, 500);
-      return () => clearTimeout(timer);
-    }
+      });
+    }, 500);
+    return () => clearTimeout(timer);
   }, [historyStatus]);
 
   const chatMutation = trpc.chat.sendMessage.useMutation({
