@@ -1,0 +1,91 @@
+{
+  "query": "SELECT id, fullName, email, phone, consultationType, status, createdAt FROM appointments WHERE createdAt >= DATE_SUB(NOW(), INTERVAL 14 DAY) ORDER BY createdAt DESC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT id, fullName, email, phone, consultationType, status, createdAt FROM appointments WHERE createdAt >= DATE_SUB(NOW(), INTERVAL 14 DAY) ORDER BY createdAt DESC;",
+  "rows": [
+    {
+      "id": "810008",
+      "fullName": "Test Student",
+      "email": "test@student.com",
+      "phone": "+628123456789",
+      "consultationType": "general",
+      "status": "pending",
+      "createdAt": "2026-02-24 19:13:12"
+    },
+    {
+      "id": "810007",
+      "fullName": "Test Student",
+      "email": "test@student.com",
+      "phone": "+628123456789",
+      "consultationType": "general",
+      "status": "pending",
+      "createdAt": "2026-02-24 19:08:53"
+    },
+    {
+      "id": "810006",
+      "fullName": "Test Student",
+      "email": "test@student.com",
+      "phone": "+628123456789",
+      "consultationType": "general",
+      "status": "pending",
+      "createdAt": "2026-02-23 22:59:13"
+    },
+    {
+      "id": "810005",
+      "fullName": "Test Student",
+      "email": "test@student.com",
+      "phone": "+628123456789",
+      "consultationType": "general",
+      "status": "pending",
+      "createdAt": "2026-02-23 22:57:12"
+    },
+    {
+      "id": "810004",
+      "fullName": "Test Student",
+      "email": "test@student.com",
+      "phone": "+628123456789",
+      "consultationType": "general",
+      "status": "pending",
+      "createdAt": "2026-02-23 22:55:29"
+    },
+    {
+      "id": "810003",
+      "fullName": "Test Student",
+      "email": "test@student.com",
+      "phone": "+628123456789",
+      "consultationType": "general",
+      "status": "pending",
+      "createdAt": "2026-02-23 22:53:27"
+    },
+    {
+      "id": "810002",
+      "fullName": "Test Student",
+      "email": "test@student.com",
+      "phone": "+628123456789",
+      "consultationType": "general",
+      "status": "pending",
+      "createdAt": "2026-02-23 22:51:07"
+    },
+    {
+      "id": "810001",
+      "fullName": "Edbert Tjhan",
+      "email": "edhendro@gmail.com",
+      "phone": "+62-811-2285-2285",
+      "consultationType": "general",
+      "status": "pending",
+      "createdAt": "2026-02-23 04:13:22"
+    },
+    {
+      "id": "780011",
+      "fullName": "Test Student",
+      "email": "test@student.com",
+      "phone": "+628123456789",
+      "consultationType": "general",
+      "status": "pending",
+      "createdAt": "2026-02-19 07:13:11"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tfullName\temail\tphone\tconsultationType\tstatus\tcreatedAt\n810008\tTest Student\ttest@student.com\t+628123456789\tgeneral\tpending\t2026-02-24 19:13:12\n810007\tTest Student\ttest@student.com\t+628123456789\tgeneral\tpending\t2026-02-24 19:08:53\n810006\tTest Student\ttest@student.com\t+628123456789\tgeneral\tpending\t2026-02-23 22:59:13\n810005\tTest Student\ttest@student.com\t+628123456789\tgeneral\tpending\t2026-02-23 22:57:12\n810004\tTest Student\ttest@student.com\t+628123456789\tgeneral\tpending\t2026-02-23 22:55:29\n810003\tTest Student\ttest@student.com\t+628123456789\tgeneral\tpending\t2026-02-23 22:53:27\n810002\tTest Student\ttest@student.com\t+628123456789\tgeneral\tpending\t2026-02-23 22:51:07\n810001\tEdbert Tjhan\tedhendro@gmail.com\t+62-811-2285-2285\tgeneral\tpending\t2026-02-23 04:13:22\n780011\tTest Student\ttest@student.com\t+628123456789\tgeneral\tpending\t2026-02-19 07:13:11\n",
+  "stderr": "",
+  "execution_time_ms": 1633
+}

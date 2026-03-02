@@ -1189,3 +1189,10 @@
 - [x] Added double-check in greeting useEffect using functional setState to prevent overwriting restored messages
 - [x] Returning users now see full chat history with "Welcome back" appended at the end
 - [x] TypeScript compiles with 0 errors, all 8 tests pass
+
+### 124. Pro Aptitude Test Registration Management in Admin Dashboard
+- [ ] Check if Pro test registration approval/management exists in admin dashboard
+- [ ] Investigate the Pro test registration flow (email notification vs dashboard)
+- [ ] If missing, add a "Pro Test Registrations" tab to admin dashboard
+- [ ] Include approve/reject actions, student details, and payment status
+- [ ] Test the full flow from registration email to dashboard management
