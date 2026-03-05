@@ -56,7 +56,7 @@ const packages = [
       "Online/Offline/Combined Classes",
       "2 Assessments",
       "FREE Access to SpecTa Education Learning Portal",
-      "Extra Study Duration Up To 2 Years",
+      "Extra Study Duration Up To 1 Year",
       "Guaranteed Score",
       "Money Back Guarantee"
     ],
