@@ -891,3 +891,190 @@ export const dailyReports = mysqlTable("daily_reports", {
 
 export type DailyReport = typeof dailyReports.$inferSelect;
 export type InsertDailyReport = typeof dailyReports.$inferInsert;
+
+// ==========================================
+// Phase 2 Agent Tables
+// ==========================================
+
+/**
+ * Visitor tracking — captures website visitor behavior for Lead Hunter agent
+ */
+export const visitorTracking = mysqlTable("visitor_tracking", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: varchar("sessionId", { length: 64 }).notNull(),
+  visitorFingerprint: varchar("visitorFingerprint", { length: 128 }),
+  ipAddress: varchar("ipAddress", { length: 45 }),
+  userAgent: text("userAgent"),
+  // Behavior data
+  pagesVisited: text("pagesVisited"), // JSON array of page paths
+  totalPageViews: int("totalPageViews").default(0),
+  timeOnSite: int("timeOnSite").default(0), // seconds
+  referrerUrl: text("referrerUrl"),
+  utmSource: varchar("utmSource", { length: 255 }),
+  utmMedium: varchar("utmMedium", { length: 255 }),
+  utmCampaign: varchar("utmCampaign", { length: 255 }),
+  // Engagement signals
+  chatbotEngaged: boolean("chatbotEngaged").default(false),
+  formStarted: boolean("formStarted").default(false),
+  formCompleted: boolean("formCompleted").default(false),
+  contactPageVisited: boolean("contactPageVisited").default(false),
+  ieltsPageVisited: boolean("ieltsPageVisited").default(false),
+  countryPagesVisited: text("countryPagesVisited"), // JSON array
+  aptitudeTestStarted: boolean("aptitudeTestStarted").default(false),
+  // Lead scoring
+  engagementScore: int("engagementScore").default(0),
+  isHighIntent: boolean("isHighIntent").default(false),
+  convertedToLead: boolean("convertedToLead").default(false),
+  leadId: int("leadId"),
+  // Timestamps
+  firstVisitAt: timestamp("firstVisitAt").defaultNow().notNull(),
+  lastActivityAt: timestamp("lastActivityAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type VisitorTracking = typeof visitorTracking.$inferSelect;
+export type InsertVisitorTracking = typeof visitorTracking.$inferInsert;
+
+/**
+ * Competitor intelligence — stores competitor monitoring data
+ */
+export const competitorIntelligence = mysqlTable("competitor_intelligence", {
+  id: int("id").autoincrement().primaryKey(),
+  competitorName: varchar("competitorName", { length: 255 }).notNull(),
+  competitorUrl: varchar("competitorUrl", { length: 500 }),
+  // Intelligence type
+  intelligenceType: mysqlEnum("intelligenceType", [
+    "website_change", "new_program", "pricing_change", "social_campaign",
+    "ranking_change", "partnership_announcement", "event", "promotion", "general"
+  ]).notNull(),
+  // Details
+  title: varchar("title", { length: 500 }).notNull(),
+  summary: text("summary"),
+  details: text("details"), // JSON with full analysis
+  sourceUrl: text("sourceUrl"),
+  severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).default("medium"),
+  // Strategic response
+  strategicRecommendation: text("strategicRecommendation"),
+  actionRequired: boolean("actionRequired").default(false),
+  actionTaken: boolean("actionTaken").default(false),
+  // Status
+  status: mysqlEnum("status", ["new", "reviewed", "actioned", "dismissed"]).default("new"),
+  reviewedAt: timestamp("reviewedAt"),
+  reviewedBy: varchar("reviewedBy", { length: 255 }),
+  // Timestamps
+  detectedAt: timestamp("detectedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type CompetitorIntelligence = typeof competitorIntelligence.$inferSelect;
+export type InsertCompetitorIntelligence = typeof competitorIntelligence.$inferInsert;
+
+/**
+ * Competitor profiles — stores baseline data for each competitor
+ */
+export const competitorProfiles = mysqlTable("competitor_profiles", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  websiteUrl: varchar("websiteUrl", { length: 500 }),
+  instagramUrl: varchar("instagramUrl", { length: 500 }),
+  facebookUrl: varchar("facebookUrl", { length: 500 }),
+  tiktokUrl: varchar("tiktokUrl", { length: 500 }),
+  linkedinUrl: varchar("linkedinUrl", { length: 500 }),
+  // Baseline data
+  description: text("description"),
+  services: text("services"), // JSON array
+  countries: text("countries"), // JSON array of countries they serve
+  estimatedStudents: varchar("estimatedStudents", { length: 100 }),
+  strengths: text("strengths"),
+  weaknesses: text("weaknesses"),
+  // Monitoring
+  lastScannedAt: timestamp("lastScannedAt"),
+  lastSnapshotHash: varchar("lastSnapshotHash", { length: 64 }),
+  isActive: boolean("isActive").default(true),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type CompetitorProfile = typeof competitorProfiles.$inferSelect;
+export type InsertCompetitorProfile = typeof competitorProfiles.$inferInsert;
+
+/**
+ * University partnership opportunities — tracks potential university partners
+ */
+export const universityPartnerships = mysqlTable("university_partnerships", {
+  id: int("id").autoincrement().primaryKey(),
+  universityName: varchar("universityName", { length: 500 }).notNull(),
+  country: varchar("country", { length: 100 }).notNull(),
+  city: varchar("city", { length: 255 }),
+  websiteUrl: varchar("websiteUrl", { length: 500 }),
+  // Rankings & reputation
+  worldRanking: int("worldRanking"),
+  countryRanking: int("countryRanking"),
+  rankingSource: varchar("rankingSource", { length: 100 }),
+  // Partnership details
+  partnershipType: mysqlEnum("partnershipType", [
+    "agent_agreement", "pathway_program", "scholarship_partner",
+    "articulation_agreement", "exchange_program", "general"
+  ]).default("agent_agreement"),
+  hasExistingIndonesianAgent: boolean("hasExistingIndonesianAgent"),
+  existingAgents: text("existingAgents"), // JSON array of known agents
+  // Contact info
+  internationalOfficeEmail: varchar("internationalOfficeEmail", { length: 320 }),
+  agentRecruitmentEmail: varchar("agentRecruitmentEmail", { length: 320 }),
+  contactPersonName: varchar("contactPersonName", { length: 255 }),
+  contactPersonTitle: varchar("contactPersonTitle", { length: 255 }),
+  contactPersonLinkedin: varchar("contactPersonLinkedin", { length: 500 }),
+  // Programs of interest
+  popularPrograms: text("popularPrograms"), // JSON array
+  tuitionRange: varchar("tuitionRange", { length: 255 }),
+  intakeMonths: varchar("intakeMonths", { length: 255 }),
+  // Outreach tracking
+  outreachStatus: mysqlEnum("outreachStatus", [
+    "identified", "researching", "draft_ready", "email_sent",
+    "follow_up_sent", "responded", "meeting_scheduled",
+    "agreement_pending", "partnered", "rejected", "no_response"
+  ]).default("identified"),
+  outreachEmailDraft: text("outreachEmailDraft"),
+  outreachSentAt: timestamp("outreachSentAt"),
+  lastFollowUpAt: timestamp("lastFollowUpAt"),
+  responseReceived: text("responseReceived"),
+  // Priority & scoring
+  partnershipScore: int("partnershipScore").default(0), // 0-100
+  priority: mysqlEnum("priority", ["low", "medium", "high", "critical"]).default("medium"),
+  notes: text("notes"),
+  // Timestamps
+  discoveredAt: timestamp("discoveredAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type UniversityPartnership = typeof universityPartnerships.$inferSelect;
+export type InsertUniversityPartnership = typeof universityPartnerships.$inferInsert;
+
+/**
+ * Social media mentions — tracks social media activity related to study abroad in Indonesia
+ */
+export const socialMentions = mysqlTable("social_mentions", {
+  id: int("id").autoincrement().primaryKey(),
+  platform: mysqlEnum("platform", ["instagram", "facebook", "tiktok", "twitter", "linkedin", "youtube", "other"]).notNull(),
+  mentionType: mysqlEnum("mentionType", ["lead_signal", "competitor_activity", "brand_mention", "industry_trend"]).notNull(),
+  // Content
+  authorName: varchar("authorName", { length: 255 }),
+  authorHandle: varchar("authorHandle", { length: 255 }),
+  content: text("content"),
+  sourceUrl: text("sourceUrl"),
+  // Analysis
+  sentiment: mysqlEnum("sentiment", ["positive", "negative", "neutral"]),
+  relevanceScore: int("relevanceScore").default(0), // 0-100
+  isLeadOpportunity: boolean("isLeadOpportunity").default(false),
+  convertedToLead: boolean("convertedToLead").default(false),
+  leadId: int("leadId"),
+  // Status
+  status: mysqlEnum("status", ["new", "reviewed", "actioned", "dismissed"]).default("new"),
+  // Timestamps
+  detectedAt: timestamp("detectedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SocialMention = typeof socialMentions.$inferSelect;
+export type InsertSocialMention = typeof socialMentions.$inferInsert;

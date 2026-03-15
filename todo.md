@@ -1245,3 +1245,39 @@
 - [x] Email admin (hadi@spectaeducation.com) when new lead is assigned to a counselor
 - [x] Show lead-counselor assignment details in notification email
 - [x] Add lead assignment summary widget to main admin dashboard
+
+## AI Agents Command Center - Phase 2
+
+### Agent 1 — Lead Hunter
+- [x] Website visitor behavior tracking (pages visited, time spent, forms abandoned)
+- [x] Social media lead scanning (Instagram, Facebook, TikTok mentions)
+- [x] WhatsApp inquiry capture and auto-lead creation
+- [x] Lead scoring based on engagement signals
+- [x] Auto-feed discovered leads into CRM Distributor (Agent 2)
+- [x] Admin notification for high-intent leads
+
+### Agent 5 — Competitor Monitor
+- [x] Track 9+ competitors (IDP, Sun Education, AUG, AECC, GoStudy, StudyZone, RACC, EduSpiral, JM Education)
+- [x] Monitor competitor website changes and new programs
+- [x] Track competitor social media activity and campaigns
+- [x] Monitor Google ranking movements for key keywords
+- [x] Generate strategic blueprint emails when significant moves detected
+- [x] Weekly competitor analysis summary report
+
+### Agent 4 — University Partner Scout
+- [x] Search for partnership opportunities in Australia, UK, Ireland, Canada, New Zealand
+- [x] Identify universities without Indonesian agents/partners
+- [x] Find partnership contact emails and department heads
+- [x] Draft outreach email templates for each university
+- [x] Track outreach status and responses
+- [x] Weekly partnership opportunity report
+
+### Phase 2 Database & Infrastructure
+- [x] Visitor tracking table for website behavior data
+- [x] Competitor intelligence table for competitor data
+- [x] University partnership opportunities table
+- [x] Social mentions table for social media tracking
+- [x] Register Phase 2 agents in scheduler
+- [x] Add Phase 2 agent tRPC routes
+- [x] Update Agent Command Center UI for Phase 2 agents (6 tabs)
+- [x] Write tests for Phase 2 agents (20 tests passing)

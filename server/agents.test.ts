@@ -63,12 +63,15 @@ describe("AI Agent Command Center", () => {
       const configs = await caller.agents.getConfigs();
       expect(Array.isArray(configs)).toBe(true);
       // Should have at least the 3 agents we initialized
-      expect(configs.length).toBeGreaterThanOrEqual(3);
+      expect(configs.length).toBeGreaterThanOrEqual(6);
 
       const agentNames = configs.map(c => c.agentName);
       expect(agentNames).toContain("crm_distributor");
       expect(agentNames).toContain("seo_builder");
       expect(agentNames).toContain("central_reporter");
+      expect(agentNames).toContain("lead_hunter");
+      expect(agentNames).toContain("competitor_monitor");
+      expect(agentNames).toContain("university_scout");
     });
 
     it("denies access for regular users", async () => {
@@ -188,6 +191,99 @@ describe("AI Agent Command Center", () => {
       const configsAfter = await caller.agents.getConfigs();
       const crmAgentAfter = configsAfter.find(c => c.agentName === "crm_distributor");
       expect(crmAgentAfter?.isActive).toBe(true);
+    });
+  });
+
+  // ===== Phase 2 Agent Tests =====
+
+  describe("agents.getVisitorAnalytics", () => {
+    it("returns visitor analytics for admin users", async () => {
+      const ctx = createAdminContext();
+      const caller = appRouter.createCaller(ctx);
+
+      const analytics = await caller.agents.getVisitorAnalytics();
+      expect(analytics).toBeDefined();
+      expect(analytics).toHaveProperty("totalVisitors24h");
+      expect(analytics).toHaveProperty("highIntentVisitors");
+      expect(analytics).toHaveProperty("topPages");
+      expect(analytics).toHaveProperty("recentHighIntent");
+      expect(analytics).toHaveProperty("recentSocialMentions");
+      expect(typeof analytics.totalVisitors24h).toBe("number");
+      expect(Array.isArray(analytics.topPages)).toBe(true);
+    });
+
+    it("denies access for regular users", async () => {
+      const ctx = createUserContext();
+      const caller = appRouter.createCaller(ctx);
+      await expect(caller.agents.getVisitorAnalytics()).rejects.toThrow("FORBIDDEN");
+    });
+  });
+
+  describe("agents.getCompetitorDashboard", () => {
+    it("returns competitor dashboard for admin users", async () => {
+      const ctx = createAdminContext();
+      const caller = appRouter.createCaller(ctx);
+
+      const dashboard = await caller.agents.getCompetitorDashboard();
+      expect(dashboard).toBeDefined();
+      expect(dashboard).toHaveProperty("totalCompetitors");
+      expect(dashboard).toHaveProperty("highThreats");
+      expect(dashboard).toHaveProperty("recentAnalyses");
+      expect(dashboard).toHaveProperty("topOpportunities");
+      expect(typeof dashboard.totalCompetitors).toBe("number");
+      expect(dashboard.totalCompetitors).toBeGreaterThan(0);
+      expect(Array.isArray(dashboard.recentAnalyses)).toBe(true);
+    });
+
+    it("denies access for regular users", async () => {
+      const ctx = createUserContext();
+      const caller = appRouter.createCaller(ctx);
+      await expect(caller.agents.getCompetitorDashboard()).rejects.toThrow("FORBIDDEN");
+    });
+  });
+
+  describe("agents.getPartnershipPipeline", () => {
+    it("returns partnership pipeline for admin users", async () => {
+      const ctx = createAdminContext();
+      const caller = appRouter.createCaller(ctx);
+
+      const pipeline = await caller.agents.getPartnershipPipeline();
+      expect(pipeline).toBeDefined();
+      expect(pipeline).toHaveProperty("totalIdentified");
+      expect(pipeline).toHaveProperty("totalContacted");
+      expect(pipeline).toHaveProperty("totalNegotiating");
+      expect(pipeline).toHaveProperty("totalSigned");
+      expect(pipeline).toHaveProperty("byCountry");
+      expect(pipeline).toHaveProperty("recentOpportunities");
+      expect(typeof pipeline.totalIdentified).toBe("number");
+      expect(typeof pipeline.byCountry).toBe("object");
+      expect(Array.isArray(pipeline.recentOpportunities)).toBe(true);
+    });
+
+    it("denies access for regular users", async () => {
+      const ctx = createUserContext();
+      const caller = appRouter.createCaller(ctx);
+      await expect(caller.agents.getPartnershipPipeline()).rejects.toThrow("FORBIDDEN");
+    });
+  });
+
+  describe("agents.dismissCompetitorAlert", () => {
+    it("denies access for regular users", async () => {
+      const ctx = createUserContext();
+      const caller = appRouter.createCaller(ctx);
+      await expect(
+        caller.agents.dismissCompetitorAlert({ id: 1 })
+      ).rejects.toThrow("FORBIDDEN");
+    });
+  });
+
+  describe("agents.updatePartnershipStatus", () => {
+    it("denies access for regular users", async () => {
+      const ctx = createUserContext();
+      const caller = appRouter.createCaller(ctx);
+      await expect(
+        caller.agents.updatePartnershipStatus({ id: 1, status: "researching" })
+      ).rejects.toThrow("FORBIDDEN");
     });
   });
 });

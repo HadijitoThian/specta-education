@@ -4723,6 +4723,75 @@ Return JSON with the refined article:
         const result = await triggerAgent("central_reporter");
         return { success: true, result };
       }),
+
+    // ---- Phase 2 Agent Routes ----
+
+    // Get visitor analytics (Lead Hunter)
+    getVisitorAnalytics: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { getVisitorAnalytics } = await import("./agentLeadHunter");
+        return await getVisitorAnalytics();
+      }),
+
+    // Get competitor dashboard
+    getCompetitorDashboard: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { getCompetitorDashboard } = await import("./agentCompetitorMonitor");
+        return await getCompetitorDashboard();
+      }),
+
+    // Get partnership pipeline
+    getPartnershipPipeline: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { getPartnershipPipeline } = await import("./agentUniversityScout");
+        return await getPartnershipPipeline();
+      }),
+
+    // Update partnership status
+    updatePartnershipStatus: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["identified", "researching", "draft_ready", "email_sent", "follow_up_sent", "responded", "meeting_scheduled", "agreement_pending", "partnered", "rejected", "no_response"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { drizzle } = await import("drizzle-orm/mysql2");
+        const { universityPartnerships } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = drizzle(process.env.DATABASE_URL!);
+        await db.update(universityPartnerships)
+          .set({ outreachStatus: input.status, ...(input.status === "email_sent" ? { outreachSentAt: new Date() } : {}) })
+          .where(eq(universityPartnerships.id, input.id));
+        return { success: true };
+      }),
+
+    // Dismiss competitor intelligence
+    dismissCompetitorAlert: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { drizzle } = await import("drizzle-orm/mysql2");
+        const { competitorIntelligence } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = drizzle(process.env.DATABASE_URL!);
+        await db.update(competitorIntelligence)
+          .set({ status: "reviewed", reviewedAt: new Date(), reviewedBy: ctx.user.name || ctx.user.openId })
+          .where(eq(competitorIntelligence.id, input.id));
+        return { success: true };
+      }),
   }),
 });
 

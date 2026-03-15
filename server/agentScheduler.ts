@@ -8,6 +8,9 @@
 import { runCrmDistributorAgent } from "./agentCrmDistributor";
 import { runSeoBuilderAgent } from "./agentSeoBuilder";
 import { runCentralReporterAgent } from "./agentCentralReporter";
+import { runLeadHunterAgent } from "./agentLeadHunter";
+import { runCompetitorMonitorAgent } from "./agentCompetitorMonitor";
+import { runUniversityScoutAgent } from "./agentUniversityScout";
 import {
   getAgentConfig,
   upsertAgentConfig,
@@ -39,6 +42,27 @@ export async function initializeAgents(): Promise<void> {
       agentName: "central_reporter",
       displayName: "Central Reporter",
       description: "Compiles daily reports and sends 9AM briefing email to admin",
+      isActive: true,
+      runIntervalMinutes: 1440, // daily
+    },
+    {
+      agentName: "lead_hunter",
+      displayName: "Lead Hunter",
+      description: "Tracks website visitor behavior, scans social media for lead signals, and scores engagement",
+      isActive: true,
+      runIntervalMinutes: 120, // every 2 hours
+    },
+    {
+      agentName: "competitor_monitor",
+      displayName: "Competitor Monitor",
+      description: "Tracks 9+ competitors daily, monitors their strategies, and sends strategic blueprints",
+      isActive: true,
+      runIntervalMinutes: 1440, // daily
+    },
+    {
+      agentName: "university_scout",
+      displayName: "University Partner Scout",
+      description: "Finds university partnership opportunities across Australia, UK, Ireland, Canada, and New Zealand",
       isActive: true,
       runIntervalMinutes: 1440, // daily
     },
@@ -96,6 +120,15 @@ export async function checkAndRunAgents(): Promise<void> {
           break;
         case "central_reporter":
           await runCentralReporterAgent();
+          break;
+        case "lead_hunter":
+          await runLeadHunterAgent();
+          break;
+        case "competitor_monitor":
+          await runCompetitorMonitorAgent();
+          break;
+        case "university_scout":
+          await runUniversityScoutAgent();
           break;
         default:
           console.log(`[Scheduler] Unknown agent: ${config.agentName}`);
@@ -161,6 +194,12 @@ export async function triggerAgent(agentName: string): Promise<any> {
       return runSeoBuilderAgent();
     case "central_reporter":
       return runCentralReporterAgent();
+    case "lead_hunter":
+      return runLeadHunterAgent();
+    case "competitor_monitor":
+      return runCompetitorMonitorAgent();
+    case "university_scout":
+      return runUniversityScoutAgent();
     default:
       throw new Error(`Unknown agent: ${agentName}`);
   }

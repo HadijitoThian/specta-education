@@ -11,7 +11,8 @@ import { toast } from "sonner";
 import {
   Bot, Activity, Users, FileText, Mail, Play, RefreshCw,
   TrendingUp, AlertTriangle, CheckCircle, XCircle, Clock,
-  ArrowLeft, Zap, BarChart3, Send, Eye
+  ArrowLeft, Zap, BarChart3, Send, Eye, Search, Globe,
+  Shield, GraduationCap, Crosshair, Building2, MapPin
 } from "lucide-react";
 
 export default function AgentCommandCenter() {
@@ -19,13 +20,25 @@ export default function AgentCommandCenter() {
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
 
+  // Phase 1 queries
   const { data: dashboardStats, isLoading, refetch } = trpc.agents.getDashboardStats.useQuery(undefined, {
-    refetchInterval: 30000, // refresh every 30s
+    refetchInterval: 30000,
   });
   const { data: runLogs } = trpc.agents.getRunLogs.useQuery({ limit: 50 });
   const { data: assignments } = trpc.agents.getLeadAssignments.useQuery({});
   const { data: seoContent } = trpc.agents.getSeoContent.useQuery({});
   const { data: dailyReports } = trpc.agents.getDailyReports.useQuery({ limit: 7 });
+
+  // Phase 2 queries
+  const { data: visitorAnalytics } = trpc.agents.getVisitorAnalytics.useQuery(undefined, {
+    refetchInterval: 60000,
+  });
+  const { data: competitorDashboard } = trpc.agents.getCompetitorDashboard.useQuery(undefined, {
+    refetchInterval: 60000,
+  });
+  const { data: partnershipPipeline } = trpc.agents.getPartnershipPipeline.useQuery(undefined, {
+    refetchInterval: 60000,
+  });
 
   const toggleAgent = trpc.agents.toggleAgent.useMutation({
     onSuccess: () => {
@@ -48,6 +61,18 @@ export default function AgentCommandCenter() {
     onSuccess: () => {
       refetch();
       toast.success("Lead assignment updated.");
+    },
+  });
+
+  const updatePartnership = trpc.agents.updatePartnershipStatus.useMutation({
+    onSuccess: () => {
+      toast.success("Partnership status updated.");
+    },
+  });
+
+  const dismissCompetitor = trpc.agents.dismissCompetitorAlert.useMutation({
+    onSuccess: () => {
+      toast.success("Alert dismissed.");
     },
   });
 
@@ -84,7 +109,7 @@ export default function AgentCommandCenter() {
                   <Bot className="h-7 w-7" />
                   <h1 className="text-2xl font-bold">AI Agent Command Center</h1>
                 </div>
-                <p className="text-red-100 text-sm mt-1">Monitor and control your AI workforce</p>
+                <p className="text-red-100 text-sm mt-1">Monitor and control your AI workforce — {stats?.agents?.length || 0} agents active</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -102,16 +127,16 @@ export default function AgentCommandCenter() {
       </div>
 
       <div className="container max-w-7xl mx-auto px-4 py-6">
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {/* KPI Cards — expanded with Phase 2 */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
           <Card>
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">Leads Assigned</p>
-                  <p className="text-3xl font-bold text-red-600">{stats?.leads?.total || 0}</p>
+                  <p className="text-xs text-gray-500">Leads Assigned</p>
+                  <p className="text-2xl font-bold text-red-600">{stats?.leads?.total || 0}</p>
                 </div>
-                <Users className="h-10 w-10 text-red-100" />
+                <Users className="h-8 w-8 text-red-100" />
               </div>
               <p className="text-xs text-gray-400 mt-1">{stats?.leads?.active || 0} active</p>
             </CardContent>
@@ -120,22 +145,22 @@ export default function AgentCommandCenter() {
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">Converted</p>
-                  <p className="text-3xl font-bold text-green-600">{stats?.leads?.converted || 0}</p>
+                  <p className="text-xs text-gray-500">Converted</p>
+                  <p className="text-2xl font-bold text-green-600">{stats?.leads?.converted || 0}</p>
                 </div>
-                <TrendingUp className="h-10 w-10 text-green-100" />
+                <TrendingUp className="h-8 w-8 text-green-100" />
               </div>
-              <p className="text-xs text-gray-400 mt-1">{stats?.leads?.total ? Math.round((stats.leads.converted / stats.leads.total) * 100) : 0}% conversion rate</p>
+              <p className="text-xs text-gray-400 mt-1">{stats?.leads?.total ? Math.round((stats.leads.converted / stats.leads.total) * 100) : 0}%</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">Escalated</p>
-                  <p className="text-3xl font-bold text-amber-600">{stats?.leads?.escalated || 0}</p>
+                  <p className="text-xs text-gray-500">Escalated</p>
+                  <p className="text-2xl font-bold text-amber-600">{stats?.leads?.escalated || 0}</p>
                 </div>
-                <AlertTriangle className="h-10 w-10 text-amber-100" />
+                <AlertTriangle className="h-8 w-8 text-amber-100" />
               </div>
               <p className="text-xs text-gray-400 mt-1">Needs attention</p>
             </CardContent>
@@ -144,38 +169,66 @@ export default function AgentCommandCenter() {
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">SEO Articles</p>
-                  <p className="text-3xl font-bold text-blue-600">{stats?.seo?.published || 0}</p>
+                  <p className="text-xs text-gray-500">SEO Articles</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats?.seo?.published || 0}</p>
                 </div>
-                <FileText className="h-10 w-10 text-blue-100" />
+                <FileText className="h-8 w-8 text-blue-100" />
               </div>
               <p className="text-xs text-gray-400 mt-1">{stats?.seo?.inProgress || 0} in progress</p>
             </CardContent>
           </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500">Competitors</p>
+                  <p className="text-2xl font-bold text-purple-600">{competitorDashboard?.totalCompetitors || 0}</p>
+                </div>
+                <Shield className="h-8 w-8 text-purple-100" />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">{competitorDashboard?.highThreats || 0} threats</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500">Partnerships</p>
+                  <p className="text-2xl font-bold text-indigo-600">{partnershipPipeline?.totalIdentified || 0}</p>
+                </div>
+                <GraduationCap className="h-8 w-8 text-indigo-100" />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">{partnershipPipeline?.byCountry ? Object.keys(partnershipPipeline.byCountry).length : 0} countries</p>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Main Tabs */}
+        {/* Main Tabs — expanded with Phase 2 */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="overview"><Bot className="h-4 w-4 mr-2" />Agents</TabsTrigger>
-            <TabsTrigger value="leads"><Users className="h-4 w-4 mr-2" />Lead Pipeline</TabsTrigger>
-            <TabsTrigger value="seo"><FileText className="h-4 w-4 mr-2" />SEO Content</TabsTrigger>
-            <TabsTrigger value="logs"><Activity className="h-4 w-4 mr-2" />Activity Log</TabsTrigger>
-            <TabsTrigger value="reports"><Mail className="h-4 w-4 mr-2" />Daily Reports</TabsTrigger>
+          <TabsList className="mb-4 flex-wrap h-auto gap-1">
+            <TabsTrigger value="overview"><Bot className="h-4 w-4 mr-1" />Agents</TabsTrigger>
+            <TabsTrigger value="leads"><Users className="h-4 w-4 mr-1" />Leads</TabsTrigger>
+            <TabsTrigger value="visitors"><Crosshair className="h-4 w-4 mr-1" />Visitors</TabsTrigger>
+            <TabsTrigger value="competitors"><Shield className="h-4 w-4 mr-1" />Competitors</TabsTrigger>
+            <TabsTrigger value="partnerships"><GraduationCap className="h-4 w-4 mr-1" />Partnerships</TabsTrigger>
+            <TabsTrigger value="seo"><FileText className="h-4 w-4 mr-1" />SEO</TabsTrigger>
+            <TabsTrigger value="logs"><Activity className="h-4 w-4 mr-1" />Logs</TabsTrigger>
+            <TabsTrigger value="reports"><Mail className="h-4 w-4 mr-1" />Reports</TabsTrigger>
           </TabsList>
 
-          {/* Agents Overview Tab */}
+          {/* ===== AGENTS OVERVIEW TAB ===== */}
           <TabsContent value="overview">
             <div className="grid gap-4">
               {stats?.agents?.map((agent: any) => {
                 const lastRun = stats.recentRuns?.find((r: any) => r.agentName === agent.agentName);
+                const agentIcon = getAgentIcon(agent.agentName);
                 return (
                   <Card key={agent.agentName}>
                     <CardContent className="pt-6">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <div className={`p-3 rounded-xl ${agent.isActive ? "bg-green-50" : "bg-gray-100"}`}>
-                            <Bot className={`h-6 w-6 ${agent.isActive ? "text-green-600" : "text-gray-400"}`} />
+                            {agentIcon}
                           </div>
                           <div>
                             <h3 className="font-semibold text-lg">{agent.displayName}</h3>
@@ -190,6 +243,9 @@ export default function AgentCommandCenter() {
                                   Last: {lastRun.status}
                                 </Badge>
                               )}
+                              <span className="text-xs text-gray-400">
+                                Every {agent.runIntervalMinutes < 60 ? `${agent.runIntervalMinutes}m` : agent.runIntervalMinutes < 1440 ? `${Math.round(agent.runIntervalMinutes / 60)}h` : `${Math.round(agent.runIntervalMinutes / 1440)}d`}
+                              </span>
                               {agent.lastRunAt && (
                                 <span className="text-xs text-gray-400">
                                   <Clock className="h-3 w-3 inline mr-1" />
@@ -261,7 +317,7 @@ export default function AgentCommandCenter() {
             </div>
           </TabsContent>
 
-          {/* Lead Pipeline Tab */}
+          {/* ===== LEAD PIPELINE TAB ===== */}
           <TabsContent value="leads">
             <Card>
               <CardHeader>
@@ -306,7 +362,7 @@ export default function AgentCommandCenter() {
                                 a.status === "converted" ? "bg-green-100 text-green-700" :
                                 a.status === "escalated" ? "bg-red-100 text-red-700" :
                                 a.status === "contacted" ? "bg-blue-100 text-blue-700" :
-                                a.status === "in_progress" ? "bg-purple-100 text-purple-700" :
+                                a.status === "follow_up" ? "bg-purple-100 text-purple-700" :
                                 "bg-gray-100 text-gray-700"
                               }>{a.status}</Badge>
                             </td>
@@ -343,7 +399,352 @@ export default function AgentCommandCenter() {
             </Card>
           </TabsContent>
 
-          {/* SEO Content Tab */}
+          {/* ===== VISITOR ANALYTICS TAB (Phase 2 - Lead Hunter) ===== */}
+          <TabsContent value="visitors">
+            <div className="grid gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">Visitor Intelligence</h2>
+                  <p className="text-sm text-gray-500">Website visitor behavior tracked by the Lead Hunter Agent</p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => triggerAgent.mutate({ agentName: "lead_hunter" })} disabled={triggerAgent.isPending}>
+                  <Crosshair className="h-4 w-4 mr-1" />
+                  Scan Now
+                </Button>
+              </div>
+
+              {/* Visitor Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">Visitors (24h)</p>
+                    <p className="text-2xl font-bold">{visitorAnalytics?.totalVisitors24h || 0}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">High Intent</p>
+                    <p className="text-2xl font-bold text-red-600">{visitorAnalytics?.highIntentVisitors || 0}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">Top Pages</p>
+                    <p className="text-2xl font-bold text-green-600">{visitorAnalytics?.topPages?.length || 0}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">Social Mentions</p>
+                    <p className="text-2xl font-bold text-blue-600">{visitorAnalytics?.recentSocialMentions?.length || 0}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Recent High-Intent Visitors */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Crosshair className="h-5 w-5 text-red-500" />
+                    Recent High-Intent Visitors
+                  </CardTitle>
+                  <CardDescription>Visitors showing strong interest based on behavior scoring</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {visitorAnalytics?.recentHighIntent && visitorAnalytics.recentHighIntent.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-gray-50">
+                            <th className="text-left py-3 px-3 font-medium text-gray-500">Session</th>
+                            <th className="text-left py-3 px-3 font-medium text-gray-500">Pages Visited</th>
+                            <th className="text-center py-3 px-3 font-medium text-gray-500">Score</th>
+                            <th className="text-center py-3 px-3 font-medium text-gray-500">Intent</th>
+                            <th className="text-left py-3 px-3 font-medium text-gray-500">Source</th>
+                            <th className="text-left py-3 px-3 font-medium text-gray-500">Date</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {visitorAnalytics.recentHighIntent.map((v: any) => (
+                            <tr key={v.id} className="border-b last:border-0 hover:bg-gray-50">
+                              <td className="py-2 px-3 font-mono text-xs">{v.sessionId?.substring(0, 12)}...</td>
+                              <td className="py-2 px-3 text-xs">{v.pagesVisited || "-"}</td>
+                              <td className="py-2 px-3 text-center">
+                                <span className={`font-bold ${(v.engagementScore || 0) >= 70 ? "text-red-600" : (v.engagementScore || 0) >= 40 ? "text-amber-600" : "text-gray-500"}`}>
+                                  {v.engagementScore || 0}
+                                </span>
+                              </td>
+                              <td className="py-2 px-3 text-center">
+                                <Badge className={
+                                  v.intentLevel === "high" ? "bg-red-100 text-red-700" :
+                                  v.intentLevel === "medium" ? "bg-amber-100 text-amber-700" :
+                                  "bg-gray-100 text-gray-700"
+                                }>{v.intentLevel || "low"}</Badge>
+                              </td>
+                              <td className="py-2 px-3 text-xs">{v.utmSource || v.referrer || "direct"}</td>
+                              <td className="py-2 px-3 text-xs text-gray-400">
+                                {v.firstVisitAt ? new Date(v.firstVisitAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "-"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-gray-400">
+                      <Search className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No visitor data yet. The Lead Hunter Agent will start tracking visitors automatically.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* ===== COMPETITOR MONITOR TAB (Phase 2) ===== */}
+          <TabsContent value="competitors">
+            <div className="grid gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">Competitor Intelligence</h2>
+                  <p className="text-sm text-gray-500">Strategic insights from monitoring 9+ competitors</p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => triggerAgent.mutate({ agentName: "competitor_monitor" })} disabled={triggerAgent.isPending}>
+                  <Shield className="h-4 w-4 mr-1" />
+                  Scan Now
+                </Button>
+              </div>
+
+              {/* Competitor Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">Competitors Tracked</p>
+                    <p className="text-2xl font-bold">{competitorDashboard?.totalCompetitors || 0}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">Total Analyses</p>
+                    <p className="text-2xl font-bold text-purple-600">{competitorDashboard?.recentAnalyses?.length || 0}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">High Threats</p>
+                    <p className="text-2xl font-bold text-amber-600">{competitorDashboard?.highThreats || 0}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">Opportunities</p>
+                    <p className="text-2xl font-bold text-green-600">{competitorDashboard?.topOpportunities?.length || 0}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Competitor Alerts */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-purple-500" />
+                    Intelligence Alerts
+                  </CardTitle>
+                  <CardDescription>Recent competitor moves and strategic recommendations</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {competitorDashboard?.recentAnalyses && competitorDashboard.recentAnalyses.length > 0 ? (
+                    <div className="space-y-3">
+                      {competitorDashboard.recentAnalyses.map((alert: any) => (
+                        <div key={alert.id} className="p-4 border rounded-lg hover:bg-gray-50">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-semibold text-sm">{alert.competitorName}</span>
+                                <Badge className={
+                                  alert.alertType === "pricing_change" ? "bg-red-100 text-red-700" :
+                                  alert.alertType === "new_program" ? "bg-blue-100 text-blue-700" :
+                                  alert.alertType === "marketing_campaign" ? "bg-purple-100 text-purple-700" :
+                                  alert.alertType === "partnership" ? "bg-green-100 text-green-700" :
+                                  "bg-gray-100 text-gray-700"
+                                }>{(alert.alertType || "").replace(/_/g, " ")}</Badge>
+                                <Badge className={
+                                  alert.severity === "critical" ? "bg-red-100 text-red-700" :
+                                  alert.severity === "high" ? "bg-orange-100 text-orange-700" :
+                                  alert.severity === "medium" ? "bg-yellow-100 text-yellow-700" :
+                                  "bg-gray-100 text-gray-700"
+                                }>{alert.severity}</Badge>
+                              </div>
+                              <p className="text-sm text-gray-700 mb-2">{alert.description}</p>
+                              {alert.recommendation && (
+                                <div className="bg-blue-50 p-3 rounded-lg mt-2">
+                                  <p className="text-xs font-medium text-blue-700 mb-1">Recommended Action:</p>
+                                  <p className="text-xs text-blue-600">{alert.recommendation}</p>
+                                </div>
+                              )}
+                              <p className="text-xs text-gray-400 mt-2">
+                                {alert.detectedAt ? new Date(alert.detectedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 ml-4">
+                              {alert.status === "pending" && (
+                                <Button size="sm" variant="outline" onClick={() => dismissCompetitor.mutate({ id: alert.id })}>
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Reviewed
+                                </Button>
+                              )}
+                              {alert.status === "reviewed" && (
+                                <Badge className="bg-green-100 text-green-700">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Reviewed
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-gray-400">
+                      <Shield className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No competitor intelligence yet. The Competitor Monitor will scan daily.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* ===== UNIVERSITY PARTNERSHIPS TAB (Phase 2) ===== */}
+          <TabsContent value="partnerships">
+            <div className="grid gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">University Partnership Pipeline</h2>
+                  <p className="text-sm text-gray-500">Partnership opportunities across Australia, UK, Ireland, Canada, and New Zealand</p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => triggerAgent.mutate({ agentName: "university_scout" })} disabled={triggerAgent.isPending}>
+                  <Globe className="h-4 w-4 mr-1" />
+                  Scout Now
+                </Button>
+              </div>
+
+              {/* Country Summary */}
+              {partnershipPipeline?.byCountry && (
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  {Object.entries(partnershipPipeline.byCountry).map(([country, count]: [string, any]) => (
+                    <Card key={country}>
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <MapPin className="h-5 w-5 mx-auto mb-1 text-indigo-500" />
+                        <p className="text-2xl font-bold text-indigo-600">{count}</p>
+                        <p className="text-xs text-gray-500">{country}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {/* Partnership Pipeline */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Building2 className="h-5 w-5 text-indigo-500" />
+                    Partnership Opportunities
+                  </CardTitle>
+                  <CardDescription>Universities identified for potential partnership</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {partnershipPipeline?.recentOpportunities && partnershipPipeline.recentOpportunities.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-gray-50">
+                            <th className="text-left py-3 px-3 font-medium text-gray-500">University</th>
+                            <th className="text-left py-3 px-3 font-medium text-gray-500">Country</th>
+                            <th className="text-center py-3 px-3 font-medium text-gray-500">World Rank</th>
+                            <th className="text-left py-3 px-3 font-medium text-gray-500">Type</th>
+                            <th className="text-center py-3 px-3 font-medium text-gray-500">Has Agent?</th>
+                            <th className="text-center py-3 px-3 font-medium text-gray-500">Status</th>
+                            <th className="text-center py-3 px-3 font-medium text-gray-500">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {partnershipPipeline.recentOpportunities.map((uni: any) => (
+                            <tr key={uni.id} className="border-b last:border-0 hover:bg-gray-50">
+                              <td className="py-2 px-3">
+                                <div>
+                                  <span className="font-medium">{uni.universityName}</span>
+                                  {uni.websiteUrl && (
+                                    <a href={uni.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 text-xs ml-2 hover:underline">
+                                      <Globe className="h-3 w-3 inline" />
+                                    </a>
+                                  )}
+                                </div>
+                                {uni.internationalOfficeEmail && (
+                                  <p className="text-xs text-gray-400">{uni.internationalOfficeEmail}</p>
+                                )}
+                              </td>
+                              <td className="py-2 px-3">
+                                <Badge variant="outline" className="text-xs">{uni.country}</Badge>
+                              </td>
+                              <td className="py-2 px-3 text-center">
+                                {uni.worldRanking ? `#${uni.worldRanking}` : "-"}
+                              </td>
+                              <td className="py-2 px-3 text-xs">{(uni.partnershipType || "").replace(/_/g, " ")}</td>
+                              <td className="py-2 px-3 text-center">
+                                {uni.hasExistingIndonesianAgent === false ? (
+                                  <Badge className="bg-green-100 text-green-700">No — Opportunity!</Badge>
+                                ) : uni.hasExistingIndonesianAgent === true ? (
+                                  <Badge className="bg-gray-100 text-gray-600">Yes</Badge>
+                                ) : (
+                                  <span className="text-gray-400">Unknown</span>
+                                )}
+                              </td>
+                              <td className="py-2 px-3 text-center">
+                                <Badge className={
+                                  uni.outreachStatus === "partnered" ? "bg-green-100 text-green-700" :
+                                  uni.outreachStatus === "email_sent" || uni.outreachStatus === "follow_up_sent" ? "bg-blue-100 text-blue-700" :
+                                  uni.outreachStatus === "responded" || uni.outreachStatus === "meeting_scheduled" ? "bg-purple-100 text-purple-700" :
+                                  uni.outreachStatus === "rejected" || uni.outreachStatus === "no_response" ? "bg-red-100 text-red-700" :
+                                  "bg-gray-100 text-gray-700"
+                                }>{(uni.outreachStatus || "identified").replace(/_/g, " ")}</Badge>
+                              </td>
+                              <td className="py-2 px-3 text-center">
+                                <select
+                                  className="text-xs border rounded px-2 py-1"
+                                  value={uni.outreachStatus || "identified"}
+                                  onChange={(e) => updatePartnership.mutate({ id: uni.id, status: e.target.value as any })}
+                                >
+                                  <option value="identified">Identified</option>
+                                  <option value="researching">Researching</option>
+                                  <option value="draft_ready">Draft Ready</option>
+                                  <option value="email_sent">Email Sent</option>
+                                  <option value="follow_up_sent">Follow-up Sent</option>
+                                  <option value="responded">Responded</option>
+                                  <option value="meeting_scheduled">Meeting Scheduled</option>
+                                  <option value="agreement_pending">Agreement Pending</option>
+                                  <option value="partnered">Partnered</option>
+                                  <option value="rejected">Rejected</option>
+                                  <option value="no_response">No Response</option>
+                                </select>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-gray-400">
+                      <GraduationCap className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No partnerships discovered yet. The University Scout Agent will find opportunities daily.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* ===== SEO CONTENT TAB ===== */}
           <TabsContent value="seo">
             <Card>
               <CardHeader>
@@ -398,7 +799,7 @@ export default function AgentCommandCenter() {
             </Card>
           </TabsContent>
 
-          {/* Activity Log Tab */}
+          {/* ===== ACTIVITY LOG TAB ===== */}
           <TabsContent value="logs">
             <Card>
               <CardHeader>
@@ -449,7 +850,7 @@ export default function AgentCommandCenter() {
             </Card>
           </TabsContent>
 
-          {/* Daily Reports Tab */}
+          {/* ===== DAILY REPORTS TAB ===== */}
           <TabsContent value="reports">
             <Card>
               <CardHeader>
@@ -500,11 +901,33 @@ export default function AgentCommandCenter() {
   );
 }
 
+function getAgentIcon(agentName: string) {
+  switch (agentName) {
+    case "crm_distributor":
+      return <Users className="h-6 w-6 text-green-600" />;
+    case "seo_builder":
+      return <FileText className="h-6 w-6 text-blue-600" />;
+    case "central_reporter":
+      return <Mail className="h-6 w-6 text-amber-600" />;
+    case "lead_hunter":
+      return <Crosshair className="h-6 w-6 text-red-600" />;
+    case "competitor_monitor":
+      return <Shield className="h-6 w-6 text-purple-600" />;
+    case "university_scout":
+      return <GraduationCap className="h-6 w-6 text-indigo-600" />;
+    default:
+      return <Bot className="h-6 w-6 text-gray-600" />;
+  }
+}
+
 function formatAgentName(name: string): string {
   const names: Record<string, string> = {
     crm_distributor: "CRM & Follow-Up",
     seo_builder: "SEO Builder",
     central_reporter: "Central Reporter",
+    lead_hunter: "Lead Hunter",
+    competitor_monitor: "Competitor Monitor",
+    university_scout: "University Scout",
   };
   return names[name] || name;
 }
