@@ -721,3 +721,185 @@ export async function sendLeadNotificationEmail({
     html,
   });
 }
+
+
+// ==========================================
+// PARTNERSHIP OUTREACH APPROVAL EMAIL
+// ==========================================
+export async function sendPartnershipApprovalEmail({
+  to,
+  universityName,
+  country,
+  recipientEmail,
+  contactPerson,
+  contactTitle,
+  emailSubject,
+  emailBody,
+  partnershipScore,
+  priority,
+  worldRanking,
+  approveUrl,
+  rejectUrl,
+  editUrl,
+}: {
+  to: string;
+  universityName: string;
+  country: string;
+  recipientEmail: string;
+  contactPerson?: string;
+  contactTitle?: string;
+  emailSubject: string;
+  emailBody: string;
+  partnershipScore?: number;
+  priority?: string;
+  worldRanking?: number;
+  approveUrl: string;
+  rejectUrl: string;
+  editUrl: string;
+}): Promise<boolean> {
+  const priorityColor = priority === "critical" ? "#dc2626" : priority === "high" ? "#ea580c" : priority === "medium" ? "#ca8a04" : "#16a34a";
+  const priorityLabel = (priority || "medium").charAt(0).toUpperCase() + (priority || "medium").slice(1);
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .container { max-width: 700px; margin: 0 auto; padding: 20px; }
+    .card { background: #ffffff; border-radius: 12px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .header { text-align: center; margin-bottom: 24px; border-bottom: 2px solid #e53e3e; padding-bottom: 16px; }
+    .header h2 { color: #e53e3e; margin: 0; font-size: 22px; }
+    .header p { color: #666; margin: 8px 0 0; font-size: 14px; }
+    .uni-card { background: linear-gradient(135deg, #fef2f2 0%, #fff7ed 100%); border-radius: 10px; padding: 20px; margin: 16px 0; border: 1px solid #fecaca; }
+    .uni-name { font-size: 20px; font-weight: 700; color: #1a1a1a; margin: 0 0 4px; }
+    .uni-country { font-size: 14px; color: #666; margin: 0; }
+    .stats { display: flex; gap: 12px; margin-top: 12px; }
+    .stat { background: white; border-radius: 6px; padding: 8px 14px; font-size: 13px; }
+    .stat strong { color: #e53e3e; }
+    .section { margin: 20px 0; }
+    .section h3 { color: #1a1a1a; font-size: 16px; margin: 0 0 8px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+    .recipient-info { background: #f8f9fa; border-radius: 8px; padding: 14px; margin: 12px 0; }
+    .recipient-info p { margin: 4px 0; font-size: 14px; color: #333; }
+    .recipient-info strong { color: #1a1a1a; }
+    .email-preview { background: #fafafa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 12px 0; }
+    .email-preview .subject { font-weight: 700; font-size: 15px; color: #1a1a1a; margin: 0 0 12px; padding-bottom: 12px; border-bottom: 1px solid #e5e7eb; }
+    .email-preview .body { font-size: 14px; color: #333; line-height: 1.7; white-space: pre-wrap; }
+    .actions { text-align: center; margin: 28px 0 16px; }
+    .btn { display: inline-block; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 700; font-size: 15px; margin: 6px 8px; }
+    .btn-approve { background: #16a34a; color: #ffffff !important; }
+    .btn-reject { background: #dc2626; color: #ffffff !important; }
+    .btn-edit { background: #2563eb; color: #ffffff !important; }
+    .footer { text-align: center; color: #999; font-size: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #eee; }
+    .footer a { color: #e53e3e; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="header">
+        <h2>Partnership Outreach Approval</h2>
+        <p>Review and approve this outreach email before it's sent</p>
+      </div>
+
+      <div class="uni-card">
+        <p class="uni-name">${universityName}</p>
+        <p class="uni-country">${country}</p>
+        <div style="margin-top: 12px;">
+          ${worldRanking ? `<span style="background:white;border-radius:6px;padding:6px 12px;font-size:13px;margin-right:8px;display:inline-block;margin-bottom:4px;"><strong style="color:#e53e3e;">World Rank:</strong> #${worldRanking}</span>` : ''}
+          <span style="background:white;border-radius:6px;padding:6px 12px;font-size:13px;margin-right:8px;display:inline-block;margin-bottom:4px;"><strong style="color:${priorityColor};">Priority:</strong> ${priorityLabel}</span>
+          ${partnershipScore ? `<span style="background:white;border-radius:6px;padding:6px 12px;font-size:13px;display:inline-block;margin-bottom:4px;"><strong style="color:#e53e3e;">Score:</strong> ${partnershipScore}/100</span>` : ''}
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Recipient</h3>
+        <div class="recipient-info">
+          <p><strong>Email:</strong> ${recipientEmail}</p>
+          ${contactPerson ? `<p><strong>Contact:</strong> ${contactPerson}</p>` : ''}
+          ${contactTitle ? `<p><strong>Title:</strong> ${contactTitle}</p>` : ''}
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Email Draft Preview</h3>
+        <div class="email-preview">
+          <p class="subject">Subject: ${emailSubject}</p>
+          <div class="body">${emailBody}</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <a href="${approveUrl}" class="btn btn-approve">✅ Approve & Send</a>
+        <a href="${editUrl}" class="btn btn-edit">✏️ Edit Draft</a>
+        <a href="${rejectUrl}" class="btn btn-reject">❌ Reject</a>
+      </div>
+
+      <p style="color: #888; font-size: 12px; text-align: center;">Clicking "Approve & Send" will immediately send this email to ${recipientEmail} on behalf of SpecTa Education.</p>
+
+      <div class="footer">
+        <p>&copy; ${new Date().getFullYear()} SpecTa Education AI Agent System</p>
+        <p><a href="https://spectaeducation.com">spectaeducation.com</a></p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  return sendEmail({
+    to,
+    subject: `🤝 Approve Partnership Outreach: ${universityName} (${country})`,
+    html,
+  });
+}
+
+// ==========================================
+// PARTNERSHIP OUTREACH EMAIL (sent to university)
+// ==========================================
+export async function sendPartnershipOutreachEmail({
+  to,
+  subject,
+  body,
+}: {
+  to: string;
+  subject: string;
+  body: string;
+}): Promise<boolean> {
+  // The body is already formatted by the AI agent, wrap it in a clean professional template
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { margin: 0; padding: 0; background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; line-height: 1.7; }
+    .container { max-width: 650px; margin: 0 auto; padding: 32px 20px; }
+    .content { font-size: 15px; white-space: pre-wrap; }
+    .signature { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 14px; color: #555; }
+    .signature strong { color: #1a1a1a; }
+    .signature a { color: #e53e3e; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="content">${body}</div>
+    <div class="signature">
+      <p><strong>Hadi Yowan</strong><br>
+      Founder & CEO<br>
+      SpecTa Education<br>
+      <a href="https://spectaeducation.com">www.spectaeducation.com</a><br>
+      Jakarta, Indonesia</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  return sendEmail({
+    to,
+    subject,
+    html,
+  });
+}

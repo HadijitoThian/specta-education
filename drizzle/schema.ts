@@ -1035,6 +1035,16 @@ export const universityPartnerships = mysqlTable("university_partnerships", {
     "agreement_pending", "partnered", "rejected", "no_response"
   ]).default("identified"),
   outreachEmailDraft: text("outreachEmailDraft"),
+  outreachEmailSubject: varchar("outreachEmailSubject", { length: 500 }),
+  outreachRecipientEmail: varchar("outreachRecipientEmail", { length: 320 }),
+  approvalStatus: mysqlEnum("approvalStatus", [
+    "pending_draft", "pending_approval", "approved", "rejected", "sent", "failed"
+  ]).default("pending_draft"),
+  approvalToken: varchar("approvalToken", { length: 128 }),
+  approvalRequestedAt: timestamp("approvalRequestedAt"),
+  approvedAt: timestamp("approvedAt"),
+  rejectedAt: timestamp("rejectedAt"),
+  rejectionReason: text("rejectionReason"),
   outreachSentAt: timestamp("outreachSentAt"),
   lastFollowUpAt: timestamp("lastFollowUpAt"),
   responseReceived: text("responseReceived"),

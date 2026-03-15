@@ -1281,3 +1281,15 @@
 - [x] Add Phase 2 agent tRPC routes
 - [x] Update Agent Command Center UI for Phase 2 agents (6 tabs)
 - [x] Write tests for Phase 2 agents (20 tests passing)
+
+### Partnership Outreach Approval Workflow
+- [x] Add outreach draft fields to university partnerships schema (subject, body, recipientEmail, approvalStatus)
+- [x] Build approval email template sent to hadi@spectaeducation.com with Approve/Reject links
+- [x] Build API endpoint to handle approve/reject/edit actions via secure token
+- [x] Build outreach email sending system for approved drafts
+- [x] Add approval management UI in Agent Command Center (review, edit, approve, reject drafts)
+- [x] Update University Scout agent to trigger approval emails after drafting
+- [x] Test end-to-end workflow (26 tests passing)
+- [x] Submit All Drafts for Approval button
+- [x] Edit draft modal with recipient, subject, and body editing
+- [x] Save & Approve combined action

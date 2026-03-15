@@ -286,4 +286,63 @@ describe("AI Agent Command Center", () => {
       ).rejects.toThrow("FORBIDDEN");
     });
   });
+
+  // ===== Approval Workflow Tests =====
+
+  describe("agents.getPendingApprovals", () => {
+    it("returns pending approvals for admin users", async () => {
+      const ctx = createAdminContext();
+      const caller = appRouter.createCaller(ctx);
+
+      const approvals = await caller.agents.getPendingApprovals();
+      expect(approvals).toBeDefined();
+      expect(Array.isArray(approvals)).toBe(true);
+    });
+
+    it("denies access for regular users", async () => {
+      const ctx = createUserContext();
+      const caller = appRouter.createCaller(ctx);
+      await expect(caller.agents.getPendingApprovals()).rejects.toThrow("FORBIDDEN");
+    });
+  });
+
+  describe("agents.submitForApproval", () => {
+    it("denies access for regular users", async () => {
+      const ctx = createUserContext();
+      const caller = appRouter.createCaller(ctx);
+      await expect(
+        caller.agents.submitForApproval({ id: 1 })
+      ).rejects.toThrow("FORBIDDEN");
+    });
+  });
+
+  describe("agents.approveOutreach", () => {
+    it("denies access for regular users", async () => {
+      const ctx = createUserContext();
+      const caller = appRouter.createCaller(ctx);
+      await expect(
+        caller.agents.approveOutreach({ id: 1 })
+      ).rejects.toThrow("FORBIDDEN");
+    });
+  });
+
+  describe("agents.rejectOutreach", () => {
+    it("denies access for regular users", async () => {
+      const ctx = createUserContext();
+      const caller = appRouter.createCaller(ctx);
+      await expect(
+        caller.agents.rejectOutreach({ id: 1 })
+      ).rejects.toThrow("FORBIDDEN");
+    });
+  });
+
+  describe("agents.updateOutreachDraft", () => {
+    it("denies access for regular users", async () => {
+      const ctx = createUserContext();
+      const caller = appRouter.createCaller(ctx);
+      await expect(
+        caller.agents.updateOutreachDraft({ id: 1, subject: "test" })
+      ).rejects.toThrow("FORBIDDEN");
+    });
+  });
 });

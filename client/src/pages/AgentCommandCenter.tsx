@@ -76,6 +76,32 @@ export default function AgentCommandCenter() {
     },
   });
 
+  // Approval workflow mutations
+  const { data: pendingApprovals, refetch: refetchApprovals } = trpc.agents.getPendingApprovals.useQuery(undefined, {
+    refetchInterval: 30000,
+  });
+  const submitForApproval = trpc.agents.submitForApproval.useMutation({
+    onSuccess: () => { refetchApprovals(); toast.success("Draft submitted for approval. Check your email!"); },
+    onError: (err) => toast.error(err.message),
+  });
+  const submitAllForApproval = trpc.agents.submitAllForApproval.useMutation({
+    onSuccess: (data) => { refetchApprovals(); toast.success(`${data.count} drafts submitted for approval.`); },
+    onError: (err) => toast.error(err.message),
+  });
+  const approveOutreach = trpc.agents.approveOutreach.useMutation({
+    onSuccess: () => { refetchApprovals(); toast.success("Outreach email sent to university!"); },
+    onError: (err) => toast.error(err.message),
+  });
+  const rejectOutreach = trpc.agents.rejectOutreach.useMutation({
+    onSuccess: () => { refetchApprovals(); toast.success("Outreach rejected."); },
+    onError: (err) => toast.error(err.message),
+  });
+  const updateDraft = trpc.agents.updateOutreachDraft.useMutation({
+    onSuccess: () => { refetchApprovals(); toast.success("Draft updated."); },
+    onError: (err) => toast.error(err.message),
+  });
+  const [editingDraft, setEditingDraft] = useState<any>(null);
+
   if (authLoading) return <div className="flex items-center justify-center min-h-screen"><RefreshCw className="animate-spin h-8 w-8 text-red-500" /></div>;
   if (!user || (user.role !== "admin" && user.role !== "general_manager")) {
     return (
@@ -641,6 +667,151 @@ export default function AgentCommandCenter() {
                       </CardContent>
                     </Card>
                   ))}
+                </div>
+              )}
+
+              {/* Outreach Approval Queue */}
+              <Card className="border-2 border-orange-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mail className="h-5 w-5 text-orange-500" />
+                    Outreach Approval Queue
+                  </CardTitle>
+                  <CardDescription className="flex items-center justify-between">
+                    <span>Review and approve outreach emails before they're sent to universities</span>
+                    <Button size="sm" variant="outline" className="border-orange-300 text-orange-600 hover:bg-orange-50" onClick={() => submitAllForApproval.mutate()} disabled={submitAllForApproval.isPending}>
+                      <Send className="h-4 w-4 mr-1" />
+                      Submit All Drafts for Approval
+                    </Button>
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {pendingApprovals && pendingApprovals.length > 0 ? (
+                    <div className="space-y-4">
+                      {pendingApprovals.map((item: any) => (
+                        <div key={item.id} className={`border rounded-lg p-4 ${
+                          item.approvalStatus === 'pending_approval' ? 'border-orange-200 bg-orange-50/50' :
+                          item.approvalStatus === 'approved' || item.approvalStatus === 'sent' ? 'border-green-200 bg-green-50/50' :
+                          'border-red-200 bg-red-50/50'
+                        }`}>
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <h4 className="font-semibold text-base">{item.universityName}</h4>
+                              <p className="text-sm text-gray-500">{item.country} {item.worldRanking ? `• World Rank #${item.worldRanking}` : ''}</p>
+                              <p className="text-sm text-gray-500 mt-1">To: <span className="font-medium">{item.outreachRecipientEmail || 'No email set'}</span></p>
+                            </div>
+                            <Badge className={
+                              item.approvalStatus === 'pending_approval' ? 'bg-orange-100 text-orange-700' :
+                              item.approvalStatus === 'approved' ? 'bg-blue-100 text-blue-700' :
+                              item.approvalStatus === 'sent' ? 'bg-green-100 text-green-700' :
+                              item.approvalStatus === 'rejected' ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700'
+                            }>{(item.approvalStatus || '').replace(/_/g, ' ')}</Badge>
+                          </div>
+
+                          {/* Email Preview */}
+                          {item.outreachEmailSubject && (
+                            <div className="bg-white border rounded-md p-3 mb-3">
+                              <p className="text-sm font-medium text-gray-700 mb-1">Subject: {item.outreachEmailSubject}</p>
+                              <p className="text-xs text-gray-500 whitespace-pre-wrap line-clamp-4">{item.outreachEmailDraft}</p>
+                            </div>
+                          )}
+
+                          {/* Action Buttons */}
+                          {item.approvalStatus === 'pending_approval' && (
+                            <div className="flex items-center gap-2">
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => approveOutreach.mutate({ id: item.id })} disabled={approveOutreach.isPending}>
+                                <CheckCircle className="h-4 w-4 mr-1" /> Approve & Send
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => setEditingDraft(item)}>
+                                <FileText className="h-4 w-4 mr-1" /> Edit Draft
+                              </Button>
+                              <Button size="sm" variant="outline" className="border-red-300 text-red-600 hover:bg-red-50" onClick={() => rejectOutreach.mutate({ id: item.id })} disabled={rejectOutreach.isPending}>
+                                <XCircle className="h-4 w-4 mr-1" /> Reject
+                              </Button>
+                            </div>
+                          )}
+                          {item.approvalStatus === 'sent' && item.outreachSentAt && (
+                            <p className="text-xs text-green-600">Sent on {new Date(item.outreachSentAt).toLocaleDateString()}</p>
+                          )}
+                          {item.approvalStatus === 'rejected' && (
+                            <p className="text-xs text-red-600">Rejected{item.rejectionReason ? `: ${item.rejectionReason}` : ''}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-400">
+                      <Mail className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                      <p>No outreach emails pending approval.</p>
+                      <p className="text-xs mt-1">Click "Submit All Drafts" to send draft_ready partnerships for your review.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Edit Draft Modal */}
+              {editingDraft && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                  <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <CardHeader>
+                      <CardTitle>Edit Outreach Draft — {editingDraft.universityName}</CardTitle>
+                      <CardDescription>Modify the email before approving</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Recipient Email</label>
+                        <input
+                          type="email"
+                          className="w-full mt-1 border rounded-md px-3 py-2 text-sm"
+                          defaultValue={editingDraft.outreachRecipientEmail || ''}
+                          onChange={(e) => editingDraft._recipientEmail = e.target.value}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Subject</label>
+                        <input
+                          type="text"
+                          className="w-full mt-1 border rounded-md px-3 py-2 text-sm"
+                          defaultValue={editingDraft.outreachEmailSubject || ''}
+                          onChange={(e) => editingDraft._subject = e.target.value}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Email Body</label>
+                        <textarea
+                          className="w-full mt-1 border rounded-md px-3 py-2 text-sm min-h-[300px]"
+                          defaultValue={editingDraft.outreachEmailDraft || ''}
+                          onChange={(e) => editingDraft._body = e.target.value}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 justify-end">
+                        <Button variant="outline" onClick={() => setEditingDraft(null)}>Cancel</Button>
+                        <Button onClick={() => {
+                          const updates: any = { id: editingDraft.id };
+                          if (editingDraft._subject) updates.subject = editingDraft._subject;
+                          if (editingDraft._body) updates.body = editingDraft._body;
+                          if (editingDraft._recipientEmail) updates.recipientEmail = editingDraft._recipientEmail;
+                          updateDraft.mutate(updates);
+                          setEditingDraft(null);
+                        }} disabled={updateDraft.isPending}>
+                          Save Changes
+                        </Button>
+                        <Button className="bg-green-600 hover:bg-green-700" onClick={() => {
+                          // Save changes first, then approve
+                          const updates: any = { id: editingDraft.id };
+                          if (editingDraft._subject) updates.subject = editingDraft._subject;
+                          if (editingDraft._body) updates.body = editingDraft._body;
+                          if (editingDraft._recipientEmail) updates.recipientEmail = editingDraft._recipientEmail;
+                          if (Object.keys(updates).length > 1) updateDraft.mutate(updates);
+                          approveOutreach.mutate({ id: editingDraft.id });
+                          setEditingDraft(null);
+                        }} disabled={approveOutreach.isPending}>
+                          <CheckCircle className="h-4 w-4 mr-1" /> Save & Approve
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               )}
 

@@ -162,6 +162,13 @@
       "when": 1773546591248,
       "tag": "0022_safe_natasha_romanoff",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "5",
+      "when": 1773548857189,
+      "tag": "0023_ancient_amphibian",
+      "breakpoints": true
     }
   ]
 }

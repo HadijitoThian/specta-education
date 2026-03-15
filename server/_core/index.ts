@@ -30,6 +30,13 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
+function approvalResultPage(success: boolean, message: string): string {
+  const icon = success ? '✅' : '❌';
+  const color = success ? '#16a34a' : '#dc2626';
+  const title = success ? 'Action Completed' : 'Action Failed';
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${title} - SpecTa Education</title><style>body{margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;}.card{background:#fff;border-radius:16px;padding:48px;max-width:500px;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.08);}.icon{font-size:64px;margin-bottom:16px;}.title{font-size:24px;font-weight:700;color:${color};margin:0 0 12px;}.msg{font-size:16px;color:#333;line-height:1.6;margin:0 0 24px;}.btn{display:inline-block;background:#e53e3e;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;}</style></head><body><div class="card"><div class="icon">${icon}</div><h1 class="title">${title}</h1><p class="msg">${message}</p><a href="https://www.spectaeducation.com/admin/agents" class="btn">Go to Agent Command Center</a></div></body></html>`;
+}
+
 async function startServer() {
   const app = express();
   const server = createServer(app);
@@ -154,6 +161,23 @@ ${allPages.map(p => `  <url>
       res.send(xml);
     } catch (e) {
       res.status(500).send("Error generating sitemap");
+    }
+  });
+
+  // Partnership outreach approval via email link
+  app.get("/api/partnership-approval", async (req, res) => {
+    try {
+      const { action, id, token } = req.query as { action: string; id: string; token: string };
+      if (!action || !id || !token || !['approve', 'reject'].includes(action)) {
+        res.status(400).send(approvalResultPage(false, 'Invalid approval link. Please check the link in your email.'));
+        return;
+      }
+      const { handleApprovalAction } = await import("../agentUniversityScout");
+      const result = await handleApprovalAction(action as 'approve' | 'reject', parseInt(id), token);
+      res.send(approvalResultPage(result.success, result.message));
+    } catch (error: any) {
+      console.error('[Partnership Approval] Error:', error);
+      res.status(500).send(approvalResultPage(false, 'An error occurred. Please try again or use the admin dashboard.'));
     }
   });
 

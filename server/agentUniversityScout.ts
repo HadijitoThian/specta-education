@@ -523,3 +523,297 @@ export async function getPartnershipPipeline(): Promise<{
     recentOpportunities: all.slice(0, 20),
   };
 }
+
+// ==========================================
+// PARTNERSHIP OUTREACH APPROVAL WORKFLOW
+// ==========================================
+
+import { sendPartnershipApprovalEmail, sendPartnershipOutreachEmail } from "./email";
+import { randomBytes } from "crypto";
+
+const ADMIN_EMAIL = "hadi@spectaeducation.com";
+const BASE_URL = "https://www.spectaeducation.com";
+
+/**
+ * Submit a single draft for admin approval — sends approval email to Hadi
+ */
+export async function submitDraftForApproval(partnershipId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Get the partnership record
+  const [partnership] = await db.select().from(universityPartnerships)
+    .where(eq(universityPartnerships.id, partnershipId));
+
+  if (!partnership) throw new Error("Partnership not found");
+
+  // Determine recipient email
+  const recipientEmail = (partnership as any).agentRecruitmentEmail 
+    || (partnership as any).internationalOfficeEmail;
+
+  if (!recipientEmail) throw new Error("No recipient email found for this university");
+
+  // Parse the draft email
+  let emailSubject = (partnership as any).outreachEmailSubject || "";
+  let emailBody = (partnership as any).outreachEmailDraft || "";
+
+  // If no subject/body, generate one
+  if (!emailSubject || !emailBody) {
+    const generated = await generateOutreachEmail(partnership);
+    emailSubject = generated.subject;
+    emailBody = generated.body;
+  }
+
+  // Generate approval token
+  const approvalToken = randomBytes(32).toString("hex");
+
+  // Update the record
+  await db.update(universityPartnerships)
+    .set({
+      outreachEmailSubject: emailSubject,
+      outreachEmailDraft: emailBody,
+      outreachRecipientEmail: recipientEmail,
+      approvalStatus: "pending_approval",
+      approvalToken,
+      approvalRequestedAt: new Date(),
+    })
+    .where(eq(universityPartnerships.id, partnershipId));
+
+  // Build action URLs
+  const approveUrl = `${BASE_URL}/api/partnership-approval?action=approve&id=${partnershipId}&token=${approvalToken}`;
+  const rejectUrl = `${BASE_URL}/api/partnership-approval?action=reject&id=${partnershipId}&token=${approvalToken}`;
+  const editUrl = `${BASE_URL}/admin/agents?tab=partnerships&edit=${partnershipId}`;
+
+  // Send approval email to admin
+  await sendPartnershipApprovalEmail({
+    to: ADMIN_EMAIL,
+    universityName: (partnership as any).universityName,
+    country: (partnership as any).country,
+    recipientEmail,
+    contactPerson: (partnership as any).contactPersonName || undefined,
+    contactTitle: (partnership as any).contactPersonTitle || undefined,
+    emailSubject,
+    emailBody,
+    partnershipScore: (partnership as any).partnershipScore || undefined,
+    priority: (partnership as any).priority || undefined,
+    worldRanking: (partnership as any).worldRanking || undefined,
+    approveUrl,
+    rejectUrl,
+    editUrl,
+  });
+
+  console.log(`[University Scout] Sent approval request for ${(partnership as any).universityName} to ${ADMIN_EMAIL}`);
+}
+
+/**
+ * Submit all draft_ready partnerships for approval
+ */
+export async function submitAllDraftsForApproval(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+
+  // Find all partnerships with draft_ready status that haven't been submitted yet
+  const drafts = await db.select().from(universityPartnerships)
+    .where(
+      and(
+        eq(universityPartnerships.outreachStatus, "draft_ready"),
+        eq(universityPartnerships.approvalStatus, "pending_draft"),
+      )
+    );
+
+  let submitted = 0;
+  for (const draft of drafts) {
+    try {
+      await submitDraftForApproval(draft.id);
+      submitted++;
+    } catch (err) {
+      console.error(`[University Scout] Failed to submit draft for ${(draft as any).universityName}:`, err);
+    }
+  }
+
+  console.log(`[University Scout] Submitted ${submitted} drafts for approval`);
+  return submitted;
+}
+
+/**
+ * Approve and send the outreach email to the university
+ */
+export async function approveAndSendOutreach(partnershipId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [partnership] = await db.select().from(universityPartnerships)
+    .where(eq(universityPartnerships.id, partnershipId));
+
+  if (!partnership) throw new Error("Partnership not found");
+
+  const recipientEmail = (partnership as any).outreachRecipientEmail
+    || (partnership as any).agentRecruitmentEmail
+    || (partnership as any).internationalOfficeEmail;
+  const subject = (partnership as any).outreachEmailSubject;
+  const body = (partnership as any).outreachEmailDraft;
+
+  if (!recipientEmail || !subject || !body) {
+    throw new Error("Missing email details — recipient, subject, or body is empty");
+  }
+
+  // Send the actual outreach email
+  const sent = await sendPartnershipOutreachEmail({
+    to: recipientEmail,
+    subject,
+    body,
+  });
+
+  if (!sent) {
+    await db.update(universityPartnerships)
+      .set({ approvalStatus: "failed" })
+      .where(eq(universityPartnerships.id, partnershipId));
+    throw new Error("Failed to send outreach email");
+  }
+
+  // Update status
+  await db.update(universityPartnerships)
+    .set({
+      approvalStatus: "sent",
+      approvedAt: new Date(),
+      outreachStatus: "email_sent",
+      outreachSentAt: new Date(),
+    })
+    .where(eq(universityPartnerships.id, partnershipId));
+
+  // Notify admin of successful send
+  await sendEmail({
+    to: ADMIN_EMAIL,
+    subject: `✅ Outreach Sent: ${(partnership as any).universityName}`,
+    html: `<p>The partnership outreach email to <strong>${(partnership as any).universityName}</strong> (${recipientEmail}) has been sent successfully.</p>
+    <p><strong>Subject:</strong> ${subject}</p>
+    <p>You can track the response in the <a href="${BASE_URL}/admin/agents">Agent Command Center</a>.</p>`,
+  });
+
+  console.log(`[University Scout] Outreach email sent to ${recipientEmail} for ${(partnership as any).universityName}`);
+}
+
+/**
+ * Reject an outreach draft
+ */
+export async function rejectOutreach(partnershipId: number, reason?: string): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(universityPartnerships)
+    .set({
+      approvalStatus: "rejected",
+      rejectedAt: new Date(),
+      rejectionReason: reason || "Rejected by admin",
+    })
+    .where(eq(universityPartnerships.id, partnershipId));
+
+  console.log(`[University Scout] Outreach rejected for partnership #${partnershipId}: ${reason || "No reason given"}`);
+}
+
+/**
+ * Handle approval action from email link (token-based)
+ */
+export async function handleApprovalAction(
+  action: "approve" | "reject",
+  partnershipId: number,
+  token: string,
+): Promise<{ success: boolean; message: string }> {
+  const db = await getDb();
+  if (!db) return { success: false, message: "Database not available" };
+
+  const [partnership] = await db.select().from(universityPartnerships)
+    .where(
+      and(
+        eq(universityPartnerships.id, partnershipId),
+        eq(universityPartnerships.approvalToken, token),
+      )
+    );
+
+  if (!partnership) {
+    return { success: false, message: "Invalid or expired approval link" };
+  }
+
+  if ((partnership as any).approvalStatus === "sent") {
+    return { success: false, message: "This outreach has already been sent" };
+  }
+
+  if ((partnership as any).approvalStatus === "rejected") {
+    return { success: false, message: "This outreach has already been rejected" };
+  }
+
+  if (action === "approve") {
+    try {
+      await approveAndSendOutreach(partnershipId);
+      return { success: true, message: `Outreach email sent to ${(partnership as any).universityName}!` };
+    } catch (err: any) {
+      return { success: false, message: `Failed to send: ${err.message}` };
+    }
+  } else {
+    await rejectOutreach(partnershipId, "Rejected via email link");
+    return { success: true, message: `Outreach to ${(partnership as any).universityName} has been rejected.` };
+  }
+}
+
+/**
+ * Generate outreach email using AI
+ */
+async function generateOutreachEmail(partnership: any): Promise<{ subject: string; body: string }> {
+  const prompt = `Write a professional partnership outreach email from SpecTa Education (an Indonesian education consultancy) to ${partnership.universityName} in ${partnership.country}.
+
+Context:
+- SpecTa Education helps Indonesian students study abroad
+- We have 15+ years of experience and 1000+ students assisted
+- We have offices in Jakarta (Kelapa Gading, PIK, Gading Serpong)
+- We want to establish an agent/partnership agreement
+${partnership.contactPersonName ? `- Contact person: ${partnership.contactPersonName} (${partnership.contactPersonTitle || 'International Office'})` : ''}
+${partnership.worldRanking ? `- University world ranking: #${partnership.worldRanking}` : ''}
+${partnership.popularPrograms ? `- Popular programs: ${partnership.popularPrograms}` : ''}
+
+Write the email in a professional, warm tone. Include:
+1. Brief introduction of SpecTa Education
+2. Why we're interested in partnering with this university
+3. What we can offer (student recruitment from Indonesia, marketing support)
+4. A clear call to action for a meeting or call
+
+Return as JSON: { "subject": "...", "body": "..." }
+The body should be plain text (no HTML), with proper line breaks.`;
+
+  try {
+    const response = await invokeLLM({
+      messages: [
+        { role: "system", content: "You are a professional business development writer. Return valid JSON only." },
+        { role: "user", content: prompt },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "outreach_email",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              subject: { type: "string", description: "Email subject line" },
+              body: { type: "string", description: "Email body in plain text" },
+            },
+            required: ["subject", "body"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    const content = response.choices?.[0]?.message?.content;
+    if (content && typeof content === "string") {
+      return JSON.parse(content);
+    }
+  } catch (err) {
+    console.error("[University Scout] Failed to generate outreach email:", err);
+  }
+
+  // Fallback
+  return {
+    subject: `Partnership Inquiry from SpecTa Education - ${partnership.country} Student Recruitment`,
+    body: `Dear International Partnerships Team,\n\nI am writing from SpecTa Education, a leading education consultancy based in Jakarta, Indonesia. We specialize in helping Indonesian students pursue their academic goals abroad.\n\nWe are very interested in establishing a formal partnership with ${partnership.universityName} to facilitate student recruitment from Indonesia.\n\nWe would welcome the opportunity to discuss this further. Would you be available for a brief call or meeting?\n\nBest regards,\nHadi Yowan\nFounder & CEO, SpecTa Education`,
+  };
+}

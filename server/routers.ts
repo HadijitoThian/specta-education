@@ -4792,6 +4792,101 @@ Return JSON with the refined article:
           .where(eq(competitorIntelligence.id, input.id));
         return { success: true };
       }),
+
+    // ---- Partnership Outreach Approval Workflow ----
+
+    // Get pending approval drafts
+    getPendingApprovals: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { drizzle } = await import("drizzle-orm/mysql2");
+        const { universityPartnerships } = await import("../drizzle/schema");
+        const { eq, desc, or } = await import("drizzle-orm");
+        const db = drizzle(process.env.DATABASE_URL!);
+        return await db.select().from(universityPartnerships)
+          .where(or(
+            eq(universityPartnerships.approvalStatus, "pending_approval"),
+            eq(universityPartnerships.approvalStatus, "approved"),
+            eq(universityPartnerships.approvalStatus, "rejected"),
+            eq(universityPartnerships.approvalStatus, "sent"),
+          ))
+          .orderBy(desc(universityPartnerships.approvalRequestedAt));
+      }),
+
+    // Submit draft for approval (sends email to admin)
+    submitForApproval: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { submitDraftForApproval } = await import("./agentUniversityScout");
+        await submitDraftForApproval(input.id);
+        return { success: true };
+      }),
+
+    // Submit all pending drafts for approval
+    submitAllForApproval: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { submitAllDraftsForApproval } = await import("./agentUniversityScout");
+        const count = await submitAllDraftsForApproval();
+        return { success: true, count };
+      }),
+
+    // Approve and send outreach email
+    approveOutreach: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { approveAndSendOutreach } = await import("./agentUniversityScout");
+        await approveAndSendOutreach(input.id);
+        return { success: true };
+      }),
+
+    // Reject outreach
+    rejectOutreach: protectedProcedure
+      .input(z.object({ id: z.number(), reason: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { rejectOutreach } = await import("./agentUniversityScout");
+        await rejectOutreach(input.id, input.reason);
+        return { success: true };
+      }),
+
+    // Update outreach email draft (edit before sending)
+    updateOutreachDraft: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        subject: z.string().optional(),
+        body: z.string().optional(),
+        recipientEmail: z.string().email().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { drizzle } = await import("drizzle-orm/mysql2");
+        const { universityPartnerships } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = drizzle(process.env.DATABASE_URL!);
+        const updateData: Record<string, any> = {};
+        if (input.subject) updateData.outreachEmailSubject = input.subject;
+        if (input.body) updateData.outreachEmailDraft = input.body;
+        if (input.recipientEmail) updateData.outreachRecipientEmail = input.recipientEmail;
+        await db.update(universityPartnerships)
+          .set(updateData)
+          .where(eq(universityPartnerships.id, input.id));
+        return { success: true };
+      }),
   }),
 });
 
