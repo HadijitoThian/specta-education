@@ -1346,3 +1346,18 @@
 - [x] Updated Competitor Monitor agent to use real scraper data
 - [x] Fixed sendBeacon content-type for visitor tracking
 - [x] Added validation for sessionId in tracking endpoint
+
+#### University Partnership Email Rewrite
+- [x] Browse SpecTa Education website to catalog all AI features and SpecTa 2.0 USPs
+- [x] Research actual agent recruitment emails for all 7 Australian universities
+- [x] Rewrite all 7 email drafts emphasizing SpecTa 2.0 AI platform
+- [x] Fill in Hadi's details (name, title, contact info) and generate subject lines
+- [ ] Update database with new drafts
+- [x] Present final drafts to Hadi for approval
+
+#### Partnership Email Sending
+- [x] Create dedicated sendPartnershipEmail function using hadi@spectaeducation.com (not changing global SMTP_FROM)
+- [x] Update WhatsApp number to +62 818 668 277 in all 7 email drafts
+- [x] Fix founding year from 2011 to 2005 in all email drafts
+- [x] Verify Curtin University email for Corrinne Li (confirmed C.Li@curtin.edu.au from staff portal)
+- [x] Send all 7 partnership emails after Hadi's approval (SENT 2025-03-15)

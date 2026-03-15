@@ -1,0 +1,87 @@
+{
+  "query": "SELECT id, universityName, country, outreachStatus, outreachEmailSubject, outreachRecipientEmail, approvalStatus, priority, partnershipScore FROM university_partnerships ORDER BY createdAt DESC LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT id, universityName, country, outreachStatus, outreachEmailSubject, outreachRecipientEmail, approvalStatus, priority, partnershipScore FROM university_partnerships ORDER BY createdAt DESC LIMIT 20;",
+  "rows": [
+    {
+      "id": "7",
+      "universityName": "La Trobe University",
+      "country": "Australia",
+      "outreachStatus": "draft_ready",
+      "outreachEmailSubject": "NULL",
+      "outreachRecipientEmail": "NULL",
+      "approvalStatus": "pending_draft",
+      "priority": "medium",
+      "partnershipScore": "0"
+    },
+    {
+      "id": "6",
+      "universityName": "Griffith University",
+      "country": "Australia",
+      "outreachStatus": "researching",
+      "outreachEmailSubject": "NULL",
+      "outreachRecipientEmail": "NULL",
+      "approvalStatus": "pending_draft",
+      "priority": "medium",
+      "partnershipScore": "0"
+    },
+    {
+      "id": "5",
+      "universityName": "University of Wollongong (UOW)",
+      "country": "Australia",
+      "outreachStatus": "identified",
+      "outreachEmailSubject": "NULL",
+      "outreachRecipientEmail": "NULL",
+      "approvalStatus": "pending_draft",
+      "priority": "medium",
+      "partnershipScore": "0"
+    },
+    {
+      "id": "4",
+      "universityName": "Curtin University",
+      "country": "Australia",
+      "outreachStatus": "identified",
+      "outreachEmailSubject": "NULL",
+      "outreachRecipientEmail": "NULL",
+      "approvalStatus": "pending_draft",
+      "priority": "medium",
+      "partnershipScore": "0"
+    },
+    {
+      "id": "2",
+      "universityName": "Queensland University of Technology (QUT)",
+      "country": "Australia",
+      "outreachStatus": "identified",
+      "outreachEmailSubject": "NULL",
+      "outreachRecipientEmail": "NULL",
+      "approvalStatus": "pending_draft",
+      "priority": "medium",
+      "partnershipScore": "0"
+    },
+    {
+      "id": "3",
+      "universityName": "University of South Australia (UniSA)",
+      "country": "Australia",
+      "outreachStatus": "identified",
+      "outreachEmailSubject": "NULL",
+      "outreachRecipientEmail": "NULL",
+      "approvalStatus": "pending_draft",
+      "priority": "medium",
+      "partnershipScore": "0"
+    },
+    {
+      "id": "1",
+      "universityName": "RMIT University",
+      "country": "Australia",
+      "outreachStatus": "identified",
+      "outreachEmailSubject": "NULL",
+      "outreachRecipientEmail": "NULL",
+      "approvalStatus": "pending_draft",
+      "priority": "medium",
+      "partnershipScore": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tuniversityName\tcountry\toutreachStatus\toutreachEmailSubject\toutreachRecipientEmail\tapprovalStatus\tpriority\tpartnershipScore\n7\tLa Trobe University\tAustralia\tdraft_ready\tNULL\tNULL\tpending_draft\tmedium\t0\n6\tGriffith University\tAustralia\tresearching\tNULL\tNULL\tpending_draft\tmedium\t0\n5\tUniversity of Wollongong (UOW)\tAustralia\tidentified\tNULL\tNULL\tpending_draft\tmedium\t0\n4\tCurtin University\tAustralia\tidentified\tNULL\tNULL\tpending_draft\tmedium\t0\n2\tQueensland University of Technology (QUT)\tAustralia\tidentified\tNULL\tNULL\tpending_draft\tmedium\t0\n3\tUniversity of South Australia (UniSA)\tAustralia\tidentified\tNULL\tNULL\tpending_draft\tmedium\t0\n1\tRMIT University\tAustralia\tidentified\tNULL\tNULL\tpending_draft\tmedium\t0\n",
+  "stderr": "",
+  "execution_time_ms": 1645
+}

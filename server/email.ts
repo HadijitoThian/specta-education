@@ -903,3 +903,64 @@ export async function sendPartnershipOutreachEmail({
     html,
   });
 }
+
+
+// ==========================================
+// PARTNERSHIP OUTREACH EMAIL (from CEO)
+// Uses hadi@spectaeducation.com instead of global SMTP_FROM
+// Only for university partnership outreach emails
+// ==========================================
+const PARTNERSHIP_FROM_EMAIL = "Hadi Jito Thian - SpecTa Education <hadi@spectaeducation.com>";
+
+export async function sendPartnershipEmail({
+  to,
+  cc,
+  subject,
+  html,
+  text,
+}: {
+  to: string;
+  cc?: string;
+  subject: string;
+  html: string;
+  text?: string;
+}): Promise<boolean> {
+  if (!ENV.resendApiKey) {
+    console.warn(`[Partnership Email] Skipped sending to ${to}: Resend API key not configured`);
+    return false;
+  }
+
+  try {
+    const body: Record<string, any> = {
+      from: PARTNERSHIP_FROM_EMAIL,
+      to: [to],
+      subject,
+      html,
+    };
+
+    if (cc) body.cc = [cc];
+    if (text) body.text = text;
+
+    const response = await fetch(`${RESEND_API_BASE}/emails`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${ENV.resendApiKey}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[Partnership Email] Resend failed to send to ${to}: ${response.status} ${errorText}`);
+      return false;
+    }
+
+    const result = await response.json();
+    console.log(`[Partnership Email] Sent "${subject}" to ${to} via Resend from hadi@spectaeducation.com (id: ${result.id})`);
+    return true;
+  } catch (error) {
+    console.error(`[Partnership Email] Failed to send to ${to}:`, error);
+    return false;
+  }
+}
