@@ -48,6 +48,81 @@ const SPECIALIZATIONS = [
   "IELTS Preparation", "Visa Support", "Scholarship Advisory", "General Counseling"
 ];
 
+function AgentAssignmentsWidget() {
+  const { data: assignments, isLoading } = trpc.agents.getLeadAssignments.useQuery({}, {
+    refetchInterval: 60000,
+  });
+
+  if (isLoading) return <div className="text-sm text-muted-foreground">Loading assignments...</div>;
+  if (!assignments || assignments.length === 0) return <div className="text-sm text-muted-foreground">No lead assignments yet. New leads will be automatically assigned to counselors.</div>;
+
+  const recent = assignments.slice(0, 8);
+  const statusColors: Record<string, string> = {
+    assigned: "bg-blue-100 text-blue-700",
+    contacted: "bg-green-100 text-green-700",
+    follow_up: "bg-yellow-100 text-yellow-700",
+    qualified: "bg-indigo-100 text-indigo-700",
+    converted: "bg-emerald-100 text-emerald-700",
+    closed: "bg-gray-100 text-gray-700",
+    escalated: "bg-red-100 text-red-700",
+  };
+  const priorityColors: Record<string, string> = {
+    urgent: "bg-red-500 text-white",
+    high: "bg-orange-100 text-orange-700",
+    medium: "bg-yellow-100 text-yellow-700",
+    low: "bg-green-100 text-green-700",
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-border">
+            <th className="text-left py-2 px-3 text-muted-foreground font-medium">Student</th>
+            <th className="text-left py-2 px-3 text-muted-foreground font-medium">Contact</th>
+            <th className="text-left py-2 px-3 text-muted-foreground font-medium">Assigned To</th>
+            <th className="text-left py-2 px-3 text-muted-foreground font-medium">Source</th>
+            <th className="text-left py-2 px-3 text-muted-foreground font-medium">Priority</th>
+            <th className="text-left py-2 px-3 text-muted-foreground font-medium">Status</th>
+            <th className="text-left py-2 px-3 text-muted-foreground font-medium">Assigned</th>
+          </tr>
+        </thead>
+        <tbody>
+          {recent.map((a: any) => (
+            <tr key={a.id} className="border-b border-border/50 hover:bg-muted/30">
+              <td className="py-2 px-3 font-medium">{a.studentName}</td>
+              <td className="py-2 px-3">
+                <div>{a.studentEmail || "-"}</div>
+                <div className="text-muted-foreground">{a.studentPhone || "-"}</div>
+              </td>
+              <td className="py-2 px-3 font-medium text-red-600">{a.counselorName}</td>
+              <td className="py-2 px-3">
+                <span className="bg-muted px-2 py-0.5 rounded text-[10px]">{a.leadSource}</span>
+              </td>
+              <td className="py-2 px-3">
+                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${priorityColors[a.priority] || "bg-gray-100 text-gray-700"}`}>{a.priority}</span>
+              </td>
+              <td className="py-2 px-3">
+                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${statusColors[a.status] || "bg-gray-100 text-gray-700"}`}>{a.status}</span>
+              </td>
+              <td className="py-2 px-3 text-muted-foreground">{new Date(a.assignedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {assignments.length > 8 && (
+        <div className="text-center mt-3">
+          <Link href="/admin/agents">
+            <Button variant="ghost" size="sm" className="text-xs text-red-600 hover:text-red-700">
+              View all {assignments.length} assignments →
+            </Button>
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   useEffect(() => {
     document.title = "Admin Dashboard | SpecTa Education";
@@ -543,6 +618,27 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* AI Agent - Recent Lead Assignments */}
+        <div className="bg-card border border-border rounded-xl p-5 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                <Bot className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">AI Agent — Recent Lead Assignments</h3>
+                <p className="text-xs text-muted-foreground">Auto-assigned by CRM Distributor Agent</p>
+              </div>
+            </div>
+            <Link href="/admin/agents">
+              <Button variant="outline" size="sm" className="text-xs">
+                <Eye className="w-3 h-3 mr-1" /> View All Agents
+              </Button>
+            </Link>
+          </div>
+          <AgentAssignmentsWidget />
         </div>
 
         {/* Tabs */}

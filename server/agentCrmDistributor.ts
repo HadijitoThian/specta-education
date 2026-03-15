@@ -189,6 +189,18 @@ async function assignUnassignedLeads(): Promise<{ assigned: number; errors: numb
 
               // Create follow-up schedule
               await createFollowUpSchedule(0, counselor, lead.studentName || "Student", lead.studentEmail, lead.studentPhone, lead.preferredCountry);
+
+              // Notify admin about new assignment
+              await sendAdminAssignmentNotification({
+                studentName: lead.studentName || "Unknown Student",
+                studentEmail: lead.studentEmail || "N/A",
+                studentPhone: lead.studentPhone || "N/A",
+                preferredCountry: lead.preferredCountry || "Not specified",
+                counselorName: counselor.name,
+                counselorEmail: counselor.email,
+                leadSource: "Chatbot",
+                priority: determinePriority(lead),
+              });
             } catch (err) {
               console.error(`[CRM Agent] Failed to assign lead ${lead.id}:`, err);
               errors++;
@@ -224,6 +236,18 @@ async function assignUnassignedLeads(): Promise<{ assigned: number; errors: numb
               assigned++;
 
               await createFollowUpSchedule(0, counselor, lead.studentName, lead.studentEmail, lead.studentPhone);
+
+              // Notify admin about new assignment
+              await sendAdminAssignmentNotification({
+                studentName: lead.studentName,
+                studentEmail: lead.studentEmail || "N/A",
+                studentPhone: lead.studentPhone || "N/A",
+                preferredCountry: "Scholarship Interest",
+                counselorName: counselor.name,
+                counselorEmail: counselor.email,
+                leadSource: "Scholarship Form",
+                priority: "high",
+              });
             } catch (err) {
               console.error(`[CRM Agent] Failed to assign scholarship lead ${lead.id}:`, err);
               errors++;
@@ -579,6 +603,93 @@ function sendEscalationAlert(data: any): Promise<boolean> {
     subject: `🚨 Lead Escalation: ${data.studentName}`,
     html: buildEscalationEmail(data),
   });
+}
+
+/**
+ * Send admin notification when a new lead is assigned to a counselor
+ */
+async function sendAdminAssignmentNotification(data: {
+  studentName: string;
+  studentEmail: string;
+  studentPhone: string;
+  preferredCountry: string;
+  counselorName: string;
+  counselorEmail: string;
+  leadSource: string;
+  priority: string;
+}): Promise<void> {
+  try {
+    const priorityColors: Record<string, string> = {
+      urgent: "#dc3545",
+      high: "#fd7e14",
+      medium: "#ffc107",
+      low: "#28a745",
+    };
+    const priorityColor = priorityColors[data.priority] || "#6c757d";
+    const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta", dateStyle: "full", timeStyle: "short" });
+
+    await sendEmail({
+      to: "hadi@spectaeducation.com",
+      subject: `📋 New Lead Assigned: ${data.studentName} → ${data.counselorName}`,
+      html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:20px;">
+    <div style="background:#fff;border-radius:12px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+      <div style="text-align:center;margin-bottom:24px;">
+        <h2 style="color:#e53e3e;margin:0;">SpecTa Education</h2>
+        <p style="color:#666;margin:4px 0 0;">AI Agent — New Lead Assignment</p>
+      </div>
+      <h3 style="color:#1a1a1a;margin-bottom:16px;">New lead has been assigned! 📋</h3>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:10px 8px;color:#666;font-weight:600;width:140px;">Student Name</td>
+          <td style="padding:10px 8px;color:#1a1a1a;font-weight:600;">${data.studentName}</td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:10px 8px;color:#666;font-weight:600;">Email</td>
+          <td style="padding:10px 8px;color:#1a1a1a;">${data.studentEmail}</td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:10px 8px;color:#666;font-weight:600;">Phone</td>
+          <td style="padding:10px 8px;color:#1a1a1a;">${data.studentPhone}</td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:10px 8px;color:#666;font-weight:600;">Interest</td>
+          <td style="padding:10px 8px;color:#1a1a1a;">${data.preferredCountry}</td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:10px 8px;color:#666;font-weight:600;">Lead Source</td>
+          <td style="padding:10px 8px;color:#1a1a1a;">${data.leadSource}</td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:10px 8px;color:#666;font-weight:600;">Priority</td>
+          <td style="padding:10px 8px;"><span style="background:${priorityColor};color:#fff;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;text-transform:uppercase;">${data.priority}</span></td>
+        </tr>
+        <tr>
+          <td style="padding:10px 8px;color:#666;font-weight:600;">Assigned To</td>
+          <td style="padding:10px 8px;color:#e53e3e;font-weight:700;">${data.counselorName} (${data.counselorEmail})</td>
+        </tr>
+      </table>
+      <p style="color:#888;font-size:13px;margin-top:12px;">Assigned at: ${now}</p>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="https://www.spectaeducation.com/admin/agents" style="display:inline-block;background:#e53e3e;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;margin-right:8px;">View Agent Dashboard</a>
+        <a href="https://www.spectaeducation.com/admin" style="display:inline-block;background:#333;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;">Admin Dashboard</a>
+      </div>
+      <div style="text-align:center;color:#999;font-size:12px;margin-top:24px;padding-top:16px;border-top:1px solid #eee;">
+        <p>© ${new Date().getFullYear()} SpecTa Education AI Agent System</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`,
+    });
+    console.log(`[CRM Agent] Admin notified: ${data.studentName} → ${data.counselorName}`);
+  } catch (err) {
+    console.error("[CRM Agent] Failed to send admin notification:", err);
+  }
 }
 
 function buildEscalationEmail(assignment: any): string {

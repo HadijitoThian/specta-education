@@ -1240,3 +1240,8 @@
 - [x] Agent toggle on/off controls
 - [x] Daily report send now button
 - [x] 12 vitest tests passing
+
+### Agent Improvements - March 2026
+- [x] Email admin (hadi@spectaeducation.com) when new lead is assigned to a counselor
+- [x] Show lead-counselor assignment details in notification email
+- [x] Add lead assignment summary widget to main admin dashboard
