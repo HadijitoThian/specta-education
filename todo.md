@@ -1300,3 +1300,49 @@
 - [x] Fix Team Management "Unnamed User" duplicate issue - added unique index on openId
 - [x] Investigated "Unnamed Users" - all were duplicate records of Hadi (same openId), cleaned up
 - [x] Lead Hunter no longer creates fake leads from simulated social media data
+
+### Real-Data Agent Upgrade - March 15, 2026
+
+#### Feature 1 — Real Website Visitor Tracking & Scoring
+- [x] Frontend tracking script that captures real visitor behavior (pages visited, time spent, scroll depth)
+- [x] Visitor scoring algorithm based on engagement signals (visited IELTS page, country pages, contact form)
+- [x] Auto-identify high-intent visitors and flag them as potential leads
+- [x] Store real visitor data in visitorTracking table
+- [x] Dashboard showing real visitor analytics
+
+#### Feature 2 — Google Ranking Tracker
+- [x] Real Google search position checker for target keywords
+- [x] Track rankings for: kuliah di Australia, konsultan pendidikan Jakarta, IELTS preparation Jakarta, etc.
+- [x] Compare SpecTa position vs competitors for each keyword
+- [x] Historical ranking trends over time
+- [x] Dashboard showing real ranking data
+
+#### Feature 3 — Competitor Website Change Detector
+- [x] Real web scraper that monitors competitor websites for changes
+- [x] Detect new programs, pricing changes, new pages, promotions
+- [x] Store snapshots and diffs of competitor sites
+- [x] Alert when significant changes detected
+- [x] AI analysis of what the change means and recommended response
+
+#### Feature 4 — Social Media Hashtag/Comment Scraper
+- [x] Scrape public Instagram posts/comments for study abroad keywords
+- [x] Monitor Twitter/X for relevant conversations
+- [x] Track TikTok public posts about studying abroad from Indonesia
+- [x] Identify potential leads from social media conversations
+- [x] Store social mentions with sentiment analysis
+
+#### Feature 5 — Meta Business API (DEFERRED to next session)
+- [ ] Set up Meta Business account verification
+- [ ] Connect Instagram Business API
+- [ ] Connect Facebook Pages API
+- [ ] Real lead capture from Instagram DMs and Facebook messages
+
+#### Agent Command Center UI Updates
+- [x] Added Rankings tab with real Google position data
+- [x] Added Social tab with real social media mentions
+- [x] Added Scraper tab with real competitor website changes
+- [x] Added manual trigger buttons for all 3 new scanners
+- [x] Updated Lead Hunter agent to use real visitor tracking data
+- [x] Updated Competitor Monitor agent to use real scraper data
+- [x] Fixed sendBeacon content-type for visitor tracking
+- [x] Added validation for sessionId in tracking endpoint

@@ -7,6 +7,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Streamdown } from "streamdown";
 import { trpc } from "@/lib/trpc";
 import { nanoid } from "nanoid";
+import { markChatbotEngaged, markFormCompleted } from "@/hooks/useVisitorTracking";
 
 type Message = {
   role: "system" | "user" | "assistant";
@@ -350,6 +351,8 @@ export default function ChatBot() {
         isAnonymous: false
       });
 
+      // Mark form completed for visitor tracking
+      markFormCompleted();
       setLeadCaptureState("captured");
 
       setTimeout(() => {
@@ -406,6 +409,9 @@ export default function ChatBot() {
     setUserMessageCount(prev => prev + 1);
 
     localStorage.setItem(STORAGE_TIMESTAMP_KEY, Date.now().toString());
+
+    // Mark chatbot engagement for visitor tracking
+    markChatbotEngaged();
 
     chatMutation.mutate({
       sessionId,

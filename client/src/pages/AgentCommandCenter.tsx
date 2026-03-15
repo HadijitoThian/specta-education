@@ -40,6 +40,39 @@ export default function AgentCommandCenter() {
     refetchInterval: 60000,
   });
 
+  // Phase 2 Real Data queries
+  const { data: rankingData, refetch: refetchRankings } = trpc.agents.getRankingData.useQuery(undefined, {
+    refetchInterval: 120000,
+  });
+  const { data: competitorScanData, refetch: refetchScan } = trpc.agents.getCompetitorScanData.useQuery(undefined, {
+    refetchInterval: 120000,
+  });
+  const { data: socialMediaData, refetch: refetchSocial } = trpc.agents.getSocialMediaData.useQuery(undefined, {
+    refetchInterval: 120000,
+  });
+
+  const runRankingCheck = trpc.agents.runRankingCheck.useMutation({
+    onSuccess: (data) => {
+      refetchRankings();
+      toast.success(`Ranking check complete: ${data.keywordsChecked} keywords checked`);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const runCompetitorScan = trpc.agents.runCompetitorScan.useMutation({
+    onSuccess: (data) => {
+      refetchScan();
+      toast.success(`Competitor scan complete: ${data.competitorsScanned} sites scanned`);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const runSocialMediaScan = trpc.agents.runSocialMediaScan.useMutation({
+    onSuccess: (data) => {
+      refetchSocial();
+      toast.success(`Social scan complete: ${data.mentionsFound} mentions found`);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const toggleAgent = trpc.agents.toggleAgent.useMutation({
     onSuccess: () => {
       refetch();
@@ -238,6 +271,9 @@ export default function AgentCommandCenter() {
             <TabsTrigger value="visitors"><Crosshair className="h-4 w-4 mr-1" />Visitors</TabsTrigger>
             <TabsTrigger value="competitors"><Shield className="h-4 w-4 mr-1" />Competitors</TabsTrigger>
             <TabsTrigger value="partnerships"><GraduationCap className="h-4 w-4 mr-1" />Partnerships</TabsTrigger>
+            <TabsTrigger value="rankings"><TrendingUp className="h-4 w-4 mr-1" />Rankings</TabsTrigger>
+            <TabsTrigger value="social"><Globe className="h-4 w-4 mr-1" />Social</TabsTrigger>
+            <TabsTrigger value="scraper"><Search className="h-4 w-4 mr-1" />Scraper</TabsTrigger>
             <TabsTrigger value="seo"><FileText className="h-4 w-4 mr-1" />SEO</TabsTrigger>
             <TabsTrigger value="logs"><Activity className="h-4 w-4 mr-1" />Logs</TabsTrigger>
             <TabsTrigger value="reports"><Mail className="h-4 w-4 mr-1" />Reports</TabsTrigger>
@@ -999,6 +1035,333 @@ export default function AgentCommandCenter() {
                     <div className="text-center py-12 text-gray-400">
                       <GraduationCap className="h-12 w-12 mx-auto mb-3 opacity-50" />
                       <p>No partnerships discovered yet. The University Scout Agent will find opportunities daily.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* ===== GOOGLE RANKINGS TAB ===== */}
+          <TabsContent value="rankings">
+            <div className="grid gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">Google Ranking Tracker</h2>
+                  <p className="text-sm text-gray-500">Real-time Google search position tracking for your target keywords</p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => runRankingCheck.mutate()} disabled={runRankingCheck.isPending}>
+                  <TrendingUp className="h-4 w-4 mr-1" />
+                  {runRankingCheck.isPending ? "Checking..." : "Check Rankings"}
+                </Button>
+              </div>
+
+              {/* Ranking Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">Keywords Tracked</p>
+                    <p className="text-2xl font-bold">{rankingData?.keywordsTracked || 0}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">Avg Position</p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {rankingData?.ourRankings?.length ? Math.round(rankingData.ourRankings.filter((r: any) => r.position).reduce((sum: number, k: any) => sum + (k.position || 100), 0) / Math.max(rankingData.ourRankings.filter((r: any) => r.position).length, 1)) : "-"}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">Top 10 Keywords</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {rankingData?.keywordsInTop10 || 0}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">Last Checked</p>
+                    <p className="text-sm font-medium">
+                      {rankingData?.lastChecked ? new Date(rankingData.lastChecked).toLocaleString("en-US", { timeZone: "Asia/Jakarta", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Never"}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Keyword Rankings Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-blue-500" />
+                    Keyword Rankings
+                  </CardTitle>
+                  <CardDescription>Real Google search positions for your target keywords</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {rankingData?.ourRankings && rankingData.ourRankings.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-gray-50">
+                            <th className="text-left py-3 px-3 font-medium text-gray-500">Keyword</th>
+                            <th className="text-center py-3 px-3 font-medium text-gray-500">Position</th>
+                            <th className="text-center py-3 px-3 font-medium text-gray-500">Change</th>
+                            <th className="text-left py-3 px-3 font-medium text-gray-500">Top Result</th>
+                            <th className="text-left py-3 px-3 font-medium text-gray-500">Last Checked</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rankingData.ourRankings.map((kw: any, i: number) => (
+                            <tr key={i} className="border-b last:border-0 hover:bg-gray-50">
+                              <td className="py-2 px-3 font-medium">{kw.keyword}</td>
+                              <td className="py-2 px-3 text-center">
+                                <span className={`font-bold text-lg ${
+                                  kw.position && kw.position <= 3 ? "text-green-600" :
+                                  kw.position && kw.position <= 10 ? "text-blue-600" :
+                                  kw.position && kw.position <= 20 ? "text-amber-600" :
+                                  "text-gray-400"
+                                }`}>
+                                  {kw.position || "N/A"}
+                                </span>
+                              </td>
+                              <td className="py-2 px-3 text-center">
+                                {kw.change !== undefined && kw.change !== null && kw.change !== 0 ? (
+                                  <Badge className={kw.change > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}>
+                                    {kw.change > 0 ? `+${kw.change}` : kw.change}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                              <td className="py-2 px-3 text-xs text-gray-500 max-w-[200px] truncate">-</td>
+                              <td className="py-2 px-3 text-xs text-gray-400">
+                                {rankingData.lastChecked ? new Date(rankingData.lastChecked).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "-"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-gray-400">
+                      <TrendingUp className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No ranking data yet. Click "Check Rankings" to run your first scan.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* ===== SOCIAL MEDIA TAB ===== */}
+          <TabsContent value="social">
+            <div className="grid gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">Social Media Monitor</h2>
+                  <p className="text-sm text-gray-500">Real-time social media mentions and lead signals from public platforms</p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => runSocialMediaScan.mutate()} disabled={runSocialMediaScan.isPending}>
+                  <Globe className="h-4 w-4 mr-1" />
+                  {runSocialMediaScan.isPending ? "Scanning..." : "Scan Social"}
+                </Button>
+              </div>
+
+              {/* Social Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">Total Mentions</p>
+                    <p className="text-2xl font-bold">{socialMediaData?.totalMentions || 0}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">Lead Opportunities</p>
+                    <p className="text-2xl font-bold text-red-600">{socialMediaData?.leadOpportunities || 0}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">Brand Mentions</p>
+                    <p className="text-2xl font-bold text-blue-600">{socialMediaData?.brandMentions || 0}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">Last Scanned</p>
+                    <p className="text-sm font-medium">
+                      {socialMediaData?.lastScanned ? new Date(socialMediaData.lastScanned).toLocaleString("en-US", { timeZone: "Asia/Jakarta", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Never"}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Platform Breakdown */}
+              {socialMediaData?.platformBreakdown && socialMediaData.platformBreakdown.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Platform Breakdown</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-3">
+                      {socialMediaData.platformBreakdown.map((p: any) => (
+                        <div key={p.platform} className="flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-2">
+                          <span className="font-medium capitalize">{p.platform}</span>
+                          <Badge variant="secondary">{p.count}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Recent Mentions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Globe className="h-5 w-5 text-blue-500" />
+                    Recent Social Mentions
+                  </CardTitle>
+                  <CardDescription>Public social media posts about study abroad from Indonesia</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {socialMediaData?.recentMentions && socialMediaData.recentMentions.length > 0 ? (
+                    <div className="space-y-3">
+                      {socialMediaData.recentMentions.map((m: any, i: number) => (
+                        <div key={i} className="border rounded-lg p-4 hover:bg-gray-50">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge variant="outline" className="capitalize">{m.platform}</Badge>
+                                <Badge className={
+                                  m.sentiment === "positive" ? "bg-green-100 text-green-700" :
+                                  m.sentiment === "negative" ? "bg-red-100 text-red-700" :
+                                  "bg-gray-100 text-gray-700"
+                                }>{m.sentiment}</Badge>
+                                {m.isLeadOpportunity && <Badge className="bg-red-500 text-white">Lead Signal</Badge>}
+                              </div>
+                              <p className="text-sm text-gray-700 mt-1">{m.content?.substring(0, 200)}{m.content?.length > 200 ? "..." : ""}</p>
+                              <div className="flex items-center gap-4 mt-2">
+                                <span className="text-xs text-gray-400">Relevance: {m.relevanceScore}/100</span>
+                                {m.sourceUrl && (
+                                  <a href={m.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">View Source</a>
+                                )}
+                                <span className="text-xs text-gray-400">
+                                  {m.detectedAt ? new Date(m.detectedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-gray-400">
+                      <Globe className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No social mentions yet. Click "Scan Social" to run your first scan.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* ===== COMPETITOR SCRAPER TAB ===== */}
+          <TabsContent value="scraper">
+            <div className="grid gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">Competitor Website Scraper</h2>
+                  <p className="text-sm text-gray-500">Real-time monitoring of competitor website changes and updates</p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => runCompetitorScan.mutate()} disabled={runCompetitorScan.isPending}>
+                  <Search className="h-4 w-4 mr-1" />
+                  {runCompetitorScan.isPending ? "Scanning..." : "Scan Competitors"}
+                </Button>
+              </div>
+
+              {/* Scraper Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">Sites Monitored</p>
+                    <p className="text-2xl font-bold">{competitorScanData?.competitorsMonitored || 0}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">Changes Detected</p>
+                    <p className="text-2xl font-bold text-amber-600">{competitorScanData?.recentChanges?.length || 0}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">Scan History</p>
+                    <p className="text-2xl font-bold text-green-600">{competitorScanData?.scanHistory?.length || 0}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-xs text-gray-500">Last Scan</p>
+                    <p className="text-sm font-medium">
+                      {competitorScanData?.lastScanned ? new Date(competitorScanData.lastScanned).toLocaleString("en-US", { timeZone: "Asia/Jakarta", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Never"}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Recent Changes */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Search className="h-5 w-5 text-amber-500" />
+                    Recent Website Changes
+                  </CardTitle>
+                  <CardDescription>Detected changes on competitor websites</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {competitorScanData?.recentChanges && competitorScanData.recentChanges.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-gray-50">
+                            <th className="text-left py-3 px-3 font-medium text-gray-500">Competitor</th>
+                            <th className="text-left py-3 px-3 font-medium text-gray-500">Change Type</th>
+                            <th className="text-left py-3 px-3 font-medium text-gray-500">Details</th>
+                            <th className="text-center py-3 px-3 font-medium text-gray-500">Severity</th>
+                            <th className="text-left py-3 px-3 font-medium text-gray-500">Detected</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {competitorScanData.recentChanges.map((c: any, i: number) => (
+                            <tr key={i} className="border-b last:border-0 hover:bg-gray-50">
+                              <td className="py-2 px-3 font-medium">{c.competitor}</td>
+                              <td className="py-2 px-3">
+                                <Badge variant="outline" className="capitalize">{c.changeType?.replace("_", " ") || "general"}</Badge>
+                              </td>
+                              <td className="py-2 px-3 text-xs text-gray-600 max-w-[300px] truncate">{c.details}</td>
+                              <td className="py-2 px-3 text-center">
+                                <Badge className={
+                                  c.changeType === "new_page" ? "bg-amber-500 text-white" :
+                                  c.changeType === "content_change" ? "bg-blue-100 text-blue-700" :
+                                  "bg-gray-100 text-gray-700"
+                                }>{c.changeType || "unknown"}</Badge>
+                              </td>
+                              <td className="py-2 px-3 text-xs text-gray-400">
+                                {c.detectedAt ? new Date(c.detectedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "-"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-gray-400">
+                      <Search className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No website changes detected yet. Click "Scan Competitors" to run your first scan.</p>
                     </div>
                   )}
                 </CardContent>

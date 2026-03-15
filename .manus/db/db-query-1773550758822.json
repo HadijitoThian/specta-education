@@ -1,0 +1,28 @@
+{
+  "query": "SELECT id, name, email, role FROM users WHERE id IN (210011, 570010, 1860103)",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT id, name, email, role FROM users WHERE id IN (210011, 570010, 1860103)",
+  "rows": [
+    {
+      "id": "210011",
+      "name": "Hadijito Thian",
+      "email": "hadijitothian@gmail.com",
+      "role": "admin"
+    },
+    {
+      "id": "570010",
+      "name": "hadi",
+      "email": "hadi@spectaeducation.com",
+      "role": "admin"
+    },
+    {
+      "id": "1860103",
+      "name": "Hadi Jito Thian",
+      "email": "hjthian@gmail.com",
+      "role": "admin"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\n210011\tHadijito Thian\thadijitothian@gmail.com\tadmin\n570010\thadi\thadi@spectaeducation.com\tadmin\n1860103\tHadi Jito Thian\thjthian@gmail.com\tadmin\n",
+  "stderr": "",
+  "execution_time_ms": 1537
+}

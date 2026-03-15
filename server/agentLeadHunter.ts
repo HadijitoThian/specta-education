@@ -100,11 +100,20 @@ export async function runLeadHunterAgent(): Promise<{
     leadsCreated += visitorResults.leadsCreated;
     errors += visitorResults.errors;
 
-    // Task 2: Scan for social media mentions and lead signals
-    const socialResults = await scanSocialMedia();
-    socialMentionsFound = socialResults.mentionsFound;
-    leadsCreated += socialResults.leadsCreated;
-    errors += socialResults.errors;
+    // Task 2: Scan for social media mentions using REAL scraper
+    try {
+      const { runSocialMediaScan } = await import("./socialMediaScraper");
+      const socialResults = await runSocialMediaScan();
+      socialMentionsFound = socialResults.mentionsFound;
+      // Real scraper doesn't create fake leads
+    } catch (socialErr) {
+      console.error("[Lead Hunter] Social scraper error, falling back:", socialErr);
+      // Fallback to old method if scraper fails
+      const socialResults = await scanSocialMedia();
+      socialMentionsFound = socialResults.mentionsFound;
+      leadsCreated += socialResults.leadsCreated;
+      errors += socialResults.errors;
+    }
 
     // Task 3: Send alerts for high-intent leads
     if (highIntentFound > 0 || socialMentionsFound > 0) {
@@ -551,6 +560,7 @@ export async function trackVisitorBehavior(data: {
   visitorFingerprint?: string;
   pageVisited: string;
   timeOnPage: number;
+  scrollDepth?: number;
   referrerUrl?: string;
   utmSource?: string;
   utmMedium?: string;
@@ -558,6 +568,9 @@ export async function trackVisitorBehavior(data: {
   chatbotEngaged?: boolean;
   formStarted?: boolean;
   formCompleted?: boolean;
+  screenWidth?: number;
+  screenHeight?: number;
+  deviceType?: string;
 }): Promise<void> {
   try {
     const db = await getDb();
@@ -569,9 +582,11 @@ export async function trackVisitorBehavior(data: {
       .where(eq(visitorTracking.sessionId, data.sessionId))
       .limit(1);
 
-    const isCountryPage = /\/(pendidikan_ln|destinations)\/(aus|uk|can|nz|irl|usa)/i.test(data.pageVisited);
+    const isCountryPage = /\/(destinations|malaysia)\/(australia|uk|usa|canada|china|ireland|new-zealand|netherlands|singapore)/i.test(data.pageVisited) || /\/malaysia/i.test(data.pageVisited);
     const isIeltsPage = /\/ielts/i.test(data.pageVisited);
-    const isContactPage = /\/(contact|book|konsultasi)/i.test(data.pageVisited);
+    const isContactPage = /\/(contact|book|apply)/i.test(data.pageVisited);
+    const isScholarshipPage = /\/scholarships/i.test(data.pageVisited);
+    const isComparePage = /\/compare/i.test(data.pageVisited);
 
     if (existing) {
       // Update existing session
@@ -583,7 +598,7 @@ export async function trackVisitorBehavior(data: {
       }
 
       if (isCountryPage) {
-        const countryMatch = data.pageVisited.match(/\/(aus|uk|can|nz|irl|usa)/i);
+        const countryMatch = data.pageVisited.match(/\/(australia|uk|usa|canada|china|ireland|new-zealand|netherlands|singapore|malaysia)/i);
         if (countryMatch && !currentCountryPages.includes(countryMatch[1])) {
           currentCountryPages.push(countryMatch[1]);
         }
@@ -608,7 +623,7 @@ export async function trackVisitorBehavior(data: {
       // Create new visitor session
       const countryPages: string[] = [];
       if (isCountryPage) {
-        const countryMatch = data.pageVisited.match(/\/(aus|uk|can|nz|irl|usa)/i);
+        const countryMatch = data.pageVisited.match(/\/(australia|uk|usa|canada|china|ireland|new-zealand|netherlands|singapore|malaysia)/i);
         if (countryMatch) countryPages.push(countryMatch[1]);
       }
 

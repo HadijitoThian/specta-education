@@ -1,0 +1,8 @@
+{
+  "query": "SELECT id, name, email, role, open_id FROM users WHERE open_id = 'NBhoM6gPqobHciGX6Ktdh4' OR email = 'hjthian@gmail.com' OR name LIKE '%Hadi%'",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT id, name, email, role, open_id FROM users WHERE open_id = 'NBhoM6gPqobHciGX6Ktdh4' OR email = 'hjthian@gmail.com' OR name LIKE '%Hadi%'",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'open_id' in 'where clause'"
+  ]
+}

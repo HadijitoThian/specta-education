@@ -164,6 +164,27 @@ ${allPages.map(p => `  <url>
     }
   });
 
+  // ==========================================
+  // Real-time visitor tracking endpoint (Feature 1)
+  // Receives tracking data from frontend useVisitorTracking hook
+  // ==========================================
+  app.post("/api/track/visitor", async (req, res) => {
+    try {
+      const body = req.body;
+      if (!body || !body.sessionId) {
+        console.warn("[Visitor Track] Missing sessionId in body:", JSON.stringify(body).substring(0, 200));
+        res.status(204).end();
+        return;
+      }
+      const { trackVisitorBehavior } = await import("../agentLeadHunter");
+      await trackVisitorBehavior(body);
+      res.status(204).end();
+    } catch (e) {
+      console.error("[Visitor Track] Error:", e);
+      res.status(204).end();
+    }
+  });
+
   // Partnership outreach approval via email link
   app.get("/api/partnership-approval", async (req, res) => {
     try {

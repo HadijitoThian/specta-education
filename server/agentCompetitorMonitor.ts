@@ -144,12 +144,36 @@ export async function runCompetitorMonitorAgent(): Promise<{
     const db = await getDb();
     if (!db) throw new Error("Database not available");
 
-    // Task 1: Analyze each competitor using AI
+    // Task 0: Run REAL competitor website scraper first
+    let realScanResults: any = null;
+    try {
+      const { runCompetitorScan } = await import("./competitorScraper");
+      realScanResults = await runCompetitorScan();
+      console.log(`[Competitor Monitor] Real scraper: ${realScanResults.competitorsScanned} sites scanned, ${realScanResults.changesDetected} changes`);
+    } catch (scrapeErr) {
+      console.error("[Competitor Monitor] Real scraper failed:", scrapeErr);
+    }
+
+    // Task 0b: Run REAL Google ranking tracker
+    let rankingResults: any = null;
+    try {
+      const { runRankingCheck } = await import("./googleRankingTracker");
+      rankingResults = await runRankingCheck();
+      console.log(`[Competitor Monitor] Ranking check: ${rankingResults.keywordsChecked} keywords, ${rankingResults.ourRankings.filter((r: any) => r.position).length} found`);
+    } catch (rankErr) {
+      console.error("[Competitor Monitor] Ranking check failed:", rankErr);
+    }
+
+    // Task 1: Analyze each competitor using AI (enriched with real data)
     const competitorInsights: any[] = [];
     
     for (const competitor of COMPETITORS) {
       try {
-        const insight = await analyzeCompetitor(competitor, db);
+        // Enrich with real scraper data if available
+        const realChanges = realScanResults?.significantChanges?.filter(
+          (c: any) => c.competitor === competitor.name
+        ) || [];
+        const insight = await analyzeCompetitor(competitor, db, realChanges, rankingResults);
         if (insight) {
           competitorInsights.push(insight);
           competitorsAnalyzed++;
@@ -211,7 +235,7 @@ export async function runCompetitorMonitorAgent(): Promise<{
 // ==========================================
 // Analyze Individual Competitor
 // ==========================================
-async function analyzeCompetitor(competitor: typeof COMPETITORS[0], db: any): Promise<any> {
+async function analyzeCompetitor(competitor: typeof COMPETITORS[0], db: any, realChanges: any[] = [], rankingData: any = null): Promise<any> {
   try {
     const response = await invokeLLM({
       messages: [
@@ -229,6 +253,8 @@ Consider:
 - SEO and digital marketing strategies
 - Partnership announcements
 - Any threats or opportunities for SpecTa Education
+- REAL website changes detected by our scraper (if provided)
+- REAL Google ranking data (if provided)
 
 Return JSON with:
 - competitorName: string
@@ -254,6 +280,9 @@ Known Strengths: ${competitor.strengths.join(", ")}
 Social Media: ${JSON.stringify(competitor.socialMedia)}
 
 Date: ${new Date().toLocaleDateString("en-US")}
+
+${realChanges.length > 0 ? `\n\nREAL WEBSITE CHANGES DETECTED:\n${realChanges.map((c: any) => `- ${c.changeType}: ${c.details}`).join("\n")}` : ""}
+${rankingData ? `\n\nREAL GOOGLE RANKING DATA:\n${rankingData.competitorRankings?.filter((r: any) => r.competitor.includes(competitor.website.replace("www.", ""))).map((r: any) => `- Avg position: ${r.avgPosition} for ${r.keywords} keywords`).join("\n") || "No ranking data for this competitor"}` : ""}
 
 Provide your competitive intelligence analysis.`
         }

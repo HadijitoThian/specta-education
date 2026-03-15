@@ -4793,6 +4793,68 @@ Return JSON with the refined article:
         return { success: true };
       }),
 
+    // ---- Real Data Feature Endpoints (Phase 2) ----
+
+    // Run real Google ranking check
+    runRankingCheck: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { runRankingCheck } = await import("./googleRankingTracker");
+        return await runRankingCheck();
+      }),
+
+    // Get latest ranking data
+    getRankingData: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { getLatestRankingData } = await import("./googleRankingTracker");
+        return await getLatestRankingData();
+      }),
+
+    // Run real competitor website scan
+    runCompetitorScan: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { runCompetitorScan } = await import("./competitorScraper");
+        return await runCompetitorScan();
+      }),
+
+    // Get competitor scan data
+    getCompetitorScanData: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { getCompetitorScanData } = await import("./competitorScraper");
+        return await getCompetitorScanData();
+      }),
+
+    // Run real social media scan
+    runSocialMediaScan: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { runSocialMediaScan } = await import("./socialMediaScraper");
+        return await runSocialMediaScan();
+      }),
+
+    // Get social media data
+    getSocialMediaData: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { getSocialMediaData } = await import("./socialMediaScraper");
+        return await getSocialMediaData();
+      }),
+
     // ---- Partnership Outreach Approval Workflow ----
 
     // Get pending approval drafts

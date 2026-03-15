@@ -36,8 +36,12 @@ import Simulator from "./pages/Simulator";
 import SimulatorExperience from "./pages/SimulatorExperience";
 import SimulatorReport from "./pages/SimulatorReport";
 import AgentCommandCenter from "./pages/AgentCommandCenter";
+import { useVisitorTracking } from "./hooks/useVisitorTracking";
 
 function Router() {
+  // Track real visitor behavior on every page
+  useVisitorTracking();
+
   return (
     <Switch>
       <Route path={"/"} component={Home} />

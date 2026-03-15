@@ -1,0 +1,43 @@
+{
+  "query": "SELECT * FROM users WHERE openId = 'NBhoM6gPqobHciGX6Ktdh4' OR email = 'hjthian@gmail.com' OR name LIKE '%Hadi%'",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT * FROM users WHERE openId = 'NBhoM6gPqobHciGX6Ktdh4' OR email = 'hjthian@gmail.com' OR name LIKE '%Hadi%'",
+  "rows": [
+    {
+      "id": "210011",
+      "openId": "T2h4kDnWhSNNfT6dtF9WFp",
+      "name": "Hadijito Thian",
+      "email": "hadijitothian@gmail.com",
+      "loginMethod": "google",
+      "role": "user",
+      "createdAt": "2026-02-10 17:51:47",
+      "updatedAt": "2026-02-11 04:30:59",
+      "lastSignedIn": "2026-02-11 04:30:59"
+    },
+    {
+      "id": "570010",
+      "openId": "fTJYbZHTisjDUq6nkP3NMm",
+      "name": "hadi",
+      "email": "hadi@spectaeducation.com",
+      "loginMethod": "email",
+      "role": "user",
+      "createdAt": "2026-02-11 14:10:35",
+      "updatedAt": "2026-02-13 12:19:14",
+      "lastSignedIn": "2026-02-13 12:19:14"
+    },
+    {
+      "id": "1860103",
+      "openId": "NBhoM6gPqobHciGX6Ktdh4",
+      "name": "Hadi Jito Thian",
+      "email": "hjthian@gmail.com",
+      "loginMethod": "google",
+      "role": "user",
+      "createdAt": "2026-03-15 04:37:16",
+      "updatedAt": "2026-03-15 04:57:06",
+      "lastSignedIn": "2026-03-15 04:57:06"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\topenId\tname\temail\tloginMethod\trole\tcreatedAt\tupdatedAt\tlastSignedIn\n210011\tT2h4kDnWhSNNfT6dtF9WFp\tHadijito Thian\thadijitothian@gmail.com\tgoogle\tuser\t2026-02-10 17:51:47\t2026-02-11 04:30:59\t2026-02-11 04:30:59\n570010\tfTJYbZHTisjDUq6nkP3NMm\thadi\thadi@spectaeducation.com\temail\tuser\t2026-02-11 14:10:35\t2026-02-13 12:19:14\t2026-02-13 12:19:14\n1860103\tNBhoM6gPqobHciGX6Ktdh4\tHadi Jito Thian\thjthian@gmail.com\tgoogle\tuser\t2026-03-15 04:37:16\t2026-03-15 04:57:06\t2026-03-15 04:57:06\n",
+  "stderr": "",
+  "execution_time_ms": 1538
+}
