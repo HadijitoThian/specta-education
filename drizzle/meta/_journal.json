@@ -148,6 +148,13 @@
       "when": 1771961301664,
       "tag": "0020_ordinary_jackal",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "5",
+      "when": 1773543791642,
+      "tag": "0021_cuddly_ulik",
+      "breakpoints": true
     }
   ]
 }

@@ -747,3 +747,147 @@ export const blogComments = mysqlTable("blog_comments", {
 
 export type BlogComment = typeof blogComments.$inferSelect;
 export type InsertBlogComment = typeof blogComments.$inferInsert;
+
+
+// ==========================================
+// AI Agents Command Center Tables
+// ==========================================
+
+/**
+ * Agent configurations - settings for each AI agent
+ */
+export const agentConfigs = mysqlTable("agent_configs", {
+  id: int("id").autoincrement().primaryKey(),
+  agentName: varchar("agentName", { length: 100 }).notNull().unique(), // e.g. "crm_distributor", "seo_builder", "central_reporter"
+  displayName: varchar("displayName", { length: 255 }).notNull(),
+  description: text("description"),
+  isActive: boolean("isActive").default(true).notNull(),
+  settings: text("settings"), // JSON: agent-specific config (e.g. follow-up intervals, article frequency)
+  lastRunAt: timestamp("lastRunAt"),
+  nextRunAt: timestamp("nextRunAt"),
+  runIntervalMinutes: int("runIntervalMinutes").default(60).notNull(), // how often to run
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AgentConfig = typeof agentConfigs.$inferSelect;
+export type InsertAgentConfig = typeof agentConfigs.$inferInsert;
+
+/**
+ * Agent run logs - tracks every execution of each agent
+ */
+export const agentRunLogs = mysqlTable("agent_run_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  agentName: varchar("agentName", { length: 100 }).notNull(),
+  status: mysqlEnum("status", ["running", "success", "failed", "partial"]).default("running").notNull(),
+  summary: text("summary"), // Human-readable summary of what the agent did
+  details: text("details"), // JSON: detailed execution data
+  itemsProcessed: int("itemsProcessed").default(0).notNull(),
+  itemsSucceeded: int("itemsSucceeded").default(0).notNull(),
+  itemsFailed: int("itemsFailed").default(0).notNull(),
+  errorMessage: text("errorMessage"),
+  durationMs: int("durationMs"),
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AgentRunLog = typeof agentRunLogs.$inferSelect;
+export type InsertAgentRunLog = typeof agentRunLogs.$inferInsert;
+
+/**
+ * Lead assignments - tracks which counselor is assigned to which lead
+ * with follow-up scheduling and escalation tracking
+ */
+export const leadAssignments = mysqlTable("lead_assignments", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  leadSource: varchar("leadSource", { length: 50 }).notNull(), // "chatbot", "contact_form", "scholarship", "quiz", "whatsapp", "aptitude"
+  counselorId: int("counselorId").notNull(), // references counselors.id
+  counselorName: varchar("counselorName", { length: 255 }).notNull(),
+  counselorEmail: varchar("counselorEmail", { length: 320 }).notNull(),
+  studentName: varchar("studentName", { length: 255 }).notNull(),
+  studentEmail: varchar("studentEmail", { length: 320 }),
+  studentPhone: varchar("studentPhone", { length: 50 }),
+  preferredCountry: varchar("preferredCountry", { length: 100 }),
+  status: mysqlEnum("status", ["assigned", "contacted", "follow_up", "qualified", "converted", "closed", "escalated"]).default("assigned").notNull(),
+  priority: mysqlEnum("priority", ["low", "medium", "high", "urgent"]).default("medium").notNull(),
+  lastContactedAt: timestamp("lastContactedAt"),
+  nextFollowUpAt: timestamp("nextFollowUpAt"),
+  followUpCount: int("followUpCount").default(0).notNull(),
+  escalatedAt: timestamp("escalatedAt"),
+  escalationReason: text("escalationReason"),
+  notes: text("notes"),
+  assignedAt: timestamp("assignedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type LeadAssignment = typeof leadAssignments.$inferSelect;
+export type InsertLeadAssignment = typeof leadAssignments.$inferInsert;
+
+/**
+ * Follow-up actions - individual follow-up emails/actions for each lead assignment
+ */
+export const followUpActions = mysqlTable("follow_up_actions", {
+  id: int("id").autoincrement().primaryKey(),
+  assignmentId: int("assignmentId").notNull(), // references lead_assignments.id
+  actionType: mysqlEnum("actionType", ["email_student", "email_counselor", "escalation", "reminder"]).notNull(),
+  dayOffset: int("dayOffset").notNull(), // days after assignment (0 = immediate, 1 = day 1, etc.)
+  subject: varchar("subject", { length: 500 }),
+  content: text("content"), // email body or action description
+  status: mysqlEnum("status", ["pending", "sent", "failed", "skipped"]).default("pending").notNull(),
+  scheduledAt: timestamp("scheduledAt").notNull(),
+  sentAt: timestamp("sentAt"),
+  errorMessage: text("errorMessage"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type FollowUpAction = typeof followUpActions.$inferSelect;
+export type InsertFollowUpAction = typeof followUpActions.$inferInsert;
+
+/**
+ * SEO content calendar - planned and generated articles
+ */
+export const seoContentCalendar = mysqlTable("seo_content_calendar", {
+  id: int("id").autoincrement().primaryKey(),
+  targetKeyword: varchar("targetKeyword", { length: 255 }).notNull(),
+  secondaryKeywords: text("secondaryKeywords"), // JSON array of related keywords
+  title: varchar("title", { length: 500 }),
+  titleId: varchar("titleId", { length: 500 }), // Indonesian title
+  slug: varchar("slug", { length: 500 }),
+  contentBrief: text("contentBrief"), // AI-generated content brief
+  language: mysqlEnum("language", ["id", "en"]).default("id").notNull(),
+  category: varchar("category", { length: 100 }), // e.g. "study_australia", "ielts_tips", "scholarships"
+  status: mysqlEnum("status", ["planned", "generating", "generated", "review", "published", "failed"]).default("planned").notNull(),
+  blogPostId: int("blogPostId"), // references blog_posts.id after publishing
+  scheduledDate: varchar("scheduledDate", { length: 20 }), // YYYY-MM-DD
+  publishedAt: timestamp("publishedAt"),
+  searchVolume: int("searchVolume"), // estimated monthly search volume
+  difficulty: varchar("difficulty", { length: 20 }), // "easy", "medium", "hard"
+  agentRunId: int("agentRunId"), // which agent run generated this
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SeoContentCalendar = typeof seoContentCalendar.$inferSelect;
+export type InsertSeoContentCalendar = typeof seoContentCalendar.$inferInsert;
+
+/**
+ * Daily reports - stores generated daily reports for history
+ */
+export const dailyReports = mysqlTable("daily_reports", {
+  id: int("id").autoincrement().primaryKey(),
+  reportDate: varchar("reportDate", { length: 20 }).notNull(), // YYYY-MM-DD
+  reportType: mysqlEnum("reportType", ["daily_summary", "weekly_summary", "monthly_summary"]).default("daily_summary").notNull(),
+  htmlContent: text("htmlContent").notNull(), // full HTML email content
+  summary: text("summary"), // plain text summary
+  metrics: text("metrics"), // JSON: key metrics snapshot
+  sentTo: varchar("sentTo", { length: 320 }).notNull(),
+  sentAt: timestamp("sentAt"),
+  status: mysqlEnum("status", ["generated", "sent", "failed"]).default("generated").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type DailyReport = typeof dailyReports.$inferSelect;
+export type InsertDailyReport = typeof dailyReports.$inferInsert;

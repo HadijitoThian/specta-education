@@ -35,6 +35,7 @@ import BlogPost from "./pages/BlogPost";
 import Simulator from "./pages/Simulator";
 import SimulatorExperience from "./pages/SimulatorExperience";
 import SimulatorReport from "./pages/SimulatorReport";
+import AgentCommandCenter from "./pages/AgentCommandCenter";
 
 function Router() {
   return (
@@ -66,6 +67,7 @@ function Router() {
       <Route path={"/staff-login"} component={StaffLogin} />
       <Route path={"/staff-dashboard"} component={StaffDashboard} />
       <Route path={"/admin"} component={AdminDashboard} />
+      <Route path={"/admin/agents"} component={AgentCommandCenter} />
       <Route path={"/blog"} component={Blog} />
       <Route path={"/blog/:slug"} component={BlogPost} />
       <Route path={"/simulator"} component={Simulator} />

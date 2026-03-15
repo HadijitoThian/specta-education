@@ -1,0 +1,613 @@
+/**
+ * Agent 2 — CRM & Follow-Up Distributor
+ * 
+ * Responsibilities:
+ * 1. Scan all lead sources for unassigned leads
+ * 2. Assign leads to counselors using round-robin + workload balancing
+ * 3. Create follow-up email sequences for each assignment
+ * 4. Process due follow-up actions (send emails)
+ * 5. Escalate stale leads (no contact after 48h)
+ * 6. Notify counselors of new assignments
+ */
+
+import {
+  getAllLeads,
+  getAllScholarshipLeads,
+  getAllCounselors,
+  getLeadAssignmentByLeadId,
+  createLeadAssignment,
+  createFollowUpAction,
+  getDueFollowUpActions,
+  updateFollowUpAction,
+  updateLeadAssignment,
+  getStaleAssignments,
+  createAgentRunLog,
+  updateAgentRunLog,
+  updateAgentConfig,
+  getAllLeadAssignments,
+  getFollowUpActionsByAssignment,
+} from "./db";
+import { sendEmail } from "./email";
+import { notifyOwner } from "./_core/notification";
+
+// Counselor roster with specializations
+const COUNSELOR_ROSTER = [
+  { name: "Fitriana", email: "fitriana@spectaeducation.com" },
+  { name: "Wulan", email: "wulan@spectaeducation.com" },
+  { name: "Jenny", email: "jenny@spectaeducation.com" },
+  { name: "Intar", email: "intar@spectaeducation.com" },
+  { name: "Nezwa", email: "nezwa@spectaeducation.com" },
+];
+
+// Follow-up schedule: day offsets and email types
+const FOLLOW_UP_SCHEDULE = [
+  { dayOffset: 0, type: "email_counselor" as const, subject: "🔔 New Lead Assigned: {{studentName}}", template: "counselor_assignment" },
+  { dayOffset: 0, type: "email_student" as const, subject: "Welcome to SpecTa Education! 🎓", template: "student_welcome" },
+  { dayOffset: 1, type: "reminder" as const, subject: "Reminder: Follow up with {{studentName}}", template: "counselor_reminder_1" },
+  { dayOffset: 3, type: "email_student" as const, subject: "How can we help you study abroad? 🌏", template: "student_followup_1" },
+  { dayOffset: 7, type: "reminder" as const, subject: "⚠️ 7-day follow-up: {{studentName}}", template: "counselor_reminder_2" },
+  { dayOffset: 14, type: "email_student" as const, subject: "Your study abroad journey awaits! ✈️", template: "student_followup_2" },
+  { dayOffset: 30, type: "email_student" as const, subject: "Still thinking about studying abroad? 🤔", template: "student_followup_3" },
+];
+
+/**
+ * Main agent execution function
+ */
+export async function runCrmDistributorAgent(): Promise<{
+  leadsAssigned: number;
+  followUpsSent: number;
+  escalations: number;
+  errors: number;
+}> {
+  const startTime = Date.now();
+  let leadsAssigned = 0;
+  let followUpsSent = 0;
+  let escalations = 0;
+  let errors = 0;
+
+  // Create run log
+  const runLog = await createAgentRunLog({
+    agentName: "crm_distributor",
+    status: "running",
+    summary: "Starting CRM distribution cycle...",
+    startedAt: new Date(),
+  });
+
+  try {
+    // Step 1: Assign unassigned leads
+    const assignResult = await assignUnassignedLeads();
+    leadsAssigned = assignResult.assigned;
+    errors += assignResult.errors;
+
+    // Step 2: Process due follow-up actions
+    const followUpResult = await processDueFollowUps();
+    followUpsSent = followUpResult.sent;
+    errors += followUpResult.errors;
+
+    // Step 3: Escalate stale leads
+    const escalationResult = await escalateStaleLeads();
+    escalations = escalationResult.escalated;
+    errors += escalationResult.errors;
+
+    // Update run log
+    if (runLog) {
+      await updateAgentRunLog(runLog.id, {
+        status: errors > 0 ? "partial" : "success",
+        summary: `Assigned ${leadsAssigned} leads, sent ${followUpsSent} follow-ups, escalated ${escalations} leads`,
+        details: JSON.stringify({ leadsAssigned, followUpsSent, escalations, errors }),
+        itemsProcessed: leadsAssigned + followUpsSent + escalations,
+        itemsSucceeded: leadsAssigned + followUpsSent + escalations - errors,
+        itemsFailed: errors,
+        durationMs: Date.now() - startTime,
+        completedAt: new Date(),
+      });
+    }
+
+    // Update agent config
+    await updateAgentConfig("crm_distributor", {
+      lastRunAt: new Date(),
+      nextRunAt: new Date(Date.now() + 60 * 60 * 1000), // next run in 1 hour
+    });
+
+  } catch (err) {
+    console.error("[CRM Agent] Fatal error:", err);
+    if (runLog) {
+      await updateAgentRunLog(runLog.id, {
+        status: "failed",
+        errorMessage: err instanceof Error ? err.message : String(err),
+        durationMs: Date.now() - startTime,
+        completedAt: new Date(),
+      });
+    }
+  }
+
+  return { leadsAssigned, followUpsSent, escalations, errors };
+}
+
+/**
+ * Scan all lead sources and assign unassigned leads to counselors
+ */
+async function assignUnassignedLeads(): Promise<{ assigned: number; errors: number }> {
+  let assigned = 0;
+  let errors = 0;
+
+  try {
+    // Get active counselors from DB, fallback to roster
+    let counselors = await getAllCounselors(true);
+    if (counselors.length === 0) {
+      // Use hardcoded roster
+      counselors = COUNSELOR_ROSTER.map((c, i) => ({
+        id: i + 1,
+        name: c.name,
+        email: c.email,
+        phone: null,
+        specialization: null,
+        isActive: true,
+        activeApplications: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+    }
+
+    // Get existing assignments to calculate workload
+    const existingAssignments = await getAllLeadAssignments();
+    const counselorWorkload: Record<string, number> = {};
+    for (const c of counselors) {
+      counselorWorkload[c.email] = 0;
+    }
+    for (const a of existingAssignments) {
+      if (!["converted", "closed"].includes(a.status)) {
+        counselorWorkload[a.counselorEmail] = (counselorWorkload[a.counselorEmail] || 0) + 1;
+      }
+    }
+
+    // Source 1: Chatbot leads
+    const chatbotLeads = await getAllLeads();
+    for (const lead of chatbotLeads) {
+      if (lead.status === "new" || !lead.assignedTo) {
+        const existing = await getLeadAssignmentByLeadId(lead.id, "chatbot");
+        if (!existing) {
+          const counselor = pickCounselor(counselors, counselorWorkload);
+          if (counselor) {
+            try {
+              await createLeadAssignment({
+                leadId: lead.id,
+                leadSource: "chatbot",
+                counselorId: counselor.id,
+                counselorName: counselor.name,
+                counselorEmail: counselor.email,
+                studentName: lead.studentName || "Unknown Student",
+                studentEmail: lead.studentEmail || undefined,
+                studentPhone: lead.studentPhone || undefined,
+                preferredCountry: lead.preferredCountry || undefined,
+                status: "assigned",
+                priority: determinePriority(lead),
+                nextFollowUpAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h
+              });
+              counselorWorkload[counselor.email] = (counselorWorkload[counselor.email] || 0) + 1;
+              assigned++;
+
+              // Create follow-up schedule
+              await createFollowUpSchedule(0, counselor, lead.studentName || "Student", lead.studentEmail, lead.studentPhone, lead.preferredCountry);
+            } catch (err) {
+              console.error(`[CRM Agent] Failed to assign lead ${lead.id}:`, err);
+              errors++;
+            }
+          }
+        }
+      }
+    }
+
+    // Source 2: Scholarship leads
+    const scholarshipLeads = await getAllScholarshipLeads();
+    for (const lead of scholarshipLeads) {
+      if (lead.status === "new") {
+        const existing = await getLeadAssignmentByLeadId(lead.id, "scholarship");
+        if (!existing) {
+          const counselor = pickCounselor(counselors, counselorWorkload);
+          if (counselor) {
+            try {
+              await createLeadAssignment({
+                leadId: lead.id,
+                leadSource: "scholarship",
+                counselorId: counselor.id,
+                counselorName: counselor.name,
+                counselorEmail: counselor.email,
+                studentName: lead.studentName,
+                studentEmail: lead.studentEmail,
+                studentPhone: lead.studentPhone,
+                status: "assigned",
+                priority: "high", // scholarship leads are high priority
+                nextFollowUpAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+              });
+              counselorWorkload[counselor.email] = (counselorWorkload[counselor.email] || 0) + 1;
+              assigned++;
+
+              await createFollowUpSchedule(0, counselor, lead.studentName, lead.studentEmail, lead.studentPhone);
+            } catch (err) {
+              console.error(`[CRM Agent] Failed to assign scholarship lead ${lead.id}:`, err);
+              errors++;
+            }
+          }
+        }
+      }
+    }
+
+    console.log(`[CRM Agent] Assigned ${assigned} new leads (${errors} errors)`);
+  } catch (err) {
+    console.error("[CRM Agent] Error in assignUnassignedLeads:", err);
+    errors++;
+  }
+
+  return { assigned, errors };
+}
+
+/**
+ * Pick the counselor with the lowest workload (round-robin with balancing)
+ */
+function pickCounselor(
+  counselors: Array<{ id: number; name: string; email: string }>,
+  workload: Record<string, number>
+): { id: number; name: string; email: string } | null {
+  if (counselors.length === 0) return null;
+
+  let minLoad = Infinity;
+  let selected = counselors[0];
+
+  for (const c of counselors) {
+    const load = workload[c.email] || 0;
+    if (load < minLoad) {
+      minLoad = load;
+      selected = c;
+    }
+  }
+
+  return selected;
+}
+
+/**
+ * Determine lead priority based on available data
+ */
+function determinePriority(lead: any): "low" | "medium" | "high" | "urgent" {
+  // Has phone + email + country = high intent
+  if (lead.studentPhone && lead.studentEmail && lead.preferredCountry) return "high";
+  // Has email + country = medium-high
+  if (lead.studentEmail && lead.preferredCountry) return "medium";
+  // Has phone = medium
+  if (lead.studentPhone) return "medium";
+  return "low";
+}
+
+/**
+ * Create the full follow-up schedule for a new assignment
+ */
+async function createFollowUpSchedule(
+  assignmentId: number,
+  counselor: { name: string; email: string },
+  studentName: string,
+  studentEmail?: string | null,
+  studentPhone?: string | null,
+  preferredCountry?: string | null
+): Promise<void> {
+  const now = new Date();
+
+  for (const step of FOLLOW_UP_SCHEDULE) {
+    const scheduledAt = new Date(now.getTime() + step.dayOffset * 24 * 60 * 60 * 1000);
+    const subject = step.subject
+      .replace("{{studentName}}", studentName)
+      .replace("{{counselorName}}", counselor.name);
+
+    // Skip student emails if no email available
+    if (step.type === "email_student" && !studentEmail) continue;
+
+    await createFollowUpAction({
+      assignmentId,
+      actionType: step.type,
+      dayOffset: step.dayOffset,
+      subject,
+      content: JSON.stringify({
+        template: step.template,
+        counselorName: counselor.name,
+        counselorEmail: counselor.email,
+        studentName,
+        studentEmail,
+        studentPhone,
+        preferredCountry,
+      }),
+      status: "pending",
+      scheduledAt,
+    });
+  }
+}
+
+/**
+ * Process all due follow-up actions
+ */
+async function processDueFollowUps(): Promise<{ sent: number; errors: number }> {
+  let sent = 0;
+  let errors = 0;
+
+  try {
+    const dueActions = await getDueFollowUpActions();
+    console.log(`[CRM Agent] Processing ${dueActions.length} due follow-up actions`);
+
+    for (const action of dueActions) {
+      try {
+        const data = JSON.parse(action.content || "{}");
+        let success = false;
+
+        if (action.actionType === "email_counselor") {
+          success = await sendCounselorNotification(data);
+        } else if (action.actionType === "email_student") {
+          success = await sendStudentFollowUp(data, action.dayOffset);
+        } else if (action.actionType === "reminder") {
+          success = await sendCounselorReminder(data, action.dayOffset);
+        } else if (action.actionType === "escalation") {
+          success = await sendEscalationAlert(data);
+        }
+
+        await updateFollowUpAction(action.id, {
+          status: success ? "sent" : "failed",
+          sentAt: success ? new Date() : undefined,
+          errorMessage: success ? undefined : "Email send failed",
+        });
+
+        if (success) sent++;
+        else errors++;
+      } catch (err) {
+        console.error(`[CRM Agent] Error processing follow-up ${action.id}:`, err);
+        await updateFollowUpAction(action.id, {
+          status: "failed",
+          errorMessage: err instanceof Error ? err.message : String(err),
+        });
+        errors++;
+      }
+    }
+  } catch (err) {
+    console.error("[CRM Agent] Error in processDueFollowUps:", err);
+    errors++;
+  }
+
+  return { sent, errors };
+}
+
+/**
+ * Escalate leads that have been assigned but not contacted for 48+ hours
+ */
+async function escalateStaleLeads(): Promise<{ escalated: number; errors: number }> {
+  let escalated = 0;
+  let errors = 0;
+
+  try {
+    const staleAssignments = await getStaleAssignments(48);
+    console.log(`[CRM Agent] Found ${staleAssignments.length} stale assignments to escalate`);
+
+    for (const assignment of staleAssignments) {
+      try {
+        await updateLeadAssignment(assignment.id, {
+          status: "escalated",
+          escalatedAt: new Date(),
+          escalationReason: "No contact within 48 hours of assignment",
+        });
+
+        // Send escalation email to admin
+        await sendEmail({
+          to: "hadi@spectaeducation.com",
+          subject: `⚠️ Lead Escalation: ${assignment.studentName} (assigned to ${assignment.counselorName})`,
+          html: buildEscalationEmail(assignment),
+        });
+
+        escalated++;
+      } catch (err) {
+        console.error(`[CRM Agent] Error escalating assignment ${assignment.id}:`, err);
+        errors++;
+      }
+    }
+  } catch (err) {
+    console.error("[CRM Agent] Error in escalateStaleLeads:", err);
+    errors++;
+  }
+
+  return { escalated, errors };
+}
+
+// ==========================================
+// Email Templates
+// ==========================================
+
+function sendCounselorNotification(data: any): Promise<boolean> {
+  return sendEmail({
+    to: data.counselorEmail,
+    subject: `🔔 New Lead Assigned: ${data.studentName}`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:20px;">
+    <div style="background:#fff;border-radius:12px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+      <div style="text-align:center;margin-bottom:24px;">
+        <h2 style="color:#e53e3e;margin:0;">SpecTa Education</h2>
+        <p style="color:#666;margin:4px 0 0;">AI Agent CRM System</p>
+      </div>
+      <h3 style="color:#1a1a1a;">Hi ${data.counselorName}, you have a new lead! 🎯</h3>
+      <div style="background:#f8f9fa;border-radius:8px;padding:16px;margin:16px 0;border-left:4px solid #e53e3e;">
+        <p style="margin:4px 0;"><strong>Student:</strong> ${data.studentName}</p>
+        ${data.studentEmail ? `<p style="margin:4px 0;"><strong>Email:</strong> ${data.studentEmail}</p>` : ""}
+        ${data.studentPhone ? `<p style="margin:4px 0;"><strong>Phone:</strong> ${data.studentPhone}</p>` : ""}
+        ${data.preferredCountry ? `<p style="margin:4px 0;"><strong>Interested in:</strong> ${data.preferredCountry}</p>` : ""}
+      </div>
+      <p style="color:#333;line-height:1.6;">Please reach out to this student within <strong>24 hours</strong>. The AI system will track your follow-up progress.</p>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="https://www.spectaeducation.com/staff-dashboard" style="display:inline-block;background:#e53e3e;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;">View in Dashboard</a>
+      </div>
+      <div style="text-align:center;color:#999;font-size:12px;margin-top:24px;padding-top:16px;border-top:1px solid #eee;">
+        <p>© ${new Date().getFullYear()} SpecTa Education AI Agent System</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`,
+  });
+}
+
+function sendStudentFollowUp(data: any, dayOffset: number): Promise<boolean> {
+  if (!data.studentEmail) return Promise.resolve(false);
+
+  const templates: Record<number, { subject: string; body: string }> = {
+    0: {
+      subject: "Welcome to SpecTa Education! 🎓",
+      body: `
+        <h3>Hai ${data.studentName}! 👋</h3>
+        <p>Terima kasih sudah menghubungi SpecTa Education! Kami sangat senang bisa membantu perjalanan studi kamu ke luar negeri.</p>
+        <p>Konselor kami, <strong>${data.counselorName}</strong>, akan segera menghubungi kamu untuk membahas rencana studi kamu lebih lanjut.</p>
+        <p><em>Thank you for reaching out to SpecTa Education! We're excited to help you with your study abroad journey. Our counselor, <strong>${data.counselorName}</strong>, will contact you soon.</em></p>
+        <div style="text-align:center;margin:24px 0;">
+          <a href="https://www.spectaeducation.com/book" style="display:inline-block;background:#e53e3e;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;">Book a Free Consultation</a>
+        </div>
+      `,
+    },
+    3: {
+      subject: "How can we help you study abroad? 🌏",
+      body: `
+        <h3>Hai ${data.studentName}! 🌟</h3>
+        <p>Sudah beberapa hari sejak kamu menghubungi kami. Apakah ada pertanyaan tentang kuliah di luar negeri yang bisa kami bantu?</p>
+        ${data.preferredCountry ? `<p>Kami melihat kamu tertarik untuk belajar di <strong>${data.preferredCountry}</strong> — kami punya banyak informasi dan partner universitas di sana!</p>` : ""}
+        <p><em>It's been a few days since you reached out. Do you have any questions about studying abroad that we can help with?</em></p>
+        <div style="text-align:center;margin:24px 0;">
+          <a href="https://www.spectaeducation.com/destinations" style="display:inline-block;background:#e53e3e;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;">Explore Destinations</a>
+        </div>
+      `,
+    },
+    14: {
+      subject: "Your study abroad journey awaits! ✈️",
+      body: `
+        <h3>Hai ${data.studentName}! ✈️</h3>
+        <p>Kami ingin mengingatkan bahwa SpecTa Education siap membantu kamu kapan saja. Jangan ragu untuk menghubungi kami jika ada pertanyaan!</p>
+        <p>Tahukah kamu? Kami juga menyediakan:</p>
+        <ul>
+          <li>🎯 Tes Bakat AI untuk menemukan jurusan yang cocok</li>
+          <li>📚 Persiapan IELTS dengan jaminan skor</li>
+          <li>🏫 Bantuan aplikasi ke 500+ universitas partner</li>
+          <li>💰 Informasi beasiswa terbaru</li>
+        </ul>
+        <div style="text-align:center;margin:24px 0;">
+          <a href="https://www.spectaeducation.com/play/aptitude" style="display:inline-block;background:#e53e3e;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;">Take Free Aptitude Test</a>
+        </div>
+      `,
+    },
+    30: {
+      subject: "Still thinking about studying abroad? 🤔",
+      body: `
+        <h3>Hai ${data.studentName}! 🤔</h3>
+        <p>Sudah sebulan sejak kamu pertama kali menghubungi SpecTa Education. Kami masih di sini untuk membantu!</p>
+        <p>Banyak mahasiswa kami yang memulai perjalanan mereka dengan satu pertanyaan sederhana. Jika kamu siap untuk mengambil langkah selanjutnya, kami siap membantu.</p>
+        <div style="text-align:center;margin:24px 0;">
+          <a href="https://www.spectaeducation.com/contact" style="display:inline-block;background:#e53e3e;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;">Contact Us</a>
+        </div>
+      `,
+    },
+  };
+
+  const template = templates[dayOffset];
+  if (!template) return Promise.resolve(false);
+
+  return sendEmail({
+    to: data.studentEmail,
+    subject: template.subject,
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:20px;">
+    <div style="background:#fff;border-radius:12px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+      <div style="text-align:center;margin-bottom:24px;">
+        <h2 style="color:#e53e3e;margin:0;">SpecTa Education</h2>
+      </div>
+      <div style="color:#333;line-height:1.6;font-size:15px;">
+        ${template.body}
+      </div>
+      <div style="text-align:center;color:#999;font-size:12px;margin-top:24px;padding-top:16px;border-top:1px solid #eee;">
+        <p>© ${new Date().getFullYear()} SpecTa Education • <a href="https://spectaeducation.com" style="color:#e53e3e;">spectaeducation.com</a></p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`,
+  });
+}
+
+function sendCounselorReminder(data: any, dayOffset: number): Promise<boolean> {
+  const urgency = dayOffset >= 7 ? "⚠️ URGENT" : "📋 Reminder";
+
+  return sendEmail({
+    to: data.counselorEmail,
+    subject: `${urgency}: Follow up with ${data.studentName} (Day ${dayOffset})`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:20px;">
+    <div style="background:#fff;border-radius:12px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+      <div style="text-align:center;margin-bottom:24px;">
+        <h2 style="color:#e53e3e;margin:0;">SpecTa Education</h2>
+        <p style="color:#666;margin:4px 0 0;">AI Agent Follow-Up Reminder</p>
+      </div>
+      <h3 style="color:#1a1a1a;">${urgency}: Follow-up needed</h3>
+      <p style="color:#333;line-height:1.6;">Hi ${data.counselorName}, this is a Day ${dayOffset} reminder to follow up with your assigned lead:</p>
+      <div style="background:#fff3cd;border-radius:8px;padding:16px;margin:16px 0;border-left:4px solid #ffc107;">
+        <p style="margin:4px 0;"><strong>Student:</strong> ${data.studentName}</p>
+        ${data.studentEmail ? `<p style="margin:4px 0;"><strong>Email:</strong> ${data.studentEmail}</p>` : ""}
+        ${data.studentPhone ? `<p style="margin:4px 0;"><strong>Phone:</strong> ${data.studentPhone}</p>` : ""}
+      </div>
+      ${dayOffset >= 7 ? `<p style="color:#dc3545;font-weight:bold;">⚠️ This lead will be escalated to management if not contacted within 48 hours.</p>` : ""}
+      <div style="text-align:center;margin:24px 0;">
+        <a href="https://www.spectaeducation.com/staff-dashboard" style="display:inline-block;background:#e53e3e;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;">Open Dashboard</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`,
+  });
+}
+
+function sendEscalationAlert(data: any): Promise<boolean> {
+  return sendEmail({
+    to: "hadi@spectaeducation.com",
+    subject: `🚨 Lead Escalation: ${data.studentName}`,
+    html: buildEscalationEmail(data),
+  });
+}
+
+function buildEscalationEmail(assignment: any): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:20px;">
+    <div style="background:#fff;border-radius:12px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+      <div style="text-align:center;margin-bottom:24px;">
+        <h2 style="color:#dc3545;margin:0;">🚨 Lead Escalation Alert</h2>
+        <p style="color:#666;margin:4px 0 0;">SpecTa Education AI Agent System</p>
+      </div>
+      <p style="color:#333;line-height:1.6;">A lead has been escalated because the assigned counselor has not made contact within 48 hours.</p>
+      <div style="background:#f8d7da;border-radius:8px;padding:16px;margin:16px 0;border-left:4px solid #dc3545;">
+        <p style="margin:4px 0;"><strong>Student:</strong> ${assignment.studentName}</p>
+        <p style="margin:4px 0;"><strong>Email:</strong> ${assignment.studentEmail || "N/A"}</p>
+        <p style="margin:4px 0;"><strong>Phone:</strong> ${assignment.studentPhone || "N/A"}</p>
+        <p style="margin:4px 0;"><strong>Country Interest:</strong> ${assignment.preferredCountry || "N/A"}</p>
+        <p style="margin:4px 0;"><strong>Assigned to:</strong> ${assignment.counselorName} (${assignment.counselorEmail})</p>
+        <p style="margin:4px 0;"><strong>Assigned at:</strong> ${new Date(assignment.assignedAt).toLocaleString("en-US", { timeZone: "Asia/Jakarta" })}</p>
+      </div>
+      <p style="color:#333;line-height:1.6;"><strong>Action needed:</strong> Please reassign this lead or follow up directly.</p>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="https://www.spectaeducation.com/admin" style="display:inline-block;background:#dc3545;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;">Open Admin Dashboard</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+}

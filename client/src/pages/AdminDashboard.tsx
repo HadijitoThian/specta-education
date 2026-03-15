@@ -12,7 +12,7 @@ import {
   LogOut, Home, CalendarCheck, BookOpen, Search, ClipboardList, Edit, Save, X,
   UserPlus, Shield, Briefcase, BarChart3, Trash2, ToggleLeft, ToggleRight, Download,
   Upload, Eye, EyeOff, KeyRound, UserCog, RefreshCw, Link2, Copy, Plus, CheckCircle2, Building2,
-  CreditCard, TrendingUp, DollarSign
+  CreditCard, TrendingUp, DollarSign, Bot
 } from "lucide-react";
 import { Link } from "wouter";
 import { useEffect, useState } from "react";
@@ -435,6 +435,12 @@ export default function AdminDashboard() {
             </span>
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/admin/agents">
+              <Button variant="outline" size="sm" className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100">
+                <Bot className="w-4 h-4 mr-2" />
+                AI Agents
+              </Button>
+            </Link>
             <span className="text-sm text-muted-foreground">
               Welcome, {user?.name || 'Admin'}
             </span>

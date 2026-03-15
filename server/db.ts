@@ -33,7 +33,13 @@ import {
   blogComments, InsertBlogComment, BlogComment,
   simulatorSessions, InsertSimulatorSession, SimulatorSession,
   simulatorChoices, InsertSimulatorChoice, SimulatorChoice,
-  simulatorResults, InsertSimulatorResult, SimulatorResult
+  simulatorResults, InsertSimulatorResult, SimulatorResult,
+  agentConfigs, InsertAgentConfig, AgentConfig,
+  agentRunLogs, InsertAgentRunLog, AgentRunLog,
+  leadAssignments, InsertLeadAssignment, LeadAssignment,
+  followUpActions, InsertFollowUpAction, FollowUpAction,
+  seoContentCalendar, InsertSeoContentCalendar, SeoContentCalendar,
+  dailyReports, InsertDailyReport, DailyReport,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -2101,5 +2107,294 @@ export async function getSimulatorCompletionStats(): Promise<{ total: number; co
     completed: Number(stats?.completed || 0),
     inProgress: Number(stats?.inProgress || 0),
     abandoned: Number(stats?.abandoned || 0),
+  };
+}
+
+
+// ==========================================
+// AI Agent Command Center DB Helpers
+// ==========================================
+
+
+
+// --- Agent Configs ---
+export async function getAgentConfig(agentName: string): Promise<AgentConfig | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(agentConfigs).where(eq(agentConfigs.agentName, agentName)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getAllAgentConfigs(): Promise<AgentConfig[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(agentConfigs).orderBy(agentConfigs.agentName);
+}
+
+export async function upsertAgentConfig(data: InsertAgentConfig): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const existing = await getAgentConfig(data.agentName);
+  if (existing) {
+    await db.update(agentConfigs).set(data).where(eq(agentConfigs.agentName, data.agentName));
+  } else {
+    await db.insert(agentConfigs).values(data);
+  }
+}
+
+export async function updateAgentConfig(agentName: string, data: Partial<InsertAgentConfig>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(agentConfigs).set(data).where(eq(agentConfigs.agentName, agentName));
+}
+
+// --- Agent Run Logs ---
+export async function createAgentRunLog(data: InsertAgentRunLog): Promise<AgentRunLog | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(agentRunLogs).values(data);
+  const id = result[0].insertId;
+  const rows = await db.select().from(agentRunLogs).where(eq(agentRunLogs.id, id));
+  return rows[0] ?? null;
+}
+
+export async function updateAgentRunLog(id: number, data: Partial<InsertAgentRunLog>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(agentRunLogs).set(data).where(eq(agentRunLogs.id, id));
+}
+
+export async function getAgentRunLogs(agentName: string, limit = 20): Promise<AgentRunLog[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(agentRunLogs)
+    .where(eq(agentRunLogs.agentName, agentName))
+    .orderBy(desc(agentRunLogs.startedAt))
+    .limit(limit);
+}
+
+export async function getAllRecentAgentRuns(limit = 50): Promise<AgentRunLog[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(agentRunLogs)
+    .orderBy(desc(agentRunLogs.startedAt))
+    .limit(limit);
+}
+
+// --- Lead Assignments ---
+export async function createLeadAssignment(data: InsertLeadAssignment): Promise<LeadAssignment | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(leadAssignments).values(data);
+  const id = result[0].insertId;
+  const rows = await db.select().from(leadAssignments).where(eq(leadAssignments.id, id));
+  return rows[0] ?? null;
+}
+
+export async function getLeadAssignmentByLeadId(leadId: number, leadSource: string): Promise<LeadAssignment | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(leadAssignments)
+    .where(and(eq(leadAssignments.leadId, leadId), eq(leadAssignments.leadSource, leadSource)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getAllLeadAssignments(statusFilter?: string): Promise<LeadAssignment[]> {
+  const db = await getDb();
+  if (!db) return [];
+  if (statusFilter) {
+    return db.select().from(leadAssignments)
+      .where(eq(leadAssignments.status, statusFilter as any))
+      .orderBy(desc(leadAssignments.createdAt));
+  }
+  return db.select().from(leadAssignments).orderBy(desc(leadAssignments.createdAt));
+}
+
+export async function getLeadAssignmentsByCounselor(counselorEmail: string): Promise<LeadAssignment[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(leadAssignments)
+    .where(eq(leadAssignments.counselorEmail, counselorEmail))
+    .orderBy(desc(leadAssignments.createdAt));
+}
+
+export async function updateLeadAssignment(id: number, data: Partial<InsertLeadAssignment>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(leadAssignments).set(data).where(eq(leadAssignments.id, id));
+}
+
+export async function getUnassignedLeadsCount(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const allLeads = await getAllLeads();
+  let unassigned = 0;
+  for (const lead of allLeads) {
+    const assignment = await getLeadAssignmentByLeadId(lead.id, lead.source || "chatbot");
+    if (!assignment) unassigned++;
+  }
+  return unassigned;
+}
+
+export async function getStaleAssignments(hoursThreshold = 48): Promise<LeadAssignment[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const cutoff = new Date(Date.now() - hoursThreshold * 60 * 60 * 1000);
+  return db.select().from(leadAssignments)
+    .where(
+      and(
+        eq(leadAssignments.status, "assigned"),
+        lte(leadAssignments.assignedAt, cutoff)
+      )
+    )
+    .orderBy(leadAssignments.assignedAt);
+}
+
+// --- Follow-Up Actions ---
+export async function createFollowUpAction(data: InsertFollowUpAction): Promise<FollowUpAction | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(followUpActions).values(data);
+  const id = result[0].insertId;
+  const rows = await db.select().from(followUpActions).where(eq(followUpActions.id, id));
+  return rows[0] ?? null;
+}
+
+export async function getDueFollowUpActions(): Promise<FollowUpAction[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const now = new Date();
+  return db.select().from(followUpActions)
+    .where(
+      and(
+        eq(followUpActions.status, "pending"),
+        lte(followUpActions.scheduledAt, now)
+      )
+    )
+    .orderBy(followUpActions.scheduledAt);
+}
+
+export async function updateFollowUpAction(id: number, data: Partial<InsertFollowUpAction>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(followUpActions).set(data).where(eq(followUpActions.id, id));
+}
+
+export async function getFollowUpActionsByAssignment(assignmentId: number): Promise<FollowUpAction[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(followUpActions)
+    .where(eq(followUpActions.assignmentId, assignmentId))
+    .orderBy(followUpActions.dayOffset);
+}
+
+// --- SEO Content Calendar ---
+export async function createSeoContentEntry(data: InsertSeoContentCalendar): Promise<SeoContentCalendar | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(seoContentCalendar).values(data);
+  const id = result[0].insertId;
+  const rows = await db.select().from(seoContentCalendar).where(eq(seoContentCalendar.id, id));
+  return rows[0] ?? null;
+}
+
+export async function getAllSeoContentEntries(statusFilter?: string): Promise<SeoContentCalendar[]> {
+  const db = await getDb();
+  if (!db) return [];
+  if (statusFilter) {
+    return db.select().from(seoContentCalendar)
+      .where(eq(seoContentCalendar.status, statusFilter as any))
+      .orderBy(desc(seoContentCalendar.createdAt));
+  }
+  return db.select().from(seoContentCalendar).orderBy(desc(seoContentCalendar.createdAt));
+}
+
+export async function updateSeoContentEntry(id: number, data: Partial<InsertSeoContentCalendar>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(seoContentCalendar).set(data).where(eq(seoContentCalendar.id, id));
+}
+
+export async function getSeoContentByStatus(status: string): Promise<SeoContentCalendar[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(seoContentCalendar)
+    .where(eq(seoContentCalendar.status, status as any))
+    .orderBy(seoContentCalendar.scheduledDate);
+}
+
+// --- Daily Reports ---
+export async function createDailyReport(data: InsertDailyReport): Promise<DailyReport | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(dailyReports).values(data);
+  const id = result[0].insertId;
+  const rows = await db.select().from(dailyReports).where(eq(dailyReports.id, id));
+  return rows[0] ?? null;
+}
+
+export async function getDailyReportByDate(reportDate: string): Promise<DailyReport | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(dailyReports)
+    .where(eq(dailyReports.reportDate, reportDate))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getAllDailyReports(limit = 30): Promise<DailyReport[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(dailyReports)
+    .orderBy(desc(dailyReports.reportDate))
+    .limit(limit);
+}
+
+export async function updateDailyReport(id: number, data: Partial<InsertDailyReport>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(dailyReports).set(data).where(eq(dailyReports.id, id));
+}
+
+// --- Agent Dashboard Aggregates ---
+export async function getAgentDashboardStats() {
+  const db = await getDb();
+  if (!db) return null;
+
+  const configs = await getAllAgentConfigs();
+  const recentRuns = await getAllRecentAgentRuns(100);
+  const assignments = await getAllLeadAssignments();
+  const seoEntries = await getAllSeoContentEntries();
+  const reports = await getAllDailyReports(7);
+
+  // Calculate stats
+  const totalLeadsAssigned = assignments.length;
+  const activeLeads = assignments.filter(a => !["converted", "closed"].includes(a.status)).length;
+  const convertedLeads = assignments.filter(a => a.status === "converted").length;
+  const escalatedLeads = assignments.filter(a => a.status === "escalated").length;
+  
+  const articlesPublished = seoEntries.filter(e => e.status === "published").length;
+  const articlesPlanned = seoEntries.filter(e => e.status === "planned").length;
+  const articlesGenerating = seoEntries.filter(e => ["generating", "generated", "review"].includes(e.status)).length;
+
+  // Counselor workload
+  const counselorStats: Record<string, { assigned: number; contacted: number; converted: number }> = {};
+  for (const a of assignments) {
+    if (!counselorStats[a.counselorName]) {
+      counselorStats[a.counselorName] = { assigned: 0, contacted: 0, converted: 0 };
+    }
+    counselorStats[a.counselorName].assigned++;
+    if (a.status !== "assigned") counselorStats[a.counselorName].contacted++;
+    if (a.status === "converted") counselorStats[a.counselorName].converted++;
+  }
+
+  return {
+    agents: configs,
+    recentRuns,
+    leads: { total: totalLeadsAssigned, active: activeLeads, converted: convertedLeads, escalated: escalatedLeads },
+    seo: { published: articlesPublished, planned: articlesPlanned, inProgress: articlesGenerating },
+    counselorStats,
+    recentReports: reports,
   };
 }

@@ -188,6 +188,21 @@ import { sendProAccessLinkEmail, sendPaymentConfirmationEmail } from "./resendSe
 import { autoEnrollContact, processDripEmails, bulkEnrollAllLeads } from "./dripCampaignService";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
+import { triggerAgent, initializeAgents, startAgentScheduler } from "./agentScheduler";
+import {
+  getAllAgentConfigs,
+  updateAgentConfig,
+  getAgentRunLogs,
+  getAllRecentAgentRuns,
+  getAllLeadAssignments,
+  getLeadAssignmentsByCounselor,
+  updateLeadAssignment,
+  getAllSeoContentEntries,
+  updateSeoContentEntry,
+  getAllDailyReports,
+  getAgentDashboardStats,
+  getFollowUpActionsByAssignment,
+} from "./db";
 
 const SYSTEM_PROMPT = `You are SpecTa, the friendly AI counselor for SpecTa Education — an Indonesian study abroad consultancy. You genuinely care about each student and want the best for them. You chat like a supportive older sibling, not a search engine.
 
@@ -4579,9 +4594,142 @@ Return JSON with the refined article:
         return await getSimulatorCompletionStats();
       }),
   }),
+
+  // ==========================================
+  // AI Agent Command Center
+  // ==========================================
+  agents: router({
+    // Get dashboard stats
+    getDashboardStats: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return await getAgentDashboardStats();
+      }),
+
+    // Get all agent configs
+    getConfigs: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return await getAllAgentConfigs();
+      }),
+
+    // Toggle agent active/inactive
+    toggleAgent: protectedProcedure
+      .input(z.object({ agentName: z.string(), isActive: z.boolean() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        await updateAgentConfig(input.agentName, { isActive: input.isActive });
+        return { success: true };
+      }),
+
+    // Manually trigger an agent
+    triggerAgent: protectedProcedure
+      .input(z.object({ agentName: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const result = await triggerAgent(input.agentName);
+        return { success: true, result };
+      }),
+
+    // Get agent run logs
+    getRunLogs: protectedProcedure
+      .input(z.object({ agentName: z.string().optional(), limit: z.number().default(20) }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        if (input.agentName) {
+          return await getAgentRunLogs(input.agentName, input.limit);
+        }
+        return await getAllRecentAgentRuns(input.limit);
+      }),
+
+    // Get lead assignments
+    getLeadAssignments: protectedProcedure
+      .input(z.object({ counselorEmail: z.string().optional(), status: z.string().optional() }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        if (input.counselorEmail) {
+          return await getLeadAssignmentsByCounselor(input.counselorEmail);
+        }
+        return await getAllLeadAssignments(input.status);
+      }),
+
+    // Update lead assignment status
+    updateAssignment: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["assigned", "contacted", "follow_up", "qualified", "converted", "closed", "escalated"]),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        await updateLeadAssignment(input.id, {
+          status: input.status,
+          notes: input.notes,
+          ...(input.status === "contacted" ? { firstContactAt: new Date() } : {}),
+        });
+        return { success: true };
+      }),
+
+    // Get follow-up actions for an assignment
+    getFollowUps: protectedProcedure
+      .input(z.object({ assignmentId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return await getFollowUpActionsByAssignment(input.assignmentId);
+      }),
+
+    // Get SEO content calendar
+    getSeoContent: protectedProcedure
+      .input(z.object({ status: z.string().optional() }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return await getAllSeoContentEntries(input.status);
+      }),
+
+    // Get daily reports
+    getDailyReports: protectedProcedure
+      .input(z.object({ limit: z.number().default(30) }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return await getAllDailyReports(input.limit);
+      }),
+
+    // Send test daily report
+    sendTestReport: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const result = await triggerAgent("central_reporter");
+        return { success: true, result };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
+
+// Start agent scheduler when server starts
+startAgentScheduler();
 
 // ==================== SIMULATOR AI HELPERS ====================
 

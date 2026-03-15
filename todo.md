@@ -1196,3 +1196,47 @@
 - [ ] If missing, add a "Pro Test Registrations" tab to admin dashboard
 - [ ] Include approve/reject actions, student details, and payment status
 - [ ] Test the full flow from registration email to dashboard management
+
+## AI Agents Command Center - Phase 1
+
+### Database Schema for Agents
+- [x] Agent runs log table (tracks every agent execution)
+- [x] Lead assignments table (counselor-lead mapping with follow-up tracking)
+- [x] Follow-up schedule table (automated follow-up sequences)
+- [x] SEO content calendar table (planned/generated articles)
+- [x] Agent config table (settings per agent)
+- [x] Daily reports table
+
+### Agent 2 — CRM & Follow-Up Distributor
+- [x] Smart lead assignment engine (round-robin + workload balancing)
+- [x] Auto-assign new leads to counselors (Fitriana, Wulan, Jenny, Intar, Nezwa)
+- [x] Follow-up email sequences (Day 0, 1, 2, 3, 7, 14, 30)
+- [x] Escalation alerts when leads go cold (no response after 48h)
+- [x] Counselor notification emails on new lead assignment
+- [x] Lead status tracking and pipeline management
+
+### Agent 3 — SEO Builder
+- [x] AI-powered blog article generation (2-3 per week)
+- [x] Keyword research and targeting for Indonesia market
+- [x] Auto-publish articles to blog system
+- [x] On-page SEO health monitoring
+- [x] Content calendar management
+
+### Agent 8 — Central Reporter
+- [x] Daily 9AM email report to hadi@spectaeducation.com
+- [x] Aggregate data from all active agents
+- [x] Lead pipeline summary (new, assigned, followed-up, converted)
+- [x] SEO content published summary
+- [x] Action items requiring admin attention
+- [x] Counselor performance metrics
+
+### Admin UI — Agent Command Center
+- [x] Agent Command Center dashboard page
+- [x] Real-time agent status monitoring
+- [x] Agent run history and logs
+- [x] Lead assignment overview
+- [x] SEO content calendar view
+- [x] Manual agent trigger buttons
+- [x] Agent toggle on/off controls
+- [x] Daily report send now button
+- [x] 12 vitest tests passing
