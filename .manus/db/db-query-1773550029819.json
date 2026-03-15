@@ -1,0 +1,73 @@
+{
+  "query": "SELECT id, openId, name, email, role FROM users WHERE openId IN (SELECT openId FROM users GROUP BY openId HAVING COUNT(*) > 1) ORDER BY openId, id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT id, openId, name, email, role FROM users WHERE openId IN (SELECT openId FROM users GROUP BY openId HAVING COUNT(*) > 1) ORDER BY openId, id;",
+  "rows": [
+    {
+      "id": "1860103",
+      "openId": "NBhoM6gPqobHciGX6Ktdh4",
+      "name": "Hadi Jito Thian",
+      "email": "hjthian@gmail.com",
+      "role": "user"
+    },
+    {
+      "id": "1860112",
+      "openId": "NBhoM6gPqobHciGX6Ktdh4",
+      "name": "NULL",
+      "email": "NULL",
+      "role": "user"
+    },
+    {
+      "id": "1860113",
+      "openId": "NBhoM6gPqobHciGX6Ktdh4",
+      "name": "NULL",
+      "email": "NULL",
+      "role": "user"
+    },
+    {
+      "id": "1860114",
+      "openId": "NBhoM6gPqobHciGX6Ktdh4",
+      "name": "NULL",
+      "email": "NULL",
+      "role": "user"
+    },
+    {
+      "id": "1860115",
+      "openId": "NBhoM6gPqobHciGX6Ktdh4",
+      "name": "NULL",
+      "email": "NULL",
+      "role": "user"
+    },
+    {
+      "id": "1860116",
+      "openId": "NBhoM6gPqobHciGX6Ktdh4",
+      "name": "NULL",
+      "email": "NULL",
+      "role": "user"
+    },
+    {
+      "id": "1860117",
+      "openId": "NBhoM6gPqobHciGX6Ktdh4",
+      "name": "NULL",
+      "email": "NULL",
+      "role": "user"
+    },
+    {
+      "id": "1860118",
+      "openId": "NBhoM6gPqobHciGX6Ktdh4",
+      "name": "NULL",
+      "email": "NULL",
+      "role": "user"
+    },
+    {
+      "id": "1860119",
+      "openId": "NBhoM6gPqobHciGX6Ktdh4",
+      "name": "NULL",
+      "email": "NULL",
+      "role": "user"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\topenId\tname\temail\trole\n1860103\tNBhoM6gPqobHciGX6Ktdh4\tHadi Jito Thian\thjthian@gmail.com\tuser\n1860112\tNBhoM6gPqobHciGX6Ktdh4\tNULL\tNULL\tuser\n1860113\tNBhoM6gPqobHciGX6Ktdh4\tNULL\tNULL\tuser\n1860114\tNBhoM6gPqobHciGX6Ktdh4\tNULL\tNULL\tuser\n1860115\tNBhoM6gPqobHciGX6Ktdh4\tNULL\tNULL\tuser\n1860116\tNBhoM6gPqobHciGX6Ktdh4\tNULL\tNULL\tuser\n1860117\tNBhoM6gPqobHciGX6Ktdh4\tNULL\tNULL\tuser\n1860118\tNBhoM6gPqobHciGX6Ktdh4\tNULL\tNULL\tuser\n1860119\tNBhoM6gPqobHciGX6Ktdh4\tNULL\tNULL\tuser\n",
+  "stderr": "",
+  "execution_time_ms": 1527
+}

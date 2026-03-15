@@ -1,0 +1,28 @@
+{
+  "query": "SELECT COUNT(*) as total FROM users; SELECT id, openId, name, email, role FROM users WHERE name IS NOT NULL AND name != '' ORDER BY id LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT COUNT(*) as total FROM users; SELECT id, openId, name, email, role FROM users WHERE name IS NOT NULL AND name != '' ORDER BY id LIMIT 10;",
+  "rows": [
+    {
+      "total": "440"
+    },
+    {
+      "total": "id\topenId\tname\temail\trole"
+    },
+    {
+      "total": "1\tNBhoM6gPqobHciGX6Ktdh4\tHadi Jito Thian\thjthian@gmail.com\tadmin"
+    },
+    {
+      "total": "210011\tT2h4kDnWhSNNfT6dtF9WFp\tHadijito Thian\thadijitothian@gmail.com\tuser"
+    },
+    {
+      "total": "570010\tfTJYbZHTisjDUq6nkP3NMm\thadi\thadi@spectaeducation.com\tuser"
+    },
+    {
+      "total": "1860103\tNBhoM6gPqobHciGX6Ktdh4\tHadi Jito Thian\thjthian@gmail.com\tuser"
+    }
+  ],
+  "messages": [],
+  "stdout": "total\n440\nid\topenId\tname\temail\trole\n1\tNBhoM6gPqobHciGX6Ktdh4\tHadi Jito Thian\thjthian@gmail.com\tadmin\n210011\tT2h4kDnWhSNNfT6dtF9WFp\tHadijito Thian\thadijitothian@gmail.com\tuser\n570010\tfTJYbZHTisjDUq6nkP3NMm\thadi\thadi@spectaeducation.com\tuser\n1860103\tNBhoM6gPqobHciGX6Ktdh4\tHadi Jito Thian\thjthian@gmail.com\tuser\n",
+  "stderr": "",
+  "execution_time_ms": 1686
+}

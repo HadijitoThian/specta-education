@@ -1,0 +1,14 @@
+{
+  "query": "SELECT openId, COUNT(*) as cnt FROM users GROUP BY openId HAVING COUNT(*) > 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT openId, COUNT(*) as cnt FROM users GROUP BY openId HAVING COUNT(*) > 1;",
+  "rows": [
+    {
+      "openId": "NBhoM6gPqobHciGX6Ktdh4",
+      "cnt": "2"
+    }
+  ],
+  "messages": [],
+  "stdout": "openId\tcnt\nNBhoM6gPqobHciGX6Ktdh4\t2\n",
+  "stderr": "",
+  "execution_time_ms": 1474
+}

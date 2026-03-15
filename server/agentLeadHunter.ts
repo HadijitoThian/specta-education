@@ -376,26 +376,14 @@ Focus on high-quality, realistic mentions that represent actual study abroad int
 
           mentionsFound++;
 
-          // If high relevance lead opportunity, create a lead
+          // NOTE: Social media mentions are for monitoring only.
+          // We do NOT create leads from simulated social data.
+          // Real leads only come from: chatbot conversations, contact forms, 
+          // scholarship applications, and verified website visitor form submissions.
+          // Social mentions are stored for trend analysis and competitor awareness.
           if (mention.isLeadOpportunity && mention.relevanceScore >= 70) {
-            try {
-              await db.insert(leads).values({
-                conversationId: 0,
-                studentName: mention.authorName || "Social Media Lead",
-                source: "social_media",
-                status: "new",
-                notes: JSON.stringify({
-                  platform: mention.platform,
-                  handle: mention.authorHandle,
-                  content: mention.content,
-                  relevanceScore: mention.relevanceScore,
-                }),
-              });
-              leadsCreated++;
-            } catch (err) {
-              console.error("[Lead Hunter] Error creating lead from social mention:", err);
-              errors++;
-            }
+            // Mark as high-priority mention for admin review, but don't create fake leads
+            console.log(`[Lead Hunter] High-relevance social mention from ${mention.authorName} on ${mention.platform} (score: ${mention.relevanceScore})`);
           }
         } catch (err) {
           console.error("[Lead Hunter] Error saving social mention:", err);

@@ -1,0 +1,17 @@
+{
+  "query": "SELECT openId, COUNT(*) as cnt, MIN(id) as first_id, MAX(id) as last_id, GROUP_CONCAT(name SEPARATOR ', ') as names FROM users GROUP BY openId HAVING COUNT(*) > 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT openId, COUNT(*) as cnt, MIN(id) as first_id, MAX(id) as last_id, GROUP_CONCAT(name SEPARATOR ', ') as names FROM users GROUP BY openId HAVING COUNT(*) > 1;",
+  "rows": [
+    {
+      "openId": "NBhoM6gPqobHciGX6Ktdh4",
+      "cnt": "438",
+      "first_id": "1",
+      "last_id": "1860110",
+      "names": "Hadi Jito Thian, Hadi Jito Thian"
+    }
+  ],
+  "messages": [],
+  "stdout": "openId\tcnt\tfirst_id\tlast_id\tnames\nNBhoM6gPqobHciGX6Ktdh4\t438\t1\t1860110\tHadi Jito Thian, Hadi Jito Thian\n",
+  "stderr": "",
+  "execution_time_ms": 1607
+}

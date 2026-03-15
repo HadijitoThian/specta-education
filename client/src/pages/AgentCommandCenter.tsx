@@ -101,6 +101,7 @@ export default function AgentCommandCenter() {
     onError: (err) => toast.error(err.message),
   });
   const [editingDraft, setEditingDraft] = useState<any>(null);
+  const [expandedCompetitor, setExpandedCompetitor] = useState<number | null>(null);
 
   if (authLoading) return <div className="flex items-center justify-center min-h-screen"><RefreshCw className="animate-spin h-8 w-8 text-red-500" /></div>;
   if (!user || (user.role !== "admin" && user.role !== "general_manager")) {
@@ -569,66 +570,156 @@ export default function AgentCommandCenter() {
                 </Card>
               </div>
 
-              {/* Competitor Alerts */}
+              {/* Competitor Alerts — Expandable */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Shield className="h-5 w-5 text-purple-500" />
                     Intelligence Alerts
                   </CardTitle>
-                  <CardDescription>Recent competitor moves and strategic recommendations</CardDescription>
+                  <CardDescription>Click on any competitor to view full analysis, strategy, and recommendations</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {competitorDashboard?.recentAnalyses && competitorDashboard.recentAnalyses.length > 0 ? (
                     <div className="space-y-3">
-                      {competitorDashboard.recentAnalyses.map((alert: any) => (
-                        <div key={alert.id} className="p-4 border rounded-lg hover:bg-gray-50">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-semibold text-sm">{alert.competitorName}</span>
-                                <Badge className={
-                                  alert.alertType === "pricing_change" ? "bg-red-100 text-red-700" :
-                                  alert.alertType === "new_program" ? "bg-blue-100 text-blue-700" :
-                                  alert.alertType === "marketing_campaign" ? "bg-purple-100 text-purple-700" :
-                                  alert.alertType === "partnership" ? "bg-green-100 text-green-700" :
-                                  "bg-gray-100 text-gray-700"
-                                }>{(alert.alertType || "").replace(/_/g, " ")}</Badge>
-                                <Badge className={
-                                  alert.severity === "critical" ? "bg-red-100 text-red-700" :
-                                  alert.severity === "high" ? "bg-orange-100 text-orange-700" :
-                                  alert.severity === "medium" ? "bg-yellow-100 text-yellow-700" :
-                                  "bg-gray-100 text-gray-700"
-                                }>{alert.severity}</Badge>
-                              </div>
-                              <p className="text-sm text-gray-700 mb-2">{alert.description}</p>
-                              {alert.recommendation && (
-                                <div className="bg-blue-50 p-3 rounded-lg mt-2">
-                                  <p className="text-xs font-medium text-blue-700 mb-1">Recommended Action:</p>
-                                  <p className="text-xs text-blue-600">{alert.recommendation}</p>
+                      {competitorDashboard.recentAnalyses.map((alert: any) => {
+                        // Parse the details JSON if available
+                        let details: any = null;
+                        try { details = alert.details ? JSON.parse(alert.details) : null; } catch { details = null; }
+                        let recommendations: string[] = [];
+                        try { recommendations = alert.strategicRecommendation ? JSON.parse(alert.strategicRecommendation) : []; } catch { recommendations = alert.strategicRecommendation ? [alert.strategicRecommendation] : []; }
+                        const isExpanded = expandedCompetitor === alert.id;
+
+                        return (
+                          <div key={alert.id} className={`border rounded-lg transition-all ${isExpanded ? 'ring-2 ring-purple-300 bg-white' : 'hover:bg-gray-50'}`}>
+                            {/* Clickable Header */}
+                            <div
+                              className="p-4 cursor-pointer"
+                              onClick={() => setExpandedCompetitor(isExpanded ? null : alert.id)}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-semibold">{alert.competitorName}</span>
+                                    <Badge className={
+                                      alert.severity === "critical" ? "bg-red-100 text-red-700" :
+                                      alert.severity === "high" ? "bg-orange-100 text-orange-700" :
+                                      alert.severity === "medium" ? "bg-yellow-100 text-yellow-700" :
+                                      "bg-gray-100 text-gray-700"
+                                    }>{alert.severity}</Badge>
+                                    {alert.status === "reviewed" && <Badge className="bg-green-100 text-green-700"><CheckCircle className="h-3 w-3 mr-1" />Reviewed</Badge>}
+                                  </div>
+                                  <p className="text-sm text-gray-600">{details?.currentStrategy?.substring(0, 150) || alert.analysis?.substring(0, 150) || 'Click to view full analysis'}...</p>
+                                  <p className="text-xs text-gray-400 mt-1">
+                                    {alert.detectedAt ? new Date(alert.detectedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
+                                  </p>
                                 </div>
-                              )}
-                              <p className="text-xs text-gray-400 mt-2">
-                                {alert.detectedAt ? new Date(alert.detectedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
-                              </p>
+                                <div className="flex items-center gap-2 ml-4">
+                                  <Eye className={`h-5 w-5 transition-transform ${isExpanded ? 'text-purple-600 rotate-180' : 'text-gray-400'}`} />
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 ml-4">
-                              {alert.status === "pending" && (
-                                <Button size="sm" variant="outline" onClick={() => dismissCompetitor.mutate({ id: alert.id })}>
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                  Reviewed
-                                </Button>
-                              )}
-                              {alert.status === "reviewed" && (
-                                <Badge className="bg-green-100 text-green-700">
-                                  <CheckCircle className="h-3 w-3 mr-1" />
-                                  Reviewed
-                                </Badge>
-                              )}
-                            </div>
+
+                            {/* Expanded Content */}
+                            {isExpanded && (
+                              <div className="px-4 pb-4 border-t">
+                                {/* Current Strategy */}
+                                {details?.currentStrategy && (
+                                  <div className="mt-4">
+                                    <h4 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1"><Crosshair className="h-4 w-4 text-purple-500" />Current Strategy</h4>
+                                    <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">{details.currentStrategy}</p>
+                                  </div>
+                                )}
+
+                                {/* Recent Moves */}
+                                {details?.recentMoves && details.recentMoves.length > 0 && (
+                                  <div className="mt-4">
+                                    <h4 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1"><Activity className="h-4 w-4 text-orange-500" />Recent Moves</h4>
+                                    <div className="space-y-2">
+                                      {details.recentMoves.map((move: any, i: number) => (
+                                        <div key={i} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                                          <Badge className={
+                                            move.impact === "high" ? "bg-red-100 text-red-700 mt-0.5" :
+                                            move.impact === "medium" ? "bg-yellow-100 text-yellow-700 mt-0.5" :
+                                            "bg-gray-100 text-gray-700 mt-0.5"
+                                          }>{move.impact}</Badge>
+                                          <div className="flex-1">
+                                            <p className="text-sm text-gray-700">{move.move}</p>
+                                            {move.date && <p className="text-xs text-gray-400 mt-1">{move.date}</p>}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* SEO & Social Media */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                  {details?.seoRanking && (
+                                    <div className="bg-blue-50 p-3 rounded-lg">
+                                      <h4 className="text-sm font-semibold text-blue-800 mb-1 flex items-center gap-1"><BarChart3 className="h-4 w-4" />SEO Position</h4>
+                                      <p className="text-lg font-bold text-blue-700">#{details.seoRanking.estimatedPosition || '?'}</p>
+                                      <p className="text-xs text-blue-600">Trend: {details.seoRanking.trend || 'unknown'}</p>
+                                    </div>
+                                  )}
+                                  {details?.socialMediaActivity && (
+                                    <div className="bg-purple-50 p-3 rounded-lg">
+                                      <h4 className="text-sm font-semibold text-purple-800 mb-1 flex items-center gap-1"><Globe className="h-4 w-4" />Social Media</h4>
+                                      <p className="text-xs text-purple-700">{details.socialMediaActivity}</p>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Opportunities */}
+                                {details?.opportunities && details.opportunities.length > 0 && (
+                                  <div className="mt-4">
+                                    <h4 className="text-sm font-semibold text-green-800 mb-2 flex items-center gap-1"><TrendingUp className="h-4 w-4 text-green-500" />Opportunities for SpecTa</h4>
+                                    <ul className="space-y-1">
+                                      {details.opportunities.map((opp: string, i: number) => (
+                                        <li key={i} className="text-sm text-gray-700 flex items-start gap-2 p-2 bg-green-50 rounded">
+                                          <span className="text-green-500 mt-0.5 shrink-0">+</span>
+                                          <span>{opp}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                {/* Strategic Recommendations */}
+                                {recommendations.length > 0 && (
+                                  <div className="mt-4">
+                                    <h4 className="text-sm font-semibold text-red-800 mb-2 flex items-center gap-1"><Zap className="h-4 w-4 text-red-500" />Recommended Actions</h4>
+                                    <ol className="space-y-2">
+                                      {recommendations.map((rec: string, i: number) => (
+                                        <li key={i} className="text-sm text-gray-700 flex items-start gap-3 p-3 bg-red-50 rounded-lg">
+                                          <span className="bg-red-200 text-red-800 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">{i + 1}</span>
+                                          <span>{rec}</span>
+                                        </li>
+                                      ))}
+                                    </ol>
+                                  </div>
+                                )}
+
+                                {/* Action buttons */}
+                                <div className="flex items-center gap-2 mt-4 pt-3 border-t">
+                                  {(alert.status === "new" || alert.status === "pending") && (
+                                    <Button size="sm" variant="outline" onClick={() => dismissCompetitor.mutate({ id: alert.id })}>
+                                      <CheckCircle className="h-4 w-4 mr-1" />
+                                      Mark as Reviewed
+                                    </Button>
+                                  )}
+                                  {alert.sourceUrl && (
+                                    <Button size="sm" variant="outline" onClick={() => window.open(alert.sourceUrl, '_blank')}>
+                                      <Globe className="h-4 w-4 mr-1" />
+                                      Visit Website
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="text-center py-12 text-gray-400">

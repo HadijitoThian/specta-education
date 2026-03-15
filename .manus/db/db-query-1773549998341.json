@@ -1,0 +1,16 @@
+{
+  "query": "SELECT MIN(CASE WHEN name IS NOT NULL AND name != '' THEN id ELSE NULL END) as best_id, MIN(id) as first_id, openId, COUNT(*) as cnt FROM users GROUP BY openId HAVING COUNT(*) > 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT MIN(CASE WHEN name IS NOT NULL AND name != '' THEN id ELSE NULL END) as best_id, MIN(id) as first_id, openId, COUNT(*) as cnt FROM users GROUP BY openId HAVING COUNT(*) > 1;",
+  "rows": [
+    {
+      "best_id": "1",
+      "first_id": "1",
+      "openId": "NBhoM6gPqobHciGX6Ktdh4",
+      "cnt": "438"
+    }
+  ],
+  "messages": [],
+  "stdout": "best_id\tfirst_id\topenId\tcnt\n1\t1\tNBhoM6gPqobHciGX6Ktdh4\t438\n",
+  "stderr": "",
+  "execution_time_ms": 1609
+}

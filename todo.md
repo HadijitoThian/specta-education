@@ -1293,3 +1293,10 @@
 - [x] Submit All Drafts for Approval button
 - [x] Edit draft modal with recipient, subject, and body editing
 - [x] Save & Approve combined action
+
+### Bug Fixes - March 15, 2026
+- [x] Fix Competitor Intelligence tab - make alerts expandable to show full analysis, strategies, and recommendations
+- [x] Remove fake/simulated leads from Lead Hunter agent - only capture real leads from chatbot/forms
+- [x] Fix Team Management "Unnamed User" duplicate issue - added unique index on openId
+- [x] Investigated "Unnamed Users" - all were duplicate records of Hadi (same openId), cleaned up
+- [x] Lead Hunter no longer creates fake leads from simulated social media data

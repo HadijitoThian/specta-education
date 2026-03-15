@@ -1,0 +1,22 @@
+{
+  "query": "SELECT id, openId, name, email FROM users WHERE openId IN (SELECT openId FROM users GROUP BY openId HAVING COUNT(*) > 1) ORDER BY openId, id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT id, openId, name, email FROM users WHERE openId IN (SELECT openId FROM users GROUP BY openId HAVING COUNT(*) > 1) ORDER BY openId, id;",
+  "rows": [
+    {
+      "id": "1860103",
+      "openId": "NBhoM6gPqobHciGX6Ktdh4",
+      "name": "Hadi Jito Thian",
+      "email": "hjthian@gmail.com"
+    },
+    {
+      "id": "1860120",
+      "openId": "NBhoM6gPqobHciGX6Ktdh4",
+      "name": "NULL",
+      "email": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\topenId\tname\temail\n1860103\tNBhoM6gPqobHciGX6Ktdh4\tHadi Jito Thian\thjthian@gmail.com\n1860120\tNBhoM6gPqobHciGX6Ktdh4\tNULL\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 1567
+}
