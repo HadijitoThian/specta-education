@@ -1376,3 +1376,22 @@
 - [ ] Update Agent Command Center UI with new agent tabs/cards
 - [x] Test all new agents (12/12 tests passing)
 - [x] Save checkpoint
+
+#### University Scout Agent Workflow Fix
+- [x] Audit University Scout agent code to understand current flow
+- [x] Check database for newly discovered universities today
+- [x] Identify gap between discovery and email approval
+- [x] Design proper approval workflow (presented to Hadi, approved)
+- [x] Rewrite email generation template with SpecTa 2.0 AI features and Hadi's real details
+- [x] Connect approval pipeline to main agent run (call submitDraftForApproval after drafting)
+- [x] Fix status flow: identified → draft_ready → pending_approval → sent
+- [x] Verify approval endpoint sends from hadi@spectaeducation.com
+- [x] Add email research function (researchAgentRecruitmentEmail) to find real agent emails
+- [x] Add processExistingUniversities() function to handle 15 stuck universities
+- [x] Add tRPC endpoint for processExistingUniversities
+- [x] Fix submitDraftForApproval to gracefully skip universities without emails
+- [x] Fix CEO name from "Hadi Yowan" to "Hadi Jito Thian" in email templates
+- [x] Fix fallback email to include SpecTa 2.0 content
+- [x] Add 4 new tests for University Scout pipeline (16/16 passing)
+- [ ] Trigger processExistingUniversities to send approval emails for 15 universities
+- [ ] Test end-to-end pipeline with real approval emails

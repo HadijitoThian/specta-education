@@ -4950,6 +4950,16 @@ Return JSON with the refined article:
         return { success: true };
       }),
 
+    // Process existing universities (research emails, generate drafts, submit for approval)
+    processExistingUniversities: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { processExistingUniversities } = await import("./agentUniversityScout");
+        return await processExistingUniversities();
+      }),
+
     // ---- Phase 3 Agent Routes (New Agents) ----
 
     // Trigger Aptitude Nurture Agent

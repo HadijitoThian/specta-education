@@ -887,7 +887,7 @@ export async function sendPartnershipOutreachEmail({
   <div class="container">
     <div class="content">${body}</div>
     <div class="signature">
-      <p><strong>Hadi Yowan</strong><br>
+      <p><strong>Hadi Jito Thian</strong><br>
       Founder & CEO<br>
       SpecTa Education<br>
       <a href="https://spectaeducation.com">www.spectaeducation.com</a><br>
@@ -897,7 +897,7 @@ export async function sendPartnershipOutreachEmail({
 </body>
 </html>`;
 
-  return sendEmail({
+  return sendPartnershipEmail({
     to,
     subject,
     html,

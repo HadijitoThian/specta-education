@@ -1,0 +1,314 @@
+{
+  "query": "DESCRIBE university_partnerships;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute DESCRIBE university_partnerships;",
+  "rows": [
+    {
+      "Field": "id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": "NULL",
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "universityName",
+      "Type": "varchar(500)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "country",
+      "Type": "varchar(100)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "city",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "websiteUrl",
+      "Type": "varchar(500)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "worldRanking",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "countryRanking",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "rankingSource",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "partnershipType",
+      "Type": "enum('agent_agreement','pathway_program','scholarship_partner','articulation_agreement','exchange_program','general')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "agent_agreement",
+      "Extra": ""
+    },
+    {
+      "Field": "hasExistingIndonesianAgent",
+      "Type": "tinyint(1)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "existingAgents",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "internationalOfficeEmail",
+      "Type": "varchar(320)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "agentRecruitmentEmail",
+      "Type": "varchar(320)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "contactPersonName",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "contactPersonTitle",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "contactPersonLinkedin",
+      "Type": "varchar(500)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "popularPrograms",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "tuitionRange",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "intakeMonths",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "outreachStatus",
+      "Type": "enum('identified','researching','draft_ready','email_sent','follow_up_sent','responded','meeting_scheduled','agreement_pending','partnered','rejected','no_response')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "identified",
+      "Extra": ""
+    },
+    {
+      "Field": "outreachEmailDraft",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "outreachSentAt",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "lastFollowUpAt",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "responseReceived",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "partnershipScore",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "priority",
+      "Type": "enum('low','medium','high','critical')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "medium",
+      "Extra": ""
+    },
+    {
+      "Field": "notes",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "discoveredAt",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": ""
+    },
+    {
+      "Field": "createdAt",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": ""
+    },
+    {
+      "Field": "updatedAt",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "Field": "outreachEmailSubject",
+      "Type": "varchar(500)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "outreachRecipientEmail",
+      "Type": "varchar(320)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "approvalStatus",
+      "Type": "enum('pending_draft','pending_approval','approved','rejected','sent','failed')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "pending_draft",
+      "Extra": ""
+    },
+    {
+      "Field": "approvalToken",
+      "Type": "varchar(128)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "approvalRequestedAt",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "approvedAt",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "rejectedAt",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "rejectionReason",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\nuniversityName\tvarchar(500)\tNO\t\tNULL\t\ncountry\tvarchar(100)\tNO\t\tNULL\t\ncity\tvarchar(255)\tYES\t\tNULL\t\nwebsiteUrl\tvarchar(500)\tYES\t\tNULL\t\nworldRanking\tint\tYES\t\tNULL\t\ncountryRanking\tint\tYES\t\tNULL\t\nrankingSource\tvarchar(100)\tYES\t\tNULL\t\npartnershipType\tenum('agent_agreement','pathway_program','scholarship_partner','articulation_agreement','exchange_program','general')\tYES\t\tagent_agreement\t\nhasExistingIndonesianAgent\ttinyint(1)\tYES\t\tNULL\t\nexistingAgents\ttext\tYES\t\tNULL\t\ninternationalOfficeEmail\tvarchar(320)\tYES\t\tNULL\t\nagentRecruitmentEmail\tvarchar(320)\tYES\t\tNULL\t\ncontactPersonName\tvarchar(255)\tYES\t\tNULL\t\ncontactPersonTitle\tvarchar(255)\tYES\t\tNULL\t\ncontactPersonLinkedin\tvarchar(500)\tYES\t\tNULL\t\npopularPrograms\ttext\tYES\t\tNULL\t\ntuitionRange\tvarchar(255)\tYES\t\tNULL\t\nintakeMonths\tvarchar(255)\tYES\t\tNULL\t\noutreachStatus\tenum('identified','researching','draft_ready','email_sent','follow_up_sent','responded','meeting_scheduled','agreement_pending','partnered','rejected','no_response')\tYES\t\tidentified\t\noutreachEmailDraft\ttext\tYES\t\tNULL\t\noutreachSentAt\ttimestamp\tYES\t\tNULL\t\nlastFollowUpAt\ttimestamp\tYES\t\tNULL\t\nresponseReceived\ttext\tYES\t\tNULL\t\npartnershipScore\tint\tYES\t\t0\t\npriority\tenum('low','medium','high','critical')\tYES\t\tmedium\t\nnotes\ttext\tYES\t\tNULL\t\ndiscoveredAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\ncreatedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\nupdatedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\noutreachEmailSubject\tvarchar(500)\tYES\t\tNULL\t\noutreachRecipientEmail\tvarchar(320)\tYES\t\tNULL\t\napprovalStatus\tenum('pending_draft','pending_approval','approved','rejected','sent','failed')\tYES\t\tpending_draft\t\napprovalToken\tvarchar(128)\tYES\t\tNULL\t\napprovalRequestedAt\ttimestamp\tYES\t\tNULL\t\napprovedAt\ttimestamp\tYES\t\tNULL\t\nrejectedAt\ttimestamp\tYES\t\tNULL\t\nrejectionReason\ttext\tYES\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 1578
+}

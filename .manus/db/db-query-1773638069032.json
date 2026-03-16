@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE university_partnerships SET outreachRecipientEmail = 'reshmi.dutta@rmit.edu.au' WHERE id = 1;\nUPDATE university_partnerships SET outreachRecipientEmail = 'seap.contact@qut.edu.au' WHERE id = 2;\nUPDATE university_partnerships SET outreachRecipientEmail = 'agentcontracts@unisa.edu.au' WHERE id = 3;\nUPDATE university_partnerships SET outreachRecipientEmail = 'C.Li@curtin.edu.au' WHERE id = 4;\nUPDATE university_partnerships SET outreachRecipientEmail = 'international-agents@uow.edu.au' WHERE id = 5;\nUPDATE university_partnerships SET outreachRecipientEmail = 'gi-agent@griffith.edu.au' WHERE id = 6;\nUPDATE university_partnerships SET outreachRecipientEmail = 'internationalagents@latrobe.edu.au' WHERE id = 7;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute UPDATE university_partnerships SET outreachRecipientEmail = 'reshmi.dutta@rmit.edu.au' WHERE id = 1;\nUPDATE university_partnerships SET outreachRecipientEmail = 'seap.contact@qut.edu.au' WHERE id = 2;\nUPDATE university_partnerships SET outreachRecipientEmail = 'agentcontracts@unisa.edu.au' WHERE id = 3;\nUPDATE university_partnerships SET outreachRecipientEmail = 'C.Li@curtin.edu.au' WHERE id = 4;\nUPDATE university_partnerships SET outreachRecipientEmail = 'international-agents@uow.edu.au' WHERE id = 5;\nUPDATE university_partnerships SET outreachRecipientEmail = 'gi-agent@griffith.edu.au' WHERE id = 6;\nUPDATE university_partnerships SET outreachRecipientEmail = 'internationalagents@latrobe.edu.au' WHERE id = 7;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2786
+}

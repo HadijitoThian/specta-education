@@ -98,31 +98,76 @@ export async function runUniversityScoutAgent(): Promise<{
     const opportunities = await scoutUniversities(targetCountry, db);
     universitiesScanned = opportunities.length;
 
-    // Task 2: For new opportunities, draft outreach emails
+    // Task 2: For new opportunities, research email + draft outreach emails
     for (const opp of opportunities) {
       try {
         if (opp.isNew) {
           newOpportunities++;
+          
+          // Step 2a: Research the agent recruitment email
+          const emailResult = await researchAgentRecruitmentEmail(opp);
+          if (emailResult) {
+            await db.update(universityPartnerships)
+              .set({ 
+                agentRecruitmentEmail: emailResult.email,
+                outreachRecipientEmail: emailResult.email,
+              })
+              .where(eq(universityPartnerships.id, opp.dbId));
+            console.log(`[University Scout] Found email for ${opp.name}: ${emailResult.email} (${emailResult.source})`);
+          } else {
+            console.warn(`[University Scout] No email found for ${opp.name} — will skip approval`);
+          }
+          
+          // Step 2b: Draft the outreach email
           const draft = await draftOutreachEmail(opp);
           if (draft) {
+            // Also generate a subject line
+            const subject = `Partnership Inquiry — SpecTa Education, Indonesia's First AI-Powered Study Abroad Platform | ${opp.name}`;
             await db.update(universityPartnerships)
-              .set({ outreachEmailDraft: draft })
+              .set({ 
+                outreachEmailDraft: draft,
+                outreachEmailSubject: subject,
+              })
               .where(eq(universityPartnerships.id, opp.dbId));
             outreachDrafted++;
           }
         }
       } catch (err) {
-        console.error(`[University Scout] Error drafting outreach for ${opp.name}:`, err);
+        console.error(`[University Scout] Error processing ${opp.name}:`, err);
         errors++;
       }
     }
 
-    // Task 3: Send opportunity report to admin
+    // Task 3: Update outreach status to draft_ready for all drafted emails
+    for (const opp of opportunities) {
+      if (opp.isNew) {
+        try {
+          await db.update(universityPartnerships)
+            .set({ outreachStatus: "draft_ready" })
+            .where(eq(universityPartnerships.id, opp.dbId));
+        } catch (err) {
+          console.error(`[University Scout] Error updating status for ${opp.name}:`, err);
+        }
+      }
+    }
+
+    // Task 4: Submit all draft_ready emails for admin approval
+    let approvalsSent = 0;
+    if (outreachDrafted > 0) {
+      try {
+        approvalsSent = await submitAllDraftsForApproval();
+        console.log(`[University Scout] Submitted ${approvalsSent} drafts for admin approval`);
+      } catch (err) {
+        console.error("[University Scout] Error submitting drafts for approval:", err);
+      }
+    }
+
+    // Task 5: Send opportunity report to admin
     if (newOpportunities > 0) {
       await sendOpportunityReport(targetCountry.country, opportunities, newOpportunities, outreachDrafted);
     }
 
-    const summary = `Scanned ${universitiesScanned} universities in ${targetCountry.country}, found ${newOpportunities} new opportunities, drafted ${outreachDrafted} outreach emails`;
+    const summary = `Scanned ${universitiesScanned} universities in ${targetCountry.country}, found ${newOpportunities} new opportunities, drafted ${outreachDrafted} outreach emails, ${approvalsSent} sent for approval`;
 
     await updateAgentRunLog(runLog!.id, {
       status: "success",
@@ -342,6 +387,91 @@ Find 5-8 universities that would be good partnership targets for SpecTa Educatio
 }
 
 // ==========================================
+// Research Agent Recruitment Email
+// ==========================================
+async function researchAgentRecruitmentEmail(opportunity: any): Promise<{ email: string; source: string } | null> {
+  try {
+    // Use LLM to determine the most likely agent recruitment email based on university patterns
+    const response = await invokeLLM({
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert at finding university agent recruitment email addresses.
+
+Most universities have standard email patterns for their international agent recruitment offices:
+- agents@university.edu.au (Australia)
+- international-agents@university.edu.au
+- agentmanagement@university.edu.au
+- agent.support@university.edu.au
+- internationalagents@university.edu.au
+- gi-agent@university.edu.au (Griffith pattern)
+- agent.partnerships@university.edu.nz (NZ)
+- international@university.ie (Ireland)
+- agents@university.ie
+- international.office@university.ie
+
+Common patterns by country:
+- Australia: Usually agents@, international-agents@, or agentmanagement@ with .edu.au domain
+- New Zealand: Usually international@, agents@, or agent.partnerships@ with .ac.nz domain  
+- Ireland: Usually international@, agents@, or admissions.international@ with .ie domain
+- UK: Usually agents@, international.agents@, or partnerships@ with .ac.uk domain
+- Canada: Usually agents@, international.agents@, or recruitment@ with .ca domain
+
+Return a JSON object with:
+- "email": the most likely agent recruitment email address
+- "source": "pattern_based" (this is an educated guess based on known patterns)
+- "confidence": "high", "medium", or "low"
+- "alternatives": array of 2-3 alternative email addresses to try
+
+IMPORTANT: Use the actual university domain from their website URL.`
+        },
+        {
+          role: "user",
+          content: `Find the agent recruitment email for:
+University: ${opportunity.name}
+Website: ${opportunity.website}
+Country: ${opportunity.country}
+Contact person: ${opportunity.contactName || 'Unknown'}
+Contact role: ${opportunity.contactRole || 'International Office'}
+
+Return JSON with the most likely agent recruitment email.`
+        }
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "agent_email",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              email: { type: "string", description: "Most likely agent recruitment email" },
+              source: { type: "string", description: "How the email was determined" },
+              confidence: { type: "string", description: "Confidence level" },
+              alternatives: { type: "array", items: { type: "string" }, description: "Alternative emails" }
+            },
+            required: ["email", "source", "confidence", "alternatives"],
+            additionalProperties: false
+          }
+        }
+      }
+    });
+
+    const content = response.choices?.[0]?.message?.content as string;
+    if (!content) return null;
+    
+    const parsed = JSON.parse(content);
+    if (parsed.email && parsed.email.includes("@")) {
+      return { email: parsed.email, source: `${parsed.source} (${parsed.confidence} confidence)` };
+    }
+    return null;
+  } catch (err) {
+    console.error(`[University Scout] Error researching email for ${opportunity.name}:`, err);
+    return null;
+  }
+}
+
+// ==========================================
 // Draft Outreach Email
 // ==========================================
 async function draftOutreachEmail(opportunity: any): Promise<string | null> {
@@ -352,23 +482,44 @@ async function draftOutreachEmail(opportunity: any): Promise<string | null> {
           role: "system",
           content: `You are drafting a professional partnership outreach email from SpecTa Education to a university's international office.
 
-SpecTa Education is:
-- An Indonesian education consultancy with 3 branches (Kelapa Gading, PIK, Gading Serpong)
-- Specializes in study abroad consulting for Australia, UK, Canada, New Zealand, and Ireland
-- Offers IELTS preparation courses
-- Has AI-powered aptitude testing for students
-- 173+ Google reviews with high ratings
-- Helps Indonesian students with university applications, visa processing, and pre-departure
+About SpecTa Education:
+- Founded in 2005, one of Indonesia's most established education consultancies with 20+ years of experience
+- Recently launched SpecTa 2.0 — Indonesia's FIRST and ONLY AI-powered education consultancy platform
+- 3 branches across Jakarta: Kelapa Gading (Head Office), PIK, and Gading Serpong
+- 691+ students successfully placed at universities worldwide
+- 6,000+ IELTS students trained since 2005
+- 4.9/5.0 Google rating with 276+ reviews across all branches
+- 50+ existing university partnerships globally
+- 10 destination countries: Australia, UK, USA, Canada, NZ, Singapore, Malaysia, China, Ireland, Netherlands
 
-The email should:
-- Be professional but warm
-- Highlight mutual benefits
-- Mention SpecTa's track record with Indonesian students
-- Express interest in formal partnership/agent agreement
-- Be concise (under 300 words)
-- Include a clear call to action
+SpecTa 2.0 AI Platform Features (EMPHASIZE THESE — this is what makes us unique):
+1. AI Aptitude Test — RIASEC + Multiple Intelligence assessment that matches students to ideal programs and universities
+2. AI Chatbot "Ask SpecTa" — 24/7 multilingual AI advisor trained on all university data
+3. AI-Powered IELTS Practice Tests — Adaptive mock tests with AI scoring and personalized feedback
+4. University Comparison Tool — AI-driven side-by-side comparison of universities
+5. Scholarship Finder — AI-matched scholarship recommendations based on student profiles
+6. Study Abroad Simulator — Interactive tool showing estimated costs, timelines, and requirements
+7. Track My Application — Real-time application status portal for students and parents
 
-Return just the email body text (no subject line).`
+Why this matters for universities:
+- Our AI platform pre-qualifies students before referral, meaning higher conversion rates
+- Students arrive better prepared and better matched to programs
+- Our technology provides data-driven insights on Indonesian student demand
+- We can provide universities with market intelligence on Indonesian student preferences
+
+The email MUST:
+- Be professional, warm, and confident
+- Lead with SpecTa 2.0 as the differentiator
+- Highlight that we are likely the only Indonesian agency with a full AI platform
+- Mention specific mutual benefits
+- Reference our track record (20+ years, 691+ placements, 4.9/5.0 rating)
+- Include a clear call to action for a meeting or call
+- Be concise (under 350 words)
+- Sign off as: Hadi Jito Thian, Founder & CEO
+- Include contact: hadi@spectaeducation.com | WhatsApp: +62 818 668 277
+- Include website: www.spectaeducation.com
+
+Return just the email body text (no subject line, no HTML). Use proper line breaks.`
         },
         {
           role: "user",
@@ -380,7 +531,7 @@ Region: ${opportunity.region}
 Programs of interest: ${opportunity.programs?.join(", ")}
 Why we're interested: ${opportunity.notes}
 
-Draft the partnership outreach email.`
+Draft the partnership outreach email emphasizing SpecTa 2.0 AI platform.`
         }
       ],
     });
@@ -488,6 +639,178 @@ async function sendOpportunityReport(
 }
 
 // ==========================================
+// Process Existing Universities (Manual Trigger)
+// Handles universities stuck at "identified" status
+// ==========================================
+export async function processExistingUniversities(): Promise<{
+  processed: number;
+  emailsFound: number;
+  draftsGenerated: number;
+  approvalsSent: number;
+  errors: string[];
+}> {
+  const db = await getDb();
+  if (!db) return { processed: 0, emailsFound: 0, draftsGenerated: 0, approvalsSent: 0, errors: ["Database not available"] };
+
+  const errorList: string[] = [];
+  let emailsFound = 0;
+  let draftsGenerated = 0;
+
+  // Find all universities that haven't been processed yet
+  const pendingUniversities = await db.select().from(universityPartnerships)
+    .where(
+      and(
+        eq(universityPartnerships.approvalStatus, "pending_draft"),
+      )
+    );
+
+  console.log(`[University Scout] Processing ${pendingUniversities.length} pending universities...`);
+
+  for (const uni of pendingUniversities) {
+    const uniName = (uni as any).universityName;
+    const uniId = uni.id;
+
+    try {
+      // Step 1: Research agent recruitment email if not already found
+      if (!(uni as any).agentRecruitmentEmail && !(uni as any).outreachRecipientEmail) {
+        const emailResult = await researchAgentRecruitmentEmail({
+          name: uniName,
+          website: (uni as any).websiteUrl || "",
+          country: (uni as any).country,
+          contactName: (uni as any).contactPersonName,
+          contactRole: (uni as any).contactPersonTitle,
+        });
+
+        if (emailResult) {
+          await db.update(universityPartnerships)
+            .set({
+              agentRecruitmentEmail: emailResult.email,
+              outreachRecipientEmail: emailResult.email,
+            })
+            .where(eq(universityPartnerships.id, uniId));
+          emailsFound++;
+          console.log(`[University Scout] Found email for ${uniName}: ${emailResult.email}`);
+        } else {
+          errorList.push(`No email found for ${uniName}`);
+          continue; // Skip this university — can't send without email
+        }
+      } else {
+        emailsFound++; // Already has email
+      }
+
+      // Step 2: Generate outreach email draft if not already done
+      if (!(uni as any).outreachEmailDraft) {
+        const draft = await draftOutreachEmail({
+          name: uniName,
+          website: (uni as any).websiteUrl || "",
+          country: (uni as any).country,
+          region: (uni as any).city || "",
+          programs: (uni as any).popularPrograms ? JSON.parse((uni as any).popularPrograms) : [],
+          contactName: (uni as any).contactPersonName,
+          contactRole: (uni as any).contactPersonTitle,
+          notes: (uni as any).notes || "",
+        });
+
+        if (draft) {
+          const subject = `Partnership Inquiry \u2014 SpecTa Education, Indonesia's First AI-Powered Study Abroad Platform | ${uniName}`;
+          await db.update(universityPartnerships)
+            .set({
+              outreachEmailDraft: draft,
+              outreachEmailSubject: subject,
+            })
+            .where(eq(universityPartnerships.id, uniId));
+          draftsGenerated++;
+          console.log(`[University Scout] Generated draft for ${uniName}`);
+        } else {
+          errorList.push(`Failed to generate draft for ${uniName}`);
+          continue;
+        }
+      } else {
+        draftsGenerated++; // Already has draft
+      }
+
+      // Step 3: Update status to draft_ready
+      await db.update(universityPartnerships)
+        .set({ outreachStatus: "draft_ready" })
+        .where(eq(universityPartnerships.id, uniId));
+
+    } catch (err) {
+      const msg = `Error processing ${uniName}: ${err instanceof Error ? err.message : String(err)}`;
+      errorList.push(msg);
+      console.error(`[University Scout] ${msg}`);
+    }
+  }
+
+  // Step 4: Submit all draft_ready for approval
+  let approvalsSent = 0;
+  try {
+    approvalsSent = await submitAllDraftsForApproval();
+    console.log(`[University Scout] Submitted ${approvalsSent} drafts for admin approval`);
+  } catch (err) {
+    errorList.push(`Failed to submit approvals: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // Send summary report to admin
+  const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta", dateStyle: "full", timeStyle: "short" });
+  await sendEmail({
+    to: ADMIN_EMAIL,
+    subject: `\ud83d\udce7 University Scout: ${pendingUniversities.length} universities processed, ${approvalsSent} ready for approval`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:20px;">
+    <div style="background:#fff;border-radius:12px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+      <h2 style="color:#e53e3e;text-align:center;">University Scout Report</h2>
+      <p style="color:#999;text-align:center;font-size:12px;">${now}</p>
+      
+      <div style="display:flex;gap:12px;margin:20px 0;">
+        <div style="flex:1;background:#eff6ff;border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:#2563eb;">${pendingUniversities.length}</div>
+          <div style="font-size:11px;color:#666;">Processed</div>
+        </div>
+        <div style="flex:1;background:#f0fdf4;border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:#16a34a;">${emailsFound}</div>
+          <div style="font-size:11px;color:#666;">Emails Found</div>
+        </div>
+        <div style="flex:1;background:#fefce8;border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:#ca8a04;">${draftsGenerated}</div>
+          <div style="font-size:11px;color:#666;">Drafts Ready</div>
+        </div>
+        <div style="flex:1;background:#fef2f2;border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:#e53e3e;">${approvalsSent}</div>
+          <div style="font-size:11px;color:#666;">Awaiting Approval</div>
+        </div>
+      </div>
+
+      ${errorList.length > 0 ? `
+      <h3 style="color:#dc2626;">Issues (${errorList.length})</h3>
+      <ul style="font-size:13px;color:#666;">
+        ${errorList.map(e => `<li>${e}</li>`).join("")}
+      </ul>` : ""}
+
+      <p style="font-size:13px;color:#666;">Check your inbox for individual approval emails. Click Approve to send the outreach email, or Reject to skip.</p>
+      
+      <div style="text-align:center;margin:20px 0;">
+        <a href="https://www.spectaeducation.com/admin/agents" style="display:inline-block;background:#e53e3e;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;">View in Command Center</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`,
+  });
+
+  return {
+    processed: pendingUniversities.length,
+    emailsFound,
+    draftsGenerated,
+    approvalsSent,
+    errors: errorList,
+  };
+}
+
+// ==========================================
 // Get partnership pipeline for dashboard
 // ==========================================
 export async function getPartnershipPipeline(): Promise<{
@@ -547,11 +870,15 @@ export async function submitDraftForApproval(partnershipId: number): Promise<voi
 
   if (!partnership) throw new Error("Partnership not found");
 
-  // Determine recipient email
-  const recipientEmail = (partnership as any).agentRecruitmentEmail 
+  // Determine recipient email (check all possible fields)
+  const recipientEmail = (partnership as any).outreachRecipientEmail
+    || (partnership as any).agentRecruitmentEmail 
     || (partnership as any).internationalOfficeEmail;
 
-  if (!recipientEmail) throw new Error("No recipient email found for this university");
+  if (!recipientEmail) {
+    console.warn(`[University Scout] No recipient email for ${(partnership as any).universityName} — skipping approval`);
+    return; // Skip silently instead of throwing
+  }
 
   // Parse the draft email
   let emailSubject = (partnership as any).outreachEmailSubject || "";
@@ -759,24 +1086,38 @@ export async function handleApprovalAction(
  * Generate outreach email using AI
  */
 async function generateOutreachEmail(partnership: any): Promise<{ subject: string; body: string }> {
-  const prompt = `Write a professional partnership outreach email from SpecTa Education (an Indonesian education consultancy) to ${partnership.universityName} in ${partnership.country}.
+  const prompt = `Write a professional partnership outreach email from SpecTa Education to ${partnership.universityName} in ${partnership.country}.
 
-Context:
-- SpecTa Education helps Indonesian students study abroad
-- We have 15+ years of experience and 1000+ students assisted
-- We have offices in Jakarta (Kelapa Gading, PIK, Gading Serpong)
-- We want to establish an agent/partnership agreement
-${partnership.contactPersonName ? `- Contact person: ${partnership.contactPersonName} (${partnership.contactPersonTitle || 'International Office'})` : ''}
-${partnership.worldRanking ? `- University world ranking: #${partnership.worldRanking}` : ''}
-${partnership.popularPrograms ? `- Popular programs: ${partnership.popularPrograms}` : ''}
+About SpecTa Education:
+- Founded in 2005, 20+ years as one of Indonesia's most established education consultancies
+- Recently launched SpecTa 2.0 — Indonesia's FIRST and ONLY AI-powered education consultancy platform
+- 3 branches in Jakarta: Kelapa Gading (Head Office), PIK, Gading Serpong
+- 691+ students successfully placed, 6,000+ IELTS students, 4.9/5.0 Google rating (276+ reviews)
+- 50+ existing university partnerships, 10 destination countries
 
-Write the email in a professional, warm tone. Include:
-1. Brief introduction of SpecTa Education
-2. Why we're interested in partnering with this university
-3. What we can offer (student recruitment from Indonesia, marketing support)
-4. A clear call to action for a meeting or call
+SpecTa 2.0 AI Features (EMPHASIZE):
+1. AI Aptitude Test (RIASEC + Multiple Intelligence) — matches students to ideal programs
+2. AI Chatbot "Ask SpecTa" — 24/7 multilingual advisor
+3. AI-Powered IELTS Practice Tests with AI scoring
+4. University Comparison Tool — AI-driven side-by-side comparison
+5. Scholarship Finder — AI-matched recommendations
+6. Study Abroad Simulator — estimated costs, timelines, requirements
+7. Track My Application — real-time status portal
+
+Benefits for universities: pre-qualified students, higher conversion, data-driven market intelligence on Indonesian student demand.
+
+${partnership.contactPersonName ? `Contact person: ${partnership.contactPersonName} (${partnership.contactPersonTitle || 'International Office'})` : ''}
+${partnership.worldRanking ? `University world ranking: #${partnership.worldRanking}` : ''}
+${partnership.popularPrograms ? `Popular programs: ${partnership.popularPrograms}` : ''}
+
+The email MUST:
+- Lead with SpecTa 2.0 as the key differentiator
+- Be professional, warm, and confident (under 350 words)
+- Sign off as: Hadi Jito Thian, Founder & CEO
+- Include: hadi@spectaeducation.com | WhatsApp: +62 818 668 277 | www.spectaeducation.com
 
 Return as JSON: { "subject": "...", "body": "..." }
+The subject should mention SpecTa Education and AI-Powered Platform.
 The body should be plain text (no HTML), with proper line breaks.`;
 
   try {
@@ -813,7 +1154,7 @@ The body should be plain text (no HTML), with proper line breaks.`;
 
   // Fallback
   return {
-    subject: `Partnership Inquiry from SpecTa Education - ${partnership.country} Student Recruitment`,
-    body: `Dear International Partnerships Team,\n\nI am writing from SpecTa Education, a leading education consultancy based in Jakarta, Indonesia. We specialize in helping Indonesian students pursue their academic goals abroad.\n\nWe are very interested in establishing a formal partnership with ${partnership.universityName} to facilitate student recruitment from Indonesia.\n\nWe would welcome the opportunity to discuss this further. Would you be available for a brief call or meeting?\n\nBest regards,\nHadi Yowan\nFounder & CEO, SpecTa Education`,
+    subject: `Partnership Inquiry — SpecTa Education, Indonesia's First AI-Powered Study Abroad Platform | ${partnership.universityName}`,
+    body: `Dear International Partnerships Team,\n\nI am writing from SpecTa Education, Indonesia's first and only AI-powered education consultancy platform. Founded in 2005, we have over 20 years of experience helping Indonesian students pursue their academic goals abroad, with 691+ successful placements and 50+ university partnerships globally.\n\nWe recently launched SpecTa 2.0, our AI-integrated platform featuring an AI Aptitude Test, AI Chatbot advisor, AI-Powered IELTS Practice, University Comparison Tool, Scholarship Finder, and real-time Application Tracker. Our technology pre-qualifies and better prepares students before referral, resulting in higher conversion rates for our partner universities.\n\nWe are very interested in establishing a formal partnership with ${partnership.universityName} to facilitate student recruitment from Indonesia. We believe our AI-driven approach and established track record would be mutually beneficial.\n\nWould you be available for a brief call or virtual meeting to explore partnership opportunities?\n\nBest regards,\nHadi Jito Thian\nFounder & CEO, SpecTa Education\nhadi@spectaeducation.com | WhatsApp: +62 818 668 277\nwww.spectaeducation.com`,
   };
 }

@@ -1,0 +1,124 @@
+{
+  "query": "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'university_partnerships' ORDER BY ORDINAL_POSITION;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'university_partnerships' ORDER BY ORDINAL_POSITION;",
+  "rows": [
+    {
+      "COLUMN_NAME": "id"
+    },
+    {
+      "COLUMN_NAME": "universityName"
+    },
+    {
+      "COLUMN_NAME": "country"
+    },
+    {
+      "COLUMN_NAME": "city"
+    },
+    {
+      "COLUMN_NAME": "websiteUrl"
+    },
+    {
+      "COLUMN_NAME": "worldRanking"
+    },
+    {
+      "COLUMN_NAME": "countryRanking"
+    },
+    {
+      "COLUMN_NAME": "rankingSource"
+    },
+    {
+      "COLUMN_NAME": "partnershipType"
+    },
+    {
+      "COLUMN_NAME": "hasExistingIndonesianAgent"
+    },
+    {
+      "COLUMN_NAME": "existingAgents"
+    },
+    {
+      "COLUMN_NAME": "internationalOfficeEmail"
+    },
+    {
+      "COLUMN_NAME": "agentRecruitmentEmail"
+    },
+    {
+      "COLUMN_NAME": "contactPersonName"
+    },
+    {
+      "COLUMN_NAME": "contactPersonTitle"
+    },
+    {
+      "COLUMN_NAME": "contactPersonLinkedin"
+    },
+    {
+      "COLUMN_NAME": "popularPrograms"
+    },
+    {
+      "COLUMN_NAME": "tuitionRange"
+    },
+    {
+      "COLUMN_NAME": "intakeMonths"
+    },
+    {
+      "COLUMN_NAME": "outreachStatus"
+    },
+    {
+      "COLUMN_NAME": "outreachEmailDraft"
+    },
+    {
+      "COLUMN_NAME": "outreachSentAt"
+    },
+    {
+      "COLUMN_NAME": "lastFollowUpAt"
+    },
+    {
+      "COLUMN_NAME": "responseReceived"
+    },
+    {
+      "COLUMN_NAME": "partnershipScore"
+    },
+    {
+      "COLUMN_NAME": "priority"
+    },
+    {
+      "COLUMN_NAME": "notes"
+    },
+    {
+      "COLUMN_NAME": "discoveredAt"
+    },
+    {
+      "COLUMN_NAME": "createdAt"
+    },
+    {
+      "COLUMN_NAME": "updatedAt"
+    },
+    {
+      "COLUMN_NAME": "outreachEmailSubject"
+    },
+    {
+      "COLUMN_NAME": "outreachRecipientEmail"
+    },
+    {
+      "COLUMN_NAME": "approvalStatus"
+    },
+    {
+      "COLUMN_NAME": "approvalToken"
+    },
+    {
+      "COLUMN_NAME": "approvalRequestedAt"
+    },
+    {
+      "COLUMN_NAME": "approvedAt"
+    },
+    {
+      "COLUMN_NAME": "rejectedAt"
+    },
+    {
+      "COLUMN_NAME": "rejectionReason"
+    }
+  ],
+  "messages": [],
+  "stdout": "COLUMN_NAME\nid\nuniversityName\ncountry\ncity\nwebsiteUrl\nworldRanking\ncountryRanking\nrankingSource\npartnershipType\nhasExistingIndonesianAgent\nexistingAgents\ninternationalOfficeEmail\nagentRecruitmentEmail\ncontactPersonName\ncontactPersonTitle\ncontactPersonLinkedin\npopularPrograms\ntuitionRange\nintakeMonths\noutreachStatus\noutreachEmailDraft\noutreachSentAt\nlastFollowUpAt\nresponseReceived\npartnershipScore\npriority\nnotes\ndiscoveredAt\ncreatedAt\nupdatedAt\noutreachEmailSubject\noutreachRecipientEmail\napprovalStatus\napprovalToken\napprovalRequestedAt\napprovedAt\nrejectedAt\nrejectionReason\n",
+  "stderr": "",
+  "execution_time_ms": 1587
+}

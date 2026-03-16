@@ -1,0 +1,8 @@
+{
+  "query": "SELECT id, universityName, country, status, outreachStatus, approvalStatus, outreachEmailDraft IS NOT NULL as hasDraft, contactEmail, createdAt FROM university_partnerships ORDER BY createdAt DESC LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT id, universityName, country, status, outreachStatus, approvalStatus, outreachEmailDraft IS NOT NULL as hasDraft, contactEmail, createdAt FROM university_partnerships ORDER BY createdAt DESC LIMIT 20;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'status' in 'field list'"
+  ]
+}

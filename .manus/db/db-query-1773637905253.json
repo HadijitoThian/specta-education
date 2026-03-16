@@ -1,0 +1,230 @@
+{
+  "query": "SELECT id, universityName, country, outreachStatus, approvalStatus, outreachEmailDraft IS NOT NULL as hasDraft, outreachRecipientEmail, agentRecruitmentEmail, internationalOfficeEmail FROM university_partnerships ORDER BY id DESC LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT id, universityName, country, outreachStatus, approvalStatus, outreachEmailDraft IS NOT NULL as hasDraft, outreachRecipientEmail, agentRecruitmentEmail, internationalOfficeEmail FROM university_partnerships ORDER BY id DESC LIMIT 20;",
+  "rows": [
+    {
+      "id": "30015",
+      "universityName": "Deakin University",
+      "country": "Australia",
+      "outreachStatus": "draft_ready",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "30014",
+      "universityName": "University of Technology Sydney (UTS)",
+      "country": "Australia",
+      "outreachStatus": "identified",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "30013",
+      "universityName": "University of Otago",
+      "country": "New Zealand",
+      "outreachStatus": "identified",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "30012",
+      "universityName": "University of Canterbury",
+      "country": "New Zealand",
+      "outreachStatus": "identified",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "30011",
+      "universityName": "Auckland University of Technology (AUT)",
+      "country": "New Zealand",
+      "outreachStatus": "identified",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "30010",
+      "universityName": "Victoria University of Wellington",
+      "country": "New Zealand",
+      "outreachStatus": "identified",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "30009",
+      "universityName": "Lincoln University",
+      "country": "New Zealand",
+      "outreachStatus": "identified",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "30008",
+      "universityName": "University of Waikato",
+      "country": "New Zealand",
+      "outreachStatus": "identified",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "30007",
+      "universityName": "Technological University Dublin",
+      "country": "Ireland",
+      "outreachStatus": "identified",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "30006",
+      "universityName": "Dublin City University",
+      "country": "Ireland",
+      "outreachStatus": "identified",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "30005",
+      "universityName": "University of Limerick",
+      "country": "Ireland",
+      "outreachStatus": "identified",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "30004",
+      "universityName": "National University of Ireland Galway",
+      "country": "Ireland",
+      "outreachStatus": "identified",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "30003",
+      "universityName": "University College Cork",
+      "country": "Ireland",
+      "outreachStatus": "identified",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "30002",
+      "universityName": "Trinity College Dublin",
+      "country": "Ireland",
+      "outreachStatus": "identified",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "30001",
+      "universityName": "University College Dublin",
+      "country": "Ireland",
+      "outreachStatus": "identified",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "7",
+      "universityName": "La Trobe University",
+      "country": "Australia",
+      "outreachStatus": "draft_ready",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "6",
+      "universityName": "Griffith University",
+      "country": "Australia",
+      "outreachStatus": "researching",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "5",
+      "universityName": "University of Wollongong (UOW)",
+      "country": "Australia",
+      "outreachStatus": "identified",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "4",
+      "universityName": "Curtin University",
+      "country": "Australia",
+      "outreachStatus": "identified",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    },
+    {
+      "id": "3",
+      "universityName": "University of South Australia (UniSA)",
+      "country": "Australia",
+      "outreachStatus": "identified",
+      "approvalStatus": "pending_draft",
+      "hasDraft": "1",
+      "outreachRecipientEmail": "NULL",
+      "agentRecruitmentEmail": "NULL",
+      "internationalOfficeEmail": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tuniversityName\tcountry\toutreachStatus\tapprovalStatus\thasDraft\toutreachRecipientEmail\tagentRecruitmentEmail\tinternationalOfficeEmail\n30015\tDeakin University\tAustralia\tdraft_ready\tpending_draft\t1\tNULL\tNULL\tNULL\n30014\tUniversity of Technology Sydney (UTS)\tAustralia\tidentified\tpending_draft\t1\tNULL\tNULL\tNULL\n30013\tUniversity of Otago\tNew Zealand\tidentified\tpending_draft\t1\tNULL\tNULL\tNULL\n30012\tUniversity of Canterbury\tNew Zealand\tidentified\tpending_draft\t1\tNULL\tNULL\tNULL\n30011\tAuckland University of Technology (AUT)\tNew Zealand\tidentified\tpending_draft\t1\tNULL\tNULL\tNULL\n30010\tVictoria University of Wellington\tNew Zealand\tidentified\tpending_draft\t1\tNULL\tNULL\tNULL\n30009\tLincoln University\tNew Zealand\tidentified\tpending_draft\t1\tNULL\tNULL\tNULL\n30008\tUniversity of Waikato\tNew Zealand\tidentified\tpending_draft\t1\tNULL\tNULL\tNULL\n30007\tTechnological University Dublin\tIreland\tidentified\tpending_draft\t1\tNULL\tNULL\tNULL\n30006\tDublin City University\tIreland\tidentified\tpending_draft\t1\tNULL\tNULL\tNULL\n30005\tUniversity of Limerick\tIreland\tidentified\tpending_draft\t1\tNULL\tNULL\tNULL\n30004\tNational University of Ireland Galway\tIreland\tidentified\tpending_draft\t1\tNULL\tNULL\tNULL\n30003\tUniversity College Cork\tIreland\tidentified\tpending_draft\t1\tNULL\tNULL\tNULL\n30002\tTrinity College Dublin\tIreland\tidentified\tpending_draft\t1\tNULL\tNULL\tNULL\n30001\tUniversity College Dublin\tIreland\tidentified\tpending_draft\t1\tNULL\tNULL\tNULL\n7\tLa Trobe University\tAustralia\tdraft_ready\tpending_draft\t1\tNULL\tNULL\tNULL\n6\tGriffith University\tAustralia\tresearching\tpending_draft\t1\tNULL\tNULL\tNULL\n5\tUniversity of Wollongong (UOW)\tAustralia\tidentified\tpending_draft\t1\tNULL\tNULL\tNULL\n4\tCurtin University\tAustralia\tidentified\tpending_draft\t1\tNULL\tNULL\tNULL\n3\tUniversity of South Australia (UniSA)\tAustralia\tidentified\tpending_draft\t1\tNULL\tNULL\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 1547
+}

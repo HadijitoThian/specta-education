@@ -87,6 +87,37 @@ describe("Partnership Email Function", () => {
   });
 });
 
+// Test University Scout Agent pipeline fixes
+describe("University Scout Agent Pipeline", () => {
+  it("should export processExistingUniversities function", async () => {
+    const agent = await import("./agentUniversityScout");
+    expect(agent.processExistingUniversities).toBeDefined();
+    expect(typeof agent.processExistingUniversities).toBe("function");
+  });
+
+  it("should export approval workflow functions", async () => {
+    const agent = await import("./agentUniversityScout");
+    expect(agent.submitDraftForApproval).toBeDefined();
+    expect(agent.submitAllDraftsForApproval).toBeDefined();
+    expect(agent.approveAndSendOutreach).toBeDefined();
+    expect(agent.rejectOutreach).toBeDefined();
+    expect(agent.handleApprovalAction).toBeDefined();
+    expect(agent.getPartnershipPipeline).toBeDefined();
+  });
+
+  it("should export sendPartnershipApprovalEmail from email module", async () => {
+    const email = await import("./email");
+    expect(email.sendPartnershipApprovalEmail).toBeDefined();
+    expect(typeof email.sendPartnershipApprovalEmail).toBe("function");
+  });
+
+  it("should export sendPartnershipOutreachEmail from email module", async () => {
+    const email = await import("./email");
+    expect(email.sendPartnershipOutreachEmail).toBeDefined();
+    expect(typeof email.sendPartnershipOutreachEmail).toBe("function");
+  });
+});
+
 // Test schema has the new columns
 describe("Database Schema", () => {
   it("should have amplified column in blogPosts", async () => {
