@@ -1,8 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, afterAll } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
+
+// Track test counselor IDs for cleanup
+const testCounselorIds: number[] = [];
 
 function createContext(role: "admin" | "general_manager" | "user" = "admin"): TrpcContext {
   const user: AuthenticatedUser = {
@@ -29,14 +32,29 @@ function createContext(role: "admin" | "general_manager" | "user" = "admin"): Tr
   };
 }
 
+// Clean up test counselors after all tests
+afterAll(async () => {
+  if (testCounselorIds.length > 0) {
+    const ctx = createContext("admin");
+    const caller = appRouter.createCaller(ctx);
+    for (const id of testCounselorIds) {
+      try {
+        await caller.counselor.delete({ id });
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  }
+});
+
 describe("counselor management", () => {
   it("admin can create a counselor", async () => {
     const ctx = createContext("admin");
     const caller = appRouter.createCaller(ctx);
-    const uniqueEmail = `sarah-${Date.now()}@specta-test.com`;
+    const uniqueEmail = `test-counselor-${Date.now()}@specta-test.com`;
 
     const result = await caller.counselor.create({
-      name: "Sarah Johnson",
+      name: "Test Counselor Admin",
       email: uniqueEmail,
       phone: "+6281234567890",
       specialization: "UK Universities",
@@ -44,29 +62,35 @@ describe("counselor management", () => {
 
     expect(result.success).toBe(true);
     expect(result.counselor).toBeTruthy();
-    expect(result.counselor?.name).toBe("Sarah Johnson");
+    expect(result.counselor?.name).toBe("Test Counselor Admin");
     expect(result.counselor?.email).toBe(uniqueEmail);
     expect(result.counselor?.specialization).toBe("UK Universities");
+
+    // Track for cleanup
+    if (result.counselor?.id) testCounselorIds.push(result.counselor.id);
   });
 
   it("general manager can create a counselor", async () => {
     const ctx = createContext("general_manager");
     const caller = appRouter.createCaller(ctx);
-    const uniqueEmail = `gm-counselor-${Date.now()}@specta-test.com`;
+    const uniqueEmail = `test-gm-${Date.now()}@specta-test.com`;
 
     const result = await caller.counselor.create({
-      name: "GM Counselor",
+      name: "Test Counselor GM",
       email: uniqueEmail,
     });
 
     expect(result.success).toBe(true);
     expect(result.counselor).toBeTruthy();
+
+    // Track for cleanup
+    if (result.counselor?.id) testCounselorIds.push(result.counselor.id);
   });
 
   it("regular user cannot create a counselor", async () => {
     const ctx = createContext("user");
     const caller = appRouter.createCaller(ctx);
-    const uniqueEmail = `blocked-${Date.now()}@specta-test.com`;
+    const uniqueEmail = `test-blocked-${Date.now()}@specta-test.com`;
 
     const result = await caller.counselor.create({
       name: "Blocked Counselor",

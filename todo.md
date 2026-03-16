@@ -1404,3 +1404,12 @@
 - [x] Added unique DB index on (leadId, leadSource) to prevent future duplicates
 - [x] Fixed aptitude lead check from in-memory Set to DB query (prevents re-assignment across runs)
 - [x] Test the new assignment logic (42/42 tests passing)
+
+#### Delete Fake Counselors (Sarah Johnson, GM Counselor)
+- [x] Identify all leads assigned to Sarah Johnson and GM Counselor
+- [x] Reassign their 33 leads to real counselors (Fitriana, Wulandari, Jenny) using round-robin
+- [x] Delete Sarah Johnson and GM Counselor from counselors table
+- [x] Verified not in hardcoded COUNSELOR_ROSTER (only in DB)
+- [x] No user accounts existed for them in users table
+- [x] Fixed counselor.test.ts to clean up test counselors after running (afterAll cleanup)
+- [x] Verified final distribution: Fitriana 27, Wulandari 27, Jenny 27, Hadi 1
