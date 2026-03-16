@@ -1395,3 +1395,12 @@
 - [x] Add 4 new tests for University Scout pipeline (16/16 passing)
 - [ ] Trigger processExistingUniversities to send approval emails for 15 universities
 - [ ] Test end-to-end pipeline with real approval emails
+
+#### CRM Distributor - Fix Lead Assignment (Single Counselor per Lead)
+- [x] Fix CRM Distributor to assign each lead to ONE counselor only (not all counselors)
+- [x] Implement round-robin single-counselor assignment for fair distribution
+- [x] Ensure counselor performance tracking shows individual metrics (unique leads per counselor)
+- [x] Fix existing duplicate assignments in database (cleaned up 85 duplicates)
+- [x] Added unique DB index on (leadId, leadSource) to prevent future duplicates
+- [x] Fixed aptitude lead check from in-memory Set to DB query (prevents re-assignment across runs)
+- [x] Test the new assignment logic (42/42 tests passing)

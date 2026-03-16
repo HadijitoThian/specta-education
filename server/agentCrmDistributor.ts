@@ -260,15 +260,13 @@ async function assignUnassignedLeads(): Promise<{ assigned: number; errors: numb
     // Source 3: Aptitude test leads (students who completed the test)
     const { getAllAptitudeResults } = await import("./db");
     const aptitudeResults = await getAllAptitudeResults();
-    const assignedAptitudeIds = new Set(
-      existingAssignments
-        .filter((a: any) => a.leadSource === "aptitude_test")
-        .map((a: any) => a.leadId)
-    );
 
     for (const result of aptitudeResults) {
-      if (assignedAptitudeIds.has(result.id)) continue;
       if (!result.studentEmail) continue;
+
+      // Use DB check (same as chatbot/scholarship) to prevent duplicates across runs
+      const existingAptitude = await getLeadAssignmentByLeadId(result.id, "aptitude_test");
+      if (existingAptitude) continue;
 
       const counselor = pickCounselor(counselors, counselorWorkload);
       if (!counselor) break;

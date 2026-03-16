@@ -1,0 +1,52 @@
+{
+  "query": "SELECT counselorEmail, counselorName, COUNT(*) as total_assigned, COUNT(DISTINCT leadId) as unique_leads FROM lead_assignments GROUP BY counselorEmail, counselorName ORDER BY total_assigned DESC",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT counselorEmail, counselorName, COUNT(*) as total_assigned, COUNT(DISTINCT leadId) as unique_leads FROM lead_assignments GROUP BY counselorEmail, counselorName ORDER BY total_assigned DESC",
+  "rows": [
+    {
+      "counselorEmail": "Fitriana@spectaeducation.com",
+      "counselorName": "Fitriana",
+      "total_assigned": "33",
+      "unique_leads": "16"
+    },
+    {
+      "counselorEmail": "gm-counselor-1773638627252@specta-test.com",
+      "counselorName": "GM Counselor",
+      "total_assigned": "33",
+      "unique_leads": "16"
+    },
+    {
+      "counselorEmail": "jenny@spectaeducation.com",
+      "counselorName": "jenny",
+      "total_assigned": "33",
+      "unique_leads": "16"
+    },
+    {
+      "counselorEmail": "sarah-1773638625662@specta-test.com",
+      "counselorName": "Sarah Johnson",
+      "total_assigned": "33",
+      "unique_leads": "16"
+    },
+    {
+      "counselorEmail": "wulan@spectaeducation.com",
+      "counselorName": "Wulandari",
+      "total_assigned": "33",
+      "unique_leads": "16"
+    },
+    {
+      "counselorEmail": "hadijitothian@gmail.com",
+      "counselorName": "Hadi Jito Thian",
+      "total_assigned": "1",
+      "unique_leads": "1"
+    },
+    {
+      "counselorEmail": "sarah-1771960409114@specta-test.com",
+      "counselorName": "Sarah Johnson",
+      "total_assigned": "1",
+      "unique_leads": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "counselorEmail\tcounselorName\ttotal_assigned\tunique_leads\nFitriana@spectaeducation.com\tFitriana\t33\t16\ngm-counselor-1773638627252@specta-test.com\tGM Counselor\t33\t16\njenny@spectaeducation.com\tjenny\t33\t16\nsarah-1773638625662@specta-test.com\tSarah Johnson\t33\t16\nwulan@spectaeducation.com\tWulandari\t33\t16\nhadijitothian@gmail.com\tHadi Jito Thian\t1\t1\nsarah-1771960409114@specta-test.com\tSarah Johnson\t1\t1\n",
+  "stderr": "",
+  "execution_time_ms": 1588
+}

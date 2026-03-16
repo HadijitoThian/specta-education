@@ -1,0 +1,130 @@
+{
+  "query": "SELECT leadId, leadSource, COUNT(*) as assignment_count, GROUP_CONCAT(counselorName) as assigned_to FROM lead_assignments GROUP BY leadId, leadSource HAVING COUNT(*) > 1 LIMIT 20",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT leadId, leadSource, COUNT(*) as assignment_count, GROUP_CONCAT(counselorName) as assigned_to FROM lead_assignments GROUP BY leadId, leadSource HAVING COUNT(*) > 1 LIMIT 20",
+  "rows": [
+    {
+      "leadId": "480003",
+      "leadSource": "aptitude_test",
+      "assignment_count": "3",
+      "assigned_to": "Wulandari,Wulandari,Wulandari"
+    },
+    {
+      "leadId": "390002",
+      "leadSource": "aptitude_test",
+      "assignment_count": "3",
+      "assigned_to": "Sarah Johnson,Sarah Johnson,Sarah Johnson"
+    },
+    {
+      "leadId": "210001",
+      "leadSource": "aptitude_test",
+      "assignment_count": "3",
+      "assigned_to": "GM Counselor,GM Counselor,GM Counselor"
+    },
+    {
+      "leadId": "120001",
+      "leadSource": "aptitude_test",
+      "assignment_count": "3",
+      "assigned_to": "Fitriana,Fitriana,Fitriana"
+    },
+    {
+      "leadId": "510002",
+      "leadSource": "aptitude_test",
+      "assignment_count": "3",
+      "assigned_to": "Sarah Johnson,Sarah Johnson,Sarah Johnson"
+    },
+    {
+      "leadId": "450001",
+      "leadSource": "aptitude_test",
+      "assignment_count": "3",
+      "assigned_to": "jenny,jenny,jenny"
+    },
+    {
+      "leadId": "510010",
+      "leadSource": "aptitude_test",
+      "assignment_count": "3",
+      "assigned_to": "Fitriana,Fitriana,Fitriana"
+    },
+    {
+      "leadId": "510007",
+      "leadSource": "aptitude_test",
+      "assignment_count": "3",
+      "assigned_to": "Sarah Johnson,Sarah Johnson,Sarah Johnson"
+    },
+    {
+      "leadId": "510001",
+      "leadSource": "aptitude_test",
+      "assignment_count": "3",
+      "assigned_to": "Wulandari,Wulandari,Wulandari"
+    },
+    {
+      "leadId": "420003",
+      "leadSource": "aptitude_test",
+      "assignment_count": "3",
+      "assigned_to": "Fitriana,Fitriana,Fitriana"
+    },
+    {
+      "leadId": "360002",
+      "leadSource": "aptitude_test",
+      "assignment_count": "3",
+      "assigned_to": "Fitriana,Fitriana,Fitriana"
+    },
+    {
+      "leadId": "270001",
+      "leadSource": "aptitude_test",
+      "assignment_count": "3",
+      "assigned_to": "Wulandari,Wulandari,Wulandari"
+    },
+    {
+      "leadId": "510012",
+      "leadSource": "aptitude_test",
+      "assignment_count": "3",
+      "assigned_to": "Sarah Johnson,Sarah Johnson,Sarah Johnson"
+    },
+    {
+      "leadId": "420001",
+      "leadSource": "aptitude_test",
+      "assignment_count": "3",
+      "assigned_to": "jenny,jenny,jenny"
+    },
+    {
+      "leadId": "90001",
+      "leadSource": "aptitude_test",
+      "assignment_count": "2",
+      "assigned_to": "GM Counselor,GM Counselor"
+    },
+    {
+      "leadId": "510008",
+      "leadSource": "aptitude_test",
+      "assignment_count": "3",
+      "assigned_to": "jenny,jenny,jenny"
+    },
+    {
+      "leadId": "60001",
+      "leadSource": "aptitude_test",
+      "assignment_count": "2",
+      "assigned_to": "jenny,jenny"
+    },
+    {
+      "leadId": "570001",
+      "leadSource": "aptitude_test",
+      "assignment_count": "2",
+      "assigned_to": "Fitriana,Fitriana"
+    },
+    {
+      "leadId": "480006",
+      "leadSource": "aptitude_test",
+      "assignment_count": "3",
+      "assigned_to": "GM Counselor,GM Counselor,GM Counselor"
+    },
+    {
+      "leadId": "510005",
+      "leadSource": "aptitude_test",
+      "assignment_count": "3",
+      "assigned_to": "Fitriana,Fitriana,Fitriana"
+    }
+  ],
+  "messages": [],
+  "stdout": "leadId\tleadSource\tassignment_count\tassigned_to\n480003\taptitude_test\t3\tWulandari,Wulandari,Wulandari\n390002\taptitude_test\t3\tSarah Johnson,Sarah Johnson,Sarah Johnson\n210001\taptitude_test\t3\tGM Counselor,GM Counselor,GM Counselor\n120001\taptitude_test\t3\tFitriana,Fitriana,Fitriana\n510002\taptitude_test\t3\tSarah Johnson,Sarah Johnson,Sarah Johnson\n450001\taptitude_test\t3\tjenny,jenny,jenny\n510010\taptitude_test\t3\tFitriana,Fitriana,Fitriana\n510007\taptitude_test\t3\tSarah Johnson,Sarah Johnson,Sarah Johnson\n510001\taptitude_test\t3\tWulandari,Wulandari,Wulandari\n420003\taptitude_test\t3\tFitriana,Fitriana,Fitriana\n360002\taptitude_test\t3\tFitriana,Fitriana,Fitriana\n270001\taptitude_test\t3\tWulandari,Wulandari,Wulandari\n510012\taptitude_test\t3\tSarah Johnson,Sarah Johnson,Sarah Johnson\n420001\taptitude_test\t3\tjenny,jenny,jenny\n90001\taptitude_test\t2\tGM Counselor,GM Counselor\n510008\taptitude_test\t3\tjenny,jenny,jenny\n60001\taptitude_test\t2\tjenny,jenny\n570001\taptitude_test\t2\tFitriana,Fitriana\n480006\taptitude_test\t3\tGM Counselor,GM Counselor,GM Counselor\n510005\taptitude_test\t3\tFitriana,Fitriana,Fitriana\n",
+  "stderr": "",
+  "execution_time_ms": 1514
+}
