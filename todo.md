@@ -1361,3 +1361,18 @@
 - [x] Fix founding year from 2011 to 2005 in all email drafts
 - [x] Verify Curtin University email for Corrinne Li (confirmed C.Li@curtin.edu.au from staff portal)
 - [x] Send all 7 partnership emails after Hadi's approval (SENT 2025-03-15)
+
+#### AI Agent Improvements - Phase 3
+- [x] Fix CRM Distributor to auto-assign new aptitude test leads to counselors
+- [x] Build Aptitude Lead Nurture Agent (personalised follow-up based on Holland Code)
+- [x] Fix Central Reporter to include all lead sources (aptitude, scholarship, applications)
+- [x] Build Re-Engagement Agent for cold leads (7+ days no response)
+- [x] Build WhatsApp Broadcast Agent framework (ready for Fonnte/Wablas API)
+- [x] Build Content Amplifier Agent (blog → Instagram caption + TikTok script + WA broadcast)
+- [x] Register all new agents in agentScheduler.ts
+- [x] Add tRPC endpoints for all new agents in routers.ts
+- [x] Add amplified column to blog_posts table
+- [x] Add nurtureEmailSent column to aptitudeResults table
+- [ ] Update Agent Command Center UI with new agent tabs/cards
+- [x] Test all new agents (12/12 tests passing)
+- [x] Save checkpoint

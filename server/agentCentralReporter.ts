@@ -27,6 +27,7 @@ import {
   getDueFollowUpActions,
   getAnalyticsKPIs,
   listPublishedBlogPosts,
+  getAllAptitudeResults,
 } from "./db";
 import { sendEmail } from "./email";
 
@@ -159,6 +160,7 @@ async function collectReportData() {
   const allLeads = await getAllLeads();
   const scholarshipLeads = await getAllScholarshipLeads();
   const applications = await getAllApplications();
+  const aptitudeResults = await getAllAptitudeResults();
   const assignments = await getAllLeadAssignments();
   const staleAssignments = await getStaleAssignments(48);
   const dueFollowUps = await getDueFollowUpActions();
@@ -249,6 +251,13 @@ async function collectReportData() {
     applications: {
       total: applications.length,
     },
+    aptitude: {
+      total: aptitudeResults.length,
+      new24h: aptitudeResults.filter(a => a.createdAt && new Date(a.createdAt).getTime() > last24h).length,
+      new7d: aptitudeResults.filter(a => a.createdAt && new Date(a.createdAt).getTime() > last7d).length,
+      withEmail: aptitudeResults.filter(a => a.studentEmail).length,
+      withPhone: aptitudeResults.filter(a => a.studentPhone).length,
+    },
     seo: {
       totalArticles: articlesPublished,
       planned: articlesPlanned,
@@ -265,7 +274,7 @@ async function collectReportData() {
  * Build the report summary text
  */
 function buildReportSummary(data: any): string {
-  return `Leads: ${data.leads.new24h} new (${data.leads.total} total) | Assignments: ${data.assignments.assignedToday} today | SEO: ${data.seo.publishedLast7d} articles this week | Escalations: ${data.assignments.stale} stale`;
+  return `Leads: ${data.leads.new24h} new (${data.leads.total} total) | Aptitude: ${data.aptitude?.new24h || 0} new (${data.aptitude?.total || 0} total) | Assignments: ${data.assignments.assignedToday} today | SEO: ${data.seo.publishedLast7d} articles this week | Escalations: ${data.assignments.stale} stale`;
 }
 
 /**

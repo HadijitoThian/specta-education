@@ -1,0 +1,1 @@
+ALTER TABLE `blog_posts` ADD `amplified` int DEFAULT 0;

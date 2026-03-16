@@ -4949,6 +4949,122 @@ Return JSON with the refined article:
           .where(eq(universityPartnerships.id, input.id));
         return { success: true };
       }),
+
+    // ---- Phase 3 Agent Routes (New Agents) ----
+
+    // Trigger Aptitude Nurture Agent
+    triggerAptitudeNurture: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const result = await triggerAgent("aptitude_nurture");
+        return { success: true, result };
+      }),
+
+    // Trigger Re-Engagement Agent
+    triggerReEngagement: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const result = await triggerAgent("re_engagement");
+        return { success: true, result };
+      }),
+
+    // Trigger WhatsApp Broadcast Agent
+    triggerWhatsAppBroadcast: protectedProcedure
+      .input(z.object({
+        campaignType: z.enum(["aptitude_followup", "promotion", "event_reminder", "custom"]).default("promotion"),
+        customMessage: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const result = await triggerAgent("whatsapp_broadcast", {
+          campaignType: input.campaignType,
+          customMessage: input.customMessage,
+        });
+        return { success: true, result };
+      }),
+
+    // Trigger Content Amplifier Agent
+    triggerContentAmplifier: protectedProcedure
+      .input(z.object({ blogId: z.number().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const result = await triggerAgent("content_amplifier", { blogId: input.blogId });
+        return { success: true, result };
+      }),
+
+    // Get amplified content for a blog post
+    getAmplifiedContent: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { drizzle } = await import("drizzle-orm/mysql2");
+        const { agentRunLogs } = await import("../drizzle/schema");
+        const { eq, desc } = await import("drizzle-orm");
+        const db = drizzle(process.env.DATABASE_URL!);
+        const runs = await db.select().from(agentRunLogs)
+          .where(eq(agentRunLogs.agentName, "content_amplifier"))
+          .orderBy(desc(agentRunLogs.startedAt))
+          .limit(5);
+        return runs.map(r => ({
+          id: r.id,
+          status: r.status,
+          summary: r.summary,
+          details: r.details ? JSON.parse(r.details) : null,
+          startedAt: r.startedAt,
+        }));
+      }),
+
+    // Get aptitude nurture stats
+    getAptitudeNurtureStats: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { drizzle } = await import("drizzle-orm/mysql2");
+        const { aptitudeResults, agentRunLogs } = await import("../drizzle/schema");
+        const { eq, desc, sql } = await import("drizzle-orm");
+        const db = drizzle(process.env.DATABASE_URL!);
+        const total = await db.select({ count: sql<number>`count(*)` }).from(aptitudeResults);
+        const nurtured = await db.select({ count: sql<number>`count(*)` }).from(aptitudeResults).where(eq(aptitudeResults.nurtureEmailSent, 1));
+        const runs = await db.select().from(agentRunLogs)
+          .where(eq(agentRunLogs.agentName, "aptitude_nurture"))
+          .orderBy(desc(agentRunLogs.startedAt))
+          .limit(5);
+        return {
+          totalAptitudeLeads: total[0]?.count || 0,
+          nurturedLeads: nurtured[0]?.count || 0,
+          pendingNurture: (total[0]?.count || 0) - (nurtured[0]?.count || 0),
+          recentRuns: runs.map(r => ({ id: r.id, status: r.status, summary: r.summary, startedAt: r.startedAt })),
+        };
+      }),
+
+    // Get re-engagement stats
+    getReEngagementStats: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { drizzle } = await import("drizzle-orm/mysql2");
+        const { agentRunLogs } = await import("../drizzle/schema");
+        const { eq, desc } = await import("drizzle-orm");
+        const db = drizzle(process.env.DATABASE_URL!);
+        const runs = await db.select().from(agentRunLogs)
+          .where(eq(agentRunLogs.agentName, "re_engagement"))
+          .orderBy(desc(agentRunLogs.startedAt))
+          .limit(5);
+        return {
+          recentRuns: runs.map(r => ({ id: r.id, status: r.status, summary: r.summary, startedAt: r.startedAt, itemsProcessed: r.itemsProcessed })),
+        };
+      }),
   }),
 });
 

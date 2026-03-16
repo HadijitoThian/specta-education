@@ -11,6 +11,10 @@ import { runCentralReporterAgent } from "./agentCentralReporter";
 import { runLeadHunterAgent } from "./agentLeadHunter";
 import { runCompetitorMonitorAgent } from "./agentCompetitorMonitor";
 import { runUniversityScoutAgent } from "./agentUniversityScout";
+import { runAptitudeNurtureAgent } from "./agentAptitudeNurture";
+import { runReEngagementAgent } from "./agentReEngagement";
+import { runWhatsAppBroadcastAgent } from "./agentWhatsAppBroadcast";
+import { runContentAmplifierAgent } from "./agentContentAmplifier";
 import {
   getAgentConfig,
   upsertAgentConfig,
@@ -27,44 +31,72 @@ export async function initializeAgents(): Promise<void> {
     {
       agentName: "crm_distributor",
       displayName: "CRM & Follow-Up Distributor",
-      description: "Assigns leads to counselors, manages follow-up sequences, and escalates stale leads",
+      description: "Assigns leads to counselors (chatbot + aptitude + scholarship), manages follow-up sequences, and escalates stale leads",
       isActive: true,
-      runIntervalMinutes: 60, // every hour
+      runIntervalMinutes: 60,
     },
     {
       agentName: "seo_builder",
       displayName: "SEO Content Builder",
       description: "Generates and publishes SEO-optimized blog articles targeting study abroad keywords",
       isActive: true,
-      runIntervalMinutes: 480, // every 8 hours
+      runIntervalMinutes: 480,
     },
     {
       agentName: "central_reporter",
       displayName: "Central Reporter",
-      description: "Compiles daily reports and sends 9AM briefing email to admin",
+      description: "Compiles daily reports (chatbot + aptitude + IELTS + applications) and sends 9AM briefing email",
       isActive: true,
-      runIntervalMinutes: 1440, // daily
+      runIntervalMinutes: 1440,
     },
     {
       agentName: "lead_hunter",
       displayName: "Lead Hunter",
       description: "Tracks website visitor behavior, scans social media for lead signals, and scores engagement",
       isActive: true,
-      runIntervalMinutes: 120, // every 2 hours
+      runIntervalMinutes: 120,
     },
     {
       agentName: "competitor_monitor",
       displayName: "Competitor Monitor",
       description: "Tracks 9+ competitors daily, monitors their strategies, and sends strategic blueprints",
       isActive: true,
-      runIntervalMinutes: 1440, // daily
+      runIntervalMinutes: 1440,
     },
     {
       agentName: "university_scout",
       displayName: "University Partner Scout",
       description: "Finds university partnership opportunities across Australia, UK, Ireland, Canada, and New Zealand",
       isActive: true,
-      runIntervalMinutes: 1440, // daily
+      runIntervalMinutes: 1440,
+    },
+    {
+      agentName: "aptitude_nurture",
+      displayName: "Aptitude Lead Nurture",
+      description: "Sends personalised follow-up emails to aptitude test completers based on their Holland Code results",
+      isActive: true,
+      runIntervalMinutes: 1440,
+    },
+    {
+      agentName: "re_engagement",
+      displayName: "Re-Engagement Agent",
+      description: "Identifies cold leads (7+ days no response) and sends personalised re-engagement emails",
+      isActive: true,
+      runIntervalMinutes: 1440,
+    },
+    {
+      agentName: "whatsapp_broadcast",
+      displayName: "WhatsApp Broadcast",
+      description: "Sends WhatsApp broadcasts to leads via Fonnte API. Currently in dry-run mode until API key configured.",
+      isActive: false, // Disabled until API key is configured
+      runIntervalMinutes: 10080, // Weekly
+    },
+    {
+      agentName: "content_amplifier",
+      displayName: "Content Amplifier",
+      description: "Converts published blog posts into Instagram captions, TikTok scripts, WhatsApp messages, Twitter threads, and LinkedIn posts",
+      isActive: true,
+      runIntervalMinutes: 480,
     },
   ];
 
@@ -94,13 +126,35 @@ export async function checkAndRunAgents(): Promise<void> {
 
     if (!shouldRun) continue;
 
-    // Special handling for central_reporter — only run at 9AM WIB (2AM UTC)
+    // Special handling for time-sensitive agents
     if (config.agentName === "central_reporter") {
       const utcHour = now.getUTCHours();
       const wibHour = (utcHour + 7) % 24;
-      // Only run between 8:30-9:30 WIB
       if (wibHour !== 9 && wibHour !== 8) continue;
-      // Don't run if already ran today
+      if (config.lastRunAt) {
+        const lastRunDate = new Date(config.lastRunAt).toISOString().split("T")[0];
+        const todayDate = now.toISOString().split("T")[0];
+        if (lastRunDate === todayDate) continue;
+      }
+    }
+
+    // Aptitude nurture runs at 10AM WIB
+    if (config.agentName === "aptitude_nurture") {
+      const utcHour = now.getUTCHours();
+      const wibHour = (utcHour + 7) % 24;
+      if (wibHour !== 10) continue;
+      if (config.lastRunAt) {
+        const lastRunDate = new Date(config.lastRunAt).toISOString().split("T")[0];
+        const todayDate = now.toISOString().split("T")[0];
+        if (lastRunDate === todayDate) continue;
+      }
+    }
+
+    // Re-engagement runs at 2PM WIB
+    if (config.agentName === "re_engagement") {
+      const utcHour = now.getUTCHours();
+      const wibHour = (utcHour + 7) % 24;
+      if (wibHour !== 14) continue;
       if (config.lastRunAt) {
         const lastRunDate = new Date(config.lastRunAt).toISOString().split("T")[0];
         const todayDate = now.toISOString().split("T")[0];
@@ -130,6 +184,18 @@ export async function checkAndRunAgents(): Promise<void> {
         case "university_scout":
           await runUniversityScoutAgent();
           break;
+        case "aptitude_nurture":
+          await runAptitudeNurtureAgent();
+          break;
+        case "re_engagement":
+          await runReEngagementAgent();
+          break;
+        case "whatsapp_broadcast":
+          await runWhatsAppBroadcastAgent();
+          break;
+        case "content_amplifier":
+          await runContentAmplifierAgent();
+          break;
         default:
           console.log(`[Scheduler] Unknown agent: ${config.agentName}`);
       }
@@ -148,26 +214,23 @@ export function startAgentScheduler(): void {
     return;
   }
 
-  console.log("[Scheduler] Starting AI Agent Scheduler...");
+  console.log("[Scheduler] Starting AI Agent Scheduler (10 agents)...");
   
-  // Initialize agents on startup
   initializeAgents().catch(err => {
     console.error("[Scheduler] Failed to initialize agents:", err);
   });
 
-  // Run check every 5 minutes
   schedulerInterval = setInterval(() => {
     checkAndRunAgents().catch(err => {
       console.error("[Scheduler] Error in check cycle:", err);
     });
   }, 5 * 60 * 1000);
 
-  // Also run immediately after a short delay (let server fully start)
   setTimeout(() => {
     checkAndRunAgents().catch(err => {
       console.error("[Scheduler] Error in initial check:", err);
     });
-  }, 30 * 1000); // 30 seconds after startup
+  }, 30 * 1000);
 }
 
 /**
@@ -184,7 +247,7 @@ export function stopAgentScheduler(): void {
 /**
  * Manually trigger a specific agent
  */
-export async function triggerAgent(agentName: string): Promise<any> {
+export async function triggerAgent(agentName: string, params?: any): Promise<any> {
   console.log(`[Scheduler] Manual trigger: ${agentName}`);
   
   switch (agentName) {
@@ -200,6 +263,18 @@ export async function triggerAgent(agentName: string): Promise<any> {
       return runCompetitorMonitorAgent();
     case "university_scout":
       return runUniversityScoutAgent();
+    case "aptitude_nurture":
+      return runAptitudeNurtureAgent();
+    case "re_engagement":
+      return runReEngagementAgent();
+    case "whatsapp_broadcast":
+      return runWhatsAppBroadcastAgent(
+        params?.campaignType || "promotion",
+        params?.customMessage,
+        params?.targetPhones
+      );
+    case "content_amplifier":
+      return runContentAmplifierAgent(params?.blogId);
     default:
       throw new Error(`Unknown agent: ${agentName}`);
   }

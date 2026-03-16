@@ -423,6 +423,7 @@ export const aptitudeResults = mysqlTable("aptitudeResults", {
   careerOutlook: text("careerOutlook"), // JSON: career paths for each major
   parentSummary: text("parentSummary"), // Parent-friendly explanation
   createdAt: timestamp("createdAt").defaultNow().notNull(),
+  nurtureEmailSent: int("nurtureEmailSent").default(0),
 });
 
 export type AptitudeResult = typeof aptitudeResults.$inferSelect;
@@ -701,6 +702,7 @@ export const blogPosts = mysqlTable("blog_posts", {
   publishedAt: timestamp("publishedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  amplified: int("amplified").default(0),
 });
 
 export type BlogPost = typeof blogPosts.$inferSelect;

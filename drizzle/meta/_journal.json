@@ -169,6 +169,20 @@
       "when": 1773548857189,
       "tag": "0023_ancient_amphibian",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "5",
+      "when": 1773635091229,
+      "tag": "0024_friendly_carmella_unuscione",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "5",
+      "when": 1773635138997,
+      "tag": "0025_soft_hercules",
+      "breakpoints": true
     }
   ]
 }

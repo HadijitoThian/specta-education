@@ -257,6 +257,57 @@ async function assignUnassignedLeads(): Promise<{ assigned: number; errors: numb
       }
     }
 
+    // Source 3: Aptitude test leads (students who completed the test)
+    const { getAllAptitudeResults } = await import("./db");
+    const aptitudeResults = await getAllAptitudeResults();
+    const assignedAptitudeIds = new Set(
+      existingAssignments
+        .filter((a: any) => a.leadSource === "aptitude_test")
+        .map((a: any) => a.leadId)
+    );
+
+    for (const result of aptitudeResults) {
+      if (assignedAptitudeIds.has(result.id)) continue;
+      if (!result.studentEmail) continue;
+
+      const counselor = pickCounselor(counselors, counselorWorkload);
+      if (!counselor) break;
+
+      try {
+        await createLeadAssignment({
+          leadId: result.id,
+          leadSource: "aptitude_test",
+          counselorId: counselor.id,
+          counselorEmail: counselor.email,
+          counselorName: counselor.name,
+          studentName: result.studentName || "Unknown",
+          studentEmail: result.studentEmail,
+          studentPhone: result.studentPhone || null,
+          status: "assigned",
+          priority: "medium",
+          nextFollowUpAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        });
+        counselorWorkload[counselor.email] = (counselorWorkload[counselor.email] || 0) + 1;
+        assigned++;
+
+        await createFollowUpSchedule(0, counselor, result.studentName || "Student", result.studentEmail, result.studentPhone);
+
+        await sendAdminAssignmentNotification({
+          studentName: result.studentName || "Unknown",
+          studentEmail: result.studentEmail,
+          studentPhone: result.studentPhone || "N/A",
+          preferredCountry: `Holland Code: ${result.hollandCode || "N/A"}`,
+          counselorName: counselor.name,
+          counselorEmail: counselor.email,
+          leadSource: "Aptitude Test",
+          priority: "medium",
+        });
+      } catch (err) {
+        console.error(`[CRM Agent] Failed to assign aptitude lead ${result.id}:`, err);
+        errors++;
+      }
+    }
+
     console.log(`[CRM Agent] Assigned ${assigned} new leads (${errors} errors)`);
   } catch (err) {
     console.error("[CRM Agent] Error in assignUnassignedLeads:", err);

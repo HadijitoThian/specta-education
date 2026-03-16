@@ -1,0 +1,1 @@
+ALTER TABLE `aptitudeResults` ADD `nurtureEmailSent` int DEFAULT 0;
