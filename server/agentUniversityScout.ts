@@ -988,17 +988,17 @@ export async function approveAndSendOutreach(partnershipId: number): Promise<voi
   }
 
   // Send the actual outreach email
-  const sent = await sendPartnershipOutreachEmail({
+  const result = await sendPartnershipOutreachEmail({
     to: recipientEmail,
     subject,
     body,
   });
 
-  if (!sent) {
+  if (!result.success) {
     await db.update(universityPartnerships)
       .set({ approvalStatus: "failed" })
       .where(eq(universityPartnerships.id, partnershipId));
-    throw new Error("Failed to send outreach email");
+    throw new Error(result.error || "Failed to send outreach email");
   }
 
   // Update status

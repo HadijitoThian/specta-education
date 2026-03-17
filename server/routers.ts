@@ -5075,6 +5075,138 @@ Return JSON with the refined article:
           recentRuns: runs.map(r => ({ id: r.id, status: r.status, summary: r.summary, startedAt: r.startedAt, itemsProcessed: r.itemsProcessed })),
         };
       }),
+
+    // ==================== SEO OPTIMIZER AGENT ====================
+
+    // Trigger SEO Optimizer agent
+    triggerSeoOptimizer: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const result = await triggerAgent("seo_optimizer");
+        return { success: true, result };
+      }),
+
+    // Get SEO dashboard stats
+    getSeoStats: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { drizzle } = await import("drizzle-orm/mysql2");
+        const { seoPageAudits, seoRecommendations, seoScoreHistory, agentRunLogs } = await import("../drizzle/schema");
+        const { eq, desc, sql } = await import("drizzle-orm");
+        const db = drizzle(process.env.DATABASE_URL!);
+
+        // Latest score history
+        const latestScore = await db.select().from(seoScoreHistory)
+          .orderBy(desc(seoScoreHistory.createdAt))
+          .limit(1);
+
+        // Score trend (last 10)
+        const scoreTrend = await db.select({
+          overallScore: seoScoreHistory.overallScore,
+          metaScore: seoScoreHistory.metaScore,
+          contentScore: seoScoreHistory.contentScore,
+          technicalScore: seoScoreHistory.technicalScore,
+          createdAt: seoScoreHistory.createdAt,
+        }).from(seoScoreHistory)
+          .orderBy(desc(seoScoreHistory.createdAt))
+          .limit(10);
+
+        // Latest page audits (most recent per page)
+        const latestAudits = await db.select().from(seoPageAudits)
+          .orderBy(desc(seoPageAudits.auditedAt))
+          .limit(50);
+
+        // Deduplicate by pageUrl (keep latest)
+        const seenPages = new Set<string>();
+        const uniqueAudits = latestAudits.filter(a => {
+          if (seenPages.has(a.pageUrl)) return false;
+          seenPages.add(a.pageUrl);
+          return true;
+        });
+
+        // Open recommendations
+        const openRecs = await db.select().from(seoRecommendations)
+          .where(eq(seoRecommendations.status, "open"))
+          .orderBy(desc(seoRecommendations.createdAt))
+          .limit(30);
+
+        // Recent runs
+        const runs = await db.select().from(agentRunLogs)
+          .where(eq(agentRunLogs.agentName, "seo_optimizer"))
+          .orderBy(desc(agentRunLogs.startedAt))
+          .limit(5);
+
+        // Count by severity
+        const criticalCount = openRecs.filter(r => r.severity === "critical").length;
+        const warningCount = openRecs.filter(r => r.severity === "warning").length;
+        const infoCount = openRecs.filter(r => r.severity === "info").length;
+
+        return {
+          currentScore: latestScore[0] || null,
+          scoreTrend: scoreTrend.reverse(),
+          pageAudits: uniqueAudits.map(a => ({
+            id: a.id,
+            pageUrl: a.pageUrl,
+            pageTitle: a.pageTitle,
+            overallScore: a.overallScore,
+            metaTitleScore: a.metaTitleScore,
+            metaDescriptionScore: a.metaDescriptionScore,
+            hasOgTitle: a.hasOgTitle,
+            hasOgDescription: a.hasOgDescription,
+            hasOgImage: a.hasOgImage,
+            h1Count: a.h1Count,
+            hasCanonical: a.hasCanonical,
+            hasStructuredData: a.hasStructuredData,
+            loadTimeMs: a.loadTimeMs,
+            wordCount: a.wordCount,
+            issues: a.issues ? JSON.parse(a.issues) : [],
+            auditedAt: a.auditedAt,
+          })),
+          recommendations: openRecs.map(r => ({
+            id: r.id,
+            pageUrl: r.pageUrl,
+            type: r.type,
+            severity: r.severity,
+            title: r.title,
+            description: r.description,
+            currentValue: r.currentValue,
+            suggestedValue: r.suggestedValue,
+            status: r.status,
+          })),
+          issueCounts: { critical: criticalCount, warning: warningCount, info: infoCount },
+          recentRuns: runs.map(r => ({
+            id: r.id,
+            status: r.status,
+            summary: r.summary,
+            startedAt: r.startedAt,
+            details: r.details ? JSON.parse(r.details) : null,
+          })),
+        };
+      }),
+
+    // Dismiss or apply a recommendation
+    updateSeoRecommendation: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["applied", "dismissed"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { drizzle } = await import("drizzle-orm/mysql2");
+        const { seoRecommendations } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = drizzle(process.env.DATABASE_URL!);
+        await db.update(seoRecommendations)
+          .set({ status: input.status, appliedAt: input.status === "applied" ? new Date() : null })
+          .where(eq(seoRecommendations.id, input.id));
+        return { success: true };
+      }),
   }),
 });
 

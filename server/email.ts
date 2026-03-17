@@ -866,7 +866,7 @@ export async function sendPartnershipOutreachEmail({
   to: string;
   subject: string;
   body: string;
-}): Promise<boolean> {
+}): Promise<{ success: boolean; error?: string }> {
   // The body is already formatted by the AI agent, wrap it in a clean professional template
   const html = `
 <!DOCTYPE html>
@@ -924,10 +924,10 @@ export async function sendPartnershipEmail({
   subject: string;
   html: string;
   text?: string;
-}): Promise<boolean> {
+}): Promise<{ success: boolean; error?: string }> {
   if (!ENV.resendApiKey) {
     console.warn(`[Partnership Email] Skipped sending to ${to}: Resend API key not configured`);
-    return false;
+    return { success: false, error: "Email API key not configured" };
   }
 
   try {
@@ -953,14 +953,27 @@ export async function sendPartnershipEmail({
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`[Partnership Email] Resend failed to send to ${to}: ${response.status} ${errorText}`);
-      return false;
+      
+      // Parse specific Resend error messages
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.name === "daily_quota_exceeded" || response.status === 429) {
+          return { success: false, error: "Daily email quota exceeded. Please try again tomorrow or upgrade your Resend plan." };
+        }
+        if (errorJson.name === "rate_limit_exceeded") {
+          return { success: false, error: "Email rate limit reached. Please wait a few minutes and try again." };
+        }
+        return { success: false, error: errorJson.message || `Email service error (${response.status})` };
+      } catch {
+        return { success: false, error: `Email service error (${response.status})` };
+      }
     }
 
     const result = await response.json();
     console.log(`[Partnership Email] Sent "${subject}" to ${to} via Resend from hadi@spectaeducation.com (id: ${result.id})`);
-    return true;
+    return { success: true };
   } catch (error) {
     console.error(`[Partnership Email] Failed to send to ${to}:`, error);
-    return false;
+    return { success: false, error: "Network error — could not reach email service" };
   }
 }

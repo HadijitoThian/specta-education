@@ -183,6 +183,13 @@
       "when": 1773635138997,
       "tag": "0025_soft_hercules",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "5",
+      "when": 1773791055018,
+      "tag": "0026_light_richard_fisk",
+      "breakpoints": true
     }
   ]
 }

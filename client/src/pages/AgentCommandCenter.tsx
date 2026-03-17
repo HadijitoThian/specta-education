@@ -1369,59 +1369,65 @@ export default function AgentCommandCenter() {
             </div>
           </TabsContent>
 
-          {/* ===== SEO CONTENT TAB ===== */}
+          {/* ===== SEO TAB (Content Calendar + SEO Optimizer) ===== */}
           <TabsContent value="seo">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>SEO Content Calendar</CardTitle>
-                    <CardDescription>Articles planned, generated, and published by the SEO Agent</CardDescription>
+            <div className="space-y-6">
+              {/* SEO Content Calendar */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>SEO Content Calendar</CardTitle>
+                      <CardDescription>Articles planned, generated, and published by the SEO Agent</CardDescription>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => triggerAgent.mutate({ agentName: "seo_builder" })} disabled={triggerAgent.isPending}>
+                      <Zap className="h-4 w-4 mr-1" />
+                      Generate Article
+                    </Button>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => triggerAgent.mutate({ agentName: "seo_builder" })} disabled={triggerAgent.isPending}>
-                    <Zap className="h-4 w-4 mr-1" />
-                    Generate Now
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {seoContent && seoContent.length > 0 ? (
-                  <div className="space-y-3">
-                    {seoContent.map((entry: any) => (
-                      <div key={entry.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium text-sm">{entry.title || entry.targetKeyword}</h4>
-                            <Badge className={
-                              entry.status === "published" ? "bg-green-100 text-green-700" :
-                              entry.status === "generated" ? "bg-blue-100 text-blue-700" :
-                              entry.status === "generating" ? "bg-purple-100 text-purple-700" :
-                              entry.status === "planned" ? "bg-gray-100 text-gray-700" :
-                              "bg-red-100 text-red-700"
-                            }>{entry.status}</Badge>
+                </CardHeader>
+                <CardContent>
+                  {seoContent && seoContent.length > 0 ? (
+                    <div className="space-y-3">
+                      {seoContent.map((entry: any) => (
+                        <div key={entry.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium text-sm">{entry.title || entry.targetKeyword}</h4>
+                              <Badge className={
+                                entry.status === "published" ? "bg-green-100 text-green-700" :
+                                entry.status === "generated" ? "bg-blue-100 text-blue-700" :
+                                entry.status === "generating" ? "bg-purple-100 text-purple-700" :
+                                entry.status === "planned" ? "bg-gray-100 text-gray-700" :
+                                "bg-red-100 text-red-700"
+                              }>{entry.status}</Badge>
+                            </div>
+                            <p className="text-xs text-gray-400 mt-1">
+                              Keyword: <span className="text-gray-600">{entry.targetKeyword}</span>
+                              {entry.scheduledDate && ` • Scheduled: ${entry.scheduledDate}`}
+                              {entry.publishedAt && ` • Published: ${new Date(entry.publishedAt).toLocaleDateString()}`}
+                            </p>
                           </div>
-                          <p className="text-xs text-gray-400 mt-1">
-                            Keyword: <span className="text-gray-600">{entry.targetKeyword}</span>
-                            {entry.scheduledDate && ` • Scheduled: ${entry.scheduledDate}`}
-                            {entry.publishedAt && ` • Published: ${new Date(entry.publishedAt).toLocaleDateString()}`}
-                          </p>
+                          {entry.blogPostId && (
+                            <Button size="sm" variant="ghost" onClick={() => window.open(`/blog/${entry.slug || ""}`, "_blank")}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
-                        {entry.blogPostId && (
-                          <Button size="sm" variant="ghost" onClick={() => window.open(`/blog/${entry.slug || ""}`, "_blank")}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-gray-400">
-                    <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No SEO content yet. The SEO Agent will plan and generate articles automatically.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-gray-400">
+                      <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No SEO content yet. The SEO Agent will plan and generate articles automatically.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* SEO Optimizer Dashboard */}
+              <SeoOptimizerSection />
+            </div>
           </TabsContent>
 
           {/* ===== ACTIVITY LOG TAB ===== */}
@@ -1540,6 +1546,8 @@ function getAgentIcon(agentName: string) {
       return <Shield className="h-6 w-6 text-purple-600" />;
     case "university_scout":
       return <GraduationCap className="h-6 w-6 text-indigo-600" />;
+    case "seo_optimizer":
+      return <Search className="h-6 w-6 text-teal-600" />;
     default:
       return <Bot className="h-6 w-6 text-gray-600" />;
   }
@@ -1553,6 +1561,7 @@ function formatAgentName(name: string): string {
     lead_hunter: "Lead Hunter",
     competitor_monitor: "Competitor Monitor",
     university_scout: "University Scout",
+    seo_optimizer: "SEO Optimizer",
   };
   return names[name] || name;
 }
@@ -1565,4 +1574,249 @@ function formatReportDate(dateStr: string): string {
     month: "long",
     day: "numeric",
   });
+}
+
+/** SEO Optimizer Dashboard Section */
+function SeoOptimizerSection() {
+  const { data: seoStats, isLoading, refetch } = trpc.agents.getSeoStats.useQuery(undefined, {
+    refetchInterval: 60000,
+  });
+  const triggerSeo = trpc.agents.triggerSeoOptimizer.useMutation({
+    onSuccess: () => { refetch(); toast.success("SEO audit started! This may take a few minutes."); },
+    onError: (err) => toast.error(err.message),
+  });
+  const updateRec = trpc.agents.updateSeoRecommendation.useMutation({
+    onSuccess: () => { refetch(); toast.success("Recommendation updated."); },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const score = seoStats?.currentScore;
+  const scoreColor = (s: number) => s >= 80 ? "text-green-600" : s >= 50 ? "text-yellow-600" : "text-red-600";
+  const scoreBg = (s: number) => s >= 80 ? "bg-green-50 border-green-200" : s >= 50 ? "bg-yellow-50 border-yellow-200" : "bg-red-50 border-red-200";
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Search className="h-5 w-5 text-teal-600" />
+                SEO Optimizer
+              </CardTitle>
+              <CardDescription>Audits all pages for SEO health, generates AI recommendations, and tracks score over time</CardDescription>
+            </div>
+            <Button size="sm" onClick={() => triggerSeo.mutate()} disabled={triggerSeo.isPending}>
+              {triggerSeo.isPending ? <RefreshCw className="h-4 w-4 mr-1 animate-spin" /> : <Zap className="h-4 w-4 mr-1" />}
+              Run Audit
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8 text-gray-400"><RefreshCw className="h-8 w-8 mx-auto animate-spin mb-2" /><p>Loading SEO data...</p></div>
+          ) : !score ? (
+            <div className="text-center py-8 text-gray-400">
+              <Search className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p className="mb-3">No SEO audit data yet. Run your first audit to see results.</p>
+              <Button size="sm" onClick={() => triggerSeo.mutate()} disabled={triggerSeo.isPending}>
+                <Zap className="h-4 w-4 mr-1" /> Run First Audit
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className={`p-4 rounded-lg border text-center ${scoreBg(score.overallScore)}`}>
+                <div className={`text-3xl font-bold ${scoreColor(score.overallScore)}`}>{score.overallScore}</div>
+                <div className="text-xs text-gray-500 mt-1">Overall Score</div>
+              </div>
+              <div className="p-4 rounded-lg border bg-blue-50 border-blue-200 text-center">
+                <div className="text-3xl font-bold text-blue-600">{score.metaScore || 0}</div>
+                <div className="text-xs text-gray-500 mt-1">Meta Tags</div>
+              </div>
+              <div className="p-4 rounded-lg border bg-purple-50 border-purple-200 text-center">
+                <div className="text-3xl font-bold text-purple-600">{score.contentScore || 0}</div>
+                <div className="text-xs text-gray-500 mt-1">Content</div>
+              </div>
+              <div className="p-4 rounded-lg border bg-indigo-50 border-indigo-200 text-center">
+                <div className="text-3xl font-bold text-indigo-600">{score.technicalScore || 0}</div>
+                <div className="text-xs text-gray-500 mt-1">Technical</div>
+              </div>
+              <div className="p-4 rounded-lg border bg-gray-50 border-gray-200 text-center">
+                <div className="text-3xl font-bold text-gray-700">{score.pagesAudited}</div>
+                <div className="text-xs text-gray-500 mt-1">Pages Audited</div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Issue Counts */}
+      {seoStats?.issueCounts && (
+        <div className="grid grid-cols-3 gap-4">
+          <Card className="border-red-200">
+            <CardContent className="pt-4 text-center">
+              <div className="text-2xl font-bold text-red-600">{seoStats.issueCounts.critical}</div>
+              <div className="text-xs text-gray-500">Critical Issues</div>
+            </CardContent>
+          </Card>
+          <Card className="border-yellow-200">
+            <CardContent className="pt-4 text-center">
+              <div className="text-2xl font-bold text-yellow-600">{seoStats.issueCounts.warning}</div>
+              <div className="text-xs text-gray-500">Warnings</div>
+            </CardContent>
+          </Card>
+          <Card className="border-blue-200">
+            <CardContent className="pt-4 text-center">
+              <div className="text-2xl font-bold text-blue-600">{seoStats.issueCounts.info}</div>
+              <div className="text-xs text-gray-500">Suggestions</div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Page Audit Results */}
+      {seoStats?.pageAudits && seoStats.pageAudits.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Page Audit Results</CardTitle>
+            <CardDescription>SEO health score for each page on spectaeducation.com</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left">
+                    <th className="pb-2 font-medium">Page</th>
+                    <th className="pb-2 font-medium text-center">Score</th>
+                    <th className="pb-2 font-medium text-center">Meta Title</th>
+                    <th className="pb-2 font-medium text-center">Meta Desc</th>
+                    <th className="pb-2 font-medium text-center">OG Tags</th>
+                    <th className="pb-2 font-medium text-center">H1</th>
+                    <th className="pb-2 font-medium text-center">Canonical</th>
+                    <th className="pb-2 font-medium text-center">Schema</th>
+                    <th className="pb-2 font-medium text-right">Issues</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {seoStats.pageAudits.sort((a: any, b: any) => a.overallScore - b.overallScore).map((audit: any) => (
+                    <tr key={audit.id} className="border-b hover:bg-gray-50">
+                      <td className="py-2">
+                        <div className="font-medium">{audit.pageTitle || audit.pageUrl}</div>
+                        <div className="text-xs text-gray-400">{audit.pageUrl}</div>
+                      </td>
+                      <td className="py-2 text-center">
+                        <span className={`font-bold ${scoreColor(audit.overallScore)}`}>{audit.overallScore}</span>
+                      </td>
+                      <td className="py-2 text-center">{audit.metaTitleScore >= 70 ? <CheckCircle className="h-4 w-4 text-green-500 mx-auto" /> : audit.metaTitleScore > 0 ? <AlertTriangle className="h-4 w-4 text-yellow-500 mx-auto" /> : <XCircle className="h-4 w-4 text-red-500 mx-auto" />}</td>
+                      <td className="py-2 text-center">{audit.metaDescriptionScore >= 70 ? <CheckCircle className="h-4 w-4 text-green-500 mx-auto" /> : audit.metaDescriptionScore > 0 ? <AlertTriangle className="h-4 w-4 text-yellow-500 mx-auto" /> : <XCircle className="h-4 w-4 text-red-500 mx-auto" />}</td>
+                      <td className="py-2 text-center">{audit.hasOgTitle && audit.hasOgDescription && audit.hasOgImage ? <CheckCircle className="h-4 w-4 text-green-500 mx-auto" /> : <XCircle className="h-4 w-4 text-red-500 mx-auto" />}</td>
+                      <td className="py-2 text-center">{audit.h1Count === 1 ? <CheckCircle className="h-4 w-4 text-green-500 mx-auto" /> : <XCircle className="h-4 w-4 text-red-500 mx-auto" />}</td>
+                      <td className="py-2 text-center">{audit.hasCanonical ? <CheckCircle className="h-4 w-4 text-green-500 mx-auto" /> : <XCircle className="h-4 w-4 text-red-500 mx-auto" />}</td>
+                      <td className="py-2 text-center">{audit.hasStructuredData ? <CheckCircle className="h-4 w-4 text-green-500 mx-auto" /> : <XCircle className="h-4 w-4 text-red-500 mx-auto" />}</td>
+                      <td className="py-2 text-right">
+                        <Badge variant="outline" className={audit.issues?.length > 3 ? "text-red-600" : audit.issues?.length > 0 ? "text-yellow-600" : "text-green-600"}>
+                          {audit.issues?.length || 0}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* AI Recommendations */}
+      {seoStats?.recommendations && seoStats.recommendations.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">AI Recommendations</CardTitle>
+            <CardDescription>Actionable improvements suggested by the SEO Optimizer AI</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {seoStats.recommendations.map((rec: any) => (
+                <div key={rec.id} className={`p-3 rounded-lg border ${
+                  rec.severity === "critical" ? "border-red-200 bg-red-50" :
+                  rec.severity === "warning" ? "border-yellow-200 bg-yellow-50" :
+                  "border-blue-200 bg-blue-50"
+                }`}>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Badge className={
+                          rec.severity === "critical" ? "bg-red-100 text-red-700" :
+                          rec.severity === "warning" ? "bg-yellow-100 text-yellow-700" :
+                          "bg-blue-100 text-blue-700"
+                        }>{rec.severity}</Badge>
+                        <Badge variant="outline" className="text-xs">{rec.type.replace(/_/g, " ")}</Badge>
+                        <span className="text-xs text-gray-400">{rec.pageUrl}</span>
+                      </div>
+                      <h4 className="font-medium text-sm mt-2">{rec.title}</h4>
+                      {rec.description && <p className="text-xs text-gray-600 mt-1">{rec.description}</p>}
+                      {rec.suggestedValue && (
+                        <div className="mt-2 p-2 bg-white rounded border text-xs">
+                          <span className="text-gray-400">Suggested: </span>
+                          <span className="text-green-700 font-medium">{rec.suggestedValue}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-1 ml-3">
+                      <Button size="sm" variant="ghost" className="text-green-600 hover:bg-green-50" onClick={() => updateRec.mutate({ id: rec.id, status: "applied" })}>
+                        <CheckCircle className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-gray-400 hover:bg-gray-100" onClick={() => updateRec.mutate({ id: rec.id, status: "dismissed" })}>
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Recent Runs */}
+      {seoStats?.recentRuns && seoStats.recentRuns.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Audit History</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {seoStats.recentRuns.map((run: any) => (
+                <div key={run.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                  <div className={`p-2 rounded-lg ${
+                    run.status === "success" ? "bg-green-50" :
+                    run.status === "failed" ? "bg-red-50" :
+                    run.status === "partial" ? "bg-yellow-50" :
+                    "bg-blue-50"
+                  }`}>
+                    {run.status === "success" ? <CheckCircle className="h-4 w-4 text-green-600" /> :
+                     run.status === "failed" ? <XCircle className="h-4 w-4 text-red-600" /> :
+                     run.status === "running" ? <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" /> :
+                     <AlertTriangle className="h-4 w-4 text-yellow-600" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{run.summary || "SEO Audit"}</p>
+                    {run.details && (
+                      <p className="text-xs text-gray-400">
+                        Score: {run.details.overallScore}/100 • {run.details.pagesAudited} pages • {run.details.issuesFound} issues • {run.details.recommendationsGenerated} recommendations
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {new Date(run.startedAt).toLocaleString("en-US", { timeZone: "Asia/Jakarta", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
 }

@@ -15,6 +15,7 @@ import { runAptitudeNurtureAgent } from "./agentAptitudeNurture";
 import { runReEngagementAgent } from "./agentReEngagement";
 import { runWhatsAppBroadcastAgent } from "./agentWhatsAppBroadcast";
 import { runContentAmplifierAgent } from "./agentContentAmplifier";
+import { runSeoOptimizerAgent } from "./agentSeoOptimizer";
 import {
   getAgentConfig,
   upsertAgentConfig,
@@ -97,6 +98,13 @@ export async function initializeAgents(): Promise<void> {
       description: "Converts published blog posts into Instagram captions, TikTok scripts, WhatsApp messages, Twitter threads, and LinkedIn posts",
       isActive: true,
       runIntervalMinutes: 480,
+    },
+    {
+      agentName: "seo_optimizer",
+      displayName: "SEO Optimizer",
+      description: "Audits all pages for SEO health (meta tags, OG, structured data, alt texts), generates AI recommendations, suggests internal links, and sends weekly reports",
+      isActive: true,
+      runIntervalMinutes: 10080, // Weekly
     },
   ];
 
@@ -196,6 +204,9 @@ export async function checkAndRunAgents(): Promise<void> {
         case "content_amplifier":
           await runContentAmplifierAgent();
           break;
+        case "seo_optimizer":
+          await runSeoOptimizerAgent();
+          break;
         default:
           console.log(`[Scheduler] Unknown agent: ${config.agentName}`);
       }
@@ -214,7 +225,7 @@ export function startAgentScheduler(): void {
     return;
   }
 
-  console.log("[Scheduler] Starting AI Agent Scheduler (10 agents)...");
+  console.log("[Scheduler] Starting AI Agent Scheduler (11 agents)...");
   
   initializeAgents().catch(err => {
     console.error("[Scheduler] Failed to initialize agents:", err);
@@ -275,6 +286,8 @@ export async function triggerAgent(agentName: string, params?: any): Promise<any
       );
     case "content_amplifier":
       return runContentAmplifierAgent(params?.blogId);
+    case "seo_optimizer":
+      return runSeoOptimizerAgent();
     default:
       throw new Error(`Unknown agent: ${agentName}`);
   }

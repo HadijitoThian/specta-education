@@ -1090,3 +1090,102 @@ export const socialMentions = mysqlTable("social_mentions", {
 
 export type SocialMention = typeof socialMentions.$inferSelect;
 export type InsertSocialMention = typeof socialMentions.$inferInsert;
+
+
+// ==========================================
+// SEO Optimizer Agent Tables
+// ==========================================
+
+/**
+ * SEO page audits — stores audit results for each page
+ */
+export const seoPageAudits = mysqlTable("seo_page_audits", {
+  id: int("id").autoincrement().primaryKey(),
+  pageUrl: varchar("pageUrl", { length: 500 }).notNull(),
+  pageTitle: varchar("pageTitle", { length: 500 }),
+  // Meta tag analysis
+  metaTitle: varchar("metaTitle", { length: 500 }),
+  metaTitleLength: int("metaTitleLength"),
+  metaTitleScore: int("metaTitleScore"), // 0-100
+  metaDescription: text("metaDescription"),
+  metaDescriptionLength: int("metaDescriptionLength"),
+  metaDescriptionScore: int("metaDescriptionScore"), // 0-100
+  // Open Graph
+  hasOgTitle: boolean("hasOgTitle").default(false),
+  hasOgDescription: boolean("hasOgDescription").default(false),
+  hasOgImage: boolean("hasOgImage").default(false),
+  // Content analysis
+  h1Count: int("h1Count").default(0),
+  h2Count: int("h2Count").default(0),
+  imageCount: int("imageCount").default(0),
+  imagesWithAlt: int("imagesWithAlt").default(0),
+  wordCount: int("wordCount").default(0),
+  internalLinks: int("internalLinks").default(0),
+  externalLinks: int("externalLinks").default(0),
+  // Technical
+  hasCanonical: boolean("hasCanonical").default(false),
+  hasStructuredData: boolean("hasStructuredData").default(false),
+  isIndexable: boolean("isIndexable").default(true),
+  loadTimeMs: int("loadTimeMs"),
+  // Scores
+  overallScore: int("overallScore").default(0), // 0-100
+  issues: text("issues"), // JSON array of issues found
+  recommendations: text("recommendations"), // JSON array of AI recommendations
+  // Tracking
+  targetKeyword: varchar("targetKeyword", { length: 255 }),
+  keywordInTitle: boolean("keywordInTitle").default(false),
+  keywordInDescription: boolean("keywordInDescription").default(false),
+  keywordInH1: boolean("keywordInH1").default(false),
+  keywordDensity: varchar("keywordDensity", { length: 10 }),
+  // Timestamps
+  auditedAt: timestamp("auditedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SeoPageAudit = typeof seoPageAudits.$inferSelect;
+export type InsertSeoPageAudit = typeof seoPageAudits.$inferInsert;
+
+/**
+ * SEO recommendations — actionable items from audits
+ */
+export const seoRecommendations = mysqlTable("seo_recommendations", {
+  id: int("id").autoincrement().primaryKey(),
+  auditId: int("auditId"),
+  pageUrl: varchar("pageUrl", { length: 500 }).notNull(),
+  type: mysqlEnum("type", [
+    "meta_title", "meta_description", "og_tags", "h1_missing", "h1_multiple",
+    "alt_text", "internal_links", "keyword_optimization", "structured_data",
+    "canonical", "content_length", "load_speed", "sitemap"
+  ]).notNull(),
+  severity: mysqlEnum("severity", ["critical", "warning", "info"]).default("warning").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  currentValue: text("currentValue"),
+  suggestedValue: text("suggestedValue"), // AI-generated suggestion
+  status: mysqlEnum("status", ["open", "applied", "dismissed"]).default("open").notNull(),
+  appliedAt: timestamp("appliedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SeoRecommendation = typeof seoRecommendations.$inferSelect;
+export type InsertSeoRecommendation = typeof seoRecommendations.$inferInsert;
+
+/**
+ * SEO score history — tracks overall site SEO health over time
+ */
+export const seoScoreHistory = mysqlTable("seo_score_history", {
+  id: int("id").autoincrement().primaryKey(),
+  overallScore: int("overallScore").default(0).notNull(), // 0-100
+  metaScore: int("metaScore").default(0), // meta tags health
+  contentScore: int("contentScore").default(0), // content quality
+  technicalScore: int("technicalScore").default(0), // technical SEO
+  pagesAudited: int("pagesAudited").default(0),
+  issuesFound: int("issuesFound").default(0),
+  issuesFixed: int("issuesFixed").default(0),
+  topIssues: text("topIssues"), // JSON: top 5 issues summary
+  reportSentAt: timestamp("reportSentAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SeoScoreHistory = typeof seoScoreHistory.$inferSelect;
+export type InsertSeoScoreHistory = typeof seoScoreHistory.$inferInsert;

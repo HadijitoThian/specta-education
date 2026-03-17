@@ -247,18 +247,18 @@ async function main() {
     console.log(`[${i + 1}/7] Sending to: ${email.to}${email.cc ? ` (CC: ${email.cc})` : ""}`);
     console.log(`  Subject: ${email.subject}`);
 
-    const success = await sendPartnershipEmail({
+    const result = await sendPartnershipEmail({
       to: email.to,
       cc: email.cc,
       subject: email.subject,
       html: email.html,
     });
 
-    if (success) {
-      console.log(`  ✅ SENT successfully\n`);
+    if (result.success) {
+      console.log(`  \u2705 SENT successfully\n`);
       successCount++;
     } else {
-      console.log(`  ❌ FAILED to send\n`);
+      console.log(`  \u274c FAILED to send: ${result.error || 'Unknown error'}\n`);
       failCount++;
     }
 
