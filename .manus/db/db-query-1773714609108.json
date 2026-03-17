@@ -1,0 +1,38 @@
+{
+  "query": "SELECT universityName, SUBSTRING(outreachEmailDraft, -200) as signature FROM university_partnerships WHERE outreachStatus = 'draft_ready' LIMIT 3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT universityName, SUBSTRING(outreachEmailDraft, -200) as signature FROM university_partnerships WHERE outreachStatus = 'draft_ready' LIMIT 3;",
+  "rows": [
+    {
+      "universityName": "University College Dublin",
+      "signature": "how we can grow UCD's Indonesian student community together."
+    },
+    {
+      "universityName": "Trinity College Dublin",
+      "signature": "l meeting in the coming weeks to explore this collaboration?"
+    },
+    {
+      "universityName": "University College Cork",
+      "signature": "how we can grow UCC's Indonesian student community together?"
+    }
+  ],
+  "messages": [
+    "Best regards,",
+    "Hadi Jito Thian",
+    "Founder & CEO, SpecTa Education",
+    "hadi@spectaeducation.com | WhatsApp: +62 818 668 277",
+    "www.spectaeducation.com",
+    "Best regards,",
+    "Hadi Jito Thian",
+    "Founder & CEO, SpecTa Education",
+    "hadi@spectaeducation.com | WhatsApp: +62 818 668 277",
+    "www.spectaeducation.com",
+    "Best regards,",
+    "Hadi Jito Thian",
+    "Founder & CEO, SpecTa Education",
+    "hadi@spectaeducation.com | WhatsApp: +62 818 668 277",
+    "www.spectaeducation.com"
+  ],
+  "stdout": "universityName\tsignature\nUniversity College Dublin\thow we can grow UCD's Indonesian student community together.\n\nBest regards,\nHadi Jito Thian\nFounder & CEO, SpecTa Education\nhadi@spectaeducation.com | WhatsApp: +62 818 668 277\nwww.spectaeducation.com\nTrinity College Dublin\tl meeting in the coming weeks to explore this collaboration?\n\nBest regards,\nHadi Jito Thian\nFounder & CEO, SpecTa Education\nhadi@spectaeducation.com | WhatsApp: +62 818 668 277\nwww.spectaeducation.com\nUniversity College Cork\thow we can grow UCC's Indonesian student community together?\n\nBest regards,\nHadi Jito Thian\nFounder & CEO, SpecTa Education\nhadi@spectaeducation.com | WhatsApp: +62 818 668 277\nwww.spectaeducation.com\n",
+  "stderr": "",
+  "execution_time_ms": 1512
+}

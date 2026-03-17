@@ -1,0 +1,42 @@
+{
+  "query": "SELECT universityName, SUBSTRING(outreachEmailDraft, -300) as signature_section FROM university_partnerships WHERE outreachStatus = 'draft_ready' LIMIT 3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT universityName, SUBSTRING(outreachEmailDraft, -300) as signature_section FROM university_partnerships WHERE outreachStatus = 'draft_ready' LIMIT 3;",
+  "rows": [
+    {
+      "universityName": "University College Dublin",
+      "signature_section": "rief virtual meeting to discuss how SpecTa Education can help connect UCD with talented Indonesian students? Please let me know your availability in the coming weeks."
+    },
+    {
+      "universityName": "Trinity College Dublin",
+      "signature_section": "ity of establishing a formal partnership or agent agreement. Would you be available for a brief virtual meeting in the coming weeks to explore how we can collaborate?"
+    },
+    {
+      "universityName": "University College Cork",
+      "signature_section": "eeting to discuss how SpecTa Education can help UCC achieve its international recruitment goals in Indonesia. Please let me know your availability in the coming weeks."
+    }
+  ],
+  "messages": [
+    "Thank you for your time and consideration.",
+    "Sincerely,",
+    "[Your Name]",
+    "[Your Title]",
+    "SpecTa Education",
+    "[Your Website]",
+    "[Your Phone Number]",
+    "Thank you for your time and consideration.",
+    "Sincerely,",
+    "[Your Name]",
+    "[Your Title]",
+    "SpecTa Education",
+    "[Your Website/Contact Information]",
+    "Thank you for your time and consideration.",
+    "Sincerely,",
+    "[Your Name]",
+    "[Your Title]",
+    "SpecTa Education",
+    "[Your Website/Email/Phone Number]"
+  ],
+  "stdout": "universityName\tsignature_section\nUniversity College Dublin\trief virtual meeting to discuss how SpecTa Education can help connect UCD with talented Indonesian students? Please let me know your availability in the coming weeks.\n\nThank you for your time and consideration.\n\nSincerely,\n\n[Your Name]\n[Your Title]\nSpecTa Education\n[Your Website]\n[Your Phone Number]\nTrinity College Dublin\tity of establishing a formal partnership or agent agreement. Would you be available for a brief virtual meeting in the coming weeks to explore how we can collaborate?\n\nThank you for your time and consideration.\n\nSincerely,\n\n[Your Name]\n[Your Title]\nSpecTa Education\n[Your Website/Contact Information]\nUniversity College Cork\teeting to discuss how SpecTa Education can help UCC achieve its international recruitment goals in Indonesia. Please let me know your availability in the coming weeks.\n\nThank you for your time and consideration.\n\nSincerely,\n\n[Your Name]\n[Your Title]\nSpecTa Education\n[Your Website/Email/Phone Number]\n",
+  "stderr": "",
+  "execution_time_ms": 1505
+}

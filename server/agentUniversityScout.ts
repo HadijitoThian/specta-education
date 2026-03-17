@@ -503,9 +503,16 @@ The email MUST:
 - Reference our track record (20+ years, 691+ placements, 4.9/5.0 rating)
 - Include a clear call to action for a meeting or call
 - Be concise (under 350 words)
-- Sign off as: Hadi Jito Thian, Founder & CEO
-- Include contact: hadi@spectaeducation.com | WhatsApp: +62 818 668 277
-- Include website: www.spectaeducation.com
+
+CRITICAL RULES — MUST FOLLOW:
+1. NEVER use placeholders like [Your Name], [Your Title], [Your Phone], [Your Website], [Your Email], or any text in square brackets. This is a REAL email being sent.
+2. ALWAYS end with this EXACT signature block (copy it verbatim):
+
+Best regards,
+Hadi Jito Thian
+Founder & CEO, SpecTa Education
+hadi@spectaeducation.com | WhatsApp: +62 818 668 277
+www.spectaeducation.com
 
 Return just the email body text (no subject line, no HTML). Use proper line breaks.`
         },
