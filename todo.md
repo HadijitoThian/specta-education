@@ -1427,3 +1427,8 @@
 - [x] Rewrote all 15 email drafts with real credentials (Hadi Jito Thian, +62 818 668 277, hadi@spectaeducation.com)
 - [x] Sent 15 final approval emails to hadi@spectaeducation.com with [FINAL] subject prefix
 - [x] Verified: all drafts end with correct signature (Hadi Jito Thian, Founder & CEO, SpecTa Education)
+
+#### Fix Missing Email Subjects (Mar 17, 2026)
+- [x] Populated outreachEmailSubject for all 15 universities in database
+- [x] draftOutreachEmail already generates subjects correctly (verified)
+- [x] Fixed approveAndSendOutreach to generate fallback subject if missing instead of throwing error

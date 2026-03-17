@@ -972,11 +972,19 @@ export async function approveAndSendOutreach(partnershipId: number): Promise<voi
   const recipientEmail = (partnership as any).outreachRecipientEmail
     || (partnership as any).agentRecruitmentEmail
     || (partnership as any).internationalOfficeEmail;
-  const subject = (partnership as any).outreachEmailSubject;
+  const subject = (partnership as any).outreachEmailSubject
+    || `Partnership Inquiry \u2014 SpecTa Education x ${(partnership as any).universityName}`;
   const body = (partnership as any).outreachEmailDraft;
 
-  if (!recipientEmail || !subject || !body) {
-    throw new Error("Missing email details — recipient, subject, or body is empty");
+  if (!recipientEmail || !body) {
+    throw new Error("Missing email details \u2014 recipient or body is empty");
+  }
+
+  // Save the subject if it was generated as fallback
+  if (!(partnership as any).outreachEmailSubject) {
+    await db.update(universityPartnerships)
+      .set({ outreachEmailSubject: subject })
+      .where(eq(universityPartnerships.id, partnershipId));
   }
 
   // Send the actual outreach email
