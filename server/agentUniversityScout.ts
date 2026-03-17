@@ -127,9 +127,18 @@ export async function runUniversityScoutAgent(): Promise<{
               .set({ 
                 outreachEmailDraft: draft,
                 outreachEmailSubject: subject,
+                outreachStatus: "draft_ready",
               })
               .where(eq(universityPartnerships.id, opp.dbId));
             outreachDrafted++;
+
+            // Step 2c: Immediately submit for approval — no manual button needed
+            try {
+              await submitDraftForApproval(opp.dbId);
+              console.log(`[University Scout] Sent approval email for ${opp.name}`);
+            } catch (approvalErr) {
+              console.warn(`[University Scout] Could not send approval for ${opp.name}:`, approvalErr);
+            }
           }
         }
       } catch (err) {
@@ -138,29 +147,8 @@ export async function runUniversityScoutAgent(): Promise<{
       }
     }
 
-    // Task 3: Update outreach status to draft_ready for all drafted emails
-    for (const opp of opportunities) {
-      if (opp.isNew) {
-        try {
-          await db.update(universityPartnerships)
-            .set({ outreachStatus: "draft_ready" })
-            .where(eq(universityPartnerships.id, opp.dbId));
-        } catch (err) {
-          console.error(`[University Scout] Error updating status for ${opp.name}:`, err);
-        }
-      }
-    }
-
-    // Task 4: Submit all draft_ready emails for admin approval
-    let approvalsSent = 0;
-    if (outreachDrafted > 0) {
-      try {
-        approvalsSent = await submitAllDraftsForApproval();
-        console.log(`[University Scout] Submitted ${approvalsSent} drafts for admin approval`);
-      } catch (err) {
-        console.error("[University Scout] Error submitting drafts for approval:", err);
-      }
-    }
+    // Task 3: approvalsSent = outreachDrafted (each draft immediately submitted above)
+    const approvalsSent = outreachDrafted;
 
     // Task 5: Send opportunity report to admin
     if (newOpportunities > 0) {

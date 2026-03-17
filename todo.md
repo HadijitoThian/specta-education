@@ -1413,3 +1413,11 @@
 - [x] No user accounts existed for them in users table
 - [x] Fixed counselor.test.ts to clean up test counselors after running (afterAll cleanup)
 - [x] Verified final distribution: Fitriana 27, Wulandari 27, Jenny 27, Hadi 1
+
+#### University Scout - Fix Approval Email Pipeline
+- [x] Diagnosed: 15 universities had no recipient email (agentRecruitmentEmail = NULL)
+- [x] Populated real agent/international office emails for all 15 universities from official sources
+- [x] Fixed agent run loop to immediately submit approval after each draft (no manual button)
+- [x] Sent all 15 approval emails to hadi@spectaeducation.com via Resend API
+- [x] Fixed future workflow: agent auto-sends approval email immediately after drafting
+- [x] All 16 agent tests passing
