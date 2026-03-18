@@ -1491,3 +1491,8 @@
 - [x] Added inline script to update meta description per page
 - [x] Updated default meta description to Indonesian-focused SEO content
 - [ ] Needs re-publish: Click Publish to deploy inline title script fix
+
+#### SEO Score Improvement from 69% (Seobility) - Mar 18, 2026
+- [x] Fix duplicate canonical link error (removed our canonical, platform injects its own)
+- [x] Improve meta description text (keyword-rich with 1000+ pelajar, sejak 2005, konsultasi gratis)
+- [x] Fix H1 heading words not found in body text (H1 now matches body content keywords)

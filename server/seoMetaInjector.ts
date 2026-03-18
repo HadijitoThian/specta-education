@@ -20,9 +20,9 @@ interface PageMeta {
 // Static page meta definitions - must match the client-side SEO component values
 const PAGE_META: Record<string, PageMeta> = {
   "/": {
-    title: "SpecTa Education - Study Abroad Consultant Indonesia | Kuliah di Luar Negeri",
-    description: "SpecTa Education adalah konsultan pendidikan luar negeri terpercaya di Indonesia. Dapatkan bimbingan lengkap untuk kuliah di Australia, UK, Kanada, Selandia Baru, dan Irlandia. Free consultation, IELTS preparation, visa assistance.",
-    keywords: "study abroad, kuliah luar negeri, konsultan pendidikan, education consultant Indonesia, study in Australia, study in UK, IELTS preparation, beasiswa luar negeri, visa pelajar",
+    title: "SpecTa Education - Konsultan Pendidikan Luar Negeri Terpercaya di Indonesia Sejak 2005",
+    description: "SpecTa Education - Konsultan pendidikan luar negeri terpercaya di Indonesia sejak 2005. Bimbingan kuliah di Australia, UK, USA, Kanada, Singapura, Malaysia, China, Irlandia, Belanda & Selandia Baru. IELTS preparation, bantuan visa, beasiswa. 1000+ pelajar terbantu. Konsultasi gratis!",
+    keywords: "study abroad consultant Jakarta, konsultan pendidikan luar negeri Indonesia, IELTS preparation, kuliah luar negeri, SpecTa Education, beasiswa luar negeri, kuliah di Australia, kuliah di Inggris, study in UK, study in Australia",
   },
   "/about": {
     title: "About SpecTa Education - Study Abroad Consultant",
@@ -253,9 +253,9 @@ function getPageMeta(urlPath: string): PageMeta {
 
   // Default fallback
   return {
-    title: "SpecTa Education - Study Abroad Consultant Indonesia | Kuliah di Luar Negeri",
-    description: "SpecTa Education adalah konsultan pendidikan luar negeri terpercaya di Indonesia. Dapatkan bimbingan lengkap untuk kuliah di Australia, UK, Kanada, Selandia Baru, dan Irlandia.",
-    keywords: "study abroad, kuliah luar negeri, konsultan pendidikan, education consultant Indonesia",
+    title: "SpecTa Education - Konsultan Pendidikan Luar Negeri Terpercaya di Indonesia Sejak 2005",
+    description: "SpecTa Education - Konsultan pendidikan luar negeri terpercaya di Indonesia sejak 2005. Bimbingan kuliah di Australia, UK, USA, Kanada, Singapura, Malaysia, China, Irlandia, Belanda & Selandia Baru. IELTS preparation, bantuan visa, beasiswa. 1000+ pelajar terbantu.",
+    keywords: "study abroad consultant Jakarta, konsultan pendidikan luar negeri, IELTS preparation, kuliah luar negeri, SpecTa Education",
   };
 }
 
@@ -297,11 +297,16 @@ export function injectSeoMeta(html: string, urlPath: string): string {
     );
   }
 
-  // Replace canonical URL
-  html = html.replace(
-    /<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/,
-    `<link rel="canonical" href="${escapeAttr(canonicalUrl)}" />`
-  );
+  // Replace canonical URL if it exists, otherwise inject one before </head>
+  if (/<link\s+rel="canonical"/.test(html)) {
+    html = html.replace(
+      /<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/,
+      `<link rel="canonical" href="${escapeAttr(canonicalUrl)}" />`
+    );
+  } else {
+    // If no canonical link exists (removed to avoid platform duplication), don't add one
+    // The platform injects its own canonical link
+  }
 
   // Replace Open Graph tags
   html = html.replace(
@@ -328,11 +333,11 @@ export function injectSeoMeta(html: string, urlPath: string): string {
   );
 
   // Inject page-specific H1 into the pre-rendered content
-  // Replace the default H1 with page-specific one
-  const h1Text = meta.title.split(" | ")[0].split(" - ")[0];
+  // Use a more readable H1 derived from the title (before the pipe or brand name)
+  const h1Text = meta.title.split(" | ")[0];
   html = html.replace(
     /<h1>[^<]*<\/h1>/,
-    `<h1>${escapeHtml(meta.title)}</h1>`
+    `<h1>${escapeHtml(h1Text)}</h1>`
   );
 
   return html;

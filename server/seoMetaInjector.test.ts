@@ -22,8 +22,8 @@ const TEMPLATE_HTML = `<!doctype html>
 describe("SEO Meta Injector", () => {
   it("should inject homepage meta tags for root path", () => {
     const result = injectSeoMeta(TEMPLATE_HTML, "/");
-    expect(result).toContain("<title>SpecTa Education - Study Abroad Consultant Indonesia | Kuliah di Luar Negeri</title>");
-    expect(result).toContain('content="SpecTa Education adalah konsultan pendidikan luar negeri terpercaya');
+    expect(result).toContain("<title>SpecTa Education - Konsultan Pendidikan Luar Negeri Terpercaya di Indonesia Sejak 2005</title>");
+    expect(result).toContain('content="SpecTa Education - Konsultan pendidikan luar negeri terpercaya di Indonesia sejak 2005');
     expect(result).toContain('href="https://www.spectaeducation.com"');
   });
 
@@ -86,7 +86,7 @@ describe("SEO Meta Injector", () => {
 
   it("should use fallback for unknown paths", () => {
     const result = injectSeoMeta(TEMPLATE_HTML, "/some-random-page");
-    expect(result).toContain("SpecTa Education - Study Abroad Consultant Indonesia");
+    expect(result).toContain("SpecTa Education - Konsultan Pendidikan Luar Negeri Terpercaya di Indonesia Sejak 2005");
   });
 
   it("should inject correct canonical for all known static pages", () => {
