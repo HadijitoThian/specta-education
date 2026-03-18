@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SEO } from '@/components/SEO';
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { BookOpen, CheckCircle, Clock, Users, Award, Star, ChevronLeft, ChevronRight, MessageCircle, X, Shield, Monitor, GraduationCap, UserCheck, RefreshCw, CalendarCheck, FileText, Headphones, Target, Zap, TrendingUp, Play, ArrowRight, Sparkles, Globe, MapPin } from "lucide-react";
@@ -183,6 +184,11 @@ export default function IELTS() {
 
   return (
     <div className="min-h-screen bg-white">
+      <SEO
+        title="IELTS Preparation Course - SpecTa Education | Kursus IELTS Terbaik"
+        description="Persiapan IELTS terbaik di Indonesia bersama SpecTa Education. Kelas IELTS online & offline dengan tutor berpengalaman, mock test, dan garansi skor. Raih target IELTS band 6.5+ untuk kuliah di luar negeri."
+        keywords="IELTS preparation, kursus IELTS, IELTS online, IELTS mock test, IELTS band 6.5, IELTS Indonesia, belajar IELTS, IELTS writing, IELTS speaking"
+      />
       <Navigation currentPage="ielts" />
 
       {/* Hero Section - Bold gradient with floating elements */}

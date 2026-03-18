@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SEO } from '@/components/SEO';
 import { Link, useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, Building, DollarSign, Briefcase, Globe, ChevronRight, MessageCircle, X, ArrowLeft, MapPin, Calendar, FileText, Heart, Users, Landmark, BookOpen, Home as HomeIcon, Award, Send } from "lucide-react";
@@ -508,6 +509,12 @@ export default function CountryPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title={`Study in ${country.name} - Universities, Programs & Scholarships | SpecTa Education`}
+        description={`Kuliah di ${country.name} bersama SpecTa Education. Panduan lengkap universitas terbaik, program studi, biaya kuliah, beasiswa, dan proses visa untuk pelajar Indonesia.`}
+        keywords={`study in ${country.name}, kuliah di ${country.name}, universitas ${country.name}, beasiswa ${country.name}, visa pelajar ${country.name}`}
+        canonical={`https://www.spectaeducation.com/destinations/${slug}`}
+      />
       <Navigation currentPage="destinations" />
 
       {/* Hero Section */}

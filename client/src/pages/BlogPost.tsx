@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { SEO } from '@/components/SEO';
 import { useRoute, Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -198,6 +199,13 @@ export default function BlogPost() {
 
   return (
     <div className="min-h-screen bg-white">
+      <SEO
+        title={`${post.title} | Blog SpecTa Education`}
+        description={post.excerpt || post.title}
+        keywords={post.tags?.join(', ') || 'study abroad, kuliah luar negeri, education'}
+        ogImage={post.featuredImage || undefined}
+        canonical={`https://www.spectaeducation.com/blog/${post.slug}`}
+      />
       {/* Article Header */}
       <section className="bg-gradient-to-b from-slate-50 to-white py-8 md:py-12">
         <div className="container max-w-4xl">

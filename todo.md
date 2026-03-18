@@ -1453,3 +1453,28 @@
 - [x] Added tRPC endpoints: getSeoStats, triggerSeoOptimizer, updateSeoRecommendation
 - [x] First audit completed: 40 pages audited (10 static + 30 blog)
 - [x] 3/3 SEO optimizer tests passing
+
+#### Critical SEO Fixes - Score 11/100 to 60-70+ (Mar 18, 2026)
+- [x] Add proper <title> tag to index.html with SpecTa Education branding
+- [x] Add meta description to index.html
+- [x] Add viewport meta tag to index.html
+- [x] Add Open Graph meta tags (og:title, og:description, og:image, og:url)
+- [x] Add Twitter Card meta tags (twitter:card, twitter:title, twitter:description, twitter:image)
+- [x] Add structured data (JSON-LD) for Organization, EducationalOrganization, LocalBusiness x3, FAQ, BreadcrumbList
+- [x] SEO component (client-side) added to all 31 pages with unique title/description/keywords
+- [x] Add unique title/description to Home page
+- [x] Add unique title/description to About Us page
+- [x] Add unique title/description to IELTS page
+- [x] Add unique title/description to Destinations page
+- [x] Add unique title/description to all country subpages (13 countries)
+- [x] Add unique title/description to Articles page
+- [x] Add unique title/description to Contact page
+- [x] Add unique title/description to Compare page
+- [x] Add unique title/description to Scholarships page
+- [x] Generate dynamic sitemap.xml with all pages + blog posts (server endpoint)
+- [x] Add robots.txt with proper Allow/Disallow rules
+- [x] Add canonical URLs to all pages (both client-side SEO component + server-side injection)
+- [x] Server-side SEO meta tag injection (seoMetaInjector.ts) - crawlers get correct meta tags before JS loads
+- [x] og:image and twitter:image added to index.html base template
+- [x] Admin/staff pages marked as noindex
+- [x] Geo tags for local SEO (Jakarta coordinates)

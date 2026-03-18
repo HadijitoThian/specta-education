@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { SEO } from '@/components/SEO';
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { GraduationCap, Globe, BookOpen, Phone, Mail, MapPin, ChevronRight, X, ChevronDown, Star, Quote } from "lucide-react";
@@ -141,6 +142,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="SpecTa Education - Study Abroad Consultant Indonesia | Kuliah di Luar Negeri"
+        description="SpecTa Education adalah konsultan pendidikan luar negeri terpercaya di Indonesia. Dapatkan bimbingan lengkap untuk kuliah di Australia, UK, Kanada, Selandia Baru, dan Irlandia. Free consultation, IELTS preparation, visa assistance."
+        keywords="study abroad, kuliah luar negeri, konsultan pendidikan, education consultant Indonesia, study in Australia, study in UK, IELTS preparation, beasiswa luar negeri, visa pelajar"
+      />
       <Navigation currentPage="home" />
 
       {/* Hero Section with Excited Students */}

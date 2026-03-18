@@ -1,5 +1,5 @@
 # SpecTa Education - Robots.txt
-# Allow all crawlers to index public pages
+# https://www.spectaeducation.com
 
 User-agent: *
 Allow: /
@@ -12,8 +12,27 @@ Disallow: /api/
 # Disallow test/development pages
 Disallow: /showcase
 
-# Allow blog to be crawled
+# Disallow user-specific pages
+Disallow: /my-journey
+Disallow: /persona
+
+# Allow important pages to be crawled
 Allow: /blog
+Allow: /articles
+Allow: /destinations
+Allow: /ielts
+Allow: /scholarships
+Allow: /about
+Allow: /contact
+Allow: /test/pro
+Allow: /quiz
+Allow: /compare
+Allow: /simulator
+Allow: /apply
+Allow: /book-consultation
 
 # Sitemap location
 Sitemap: https://www.spectaeducation.com/sitemap.xml
+
+# Crawl-delay for politeness
+Crawl-delay: 1

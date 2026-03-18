@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { SEO } from '@/components/SEO';
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
@@ -156,6 +157,11 @@ export default function AgentCommandCenter() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <SEO
+        title="Agent Command Center | SpecTa Education Admin"
+        description="AI Agent management dashboard"
+        noindex={true}
+      />
       {/* Header */}
       <div className="bg-gradient-to-r from-red-600 to-red-700 text-white">
         <div className="container max-w-7xl mx-auto px-4 py-6">
