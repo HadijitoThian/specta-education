@@ -1486,4 +1486,8 @@
 - [x] Fixed: Server-side meta injector replaces H1 per page (e.g., IELTS page gets IELTS H1)
 - [x] Fixed: React createRoot naturally replaces pre-rendered content when it mounts
 - [x] Verified: curl shows title, description, H1, H2s, nav links, content in raw HTML
-- [ ] Needs publish: Click Publish button in UI to deploy latest checkpoint to live site
+- [x] Published to live site - confirmed pre-rendered H1/H2/nav/sections visible
+- [x] Added inline <script> in <head> to set document.title per page (bypasses VITE_APP_TITLE override)
+- [x] Added inline script to update meta description per page
+- [x] Updated default meta description to Indonesian-focused SEO content
+- [ ] Needs re-publish: Click Publish to deploy inline title script fix
