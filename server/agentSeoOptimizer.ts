@@ -417,6 +417,8 @@ async function sendSeoReport(
   criticalIssues: number,
   warnings: number,
   linkSuggestions: Array<{ from: string; to: string; anchorText: string }>,
+  previousScore: number | null = null,
+  scoreDrop: number = 0,
 ): Promise<void> {
   const topIssues = audits
     .flatMap(a => a.issues.map(issue => ({ page: a.pageUrl, issue })))
@@ -498,9 +500,14 @@ async function sendSeoReport(
 </body>
 </html>`;
 
+  const trendText = previousScore !== null
+    ? (scoreDrop > 0 ? ` ⬇️ dropped from ${previousScore}` : scoreDrop < 0 ? ` ⬆️ up from ${previousScore}` : ` (stable)`)
+    : "";
+  const subjectEmoji = criticalIssues > 0 ? "🚨" : scoreDrop >= 5 ? "⚠️" : "🔍";
+  
   await sendEmail({
     to: ADMIN_EMAIL,
-    subject: `🔍 SEO Report: Score ${overallScore}/100 — ${criticalIssues} critical issues | SpecTa Education`,
+    subject: `${subjectEmoji} SEO Report: Score ${overallScore}/100${trendText} — ${criticalIssues} critical issues | SpecTa Education`,
     html,
   });
 }
@@ -705,8 +712,28 @@ export async function runSeoOptimizerAgent(): Promise<{
       reportSentAt: new Date(),
     });
 
-    // Step 6: Send weekly report email
-    await sendSeoReport(allAudits, overallScore, criticalIssues, warnings, linkSuggestions);
+    // Step 6: Smart email filtering — only send if there's something worth reporting
+    // Get previous score from history to compare
+    const previousScores = await db.select({
+      overallScore: seoScoreHistory.overallScore,
+      issuesFound: seoScoreHistory.issuesFound,
+    }).from(seoScoreHistory)
+      .orderBy(desc(seoScoreHistory.createdAt))
+      .limit(2);
+    
+    const previousScore = previousScores.length >= 2 ? previousScores[1].overallScore : null;
+    const scoreDrop = previousScore !== null ? previousScore - overallScore : 0;
+    const shouldSendEmail = 
+      criticalIssues > 0 ||          // Always send if critical issues exist
+      scoreDrop >= 5 ||               // Send if score dropped 5+ points
+      previousScore === null;          // Always send first time (no history)
+    
+    if (shouldSendEmail) {
+      console.log(`[SEO Optimizer] Sending email: criticalIssues=${criticalIssues}, scoreDrop=${scoreDrop}, previousScore=${previousScore}`);
+      await sendSeoReport(allAudits, overallScore, criticalIssues, warnings, linkSuggestions, previousScore, scoreDrop);
+    } else {
+      console.log(`[SEO Optimizer] Skipping email: score stable at ${overallScore}/100, 0 critical issues (saved Resend quota)`);
+    }
 
     const duration = Math.round((Date.now() - startTime) / 1000);
     const summary = `Audited ${pagesAudited} pages, found ${issuesFound} issues, generated ${recommendationsGenerated} recommendations. Overall score: ${overallScore}/100`;

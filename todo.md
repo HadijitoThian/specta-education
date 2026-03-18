@@ -1496,3 +1496,11 @@
 - [x] Fix duplicate canonical link error (removed our canonical, platform injects its own)
 - [x] Improve meta description text (keyword-rich with 1000+ pelajar, sejak 2005, konsultasi gratis)
 - [x] Fix H1 heading words not found in body text (H1 now matches body content keywords)
+
+#### SEO Optimizer Email Spam Fix (Mar 18, 2026)
+- [x] Found root cause: scheduler never updated lastRunAt, so agent ran every 5 min instead of weekly
+- [x] Fixed agentScheduler.ts: now updates lastRunAt BEFORE running each agent to prevent duplicates
+- [x] SEO Optimizer: added smart email filtering - only sends if criticalIssues > 0 OR score drops 5+ points
+- [x] SEO Optimizer: skips email when score is stable and 0 critical issues (saves Resend quota)
+- [x] Email subject now shows trend: score dropped/up/stable with previous score comparison
+- [x] Lead Hunter: already had smart filtering (only sends when high-intent visitors found); duplicate was from scheduler bug (now fixed)

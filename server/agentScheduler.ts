@@ -172,6 +172,16 @@ export async function checkAndRunAgents(): Promise<void> {
 
     console.log(`[Scheduler] Running agent: ${config.displayName}`);
 
+    // CRITICAL: Update lastRunAt BEFORE running to prevent duplicate runs
+    // if the agent takes longer than the scheduler check interval (5 min)
+    const nextRunAt = new Date(now.getTime() + config.runIntervalMinutes * 60 * 1000);
+    await upsertAgentConfig({
+      agentName: config.agentName,
+      displayName: config.displayName,
+      lastRunAt: now,
+      nextRunAt,
+    });
+
     try {
       switch (config.agentName) {
         case "crm_distributor":
