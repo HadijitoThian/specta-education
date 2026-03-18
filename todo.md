@@ -1504,3 +1504,8 @@
 - [x] SEO Optimizer: skips email when score is stable and 0 critical issues (saves Resend quota)
 - [x] Email subject now shows trend: score dropped/up/stable with previous score comparison
 - [x] Lead Hunter: already had smart filtering (only sends when high-intent visitors found); duplicate was from scheduler bug (now fixed)
+- [x] Added GLOBAL email throttle in email.ts: 1-hour cooldown per unique email type (same recipient + normalized subject)
+- [x] Throttle normalizes subjects (strips numbers/scores) so "Score 75/100" and "Score 76/100" are treated as same type
+- [x] Transactional emails (welcome, password reset, documents, applications) bypass throttle
+- [x] Agent emails (SEO Report, Lead Escalation, Lead Hunter, Competitor Monitor) are all throttled
+- [x] All 15 email tests pass with throttle in place

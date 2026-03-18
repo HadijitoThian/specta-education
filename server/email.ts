@@ -1,7 +1,63 @@
 import { ENV } from "./_core/env";
+import crypto from "crypto";
 
 const RESEND_API_BASE = "https://api.resend.com";
 const FROM_EMAIL = `SpecTa Education <${ENV.smtpFrom || "noreply@spectaeducation.com"}>`;
+
+// ==========================================
+// EMAIL THROTTLE / DEDUPLICATION
+// Prevents the same email (same recipient + similar subject) from being sent
+// more than once within the cooldown period. This protects against agent
+// scheduler bugs that cause agents to run too frequently.
+// ==========================================
+const EMAIL_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour cooldown per unique email
+const emailSentCache = new Map<string, number>(); // key -> timestamp
+
+// Clean up old entries every 30 minutes to prevent memory leak
+setInterval(() => {
+  const now = Date.now();
+  const entries = Array.from(emailSentCache.entries());
+  for (const [key, ts] of entries) {
+    if (now - ts > EMAIL_COOLDOWN_MS * 2) {
+      emailSentCache.delete(key);
+    }
+  }
+}, 30 * 60 * 1000);
+
+/**
+ * Generate a throttle key from recipient + subject pattern.
+ * Strips numbers/dates from subjects so "SEO Report: Score 75/100" and
+ * "SEO Report: Score 76/100" are treated as the same email type.
+ */
+function getThrottleKey(to: string, subject: string): string {
+  // Normalize subject: remove numbers, dates, scores to group similar emails
+  const normalizedSubject = subject
+    .replace(/\d+/g, "#")        // Replace all numbers with #
+    .replace(/#+/g, "#")          // Collapse multiple # into one
+    .replace(/\s+/g, " ")         // Normalize whitespace
+    .trim();
+  return crypto.createHash("md5").update(`${to}::${normalizedSubject}`).digest("hex");
+}
+
+/**
+ * Subjects that contain these patterns are ALWAYS allowed through
+ * (no throttling) — e.g., welcome emails, password resets, student documents
+ */
+const ALWAYS_ALLOW_PATTERNS = [
+  "Welcome to SpecTa",
+  "Password Has Been Reset",
+  "New Application:",
+  "New Document:",
+  "New Student Assigned:",
+  "Hasil Tes Bakat",
+  "Approve Partnership",
+  "Outreach Sent:",
+  "Rekomendasi Jurusan",
+];
+
+function shouldBypassThrottle(subject: string): boolean {
+  return ALWAYS_ALLOW_PATTERNS.some(pattern => subject.includes(pattern));
+}
 
 // ==========================================
 // CORE SEND EMAIL FUNCTION (via Resend)
@@ -22,6 +78,19 @@ export async function sendEmail({
   if (!ENV.resendApiKey) {
     console.warn(`[Email] Skipped sending to ${to}: Resend API key not configured`);
     return false;
+  }
+
+  // Check throttle (skip for transactional emails like welcome, password reset, etc.)
+  if (!shouldBypassThrottle(subject)) {
+    const throttleKey = getThrottleKey(to, subject);
+    const lastSent = emailSentCache.get(throttleKey);
+    if (lastSent && Date.now() - lastSent < EMAIL_COOLDOWN_MS) {
+      const minutesAgo = Math.round((Date.now() - lastSent) / 60000);
+      console.log(`[Email] THROTTLED: "${subject}" to ${to} — same type sent ${minutesAgo}min ago (cooldown: ${EMAIL_COOLDOWN_MS / 60000}min)`);
+      return true; // Return true so callers don't retry
+    }
+    // Record this send
+    emailSentCache.set(throttleKey, Date.now());
   }
 
   try {
