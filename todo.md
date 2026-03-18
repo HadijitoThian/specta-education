@@ -1478,3 +1478,12 @@
 - [x] og:image and twitter:image added to index.html base template
 - [x] Admin/staff pages marked as noindex
 - [x] Geo tags for local SEO (Jakarta coordinates)
+
+#### SEO Score Still 11/100 on Syntegra (Mar 18, 2026)
+- [x] Diagnosed: live site running older deployment without server-side meta injector
+- [x] Diagnosed: body was empty <div id="root"></div> - crawlers see no content before JS loads
+- [x] Fixed: Added pre-rendered HTML content inside #root (H1, H2s, nav, sections, links)
+- [x] Fixed: Server-side meta injector replaces H1 per page (e.g., IELTS page gets IELTS H1)
+- [x] Fixed: React createRoot naturally replaces pre-rendered content when it mounts
+- [x] Verified: curl shows title, description, H1, H2s, nav links, content in raw HTML
+- [ ] Needs publish: Click Publish button in UI to deploy latest checkpoint to live site

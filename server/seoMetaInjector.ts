@@ -262,6 +262,7 @@ function getPageMeta(urlPath: string): PageMeta {
 /**
  * Inject page-specific meta tags into the HTML template
  * This replaces the default meta tags in index.html with page-specific ones
+ * Also injects page-specific H1 and content into the pre-rendered body section
  */
 export function injectSeoMeta(html: string, urlPath: string): string {
   const meta = getPageMeta(urlPath);
@@ -324,6 +325,14 @@ export function injectSeoMeta(html: string, urlPath: string): string {
   html = html.replace(
     /<meta\s+name="twitter:description"\s+content="[^"]*"\s*\/?>/,
     `<meta name="twitter:description" content="${escapeAttr(meta.description)}" />`
+  );
+
+  // Inject page-specific H1 into the pre-rendered content
+  // Replace the default H1 with page-specific one
+  const h1Text = meta.title.split(" | ")[0].split(" - ")[0];
+  html = html.replace(
+    /<h1>[^<]*<\/h1>/,
+    `<h1>${escapeHtml(meta.title)}</h1>`
   );
 
   return html;
