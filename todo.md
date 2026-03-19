@@ -1509,3 +1509,16 @@
 - [x] Transactional emails (welcome, password reset, documents, applications) bypass throttle
 - [x] Agent emails (SEO Report, Lead Escalation, Lead Hunter, Competitor Monitor) are all throttled
 - [x] All 15 email tests pass with throttle in place
+
+#### University Partnership Reply Handler Agent (Mar 19, 2026)
+- [x] Set up Resend inbound email webhook at POST /api/inbound/university-reply
+- [x] Created DB table: university_reply_queue with all required fields - db:push completed
+- [x] Built agentUniversityReplyHandler.ts: parses inbound email, matches sender to universityPartnerships records, classifies with LLM (interested/needs_info/declined/counter_offer/unknown), drafts response
+- [x] Added 'University Reply Inbox' section to Agent Command Center Partnerships tab
+- [x] Shows: university name, from email, subject, received date, classification badge (color-coded), urgency badge, AI analysis summary, key points, original email (expandable), AI drafted response
+- [x] Approve & Send / Edit & Send / Decline buttons all wired up via tRPC procedures
+- [x] Manual reply submission form (paste email body, AI analyzes and queues for approval)
+- [x] sendApprovedResponse() sends email via Resend, updates queue to 'sent', updates partnership to 'follow_up_sent'
+- [x] Notification email sent to Hadi when new reply arrives (with link to Agent Command Center)
+- [x] Processed replies history shown below pending queue
+- [ ] SETUP REQUIRED: Configure Resend inbound MX records for spectaeducation.com domain to activate automatic email detection

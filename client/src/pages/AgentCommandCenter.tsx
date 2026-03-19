@@ -137,6 +137,34 @@ export default function AgentCommandCenter() {
   const [editingDraft, setEditingDraft] = useState<any>(null);
   const [expandedCompetitor, setExpandedCompetitor] = useState<number | null>(null);
 
+  // ===== UNIVERSITY REPLY QUEUE =====
+  const { data: replyQueue, refetch: refetchReplyQueue } = trpc.agents.getUniversityReplyQueue.useQuery(undefined, {
+    refetchInterval: 30000,
+  });
+  const [expandedReply, setExpandedReply] = useState<number | null>(null);
+  const [editingReply, setEditingReply] = useState<{ id: number; subject: string; body: string } | null>(null);
+  const [manualReply, setManualReply] = useState<{ universityPartnershipId: number; fromEmail: string; fromName: string; subject: string; emailBody: string } | null>(null);
+
+  const approveReply = trpc.agents.approveUniversityReply.useMutation({
+    onSuccess: () => { refetchReplyQueue(); toast.success("Response sent to university!"); },
+    onError: (err) => toast.error(err.message),
+  });
+  const editAndApproveReply = trpc.agents.editAndApproveUniversityReply.useMutation({
+    onSuccess: () => { refetchReplyQueue(); setEditingReply(null); toast.success("Edited response sent to university!"); },
+    onError: (err) => toast.error(err.message),
+  });
+  const declineReply = trpc.agents.declineUniversityReply.useMutation({
+    onSuccess: () => { refetchReplyQueue(); toast.success("Reply declined."); },
+    onError: (err) => toast.error(err.message),
+  });
+  const submitManualReply = trpc.agents.submitUniversityReplyManually.useMutation({
+    onSuccess: () => { refetchReplyQueue(); setManualReply(null); toast.success("Reply submitted for analysis!"); },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const pendingReplies = replyQueue?.filter((r: any) => r.approvalStatus === "pending") || [];
+  const processedReplies = replyQueue?.filter((r: any) => r.approvalStatus !== "pending") || [];
+
   if (authLoading) return <div className="flex items-center justify-center min-h-screen"><RefreshCw className="animate-spin h-8 w-8 text-red-500" /></div>;
   if (!user || (user.role !== "admin" && user.role !== "general_manager")) {
     return (
@@ -802,6 +830,188 @@ export default function AgentCommandCenter() {
                   ))}
                 </div>
               )}
+
+              {/* ===== UNIVERSITY REPLY QUEUE ===== */}
+              <Card className={`border-2 ${pendingReplies.length > 0 ? 'border-green-400 shadow-md' : 'border-green-200'}`}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mail className="h-5 w-5 text-green-600" />
+                    University Reply Inbox
+                    {pendingReplies.length > 0 && (
+                      <Badge className="bg-green-500 text-white animate-pulse">{pendingReplies.length} Awaiting Approval</Badge>
+                    )}
+                  </CardTitle>
+                  <CardDescription className="flex items-center justify-between">
+                    <span>Replies from universities are automatically analyzed by AI. Approve, edit, or decline the suggested response.</span>
+                    <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50" onClick={() => {
+                      const firstPartnership = partnershipPipeline?.recentOpportunities?.[0];
+                      setManualReply({ universityPartnershipId: firstPartnership?.id || 0, fromEmail: '', fromName: '', subject: '', emailBody: '' });
+                    }}>
+                      <Mail className="h-4 w-4 mr-1" />
+                      Submit Reply Manually
+                    </Button>
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {/* Manual Reply Submission Form */}
+                  {manualReply && (
+                    <div className="border-2 border-blue-200 bg-blue-50 rounded-lg p-4 mb-4">
+                      <h4 className="font-semibold text-blue-800 mb-3">Submit University Reply Manually</h4>
+                      <p className="text-sm text-blue-600 mb-3">Paste the reply you received from a university. The AI will analyze it and draft a response for your approval.</p>
+                      <div className="space-y-2">
+                        <input className="w-full border rounded px-3 py-2 text-sm" placeholder="From email (e.g. admissions@university.edu)" value={manualReply.fromEmail} onChange={e => setManualReply(p => p ? {...p, fromEmail: e.target.value} : null)} />
+                        <input className="w-full border rounded px-3 py-2 text-sm" placeholder="From name (e.g. Dr. John Smith)" value={manualReply.fromName} onChange={e => setManualReply(p => p ? {...p, fromName: e.target.value} : null)} />
+                        <input className="w-full border rounded px-3 py-2 text-sm" placeholder="Email subject" value={manualReply.subject} onChange={e => setManualReply(p => p ? {...p, subject: e.target.value} : null)} />
+                        <textarea className="w-full border rounded px-3 py-2 text-sm" rows={6} placeholder="Paste the full email body here..." value={manualReply.emailBody} onChange={e => setManualReply(p => p ? {...p, emailBody: e.target.value} : null)} />
+                        <div className="flex gap-2">
+                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => submitManualReply.mutate(manualReply)} disabled={submitManualReply.isPending || !manualReply.fromEmail || !manualReply.subject || !manualReply.emailBody}>
+                            {submitManualReply.isPending ? <RefreshCw className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}
+                            Analyze & Queue
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setManualReply(null)}>Cancel</Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pending Replies - Need Approval */}
+                  {pendingReplies.length > 0 ? (
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-green-700 flex items-center gap-1"><AlertTriangle className="h-4 w-4" /> Awaiting Your Approval ({pendingReplies.length})</h4>
+                      {pendingReplies.map((reply: any) => (
+                        <div key={reply.id} className="border-2 border-green-300 bg-green-50/50 rounded-lg p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <h4 className="font-semibold text-base">{reply.universityName || 'Unknown University'}</h4>
+                              <p className="text-sm text-gray-500">From: <span className="font-medium">{reply.fromEmail}</span> {reply.fromName && `(${reply.fromName})`}</p>
+                              <p className="text-sm text-gray-500">Subject: {reply.emailSubject}</p>
+                              <p className="text-xs text-gray-400">{reply.receivedAt ? new Date(reply.receivedAt).toLocaleString() : ''}</p>
+                            </div>
+                            <div className="flex flex-col gap-1 items-end">
+                              <Badge className={{
+                                'interested': 'bg-green-100 text-green-700',
+                                'needs_info': 'bg-yellow-100 text-yellow-700',
+                                'declined': 'bg-red-100 text-red-700',
+                                'counter_offer': 'bg-blue-100 text-blue-700',
+                                'unknown': 'bg-gray-100 text-gray-700',
+                              }[reply.classification as string] || 'bg-gray-100 text-gray-700'}>
+                                {reply.classification === 'interested' ? '✅ Interested' :
+                                 reply.classification === 'needs_info' ? '❓ Needs More Info' :
+                                 reply.classification === 'declined' ? '❌ Declined' :
+                                 reply.classification === 'counter_offer' ? '🤝 Counter Offer' : '❓ Unknown'}
+                              </Badge>
+                              <Badge variant="outline" className={{
+                                'high': 'border-red-300 text-red-600',
+                                'medium': 'border-yellow-300 text-yellow-600',
+                                'low': 'border-gray-300 text-gray-500',
+                              }[reply.urgency as string] || ''}>
+                                {reply.urgency} urgency
+                              </Badge>
+                            </div>
+                          </div>
+
+                          {/* AI Analysis Summary */}
+                          {reply.classificationReason && (
+                            <div className="bg-white border border-green-200 rounded p-3 mb-3">
+                              <p className="text-xs font-medium text-green-700 mb-1">🤖 AI Analysis</p>
+                              <p className="text-sm text-gray-600">{reply.classificationReason}</p>
+                              {reply.keyPoints?.length > 0 && (
+                                <ul className="mt-2 space-y-1">
+                                  {reply.keyPoints.map((point: string, i: number) => (
+                                    <li key={i} className="text-xs text-gray-500 flex items-start gap-1"><span className="text-green-500 mt-0.5">•</span>{point}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Original Email Preview */}
+                          <div className="bg-gray-50 border rounded p-3 mb-3">
+                            <p className="text-xs font-medium text-gray-500 mb-1">📧 Original Reply</p>
+                            <button className="text-xs text-blue-500 hover:underline" onClick={() => setExpandedReply(expandedReply === reply.id ? null : reply.id)}>
+                              {expandedReply === reply.id ? 'Hide' : 'Show'} full email
+                            </button>
+                            {expandedReply === reply.id && (
+                              <p className="text-sm text-gray-600 mt-2 whitespace-pre-wrap">{reply.emailBody}</p>
+                            )}
+                          </div>
+
+                          {/* Drafted Response */}
+                          {editingReply?.id === reply.id ? (
+                            <div className="bg-white border-2 border-blue-200 rounded p-3 mb-3">
+                              <p className="text-xs font-medium text-blue-700 mb-2">✏️ Edit Response</p>
+                              <input className="w-full border rounded px-2 py-1 text-sm mb-2" value={editingReply!.subject} onChange={e => setEditingReply(p => p ? {...p, subject: e.target.value} : null)} placeholder="Subject" />
+                              <textarea className="w-full border rounded px-2 py-1 text-sm" rows={8} value={editingReply!.body} onChange={e => setEditingReply(p => p ? {...p, body: e.target.value} : null)} />
+                              <div className="flex gap-2 mt-2">
+                                <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => editAndApproveReply.mutate({ id: reply.id, editedResponse: editingReply!.body, editedSubject: editingReply!.subject })} disabled={editAndApproveReply.isPending}>
+                                  {editAndApproveReply.isPending ? <RefreshCw className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}
+                                  Send Edited Response
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => setEditingReply(null)}>Cancel</Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-3">
+                              <p className="text-xs font-medium text-blue-700 mb-1">📝 AI Drafted Response</p>
+                              <p className="text-sm font-medium text-gray-700 mb-1">Subject: {reply.draftedSubject}</p>
+                              <p className="text-sm text-gray-600 whitespace-pre-wrap line-clamp-4">{reply.draftedResponse}</p>
+                            </div>
+                          )}
+
+                          {/* Action Buttons */}
+                          {editingReply?.id !== reply.id && (
+                            <div className="flex gap-2 flex-wrap">
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => approveReply.mutate({ id: reply.id })} disabled={approveReply.isPending}>
+                                {approveReply.isPending ? <RefreshCw className="h-4 w-4 animate-spin mr-1" /> : <CheckCircle className="h-4 w-4 mr-1" />}
+                                Approve & Send
+                              </Button>
+                              <Button size="sm" variant="outline" className="border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setEditingReply({ id: reply.id, subject: reply.draftedSubject || '', body: reply.draftedResponse || '' })}>
+                                <Eye className="h-4 w-4 mr-1" />
+                                Edit & Send
+                              </Button>
+                              <Button size="sm" variant="outline" className="border-red-300 text-red-600 hover:bg-red-50" onClick={() => declineReply.mutate({ id: reply.id })} disabled={declineReply.isPending}>
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Decline
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-400">
+                      <Mail className="h-10 w-10 mx-auto mb-2 opacity-40" />
+                      <p className="text-sm">No pending university replies. When a university replies to your outreach, it will appear here for your approval.</p>
+                      <p className="text-xs mt-1 text-gray-300">Replies are automatically detected via Resend inbound webhook.</p>
+                    </div>
+                  )}
+
+                  {/* Processed Replies History */}
+                  {processedReplies.length > 0 && (
+                    <div className="mt-6">
+                      <h4 className="font-medium text-gray-500 text-sm mb-3">Recent History ({processedReplies.length})</h4>
+                      <div className="space-y-2">
+                        {processedReplies.slice(0, 5).map((reply: any) => (
+                          <div key={reply.id} className="flex items-center justify-between border rounded p-3 bg-gray-50">
+                            <div>
+                              <p className="text-sm font-medium">{reply.universityName || reply.fromEmail}</p>
+                              <p className="text-xs text-gray-400">{reply.emailSubject}</p>
+                            </div>
+                            <Badge className={{
+                              'approved': 'bg-green-100 text-green-700',
+                              'edited_and_approved': 'bg-blue-100 text-blue-700',
+                              'declined': 'bg-red-100 text-red-700',
+                              'sent': 'bg-green-100 text-green-700',
+                            }[reply.approvalStatus as string] || 'bg-gray-100 text-gray-700'}>
+                              {reply.approvalStatus?.replace(/_/g, ' ')}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Outreach Approval Queue */}
               <Card className="border-2 border-orange-200">

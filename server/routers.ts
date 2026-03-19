@@ -5188,6 +5188,118 @@ Return JSON with the refined article:
         };
       }),
 
+    // ==================== UNIVERSITY REPLY HANDLER ====================
+
+    // Get pending university replies awaiting approval
+    getUniversityReplyQueue: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { drizzle } = await import("drizzle-orm/mysql2");
+        const { universityReplyQueue } = await import("../drizzle/schema");
+        const { desc } = await import("drizzle-orm");
+        const db = drizzle(process.env.DATABASE_URL!);
+        const items = await db.select().from(universityReplyQueue)
+          .orderBy(desc(universityReplyQueue.receivedAt))
+          .limit(50);
+        return items.map(item => ({
+          ...item,
+          keyPoints: item.keyPoints ? JSON.parse(item.keyPoints) : [],
+        }));
+      }),
+
+    // Approve a reply and send the drafted response
+    approveUniversityReply: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { drizzle } = await import("drizzle-orm/mysql2");
+        const { universityReplyQueue } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = drizzle(process.env.DATABASE_URL!);
+        // Mark as approved first
+        await db.update(universityReplyQueue)
+          .set({ approvalStatus: "approved", approvedAt: new Date() })
+          .where(eq(universityReplyQueue.id, input.id));
+        // Send the response
+        const { sendApprovedResponse } = await import("./agentUniversityReplyHandler");
+        return await sendApprovedResponse(input.id, false);
+      }),
+
+    // Edit the draft and then approve
+    editAndApproveUniversityReply: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        editedResponse: z.string().min(10),
+        editedSubject: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { drizzle } = await import("drizzle-orm/mysql2");
+        const { universityReplyQueue } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = drizzle(process.env.DATABASE_URL!);
+        // Save edited response and mark as edited_and_approved
+        await db.update(universityReplyQueue)
+          .set({
+            editedResponse: input.editedResponse,
+            ...(input.editedSubject ? { draftedSubject: input.editedSubject } : {}),
+            approvalStatus: "edited_and_approved",
+            approvedAt: new Date(),
+          })
+          .where(eq(universityReplyQueue.id, input.id));
+        // Send the edited response
+        const { sendApprovedResponse } = await import("./agentUniversityReplyHandler");
+        return await sendApprovedResponse(input.id, true);
+      }),
+
+    // Decline a reply (don't respond)
+    declineUniversityReply: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        reason: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { drizzle } = await import("drizzle-orm/mysql2");
+        const { universityReplyQueue } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = drizzle(process.env.DATABASE_URL!);
+        await db.update(universityReplyQueue)
+          .set({
+            approvalStatus: "declined",
+            declinedAt: new Date(),
+            declineReason: input.reason || null,
+          })
+          .where(eq(universityReplyQueue.id, input.id));
+        return { success: true };
+      }),
+
+    // Manually submit a university reply (for testing or when email wasn't caught by webhook)
+    submitUniversityReplyManually: protectedProcedure
+      .input(z.object({
+        universityPartnershipId: z.number(),
+        fromEmail: z.string().email(),
+        fromName: z.string().optional(),
+        subject: z.string(),
+        emailBody: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { handleInboundUniversityReply } = await import("./agentUniversityReplyHandler");
+        return await handleInboundUniversityReply({
+          type: "email.received",
+          data: {
+            email_id: `manual_${Date.now()}`,
+            from: input.fromName ? `${input.fromName} <${input.fromEmail}>` : input.fromEmail,
+            to: ["hadi@spectaeducation.com"],
+            subject: input.subject,
+            created_at: new Date().toISOString(),
+          },
+        });
+      }),
+
     // Dismiss or apply a recommendation
     updateSeoRecommendation: protectedProcedure
       .input(z.object({

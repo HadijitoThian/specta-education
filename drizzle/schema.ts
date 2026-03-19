@@ -1064,6 +1064,50 @@ export type UniversityPartnership = typeof universityPartnerships.$inferSelect;
 export type InsertUniversityPartnership = typeof universityPartnerships.$inferInsert;
 
 /**
+ * University Reply Queue — stores incoming replies from universities awaiting Hadi's approval
+ */
+export const universityReplyQueue = mysqlTable("university_reply_queue", {
+  id: int("id").autoincrement().primaryKey(),
+  // Link to the outreach record
+  universityPartnershipId: int("universityPartnershipId").notNull(),
+  universityName: varchar("universityName", { length: 500 }).notNull(),
+  universityCountry: varchar("universityCountry", { length: 100 }),
+  // Incoming email details
+  resendEmailId: varchar("resendEmailId", { length: 128 }).unique(), // Resend email_id for dedup
+  fromEmail: varchar("fromEmail", { length: 320 }).notNull(),
+  fromName: varchar("fromName", { length: 255 }),
+  subject: varchar("subject", { length: 500 }),
+  emailBody: text("emailBody"), // Full email body fetched from Resend API
+  receivedAt: timestamp("receivedAt").defaultNow().notNull(),
+  // LLM Analysis
+  classification: mysqlEnum("classification", [
+    "interested", "needs_more_info", "declined", "counter_offer", "meeting_request", "unknown"
+  ]).default("unknown"),
+  classificationReason: text("classificationReason"),
+  sentiment: mysqlEnum("sentiment", ["positive", "neutral", "negative"]).default("neutral"),
+  urgency: mysqlEnum("urgency", ["low", "medium", "high"]).default("medium"),
+  keyPoints: text("keyPoints"), // JSON array of key points from the reply
+  // Drafted response
+  draftedResponse: text("draftedResponse"),
+  draftedSubject: varchar("draftedSubject", { length: 500 }),
+  // Approval workflow
+  approvalStatus: mysqlEnum("approvalStatus", [
+    "pending_review", "approved", "edited_and_approved", "declined", "sent", "failed"
+  ]).default("pending_review"),
+  approvedAt: timestamp("approvedAt"),
+  declinedAt: timestamp("declinedAt"),
+  declineReason: text("declineReason"),
+  editedResponse: text("editedResponse"), // If Hadi edits the draft before approving
+  sentAt: timestamp("sentAt"),
+  // Timestamps
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type UniversityReplyQueue = typeof universityReplyQueue.$inferSelect;
+export type InsertUniversityReplyQueue = typeof universityReplyQueue.$inferInsert;
+
+/**
  * Social media mentions — tracks social media activity related to study abroad in Indonesia
  */
 export const socialMentions = mysqlTable("social_mentions", {

@@ -185,6 +185,37 @@ ${allPages.map(p => `  <url>
     }
   });
 
+  // Resend inbound email webhook — receives emails at hadi@spectaeducation.com
+  // Filters only replies from universities we sent outreach to
+  app.post("/api/inbound/university-reply", async (req, res) => {
+    try {
+      // Verify Resend webhook token if set
+      const webhookToken = process.env.RESEND_WEBHOOK_TOKEN;
+      if (webhookToken) {
+        const svixId = req.headers["svix-id"];
+        const svixSignature = req.headers["svix-signature"];
+        if (!svixId || !svixSignature) {
+          console.warn("[InboundEmail] Missing Svix headers");
+          // Still process — don't block in case headers are missing
+        }
+      }
+
+      const event = req.body;
+      if (!event || event.type !== "email.received") {
+        res.status(200).json({ ok: true, skipped: "Not an email.received event" });
+        return;
+      }
+
+      const { handleInboundUniversityReply } = await import("../agentUniversityReplyHandler");
+      const result = await handleInboundUniversityReply(event);
+      console.log(`[InboundEmail] Result: ${result.reason}`);
+      res.status(200).json({ ok: true, ...result });
+    } catch (error: any) {
+      console.error("[InboundEmail] Error:", error);
+      res.status(200).json({ ok: false, error: error.message }); // Always 200 to prevent Resend retries
+    }
+  });
+
   // Partnership outreach approval via email link
   app.get("/api/partnership-approval", async (req, res) => {
     try {
