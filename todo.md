@@ -1531,3 +1531,14 @@
 - [x] Fixed WIB date comparison: uses proper WIB offset to check if report already sent today
 - [x] Manual trigger button already exists in Agent Command Center (Reports tab)
 - [x] All 364 tests pass (5 pre-existing simulator failures unrelated to these changes)
+
+## AI General Manager — March 2026
+- [x] AI GM agent core (agentGeneralManager.ts) — health checks, self-healing, LLM strategic recommendations
+- [x] GM DB schema — gm_health_checks, gm_recommendations, gm_executive_reports tables
+- [x] 4-hour oversight cycle registered in agentScheduler.ts
+- [x] Daily 8 AM WIB executive report email (generateAndSendExecutiveReport)
+- [x] GM tRPC router (gm.*) — 6 endpoints wired
+- [x] GM Dashboard tab in Agent Command Center — health history, recommendations, send report button
+- [x] JSON markdown fence stripping fix for LLM responses
+- [x] getDueEnrollments wrapped with withDbRetry to fix "Pool is closed" errors
+- [x] 16 unit tests passing for GM logic

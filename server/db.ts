@@ -1572,12 +1572,14 @@ export async function getDripEnrollmentByUnsubscribeToken(token: string): Promis
  * Finds active enrollments where nextSendAt <= now.
  */
 export async function getDueEnrollments(): Promise<DripEnrollment[]> {
-  const db = await getDb();
-  if (!db) return [];
-  // Use database NOW() instead of JS new Date() to avoid timezone mismatch
-  return db.select().from(dripEnrollments)
-    .where(sql`${dripEnrollments.status} = 'active' AND ${dripEnrollments.nextSendAt} IS NOT NULL AND ${dripEnrollments.nextSendAt} <= NOW()`)
-    .orderBy(dripEnrollments.nextSendAt);
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) return [];
+    // Use database NOW() instead of JS new Date() to avoid timezone mismatch
+    return db.select().from(dripEnrollments)
+      .where(sql`${dripEnrollments.status} = 'active' AND ${dripEnrollments.nextSendAt} IS NOT NULL AND ${dripEnrollments.nextSendAt} <= NOW()`)
+      .orderBy(dripEnrollments.nextSendAt);
+  }, "getDueEnrollments").catch(() => []);
 }
 
 // --- Email Logs ---

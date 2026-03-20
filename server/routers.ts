@@ -189,6 +189,7 @@ import { autoEnrollContact, processDripEmails, bulkEnrollAllLeads } from "./drip
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { triggerAgent, initializeAgents, startAgentScheduler } from "./agentScheduler";
+import { getLatestGmReport, getGmReports, getGmRecommendations, updateGmRecommendationStatus, getGmHealthHistory, runGeneralManagerCycle, generateAndSendExecutiveReport } from "./agentGeneralManager";
 import {
   getAllAgentConfigs,
   updateAgentConfig,
@@ -5314,6 +5315,77 @@ Return JSON with the refined article:
         await db.update(seoRecommendations)
           .set({ status: input.status, appliedAt: input.status === "applied" ? new Date() : null })
           .where(eq(seoRecommendations.id, input.id));
+        return { success: true };
+      }),
+  }),
+
+  // ============================================================
+  // AI General Manager Router
+  // ============================================================
+  gm: router({
+    getLatestReport: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return getLatestGmReport();
+      }),
+
+    getReports: protectedProcedure
+      .input(z.object({ limit: z.number().min(1).max(30).default(7) }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return getGmReports(input.limit);
+      }),
+
+    getRecommendations: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return getGmRecommendations();
+      }),
+
+    updateRecommendation: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["acknowledged", "in_progress", "done", "dismissed"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        await updateGmRecommendationStatus(input.id, input.status);
+        return { success: true };
+      }),
+
+    getHealthHistory: protectedProcedure
+      .input(z.object({ limit: z.number().min(1).max(200).default(50) }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return getGmHealthHistory(input.limit);
+      }),
+
+    triggerCycle: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const result = await runGeneralManagerCycle();
+        return { success: true, cycleLabel: result.cycleLabel, agentCount: result.agentStatuses.length, recommendations: result.recommendations.length };
+      }),
+
+    sendReport: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const cycleResult = await runGeneralManagerCycle();
+        await generateAndSendExecutiveReport(cycleResult);
         return { success: true };
       }),
   }),

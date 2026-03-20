@@ -13,7 +13,8 @@ import {
   Bot, Activity, Users, FileText, Mail, Play, RefreshCw,
   TrendingUp, AlertTriangle, CheckCircle, XCircle, Clock,
   ArrowLeft, Zap, BarChart3, Send, Eye, Search, Globe,
-  Shield, GraduationCap, Crosshair, Building2, MapPin
+  Shield, GraduationCap, Crosshair, Building2, MapPin,
+  BrainCircuit, Lightbulb
 } from "lucide-react";
 
 export default function AgentCommandCenter() {
@@ -29,6 +30,26 @@ export default function AgentCommandCenter() {
   const { data: assignments } = trpc.agents.getLeadAssignments.useQuery({});
   const { data: seoContent } = trpc.agents.getSeoContent.useQuery({});
   const { data: dailyReports } = trpc.agents.getDailyReports.useQuery({ limit: 7 });
+
+  // AI General Manager queries
+  const { data: gmLatestReport, refetch: refetchGmReport } = trpc.gm.getLatestReport.useQuery(undefined, { refetchInterval: 60000 });
+  const { data: gmRecommendations, refetch: refetchGmRecs } = trpc.gm.getRecommendations.useQuery(undefined, { refetchInterval: 60000 });
+  const { data: gmHealthHistory } = trpc.gm.getHealthHistory.useQuery({ limit: 100 }, { refetchInterval: 60000 });
+  const triggerGmCycle = trpc.gm.triggerCycle.useMutation({
+    onSuccess: (data) => {
+      toast.success(`GM cycle complete: ${data.agentCount} agents checked, ${data.recommendations} recommendations`);
+      refetchGmReport();
+      refetchGmRecs();
+    },
+    onError: (err) => toast.error(`GM cycle failed: ${err.message}`),
+  });
+  const sendGmReport = trpc.gm.sendReport.useMutation({
+    onSuccess: () => toast.success("Executive report sent to hadi@spectaeducation.com"),
+    onError: (err) => toast.error(`Failed to send report: ${err.message}`),
+  });
+  const updateGmRec = trpc.gm.updateRecommendation.useMutation({
+    onSuccess: () => { refetchGmRecs(); toast.success("Recommendation updated"); },
+  });
 
   // Phase 2 queries
   const { data: visitorAnalytics } = trpc.agents.getVisitorAnalytics.useQuery(undefined, {
@@ -311,6 +332,7 @@ export default function AgentCommandCenter() {
             <TabsTrigger value="seo"><FileText className="h-4 w-4 mr-1" />SEO</TabsTrigger>
             <TabsTrigger value="logs"><Activity className="h-4 w-4 mr-1" />Logs</TabsTrigger>
             <TabsTrigger value="reports"><Mail className="h-4 w-4 mr-1" />Reports</TabsTrigger>
+            <TabsTrigger value="gm"><BrainCircuit className="h-4 w-4 mr-1" />GM</TabsTrigger>
           </TabsList>
 
           {/* ===== AGENTS OVERVIEW TAB ===== */}
@@ -1741,12 +1763,161 @@ export default function AgentCommandCenter() {
               </CardContent>
             </Card>
           </TabsContent>
+          {/* ===== AI GENERAL MANAGER TAB ===== */}
+          <TabsContent value="gm">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center">
+                    <BrainCircuit className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900">AI General Manager</h2>
+                    <p className="text-sm text-slate-500">4-hour oversight cycle · Daily 8 AM executive report</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => triggerGmCycle.mutate()} disabled={triggerGmCycle.isPending}>
+                    {triggerGmCycle.isPending ? <RefreshCw className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                    Run GM Cycle Now
+                  </Button>
+                  <Button size="sm" className="bg-red-600 hover:bg-red-700" onClick={() => sendGmReport.mutate()} disabled={sendGmReport.isPending}>
+                    {sendGmReport.isPending ? <RefreshCw className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
+                    Send Executive Report
+                  </Button>
+                </div>
+              </div>
+
+              {gmLatestReport ? (
+                <Card className="border-red-100">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4 text-red-600" />
+                        Latest Executive Report — {gmLatestReport.reportDate}
+                      </CardTitle>
+                      <Badge variant={gmLatestReport.status === "sent" ? "default" : "secondary"}>{gmLatestReport.status}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 md:grid-cols-5 gap-3 mb-4">
+                      <div className="bg-green-50 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-green-700">{gmLatestReport.healthyAgents}</div>
+                        <div className="text-xs text-green-600">Healthy</div>
+                      </div>
+                      <div className="bg-amber-50 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-amber-700">{gmLatestReport.warningAgents}</div>
+                        <div className="text-xs text-amber-600">Warning</div>
+                      </div>
+                      <div className="bg-red-50 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-red-700">{gmLatestReport.criticalAgents}</div>
+                        <div className="text-xs text-red-600">Critical</div>
+                      </div>
+                      <div className="bg-blue-50 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-blue-700">{gmLatestReport.autoHealedCount}</div>
+                        <div className="text-xs text-blue-600">Auto-Healed</div>
+                      </div>
+                      <div className="bg-slate-50 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-slate-700">{gmLatestReport.totalAgents}</div>
+                        <div className="text-xs text-slate-600">Total Agents</div>
+                      </div>
+                    </div>
+                    <div className="bg-orange-50 rounded-lg p-4 border border-orange-100">
+                      <div className="text-xs font-semibold text-orange-600 uppercase tracking-wider mb-2">GM Executive Summary</div>
+                      <p className="text-sm text-slate-700 leading-relaxed">{gmLatestReport.executiveSummary}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="border-dashed">
+                  <CardContent className="py-10 text-center">
+                    <BrainCircuit className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                    <p className="text-slate-500 font-medium">No GM report yet</p>
+                    <p className="text-sm text-slate-400 mt-1">Click "Run GM Cycle Now" to generate the first report</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div>
+                <h3 className="text-base font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4 text-amber-500" />
+                  Strategic Recommendations
+                  {gmRecommendations && gmRecommendations.length > 0 && (
+                    <Badge variant="secondary">{gmRecommendations.filter((r: any) => r.status === "pending").length} pending</Badge>
+                  )}
+                </h3>
+                {!gmRecommendations || gmRecommendations.length === 0 ? (
+                  <Card className="border-dashed"><CardContent className="py-8 text-center"><p className="text-slate-400 text-sm">No recommendations yet. Run a GM cycle to generate strategic insights.</p></CardContent></Card>
+                ) : (
+                  <div className="space-y-3">
+                    {gmRecommendations
+                      .sort((a: any, b: any) => ({ urgent: 0, high: 1, medium: 2, low: 3 } as any)[a.priority] - ({ urgent: 0, high: 1, medium: 2, low: 3 } as any)[b.priority])
+                      .map((rec: any) => {
+                        const priorityColors: Record<string, string> = { urgent: "bg-red-100 text-red-700", high: "bg-orange-100 text-orange-700", medium: "bg-blue-100 text-blue-700", low: "bg-green-100 text-green-700" };
+                        const isDone = rec.status === "done" || rec.status === "dismissed";
+                        return (
+                          <Card key={rec.id} className={isDone ? "opacity-50" : ""}>
+                            <CardContent className="pt-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-semibold text-sm text-slate-900">{rec.title}</span>
+                                    <Badge className={`text-xs ${priorityColors[rec.priority] || ""}`}>{rec.priority}</Badge>
+                                    <Badge variant="outline" className="text-xs">{rec.category?.replace(/_/g, " ")}</Badge>
+                                  </div>
+                                  <p className="text-sm text-slate-600 mt-1">{rec.description}</p>
+                                  {rec.suggestedAction && <div className="mt-2 bg-slate-50 rounded p-2 text-xs text-slate-700"><span className="font-semibold">Action: </span>{rec.suggestedAction}</div>}
+                                </div>
+                                {!isDone && (
+                                  <div className="flex gap-1 shrink-0">
+                                    <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => updateGmRec.mutate({ id: rec.id, status: "in_progress" })} disabled={rec.status === "in_progress"}>{rec.status === "in_progress" ? "In Progress" : "Start"}</Button>
+                                    <Button size="sm" className="text-xs h-7 bg-green-600 hover:bg-green-700" onClick={() => updateGmRec.mutate({ id: rec.id, status: "done" })}>Done</Button>
+                                    <Button size="sm" variant="ghost" className="text-xs h-7 text-slate-400" onClick={() => updateGmRec.mutate({ id: rec.id, status: "dismissed" })}>Dismiss</Button>
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+
+              {gmHealthHistory && gmHealthHistory.length > 0 && (
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-slate-500" />
+                    Agent Health History
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead><tr className="border-b"><th className="text-left py-2 px-3 font-medium text-slate-600">Agent</th><th className="text-left py-2 px-3 font-medium text-slate-600">Cycle</th><th className="text-center py-2 px-3 font-medium text-slate-600">Status</th><th className="text-center py-2 px-3 font-medium text-slate-600">Score</th><th className="text-left py-2 px-3 font-medium text-slate-600">Notes</th></tr></thead>
+                      <tbody>
+                        {gmHealthHistory.slice(0, 30).map((h: any) => {
+                          const sc: Record<string, string> = { healthy: "bg-green-100 text-green-700", recovered: "bg-green-100 text-green-700", warning: "bg-amber-100 text-amber-700", critical: "bg-red-100 text-red-700", missed: "bg-red-100 text-red-700" };
+                          return (
+                            <tr key={h.id} className="border-b hover:bg-slate-50">
+                              <td className="py-2 px-3 font-medium">{h.agentDisplayName}</td>
+                              <td className="py-2 px-3 text-slate-500 text-xs">{h.cycleLabel}</td>
+                              <td className="py-2 px-3 text-center"><Badge className={`text-xs ${sc[h.status] || ""}`}>{h.status}</Badge></td>
+                              <td className="py-2 px-3 text-center"><span className={`font-semibold ${h.healthScore >= 80 ? "text-green-600" : h.healthScore >= 50 ? "text-amber-600" : "text-red-600"}`}>{h.healthScore}</span></td>
+                              <td className="py-2 px-3 text-xs text-slate-500">{h.wasAutoHealed && <span className="text-green-600 font-medium">✓ Auto-healed · </span>}{h.errorSummary ? h.errorSummary.slice(0, 60) : h.outputSummary?.slice(0, 60) || "—"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
     </div>
   );
 }
-
 function getAgentIcon(agentName: string) {
   switch (agentName) {
     case "crm_distributor":

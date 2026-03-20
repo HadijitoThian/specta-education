@@ -16,6 +16,7 @@ import { runReEngagementAgent } from "./agentReEngagement";
 import { runWhatsAppBroadcastAgent } from "./agentWhatsAppBroadcast";
 import { runContentAmplifierAgent } from "./agentContentAmplifier";
 import { runSeoOptimizerAgent } from "./agentSeoOptimizer";
+import { runGeneralManagerCycle, generateAndSendExecutiveReport } from "./agentGeneralManager";
 import {
   getAgentConfig,
   upsertAgentConfig,
@@ -25,6 +26,34 @@ import {
 } from "./db";
 
 let schedulerInterval: NodeJS.Timeout | null = null;
+let gmInterval: NodeJS.Timeout | null = null;
+let lastGmRunAt: Date | null = null;
+
+/**
+ * Run the GM 4-hour cycle and optionally send the executive report at 8 AM WIB
+ */
+async function runGmCycle(): Promise<void> {
+  const now = new Date();
+  const wibOffset = 7 * 60 * 60 * 1000;
+  const nowWib = new Date(now.getTime() + wibOffset);
+  const wibHour = nowWib.getUTCHours();
+
+  // Throttle: don't run more than once every 3.5 hours
+  if (lastGmRunAt && now.getTime() - lastGmRunAt.getTime() < 3.5 * 60 * 60 * 1000) return;
+
+  console.log(`[GM] Starting 4-hour oversight cycle at WIB hour ${wibHour}`);
+  lastGmRunAt = now;
+
+  try {
+    const result = await runGeneralManagerCycle();
+    // Send executive report during 8 AM WIB window (7-9 AM)
+    if (wibHour >= 7 && wibHour < 9) {
+      await generateAndSendExecutiveReport(result);
+    }
+  } catch (err: unknown) {
+    console.error("[GM] Cycle error:", err);
+  }
+}
 
 /**
  * Initialize agent configs in the database
@@ -107,6 +136,13 @@ export async function initializeAgents(): Promise<void> {
       description: "Audits all pages for SEO health (meta tags, OG, structured data, alt texts), generates AI recommendations, suggests internal links, and sends weekly reports",
       isActive: true,
       runIntervalMinutes: 10080, // Weekly
+    },
+    {
+      agentName: "ai_general_manager",
+      displayName: "AI General Manager",
+      description: "Oversees all AI agents every 4 hours, performs health checks, auto-heals missed agents, generates strategic recommendations, and sends daily 8 AM executive report",
+      isActive: true,
+      runIntervalMinutes: 240, // Every 4 hours
     },
   ];
 
@@ -257,7 +293,7 @@ export function startAgentScheduler(): void {
     return;
   }
 
-  console.log("[Scheduler] Starting AI Agent Scheduler (11 agents)...");
+  console.log("[Scheduler] Starting AI Agent Scheduler (11 agents + AI General Manager)...");
   
   initializeAgents().catch(err => {
     console.error("[Scheduler] Failed to initialize agents:", err);
@@ -283,6 +319,16 @@ export function startAgentScheduler(): void {
       console.error("[Scheduler] Error in initial check:", err);
     });
   }, 30 * 1000);
+
+  // GM runs every 4 hours
+  gmInterval = setInterval(() => {
+    runGmCycle().catch((err: unknown) => console.error("[GM] Interval error:", err));
+  }, 4 * 60 * 60 * 1000);
+
+  // First GM run after 2 minutes (let agents settle first)
+  setTimeout(() => {
+    runGmCycle().catch((err: unknown) => console.error("[GM] Initial run error:", err));
+  }, 2 * 60 * 1000);
 }
 
 /**
@@ -292,8 +338,12 @@ export function stopAgentScheduler(): void {
   if (schedulerInterval) {
     clearInterval(schedulerInterval);
     schedulerInterval = null;
-    console.log("[Scheduler] Stopped");
   }
+  if (gmInterval) {
+    clearInterval(gmInterval);
+    gmInterval = null;
+  }
+  console.log("[Scheduler] Stopped");
 }
 
 /**
@@ -329,6 +379,8 @@ export async function triggerAgent(agentName: string, params?: any): Promise<any
       return runContentAmplifierAgent(params?.blogId);
     case "seo_optimizer":
       return runSeoOptimizerAgent();
+    case "ai_general_manager":
+      return runGmCycle();
     default:
       throw new Error(`Unknown agent: ${agentName}`);
   }
