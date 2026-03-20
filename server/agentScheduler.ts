@@ -21,6 +21,7 @@ import {
   upsertAgentConfig,
   getAllAgentConfigs,
   resetDbConnection,
+  getDailyReportByDate,
 } from "./db";
 
 let schedulerInterval: NodeJS.Timeout | null = null;
@@ -124,64 +125,78 @@ export async function initializeAgents(): Promise<void> {
 export async function checkAndRunAgents(): Promise<void> {
   const configs = await getAllAgentConfigs();
   const now = new Date();
+  const wibOffset = 7 * 60 * 60 * 1000;
+  const nowWib = new Date(now.getTime() + wibOffset);
+  const wibHour = nowWib.getUTCHours();
+  const todayWib = nowWib.toISOString().split("T")[0];
 
   for (const config of configs) {
     if (!config.isActive) continue;
 
-    // Check if agent is due to run
-    const shouldRun = !config.lastRunAt || 
-      (config.nextRunAt && now >= config.nextRunAt) ||
-      (now.getTime() - new Date(config.lastRunAt).getTime() > config.runIntervalMinutes * 60 * 1000);
-
-    if (!shouldRun) continue;
-
-    // Special handling for time-sensitive agents
+    // -------------------------------------------------------
+    // TIME-SENSITIVE AGENTS: use time-window logic, NOT nextRunAt
+    // -------------------------------------------------------
     if (config.agentName === "central_reporter") {
-      const utcHour = now.getUTCHours();
-      const wibHour = (utcHour + 7) % 24;
-      // Run at 8 AM WIB with a 2-hour catch-up window (8-9 WIB = 1-2 UTC)
-      // This ensures report is sent even if server was briefly down at exactly 8 AM
-      if (wibHour < 8 || wibHour > 10) continue;
+      // Run between 8-10 AM WIB (2-hour catch-up window)
+      if (wibHour < 8 || wibHour >= 10) continue;
+      // Check if already sent today (WIB date)
       if (config.lastRunAt) {
-        // Use WIB date to check if already run today
-        const wibOffset = 7 * 60 * 60 * 1000;
         const lastRunWib = new Date(new Date(config.lastRunAt).getTime() + wibOffset);
-        const nowWib = new Date(now.getTime() + wibOffset);
         const lastRunDate = lastRunWib.toISOString().split("T")[0];
-        const todayDate = nowWib.toISOString().split("T")[0];
-        if (lastRunDate === todayDate) continue;
+        if (lastRunDate === todayWib) continue;
       }
+      // Also check DB to avoid duplicate if server restarted
+      const existingReport = await getDailyReportByDate(todayWib).catch(() => null);
+      if (existingReport?.status === "sent") {
+        console.log(`[Scheduler] central_reporter: report already sent today (${todayWib}), skipping`);
+        // Update lastRunAt so scheduler knows it ran today
+        await upsertAgentConfig({ agentName: config.agentName, displayName: config.displayName, lastRunAt: now, nextRunAt: new Date(now.getTime() + 24 * 60 * 60 * 1000) }).catch(() => {});
+        continue;
+      }
+      console.log(`[Scheduler] Running agent: ${config.displayName} (${wibHour}:xx WIB)`);
+      await upsertAgentConfig({ agentName: config.agentName, displayName: config.displayName, lastRunAt: now, nextRunAt: new Date(now.getTime() + 24 * 60 * 60 * 1000) }).catch(() => {});
+      try { await runCentralReporterAgent(); } catch (err) { console.error(`[Scheduler] Error running central_reporter:`, err); }
+      continue;
     }
 
-    // Aptitude nurture runs at 10AM WIB
     if (config.agentName === "aptitude_nurture") {
-      const utcHour = now.getUTCHours();
-      const wibHour = (utcHour + 7) % 24;
-      if (wibHour !== 10) continue;
+      // Run at 10 AM WIB (1-hour window: 10-11)
+      if (wibHour < 10 || wibHour >= 11) continue;
       if (config.lastRunAt) {
-        const lastRunDate = new Date(config.lastRunAt).toISOString().split("T")[0];
-        const todayDate = now.toISOString().split("T")[0];
-        if (lastRunDate === todayDate) continue;
+        const lastRunWib = new Date(new Date(config.lastRunAt).getTime() + wibOffset);
+        if (lastRunWib.toISOString().split("T")[0] === todayWib) continue;
       }
+      console.log(`[Scheduler] Running agent: ${config.displayName}`);
+      await upsertAgentConfig({ agentName: config.agentName, displayName: config.displayName, lastRunAt: now, nextRunAt: new Date(now.getTime() + 24 * 60 * 60 * 1000) }).catch(() => {});
+      try { await runAptitudeNurtureAgent(); } catch (err) { console.error(`[Scheduler] Error running aptitude_nurture:`, err); }
+      continue;
     }
 
-    // Re-engagement runs at 2PM WIB
     if (config.agentName === "re_engagement") {
-      const utcHour = now.getUTCHours();
-      const wibHour = (utcHour + 7) % 24;
-      if (wibHour !== 14) continue;
+      // Run at 2 PM WIB (1-hour window: 14-15)
+      if (wibHour < 14 || wibHour >= 15) continue;
       if (config.lastRunAt) {
-        const lastRunDate = new Date(config.lastRunAt).toISOString().split("T")[0];
-        const todayDate = now.toISOString().split("T")[0];
-        if (lastRunDate === todayDate) continue;
+        const lastRunWib = new Date(new Date(config.lastRunAt).getTime() + wibOffset);
+        if (lastRunWib.toISOString().split("T")[0] === todayWib) continue;
       }
+      console.log(`[Scheduler] Running agent: ${config.displayName}`);
+      await upsertAgentConfig({ agentName: config.agentName, displayName: config.displayName, lastRunAt: now, nextRunAt: new Date(now.getTime() + 24 * 60 * 60 * 1000) }).catch(() => {});
+      try { await runReEngagementAgent(); } catch (err) { console.error(`[Scheduler] Error running re_engagement:`, err); }
+      continue;
     }
 
-    console.log(`[Scheduler] Running agent: ${config.displayName}`);
+    // -------------------------------------------------------
+    // INTERVAL-BASED AGENTS: run when interval has elapsed
+    // -------------------------------------------------------
+    const intervalMs = config.runIntervalMinutes * 60 * 1000;
+    const lastRun = config.lastRunAt ? new Date(config.lastRunAt).getTime() : 0;
+    const elapsed = now.getTime() - lastRun;
+    if (elapsed < intervalMs) continue;
+
+    console.log(`[Scheduler] Running agent: ${config.displayName} (${Math.round(elapsed / 60000)}min since last run)`);
 
     // CRITICAL: Update lastRunAt BEFORE running to prevent duplicate runs
-    // if the agent takes longer than the scheduler check interval (5 min)
-    const nextRunAt = new Date(now.getTime() + config.runIntervalMinutes * 60 * 1000);
+    const nextRunAt = new Date(now.getTime() + intervalMs);
     await upsertAgentConfig({
       agentName: config.agentName,
       displayName: config.displayName,

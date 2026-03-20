@@ -14,13 +14,12 @@
 
 import { invokeLLM } from "./_core/llm";
 import { sendEmail } from "./email";
-import { drizzle } from "drizzle-orm/mysql2";
+import { getDb as getSharedDb, withDbRetry } from "./db";
 import { universityPartnerships, universityReplyQueue } from "../drizzle/schema";
 import { eq, or, like, and, isNotNull } from "drizzle-orm";
 
 async function getDb() {
-  if (!process.env.DATABASE_URL) return null;
-  try { return drizzle(process.env.DATABASE_URL); } catch { return null; }
+  return getSharedDb();
 }
 
 // ==========================================
@@ -246,6 +245,108 @@ Guidelines for drafting the response:
       draftedResponse: `Dear ${fromName || "Partnership Team"},\n\nThank you for your reply regarding our partnership proposal.\n\nWe would love to discuss this further. Please let me know a convenient time for a call.\n\nBest regards,\nHadi Jito Thian\nCEO, SpecTa Education\nhadi@spectaeducation.com`,
     };
   }
+}
+
+// ==========================================
+// Manual Reply Handler — paste email from Gmail
+// ==========================================
+
+/**
+ * Handle a manually submitted university reply (pasted from Gmail or forwarded email).
+ * This works WITHOUT Resend inbound MX records — Hadi pastes the email content directly.
+ */
+export async function handleManualUniversityReply(input: {
+  fromEmail: string;
+  fromName?: string | null;
+  subject: string;
+  emailBody: string;
+  universityPartnershipId?: number | null;
+}): Promise<{
+  processed: boolean;
+  reason: string;
+  queueId?: number;
+}> {
+  const db = await getDb();
+  if (!db) return { processed: false, reason: "Database unavailable" };
+
+  const fromEmail = input.fromEmail.toLowerCase().trim();
+  const fromName = input.fromName?.trim() || null;
+  const { subject, emailBody } = input;
+  const email_id = `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+  console.log(`[ReplyHandler] Manual submission from: ${fromEmail}, subject: ${subject}`);
+
+  // Find matching university — first try by partnership ID, then by domain/subject
+  let university: any = null;
+  if (input.universityPartnershipId) {
+    const rows = await withDbRetry(() => db.select().from(universityPartnerships)
+      .where(eq(universityPartnerships.id, input.universityPartnershipId!))
+      .limit(1), "find uni by id");
+    university = rows[0] || null;
+  }
+  if (!university) {
+    university = await findMatchingUniversity(fromEmail, subject, db);
+  }
+  if (!university) {
+    // Create a placeholder so the reply is not lost — use the email domain as university name
+    const domain = extractDomain(fromEmail);
+    console.warn(`[ReplyHandler] No matching university for ${fromEmail} — storing as unmatched`);
+    university = { id: 0, universityName: domain, country: "Unknown" };
+  }
+
+  // Analyze with LLM and draft response
+  const analysis = await analyzeReplyAndDraftResponse(
+    university.universityName,
+    university.country,
+    emailBody,
+    subject,
+    fromName
+  );
+
+  // Save to reply queue
+  const inserted = await withDbRetry(() => db.insert(universityReplyQueue).values({
+    universityPartnershipId: university.id || 0,
+    universityName: university.universityName,
+    universityCountry: university.country,
+    resendEmailId: email_id,
+    fromEmail,
+    fromName,
+    subject,
+    emailBody,
+    receivedAt: new Date(),
+    classification: analysis.classification,
+    classificationReason: analysis.classificationReason,
+    sentiment: analysis.sentiment,
+    urgency: analysis.urgency,
+    keyPoints: JSON.stringify(analysis.keyPoints),
+    draftedResponse: analysis.draftedResponse,
+    draftedSubject: analysis.draftedSubject,
+    approvalStatus: "pending_review",
+  }), "insert reply queue");
+
+  const queueId = (inserted as any).insertId;
+
+  // Update university partnership status if we have a real match
+  if (university.id) {
+    await withDbRetry(() => db.update(universityPartnerships)
+      .set({ outreachStatus: "responded", responseReceived: emailBody?.substring(0, 500) || subject })
+      .where(eq(universityPartnerships.id, university.id)), "update uni status").catch(() => {});
+  }
+
+  // Send notification to Hadi
+  const classLabel: Record<string, string> = {
+    interested: "🎉 INTERESTED", needs_more_info: "❓ Needs More Info",
+    declined: "❌ Declined", counter_offer: "🤝 Counter Offer",
+    meeting_request: "📅 Meeting Request", unknown: "❓ Unknown",
+  };
+  await sendEmail({
+    to: "hadi@spectaeducation.com",
+    subject: `🏫 University Reply Queued: ${university.universityName} — ${classLabel[analysis.classification]}`,
+    html: `<p>A reply from <strong>${fromEmail}</strong> (${university.universityName}) has been classified as <strong>${classLabel[analysis.classification]}</strong> and is waiting for your approval in the <a href="https://www.spectaeducation.com/admin/agents">Agent Command Center → Partnerships tab</a>.</p>`,
+  }).catch(() => {});
+
+  console.log(`[ReplyHandler] Manual reply queued from ${university.universityName} (queue ID: ${queueId})`);
+  return { processed: true, reason: `Queued reply from ${university.universityName} for approval`, queueId };
 }
 
 // ==========================================

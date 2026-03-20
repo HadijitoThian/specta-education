@@ -5276,27 +5276,24 @@ Return JSON with the refined article:
         return { success: true };
       }),
 
-    // Manually submit a university reply (for testing or when email wasn't caught by webhook)
+    // Manually submit a university reply (paste from Gmail — works without Resend MX records)
     submitUniversityReplyManually: protectedProcedure
       .input(z.object({
-        universityPartnershipId: z.number(),
+        universityPartnershipId: z.number().optional().nullable(),
         fromEmail: z.string().email(),
-        fromName: z.string().optional(),
-        subject: z.string(),
-        emailBody: z.string(),
+        fromName: z.string().optional().nullable(),
+        subject: z.string().min(1),
+        emailBody: z.string().min(10, "Please paste the full email body (at least 10 characters)"),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
-        const { handleInboundUniversityReply } = await import("./agentUniversityReplyHandler");
-        return await handleInboundUniversityReply({
-          type: "email.received",
-          data: {
-            email_id: `manual_${Date.now()}`,
-            from: input.fromName ? `${input.fromName} <${input.fromEmail}>` : input.fromEmail,
-            to: ["hadi@spectaeducation.com"],
-            subject: input.subject,
-            created_at: new Date().toISOString(),
-          },
+        const { handleManualUniversityReply } = await import("./agentUniversityReplyHandler");
+        return await handleManualUniversityReply({
+          fromEmail: input.fromEmail,
+          fromName: input.fromName,
+          subject: input.subject,
+          emailBody: input.emailBody,
+          universityPartnershipId: input.universityPartnershipId,
         });
       }),
 

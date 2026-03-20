@@ -8,12 +8,11 @@
  * Schedule: Daily at 10:00 AM
  */
 
-import { createAgentRunLog, updateAgentRunLog } from "./db";
+import { createAgentRunLog, updateAgentRunLog, getDb, withDbRetry } from "./db";
 import { sendEmail } from "./email";
 import { invokeLLM } from "./_core/llm";
-import { drizzle } from "drizzle-orm/mysql2";
 import { aptitudeResults } from "../drizzle/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, isNull, or } from "drizzle-orm";
 
 const HOLLAND_CODE_MAP: Record<string, { name: string; careers: string[]; programs: string[] }> = {
   R: { name: "Realistic", careers: ["Engineer", "Architect", "Mechanic", "Pilot"], programs: ["Engineering", "Architecture", "Aviation", "Construction Management"] },
@@ -49,19 +48,23 @@ export async function runAptitudeNurtureAgent(): Promise<{
   let errors = 0;
 
   try {
-    const db = drizzle(process.env.DATABASE_URL!);
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
 
     // Find aptitude results from last 30 days that haven't been nurtured
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     
-    const results = await db.select().from(aptitudeResults)
+    const results = await withDbRetry(() => db.select().from(aptitudeResults)
       .where(
         and(
           sql`${aptitudeResults.createdAt} > ${thirtyDaysAgo}`,
-          sql`(nurture_email_sent IS NULL OR nurture_email_sent = 0)`
+          or(
+            isNull(aptitudeResults.nurtureEmailSent),
+            eq(aptitudeResults.nurtureEmailSent, 0)
+          )
         )
       )
-      .limit(20);
+      .limit(20), "aptitude_nurture select");
 
     console.log(`[Aptitude Nurture] Found ${results.length} students to nurture`);
 
@@ -102,9 +105,9 @@ export async function runAptitudeNurtureAgent(): Promise<{
         });
 
         // Mark as nurtured
-        await db.update(aptitudeResults)
-          .set({ nurtureEmailSent: 1 } as any)
-          .where(eq(aptitudeResults.id, result.id));
+        await withDbRetry(() => db.update(aptitudeResults)
+          .set({ nurtureEmailSent: 1 })
+          .where(eq(aptitudeResults.id, result.id)), "aptitude_nurture update");
 
         emailsSent++;
         processed++;

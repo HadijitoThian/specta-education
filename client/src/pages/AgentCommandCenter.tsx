@@ -143,7 +143,7 @@ export default function AgentCommandCenter() {
   });
   const [expandedReply, setExpandedReply] = useState<number | null>(null);
   const [editingReply, setEditingReply] = useState<{ id: number; subject: string; body: string } | null>(null);
-  const [manualReply, setManualReply] = useState<{ universityPartnershipId: number; fromEmail: string; fromName: string; subject: string; emailBody: string } | null>(null);
+  const [manualReply, setManualReply] = useState<{ universityPartnershipId?: number | null; fromEmail: string; fromName: string; subject: string; emailBody: string } | null>(null);
 
   const approveReply = trpc.agents.approveUniversityReply.useMutation({
     onSuccess: () => { refetchReplyQueue(); toast.success("Response sent to university!"); },
@@ -162,8 +162,8 @@ export default function AgentCommandCenter() {
     onError: (err) => toast.error(err.message),
   });
 
-  const pendingReplies = replyQueue?.filter((r: any) => r.approvalStatus === "pending") || [];
-  const processedReplies = replyQueue?.filter((r: any) => r.approvalStatus !== "pending") || [];
+  const pendingReplies = replyQueue?.filter((r: any) => r.approvalStatus === "pending_review") || [];
+  const processedReplies = replyQueue?.filter((r: any) => r.approvalStatus !== "pending_review") || [];
 
   if (authLoading) return <div className="flex items-center justify-center min-h-screen"><RefreshCw className="animate-spin h-8 w-8 text-red-500" /></div>;
   if (!user || (user.role !== "admin" && user.role !== "general_manager")) {
@@ -844,8 +844,7 @@ export default function AgentCommandCenter() {
                   <CardDescription className="flex items-center justify-between">
                     <span>Replies from universities are automatically analyzed by AI. Approve, edit, or decline the suggested response.</span>
                     <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50" onClick={() => {
-                      const firstPartnership = partnershipPipeline?.recentOpportunities?.[0];
-                      setManualReply({ universityPartnershipId: firstPartnership?.id || 0, fromEmail: '', fromName: '', subject: '', emailBody: '' });
+                      setManualReply({ universityPartnershipId: null, fromEmail: '', fromName: '', subject: '', emailBody: '' });
                     }}>
                       <Mail className="h-4 w-4 mr-1" />
                       Submit Reply Manually

@@ -1,0 +1,45 @@
+{
+  "query": "SELECT reportDate, status, sentTo, sentAt, summary FROM daily_reports ORDER BY reportDate DESC LIMIT 10;\nSELECT agentName, isActive, lastRunAt, nextRunAt, runIntervalMinutes FROM agent_configs WHERE agentName = 'central_reporter';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT reportDate, status, sentTo, sentAt, summary FROM daily_reports ORDER BY reportDate DESC LIMIT 10;\nSELECT agentName, isActive, lastRunAt, nextRunAt, runIntervalMinutes FROM agent_configs WHERE agentName = 'central_reporter';",
+  "rows": [
+    {
+      "reportDate": "2026-03-18",
+      "status": "sent",
+      "sentTo": "hadi@spectaeducation.com",
+      "sentAt": "2026-03-18 01:16:21",
+      "summary": "Leads: 0 new (0 total) | Aptitude: 0 new (80 total) | Assignments: 1 today | SEO: 10 articles this week | Escalations: 0 stale"
+    },
+    {
+      "reportDate": "2026-03-17",
+      "status": "sent",
+      "sentTo": "hadi@spectaeducation.com",
+      "sentAt": "2026-03-17 01:13:38",
+      "summary": "Leads: 0 new (0 total) | Aptitude: 1 new (80 total) | Assignments: 80 today | SEO: 7 articles this week | Escalations: 0 stale"
+    },
+    {
+      "reportDate": "2026-03-16",
+      "status": "sent",
+      "sentTo": "hadi@spectaeducation.com",
+      "sentAt": "2026-03-16 01:09:42",
+      "summary": "Leads: 0 new (0 total) | Assignments: 2 today | SEO: 4 articles this week | Escalations: 0 stale"
+    },
+    {
+      "reportDate": "agentName",
+      "status": "isActive",
+      "sentTo": "lastRunAt",
+      "sentAt": "nextRunAt",
+      "summary": "runIntervalMinutes"
+    },
+    {
+      "reportDate": "central_reporter",
+      "status": "1",
+      "sentTo": "2026-03-20 01:19:08",
+      "sentAt": "2026-03-21 01:19:08",
+      "summary": "1440"
+    }
+  ],
+  "messages": [],
+  "stdout": "reportDate\tstatus\tsentTo\tsentAt\tsummary\n2026-03-18\tsent\thadi@spectaeducation.com\t2026-03-18 01:16:21\tLeads: 0 new (0 total) | Aptitude: 0 new (80 total) | Assignments: 1 today | SEO: 10 articles this week | Escalations: 0 stale\n2026-03-17\tsent\thadi@spectaeducation.com\t2026-03-17 01:13:38\tLeads: 0 new (0 total) | Aptitude: 1 new (80 total) | Assignments: 80 today | SEO: 7 articles this week | Escalations: 0 stale\n2026-03-16\tsent\thadi@spectaeducation.com\t2026-03-16 01:09:42\tLeads: 0 new (0 total) | Assignments: 2 today | SEO: 4 articles this week | Escalations: 0 stale\nagentName\tisActive\tlastRunAt\tnextRunAt\trunIntervalMinutes\ncentral_reporter\t1\t2026-03-20 01:19:08\t2026-03-21 01:19:08\t1440\n",
+  "stderr": "",
+  "execution_time_ms": 1823
+}

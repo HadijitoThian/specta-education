@@ -47,6 +47,57 @@ import mysql from "mysql2/promise";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let _pool: mysql.Pool | null = null;
+let _consecutiveErrors = 0;
+const MAX_CONSECUTIVE_ERRORS = 5;
+
+/**
+ * Determine if an error is a transient DB connection error worth retrying.
+ */
+function isTransientError(err: unknown): boolean {
+  const msg = String((err as any)?.message || err);
+  const cause = String((err as any)?.cause?.message || "");
+  const combined = msg + " " + cause;
+  return (
+    combined.includes("ECONNRESET") ||
+    combined.includes("ECONNREFUSED") ||
+    combined.includes("ETIMEDOUT") ||
+    combined.includes("ENOTFOUND") ||
+    combined.includes("PROTOCOL_CONNECTION_LOST") ||
+    combined.includes("ER_CON_COUNT_ERROR") ||
+    combined.includes("read ECONNRESET")
+  );
+}
+
+/**
+ * Execute a DB operation with automatic retry on transient connection errors.
+ * Retries up to 3 times with exponential backoff (1s, 2s, 4s).
+ */
+export async function withDbRetry<T>(fn: () => Promise<T>, label = "DB operation"): Promise<T> {
+  const maxRetries = 3;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await fn();
+      _consecutiveErrors = 0; // Reset on success
+      return result;
+    } catch (err) {
+      lastError = err;
+      if (isTransientError(err)) {
+        _consecutiveErrors++;
+        console.warn(`[Database] Transient error on attempt ${attempt}/${maxRetries} for "${label}": ${(err as any)?.message}`);
+        // Reset pool so next attempt gets a fresh connection
+        await resetDbConnection().catch(() => {});
+        if (attempt < maxRetries) {
+          const delay = Math.pow(2, attempt - 1) * 1000; // 1s, 2s, 4s
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+      }
+      throw err;
+    }
+  }
+  throw lastError;
+}
 
 /**
  * Get or create a database connection using a connection pool.
@@ -62,6 +113,7 @@ export async function getDb() {
         queueLimit: 0,
         enableKeepAlive: true,
         keepAliveInitialDelay: 10000,
+        connectTimeout: 30000,
       });
       _db = drizzle(_pool as any);
       console.log("[Database] Connection pool created");
@@ -83,7 +135,7 @@ export async function resetDbConnection() {
   }
   _pool = null;
   _db = null;
-  console.log("[Database] Connection pool reset");
+  console.log("[Database] Connection pool reset — will reconnect on next query");
   return getDb();
 }
 

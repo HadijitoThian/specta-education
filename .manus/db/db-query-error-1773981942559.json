@@ -1,0 +1,8 @@
+{
+  "query": "SELECT report_date, status, sent_to, sent_at, summary FROM daily_reports ORDER BY report_date DESC LIMIT 10;\nSELECT agent_name, is_active, last_run_at, next_run_at, run_interval_minutes FROM agent_configs ORDER BY agent_name;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT report_date, status, sent_to, sent_at, summary FROM daily_reports ORDER BY report_date DESC LIMIT 10;\nSELECT agent_name, is_active, last_run_at, next_run_at, run_interval_minutes FROM agent_configs ORDER BY agent_name;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'report_date' in 'field list'"
+  ]
+}
