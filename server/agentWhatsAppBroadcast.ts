@@ -97,9 +97,9 @@ async function generateMessage(campaignType: string, name: string, interest?: st
       ],
     });
     const content = llmResponse.choices?.[0]?.message?.content;
-    return typeof content === "string" ? content : `Hai ${name}! 👋 Konsultasi GRATIS kuliah ke luar negeri di SpecTa Education. Hubungi: wa.me/62818668277`;
+    return typeof content === "string" ? content : `Hai ${name}! 👋 Konsultasi GRATIS kuliah ke luar negeri di SpecTa Education. Hubungi: wa.me/6281181208200`;
   } catch {
-    return `Hai ${name}! 👋 Konsultasi GRATIS kuliah ke luar negeri di SpecTa Education. Hubungi: wa.me/62818668277`;
+    return `Hai ${name}! 👋 Konsultasi GRATIS kuliah ke luar negeri di SpecTa Education. Hubungi: wa.me/6281181208200`;
   }
 }
 

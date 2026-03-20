@@ -81,20 +81,20 @@ export async function runReEngagementAgent(): Promise<{ coldLeadsFound: number; 
           const llmResponse = await invokeLLM({
             messages: [
               { role: "system", content: "You are a friendly education counselor at SpecTa Education. Write a short re-engagement email in Bahasa Indonesia (max 100 words). Be warm, not pushy. Include a clear CTA." },
-              { role: "user", content: `Write a re-engagement email for ${lead.name} who showed interest ${lead.daysSinceLastContact} days ago (source: ${lead.source}, interest: ${lead.interest || "study abroad"}). Theme: ${template.hook}. End with link to https://www.spectaeducation.com/contact or WhatsApp https://wa.me/62818668277` }
+              { role: "user", content: `Write a re-engagement email for ${lead.name} who showed interest ${lead.daysSinceLastContact} days ago (source: ${lead.source}, interest: ${lead.interest || "study abroad"}). Theme: ${template.hook}. End with link to https://www.spectaeducation.com/contact or WhatsApp https://wa.me/6281181208200` }
             ],
           });
           const content = llmResponse.choices?.[0]?.message?.content;
           emailBody = typeof content === "string" ? content : "";
         } catch {
-          emailBody = `Hai ${lead.name}! Kami dari SpecTa Education ingin mengingatkan bahwa konsultasi GRATIS masih tersedia untuk kamu. Hubungi kami di WhatsApp: +62 818 668 277`;
+          emailBody = `Hai ${lead.name}! Kami dari SpecTa Education ingin mengingatkan bahwa konsultasi GRATIS masih tersedia untuk kamu. Hubungi kami di WhatsApp: +62 811 8120 820`;
         }
 
         const emailHtml = `<div style="font-family:'Segoe UI',sans-serif;max-width:600px;margin:0 auto;">
           <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:24px;text-align:center;border-radius:12px 12px 0 0;"><h2 style="color:#fff;margin:0;">SpecTa Education</h2></div>
           <div style="padding:24px;background:#fff;"><div style="white-space:pre-line;color:#4a5568;line-height:1.7;">${emailBody}</div>
           <div style="text-align:center;margin:24px 0;"><a href="https://www.spectaeducation.com/contact" style="display:inline-block;background:#e53e3e;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;">📞 Konsultasi Gratis</a></div>
-          <div style="text-align:center;"><a href="https://wa.me/62818668277" style="display:inline-block;background:#25d366;color:#fff;text-decoration:none;padding:10px 24px;border-radius:8px;font-weight:600;">💬 WhatsApp Kami</a></div></div>
+          <div style="text-align:center;"><a href="https://wa.me/6281181208200" style="display:inline-block;background:#25d366;color:#fff;text-decoration:none;padding:10px 24px;border-radius:8px;font-weight:600;">💬 WhatsApp Kami</a></div></div>
           <div style="background:#f7fafc;padding:16px;text-align:center;border-radius:0 0 12px 12px;"><p style="color:#a0aec0;font-size:11px;margin:0;">SpecTa Education — Indonesia's First AI-Powered Study Abroad Platform</p></div></div>`;
 
         await sendEmail({ to: lead.email, subject: template.subject, html: emailHtml });
