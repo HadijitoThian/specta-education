@@ -1522,3 +1522,12 @@
 - [x] Notification email sent to Hadi when new reply arrives (with link to Agent Command Center)
 - [x] Processed replies history shown below pending queue
 - [ ] SETUP REQUIRED: Configure Resend inbound MX records for spectaeducation.com domain to activate automatic email detection
+
+#### Daily 8 AM Agent Performance Report Fix (Mar 20, 2026)
+- [x] Investigated: scheduler was crashing with ECONNRESET (DB connection drop) - no agents ran at all
+- [x] Fixed db.ts: replaced singleton connection with mysql2 connection POOL (auto-reconnects on drop)
+- [x] Fixed agentScheduler.ts: added ECONNRESET detection + resetDbConnection() call on connection errors
+- [x] Fixed central_reporter time window: now runs 8-10 AM WIB (2-hour catch-up window) instead of only 8-9 AM
+- [x] Fixed WIB date comparison: uses proper WIB offset to check if report already sent today
+- [x] Manual trigger button already exists in Agent Command Center (Reports tab)
+- [x] All 364 tests pass (5 pre-existing simulator failures unrelated to these changes)

@@ -43,18 +43,48 @@ import {
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
-let _db: ReturnType<typeof drizzle> | null = null;
+import mysql from "mysql2/promise";
 
+let _db: ReturnType<typeof drizzle> | null = null;
+let _pool: mysql.Pool | null = null;
+
+/**
+ * Get or create a database connection using a connection pool.
+ * A pool automatically handles reconnections after ECONNRESET errors.
+ */
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
+  if (!_pool && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      _pool = mysql.createPool({
+        uri: process.env.DATABASE_URL,
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0,
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 10000,
+      });
+      _db = drizzle(_pool as any);
+      console.log("[Database] Connection pool created");
     } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
+      console.warn("[Database] Failed to create pool:", error);
+      _pool = null;
       _db = null;
     }
   }
   return _db;
+}
+
+/**
+ * Reset the database connection pool (call after ECONNRESET errors)
+ */
+export async function resetDbConnection() {
+  if (_pool) {
+    try { await _pool.end(); } catch {}
+  }
+  _pool = null;
+  _db = null;
+  console.log("[Database] Connection pool reset");
+  return getDb();
 }
 
 // User functions

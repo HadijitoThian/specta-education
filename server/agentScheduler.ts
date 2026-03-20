@@ -20,6 +20,7 @@ import {
   getAgentConfig,
   upsertAgentConfig,
   getAllAgentConfigs,
+  resetDbConnection,
 } from "./db";
 
 let schedulerInterval: NodeJS.Timeout | null = null;
@@ -138,10 +139,16 @@ export async function checkAndRunAgents(): Promise<void> {
     if (config.agentName === "central_reporter") {
       const utcHour = now.getUTCHours();
       const wibHour = (utcHour + 7) % 24;
-      if (wibHour !== 9 && wibHour !== 8) continue;
+      // Run at 8 AM WIB with a 2-hour catch-up window (8-9 WIB = 1-2 UTC)
+      // This ensures report is sent even if server was briefly down at exactly 8 AM
+      if (wibHour < 8 || wibHour > 10) continue;
       if (config.lastRunAt) {
-        const lastRunDate = new Date(config.lastRunAt).toISOString().split("T")[0];
-        const todayDate = now.toISOString().split("T")[0];
+        // Use WIB date to check if already run today
+        const wibOffset = 7 * 60 * 60 * 1000;
+        const lastRunWib = new Date(new Date(config.lastRunAt).getTime() + wibOffset);
+        const nowWib = new Date(now.getTime() + wibOffset);
+        const lastRunDate = lastRunWib.toISOString().split("T")[0];
+        const todayDate = nowWib.toISOString().split("T")[0];
         if (lastRunDate === todayDate) continue;
       }
     }
@@ -242,8 +249,17 @@ export function startAgentScheduler(): void {
   });
 
   schedulerInterval = setInterval(() => {
-    checkAndRunAgents().catch(err => {
+    checkAndRunAgents().catch(async (err) => {
       console.error("[Scheduler] Error in check cycle:", err);
+      // If it's a connection error, reset the pool so next cycle gets a fresh connection
+      const errMsg = err?.message || String(err);
+      const isCause = err?.cause?.message || "";
+      if (errMsg.includes("ECONNRESET") || isCause.includes("ECONNRESET") ||
+          errMsg.includes("ECONNREFUSED") || isCause.includes("ECONNREFUSED") ||
+          errMsg.includes("ETIMEDOUT") || isCause.includes("ETIMEDOUT")) {
+        console.log("[Scheduler] DB connection error detected — resetting pool...");
+        await resetDbConnection().catch(() => {});
+      }
     });
   }, 5 * 60 * 1000);
 
