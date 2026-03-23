@@ -20,8 +20,8 @@ interface PageMeta {
 // Static page meta definitions - must match the client-side SEO component values
 const PAGE_META: Record<string, PageMeta> = {
   "/": {
-    title: "SpecTa Education - Konsultan Pendidikan Luar Negeri Terpercaya di Indonesia Sejak 2005",
-    description: "SpecTa Education - Konsultan pendidikan luar negeri terpercaya di Indonesia sejak 2005. Bimbingan kuliah di Australia, UK, USA, Kanada, Singapura, Malaysia, China, Irlandia, Belanda & Selandia Baru. IELTS preparation, bantuan visa, beasiswa. 1000+ pelajar terbantu. Konsultasi gratis!",
+    title: "SpecTa Education | Konsultan Studi Luar Negeri Indonesia",
+    description: "Konsultan pendidikan luar negeri terpercaya sejak 2005. Kuliah di UK, Australia, USA & lebih. IELTS, beasiswa, visa. 1000+ pelajar terbantu.",
     keywords: "study abroad consultant Jakarta, konsultan pendidikan luar negeri Indonesia, IELTS preparation, kuliah luar negeri, SpecTa Education, beasiswa luar negeri, kuliah di Australia, kuliah di Inggris, study in UK, study in Australia",
   },
   "/about": {

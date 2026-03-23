@@ -2,6 +2,8 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
+import compression from "compression";
+import helmet from "helmet";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
@@ -40,6 +42,61 @@ function approvalResultPage(success: boolean, message: string): string {
 async function startServer() {
   const app = express();
   const server = createServer(app);
+
+  // ── Performance: gzip compression (reduces page size ~70%) ──
+  app.use(compression());
+
+  // ── Security headers (X-Frame-Options, CSP, HSTS, etc.) ──
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            "'unsafe-eval'",
+            "https://www.googletagmanager.com",
+            "https://www.google-analytics.com",
+            "https://ssl.google-analytics.com",
+            "https://maps.googleapis.com",
+            "https://maps.gstatic.com",
+            "https://cdn.jsdelivr.net",
+          ],
+          styleSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            "https://fonts.googleapis.com",
+            "https://cdn.jsdelivr.net",
+          ],
+          fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+          imgSrc: ["'self'", "data:", "blob:", "https:"],
+          connectSrc: [
+            "'self'",
+            "https://www.google-analytics.com",
+            "https://analytics.google.com",
+            "https://www.googletagmanager.com",
+            "https://maps.googleapis.com",
+            "wss:",
+            "ws:",
+          ],
+          frameSrc: ["'self'", "https://www.google.com"],
+          frameAncestors: ["'self'"],
+          objectSrc: ["'none'"],
+          upgradeInsecureRequests: [],
+        },
+      },
+      crossOriginEmbedderPolicy: false, // Allow Google Maps embedding
+      xFrameOptions: { action: "sameorigin" },
+      referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+      hsts: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true,
+      },
+    })
+  );
+
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
