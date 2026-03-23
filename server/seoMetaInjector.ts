@@ -6,7 +6,7 @@
  * so crawlers get the correct title, description, OG tags, and canonical URL.
  */
 
-const BASE_URL = "https://www.spectaeducation.com";
+const BASE_URL = "https://spectaeducation.com";
 const DEFAULT_OG_IMAGE = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/JkROfRrqqpCGwfuP.png";
 
 interface PageMeta {
@@ -242,6 +242,17 @@ const PAGE_META: Record<string, PageMeta> = {
     title: "Your Study Abroad Readiness Report | SpecTa Education",
     description: "See your personalized study abroad readiness report. Discover your strengths, areas to improve, and recommended next steps.",
     keywords: "study abroad readiness, readiness report, study abroad assessment",
+  },
+  // AI-Optimized Answer Pages (GEO — structured for ChatGPT, Perplexity, Google AI)
+  "/ai-answers": {
+    title: "FAQ Kuliah Luar Negeri & IELTS Indonesia | SpecTa Education",
+    description: "Jawaban lengkap pertanyaan tentang kuliah luar negeri, IELTS preparation, beasiswa, dan konsultan study abroad terbaik di Indonesia. SpecTa Education — 20+ tahun pengalaman.",
+    keywords: "konsultan study abroad Indonesia, kursus IELTS terbaik Jakarta, beasiswa kuliah luar negeri, kuliah di Australia Indonesia, SpecTa Education FAQ",
+  },
+  "/faq": {
+    title: "FAQ Kuliah Luar Negeri & IELTS Indonesia | SpecTa Education",
+    description: "Jawaban lengkap pertanyaan tentang kuliah luar negeri, IELTS preparation, beasiswa, dan konsultan study abroad terbaik di Indonesia. SpecTa Education — 20+ tahun pengalaman.",
+    keywords: "konsultan study abroad Indonesia, kursus IELTS terbaik Jakarta, beasiswa kuliah luar negeri, kuliah di Australia Indonesia, SpecTa Education FAQ",
   },
   // Admin pages - noindex
   "/admin": { title: "Admin Dashboard | SpecTa Education", description: "Administration dashboard", noindex: true },

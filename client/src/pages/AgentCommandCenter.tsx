@@ -50,6 +50,14 @@ export default function AgentCommandCenter() {
   const updateGmRec = trpc.gm.updateRecommendation.useMutation({
     onSuccess: () => { refetchGmRecs(); toast.success("Recommendation updated"); },
   });
+  const { data: latestGeoReport, refetch: refetchGeoReport } = trpc.gm.getLatestGeoReport.useQuery(undefined, { refetchInterval: 120000 });
+  const runGeoMonitorMutation = trpc.gm.runGeoMonitor.useMutation({
+    onSuccess: (data) => {
+      refetchGeoReport();
+      toast.success(`GEO Monitor: ${data.mentionRate.toFixed(0)}% mention rate across ${data.queriesRun} AI queries`);
+    },
+    onError: (err) => toast.error(`GEO Monitor failed: ${err.message}`),
+  });
 
   // Phase 2 queries
   const { data: visitorAnalytics } = trpc.agents.getVisitorAnalytics.useQuery(undefined, {
@@ -1911,6 +1919,59 @@ export default function AgentCommandCenter() {
                   </div>
                 </div>
               )}
+
+              {/* GEO Monitor Panel */}
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-blue-500" />
+                    AI Engine Visibility (GEO Monitor)
+                    <Badge variant="outline" className="text-xs">ChatGPT · Perplexity · Gemini</Badge>
+                  </h3>
+                  <Button variant="outline" size="sm" onClick={() => runGeoMonitorMutation.mutate()} disabled={runGeoMonitorMutation.isPending}>
+                    {runGeoMonitorMutation.isPending ? <RefreshCw className="h-4 w-4 mr-1 animate-spin" /> : <Search className="h-4 w-4 mr-1" />}
+                    Run AI Scan Now
+                  </Button>
+                </div>
+                {latestGeoReport ? (
+                  <Card className="border-blue-100">
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="text-center">
+                          <div className={`text-4xl font-bold ${
+                            (latestGeoReport as any).priority === 'high' ? 'text-red-600' :
+                            (latestGeoReport as any).priority === 'medium' ? 'text-amber-600' : 'text-green-600'
+                          }`}>
+                            {(() => {
+                              const ctx = (latestGeoReport as any).dataContext;
+                              try { const d = JSON.parse(ctx || '{}'); return `${(d.mentionRate || 0).toFixed(0)}%`; } catch { return '—'; }
+                            })()}
+                          </div>
+                          <div className="text-xs text-slate-500">Mention Rate</div>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-slate-800">{(latestGeoReport as any).title}</p>
+                          <p className="text-xs text-slate-500 mt-1">{(latestGeoReport as any).description?.slice(0, 200)}</p>
+                        </div>
+                      </div>
+                      {(latestGeoReport as any).rationale && (
+                        <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                          <div className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">Recommendations</div>
+                          <p className="text-sm text-slate-700">{(latestGeoReport as any).rationale?.replace('Recommendations: ', '')}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="border-dashed">
+                    <CardContent className="py-8 text-center">
+                      <Globe className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                      <p className="text-slate-500 font-medium">No GEO scan yet</p>
+                      <p className="text-sm text-slate-400 mt-1">Click "Run AI Scan Now" to check if SpecTa Education appears in ChatGPT, Perplexity, and Gemini answers</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             </div>
           </TabsContent>
         </Tabs>

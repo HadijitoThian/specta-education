@@ -190,6 +190,7 @@ import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { triggerAgent, initializeAgents, startAgentScheduler } from "./agentScheduler";
 import { getLatestGmReport, getGmReports, getGmRecommendations, updateGmRecommendationStatus, getGmHealthHistory, runGeneralManagerCycle, generateAndSendExecutiveReport } from "./agentGeneralManager";
+import { runGeoMonitor, getLatestGeoReport } from "./agentGeoMonitor";
 import {
   getAllAgentConfigs,
   updateAgentConfig,
@@ -5387,6 +5388,28 @@ Return JSON with the refined article:
         const cycleResult = await runGeneralManagerCycle();
         await generateAndSendExecutiveReport(cycleResult);
         return { success: true };
+      }),
+    runGeoMonitor: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const report = await runGeoMonitor();
+        return {
+          success: true,
+          mentionRate: report.mentionRate,
+          mentionCount: report.mentionCount,
+          queriesRun: report.queriesRun,
+          topCompetitors: report.topCompetitors,
+          recommendations: report.recommendations,
+        };
+      }),
+    getLatestGeoReport: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return getLatestGeoReport();
       }),
   }),
 });

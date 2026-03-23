@@ -37,6 +37,7 @@ import SimulatorExperience from "./pages/SimulatorExperience";
 import SimulatorReport from "./pages/SimulatorReport";
 import AgentCommandCenter from "./pages/AgentCommandCenter";
 import { useVisitorTracking } from "./hooks/useVisitorTracking";
+import AIAnswers from "./pages/AIAnswers";
 
 function Router() {
   // Track real visitor behavior on every page
@@ -77,6 +78,8 @@ function Router() {
       <Route path={"/simulator"} component={Simulator} />
       <Route path={"/simulator/experience"} component={SimulatorExperience} />
       <Route path={"/simulator/report"} component={SimulatorReport} />
+      <Route path={"/ai-answers"} component={AIAnswers} />
+      <Route path={"/faq"} component={AIAnswers} />
       <Route path={"/unsubscribe"} component={Unsubscribe} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
