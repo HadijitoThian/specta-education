@@ -21,7 +21,7 @@ interface PageMeta {
 const PAGE_META: Record<string, PageMeta> = {
   "/": {
     title: "SpecTa Education | Konsultan Studi Luar Negeri Indonesia",
-    description: "Konsultan pendidikan luar negeri terpercaya sejak 2005. Kuliah di UK, Australia, USA & lebih. IELTS, beasiswa, visa. 1000+ pelajar terbantu.",
+    description: "Konsultan pendidikan luar negeri terpercaya sejak 2005. Kuliah di UK, Australia, USA & lebih. IELTS, beasiswa, visa. 1000+ pelajar terbantu. Konsultasi gratis!",
     keywords: "study abroad consultant Jakarta, konsultan pendidikan luar negeri Indonesia, IELTS preparation, kuliah luar negeri, SpecTa Education, beasiswa luar negeri, kuliah di Australia, kuliah di Inggris, study in UK, study in Australia",
   },
   "/about": {
