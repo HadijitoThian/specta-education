@@ -1,0 +1,8 @@
+{
+  "query": "SELECT issue_type, severity, status, COUNT(*) as count FROM seo_page_audits GROUP BY issue_type, severity, status ORDER BY count DESC LIMIT 40;\nSELECT category, priority, status, COUNT(*) as count FROM seo_recommendations GROUP BY category, priority, status ORDER BY count DESC LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT issue_type, severity, status, COUNT(*) as count FROM seo_page_audits GROUP BY issue_type, severity, status ORDER BY count DESC LIMIT 40;\nSELECT category, priority, status, COUNT(*) as count FROM seo_recommendations GROUP BY category, priority, status ORDER BY count DESC LIMIT 20;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'issue_type' in 'group statement'"
+  ]
+}

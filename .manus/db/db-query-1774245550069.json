@@ -1,0 +1,22 @@
+{
+  "query": "SHOW TABLES LIKE '%seo%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SHOW TABLES LIKE '%seo%';",
+  "rows": [
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%seo%)": "seo_content_calendar"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%seo%)": "seo_page_audits"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%seo%)": "seo_recommendations"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%seo%)": "seo_score_history"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%seo%)\nseo_content_calendar\nseo_page_audits\nseo_recommendations\nseo_score_history\n",
+  "stderr": "",
+  "execution_time_ms": 1570
+}

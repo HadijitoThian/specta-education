@@ -1,0 +1,8 @@
+{
+  "query": "SELECT issue_type, severity, COUNT(*) as count, MAX(detected_at) as latest FROM seo_issues GROUP BY issue_type, severity ORDER BY count DESC LIMIT 50;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT issue_type, severity, COUNT(*) as count, MAX(detected_at) as latest FROM seo_issues GROUP BY issue_type, severity ORDER BY count DESC LIMIT 50;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1146 (42S02) at line 1: Table 'hyzqfmgzlp8hwhgd2unqhz.seo_issues' doesn't exist"
+  ]
+}

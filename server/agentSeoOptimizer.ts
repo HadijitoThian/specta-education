@@ -23,20 +23,23 @@ import {
 import { sql, desc, eq, and } from "drizzle-orm";
 
 const ADMIN_EMAIL = "hadi@spectaeducation.com";
-const BASE_URL = "https://www.spectaeducation.com";
+const BASE_URL = "https://spectaeducation.com"; // No www - avoids 301 redirect overhead
 
-// Static pages to audit
+// Static pages to audit — must match actual App.tsx routes
 const STATIC_PAGES = [
   { url: "/", title: "Home" },
   { url: "/about", title: "About Us" },
-  { url: "/services", title: "Services" },
   { url: "/ielts", title: "IELTS Preparation" },
-  { url: "/aptitude", title: "Aptitude Test" },
-  { url: "/scholarship-finder", title: "Scholarship Finder" },
-  { url: "/university-match", title: "University Match" },
+  { url: "/destinations", title: "Study Destinations" },
+  { url: "/scholarships", title: "Scholarships" },
+  { url: "/play/aptitude", title: "AI Aptitude Test" },
+  { url: "/compare", title: "Compare Destinations" },
   { url: "/simulator", title: "Study Abroad Simulator" },
   { url: "/blog", title: "Blog" },
   { url: "/contact", title: "Contact" },
+  { url: "/apply", title: "Quick Apply" },
+  { url: "/book", title: "Book Consultation" },
+  { url: "/malaysia", title: "Study in Malaysia" },
 ];
 
 interface AuditResult {
@@ -87,7 +90,8 @@ async function auditPage(pageUrl: string, pageTitle: string): Promise<AuditResul
     const timeout = setTimeout(() => controller.abort(), 15000);
     const response = await fetch(fullUrl, { 
       signal: controller.signal,
-      headers: { "User-Agent": "SpecTa-SEO-Auditor/1.0" }
+      redirect: "follow", // Follow 301/302 redirects (e.g., www → non-www)
+      headers: { "User-Agent": "SpecTa-SEO-Auditor/1.0 (compatible; Googlebot/2.1)" }
     });
     clearTimeout(timeout);
     loadTimeMs = Date.now() - startTime;

@@ -84,11 +84,6 @@ const PAGE_META: Record<string, PageMeta> = {
     description: "Compare study abroad destinations side-by-side. Tuition costs, living expenses, visa requirements, and post-study work options.",
     keywords: "compare study abroad destinations, biaya kuliah luar negeri, tuition fees comparison, study abroad cost calculator, visa requirements",
   },
-  "/aptitude-test": {
-    title: "AI Aptitude Test - Find Your Best Major | SpecTa Education",
-    description: "Take our free AI-powered aptitude test to discover your ideal university major. RIASEC and Multiple Intelligence analysis in 10 minutes.",
-    keywords: "aptitude test, tes bakat, tes minat bakat, career test, RIASEC test, multiple intelligence test, AI aptitude test",
-  },
   "/aptitude-test/pro": {
     title: "Tes Bakat AI Pro - Career Assessment | SpecTa Education",
     description: "Comprehensive AI-powered career and major assessment. Get personalized recommendations for your ideal study path and career direction.",
@@ -204,6 +199,49 @@ const PAGE_META: Record<string, PageMeta> = {
     title: "Study in South Korea - Universities, Programs & Scholarships | SpecTa Education",
     description: "Kuliah di Korea Selatan bersama SpecTa Education. Panduan lengkap universitas terbaik Korea, program studi, biaya kuliah, beasiswa KGSP, dan proses visa untuk pelajar Indonesia.",
     keywords: "study in South Korea, kuliah di Korea, universitas Korea, beasiswa KGSP, visa pelajar Korea",
+  },
+  // Play/Game pages
+  "/play": {
+    title: "SpecTa Play - Fun Educational Games | SpecTa Education",
+    description: "Play fun educational games about studying abroad. Test your knowledge of countries, universities, and student life with SpecTa Play.",
+    keywords: "educational games, study abroad games, fun learning, SpecTa Play",
+  },
+  "/play/quiz": {
+    title: "Country Quiz - Find Your Ideal Study Destination | SpecTa Education",
+    description: "Take our fun quiz to discover the perfect study abroad destination for you. Match your personality and preferences with the ideal country.",
+    keywords: "country quiz, study abroad quiz, destination quiz, which country to study abroad",
+  },
+  "/play/persona": {
+    title: "Student Persona Quiz | SpecTa Education",
+    description: "Discover your student persona and find the perfect study abroad destination. Take our fun personality quiz to match your learning style.",
+    keywords: "student persona, personality quiz, learning style quiz, study abroad personality",
+  },
+  "/play/aptitude": {
+    title: "AI Aptitude Test - Temukan Jurusan Terbaik Kamu | SpecTa Education",
+    description: "Ikuti tes bakat AI gratis SpecTa Education untuk menemukan jurusan kuliah yang paling cocok. Analisis RIASEC dan Multiple Intelligence dalam 10 menit.",
+    keywords: "aptitude test, tes bakat, tes minat bakat, career test, RIASEC test, multiple intelligence test, AI aptitude test",
+  },
+  // Redirect aliases - pages that may be linked from external sources
+  "/scholarship-finder": {
+    title: "Study Abroad Scholarships 2026 | SpecTa Education",
+    description: "Find scholarships for studying abroad in Australia, UK, USA, Canada, and more. SpecTa Education helps you secure funding for your education.",
+    keywords: "study abroad scholarships, beasiswa luar negeri, scholarship 2026, beasiswa kuliah, international scholarships, LPDP scholarship",
+  },
+  "/aptitude-test": {
+    title: "AI Aptitude Test - Temukan Jurusan Terbaik Kamu | SpecTa Education",
+    description: "Ikuti tes bakat AI gratis SpecTa Education untuk menemukan jurusan kuliah yang paling cocok. Analisis RIASEC dan Multiple Intelligence dalam 10 menit.",
+    keywords: "aptitude test, tes bakat, tes minat bakat, career test, RIASEC test, multiple intelligence test, AI aptitude test",
+  },
+  // Simulator sub-pages
+  "/simulator/experience": {
+    title: "Study Abroad Simulator Experience | SpecTa Education",
+    description: "Live your study abroad experience with our AI-powered simulator. Make real decisions about university, accommodation, and student life.",
+    keywords: "study abroad simulator experience, student life abroad, university life simulator",
+  },
+  "/simulator/report": {
+    title: "Your Study Abroad Readiness Report | SpecTa Education",
+    description: "See your personalized study abroad readiness report. Discover your strengths, areas to improve, and recommended next steps.",
+    keywords: "study abroad readiness, readiness report, study abroad assessment",
   },
   // Admin pages - noindex
   "/admin": { title: "Admin Dashboard | SpecTa Education", description: "Administration dashboard", noindex: true },
