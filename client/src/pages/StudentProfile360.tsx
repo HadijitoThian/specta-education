@@ -225,6 +225,12 @@ export default function StudentProfile360() {
                       <span>{lead.studyLevel}</span>
                     </div>
                   )}
+                  {(lead as any).programInterest && (
+                    <div className="flex items-center gap-2 text-white/70">
+                      <BookOpen className="w-4 h-4 text-[#f59e0b]" />
+                      <span>{(lead as any).programInterest}</span>
+                    </div>
+                  )}
                   {lead.source && (
                     <div className="flex items-center gap-2 text-white/70">
                       <TrendingUp className="w-4 h-4 text-[#f59e0b]" />
@@ -484,6 +490,7 @@ export default function StudentProfile360() {
                         { label: "Phone", value: lead.phone },
                         { label: "Preferred Country", value: lead.preferredCountry },
                         { label: "Study Level", value: lead.studyLevel },
+                        { label: "Program / Major", value: (lead as any).programInterest },
                         { label: "Budget", value: lead.budget },
                         { label: "IELTS Score", value: lead.ieltsScore },
                         { label: "Source", value: lead.source },

@@ -1,0 +1,13 @@
+{
+  "query": "SHOW TABLES LIKE '%sesl%'; SHOW TABLES LIKE '%national%'; SHOW TABLES LIKE '%kurikulum%'; SHOW TABLES LIKE '%student%'; SHOW TABLES LIKE '%access%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SHOW TABLES LIKE '%sesl%'; SHOW TABLES LIKE '%national%'; SHOW TABLES LIKE '%kurikulum%'; SHOW TABLES LIKE '%student%'; SHOW TABLES LIKE '%access%';",
+  "rows": [
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%access%)": "aptitudeAccessTokens"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%access%)\naptitudeAccessTokens\n",
+  "stderr": "",
+  "execution_time_ms": 2482
+}

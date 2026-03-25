@@ -1,0 +1,28 @@
+{
+  "query": "SELECT email, name, role, createdAt FROM users ORDER BY createdAt DESC LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT email, name, role, createdAt FROM users ORDER BY createdAt DESC LIMIT 20;",
+  "rows": [
+    {
+      "email": "hjthian@gmail.com",
+      "name": "Hadi Jito Thian",
+      "role": "admin",
+      "createdAt": "2026-03-15 04:37:16"
+    },
+    {
+      "email": "hadi@spectaeducation.com",
+      "name": "hadi",
+      "role": "admin",
+      "createdAt": "2026-02-11 14:10:35"
+    },
+    {
+      "email": "hadijitothian@gmail.com",
+      "name": "Hadijito Thian",
+      "role": "admin",
+      "createdAt": "2026-02-10 17:51:47"
+    }
+  ],
+  "messages": [],
+  "stdout": "email\tname\trole\tcreatedAt\nhjthian@gmail.com\tHadi Jito Thian\tadmin\t2026-03-15 04:37:16\nhadi@spectaeducation.com\thadi\tadmin\t2026-02-11 14:10:35\nhadijitothian@gmail.com\tHadijito Thian\tadmin\t2026-02-10 17:51:47\n",
+  "stderr": "",
+  "execution_time_ms": 1596
+}

@@ -5742,7 +5742,7 @@ Return JSON with the refined article:
           const response = await invokeLLM({
             messages: [
               { role: "system", content: `You are a university admissions expert for Indonesian students. You have deep knowledge of universities in Australia, UK, USA, Canada, Malaysia, Singapore, Japan, South Korea, Netherlands, and Germany. Provide honest, specific recommendations. Respond ONLY with valid JSON.` },
-              { role: "user", content: `Recommend universities for:\n\nStudent: ${lead.studentName}\nPreferred Country: ${lead.preferredCountry || 'Open to suggestions'}\nStudy Level: ${lead.studyLevel || 'Not specified'}\nTarget Intake: ${lead.intakeDate || 'Flexible'}\nIntent: ${lead.intentSummary || lead.notes || 'General study abroad interest'}\n\nRespond with JSON: {"topPick":{"university":"name","country":"country","program":"program","fitScore":95,"reason":"why","deadline":"date"},"alternatives":[{"university":"name","country":"country","program":"program","fitScore":80,"reason":"brief reason"},{"university":"name","country":"country","program":"program","fitScore":75,"reason":"brief reason"}],"safetyOption":{"university":"name","country":"country","program":"program","fitScore":65,"reason":"why safe"},"scholarshipOpportunities":["scholarship 1","scholarship 2"],"counselorTip":"one specific tip"}` }
+              { role: "user", content: `Recommend universities for:\n\nStudent: ${lead.studentName}\nPreferred Country: ${lead.preferredCountry || 'Open to suggestions'}\nStudy Level: ${lead.studyLevel || 'Not specified'}\nProgram / Major Interest: ${(lead as any).programInterest || lead.intentSummary || 'Not specified'}\nTarget Intake: ${lead.intakeDate || 'Flexible'}\nAdditional Notes: ${lead.notes || 'N/A'}\n\nIMPORTANT: Recommend universities that specifically offer strong programs in the student's major (${(lead as any).programInterest || lead.intentSummary || 'general'}). Prioritize universities in ${lead.preferredCountry || 'any country'}. For specialized fields like Culinary Arts, recommend culinary schools (Le Cordon Bleu, SHATEC, William Angliss, etc.) not generic universities.\n\nRespond with JSON: {"topPick":{"university":"name","country":"country","program":"program","fitScore":95,"reason":"why","deadline":"date"},"alternatives":[{"university":"name","country":"country","program":"program","fitScore":80,"reason":"brief reason"},{"university":"name","country":"country","program":"program","fitScore":75,"reason":"brief reason"}],"safetyOption":{"university":"name","country":"country","program":"program","fitScore":65,"reason":"why safe"},"scholarshipOpportunities":["scholarship 1","scholarship 2"],"counselorTip":"one specific tip"}` }
             ],
             response_format: { type: "json_schema", json_schema: { name: "university_fit", strict: true, schema: { type: "object", properties: { topPick: { type: "object", properties: { university: { type: "string" }, country: { type: "string" }, program: { type: "string" }, fitScore: { type: "number" }, reason: { type: "string" }, deadline: { type: "string" } }, required: ["university","country","program","fitScore","reason","deadline"], additionalProperties: false }, alternatives: { type: "array", items: { type: "object", properties: { university: { type: "string" }, country: { type: "string" }, program: { type: "string" }, fitScore: { type: "number" }, reason: { type: "string" } }, required: ["university","country","program","fitScore","reason"], additionalProperties: false } }, safetyOption: { type: "object", properties: { university: { type: "string" }, country: { type: "string" }, program: { type: "string" }, fitScore: { type: "number" }, reason: { type: "string" } }, required: ["university","country","program","fitScore","reason"], additionalProperties: false }, scholarshipOpportunities: { type: "array", items: { type: "string" } }, counselorTip: { type: "string" } }, required: ["topPick","alternatives","safetyOption","scholarshipOpportunities","counselorTip"], additionalProperties: false } } },
           });
@@ -5764,7 +5764,36 @@ Return JSON with the refined article:
           if (!lead) throw new Error("Lead not found");
           const notes = await getNotesByLeadId(input.leadId);
           const notesText = notes.slice(0, 3).map((n: any) => `[${new Date(n.createdAt).toLocaleDateString()}] ${n.rawNote || n.expandedNote || ''}`).join("\n") || "No notes yet.";
-          const systemPrompt = `You are an AI Counselor Assistant at SpecTa Education, a study abroad consultancy in Indonesia. You are helping a human counselor manage a specific student case.\n\nSTUDENT PROFILE:\n- Name: ${lead.studentName}\n- Email: ${lead.studentEmail || 'N/A'}\n- Phone: ${lead.studentPhone || 'N/A'}\n- Preferred Country: ${lead.preferredCountry || 'Not specified'}\n- Study Level: ${lead.studyLevel || 'Not specified'}\n- Target Intake: ${lead.intakeDate || 'Not specified'}\n- Current Status: ${lead.status}\n- Intent: ${lead.intentSummary || lead.notes || 'N/A'}\n\nRECENT NOTES:\n${notesText}\n\nHelp the counselor with: answering questions about this student, drafting messages, suggesting universities, recommending next steps, explaining visa/deadlines/scholarships. Be concise and practical. Respond in Bahasa Indonesia unless the counselor writes in English.`;
+          const programInterest = (lead as any).programInterest || lead.intentSummary || 'Not specified';
+          const preferredCountry = lead.preferredCountry || 'Not specified';
+          const systemPrompt = `You are an AI Counselor Assistant at SpecTa Education, a study abroad consultancy in Indonesia. You are helping a human counselor manage a specific student case.
+
+STUDENT PROFILE (READ ALL FIELDS CAREFULLY BEFORE RESPONDING):
+- Name: ${lead.studentName}
+- Email: ${lead.studentEmail || 'N/A'}
+- Phone: ${lead.studentPhone || 'N/A'}
+- Preferred Country: ${preferredCountry}
+- Study Level: ${lead.studyLevel || 'Not specified'}
+- Program / Major Interest: ${programInterest}
+- Target Intake: ${lead.intakeDate || 'Not specified'}
+- Current Status: ${lead.status}
+- Source: ${(lead as any).source || 'N/A'}
+- Assigned Counselor: ${(lead as any).assignedCounselor || (lead as any).assignedTo || 'N/A'}
+- Notes: ${lead.notes || 'N/A'}
+- Intent Summary: ${lead.intentSummary || 'N/A'}
+
+RECENT CONSULTATION NOTES:
+${notesText}
+
+CRITICAL RULES — FOLLOW STRICTLY:
+1. ALWAYS use the student's specific Program/Major (${programInterest}) when recommending universities. NEVER ignore this field.
+2. ALWAYS prioritize universities in the student's Preferred Country (${preferredCountry}) first.
+3. If the student has a specific major (e.g., Culinary Arts, Hospitality, Engineering, Business, Design), ONLY recommend universities known for that specific field — do NOT recommend generic universities.
+4. For Culinary Arts: recommend institutions like Le Cordon Bleu, SHATEC, William Angliss, Monash (Hospitality), Taylor's (Hospitality & Tourism), etc.
+5. Never give generic answers — always tie recommendations back to the student's specific major and country preference.
+6. Be concise and practical. Respond in Bahasa Indonesia unless the counselor writes in English.
+
+Help the counselor with: answering questions about this student, drafting messages, suggesting universities, recommending next steps, explaining visa/deadlines/scholarships.`;
           const messages: any[] = [
             { role: "system", content: systemPrompt },
             ...(input.history || []).slice(-6),

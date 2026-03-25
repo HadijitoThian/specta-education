@@ -309,14 +309,17 @@ export default function CounselorCRM() {
                           <SelectValue placeholder="Pilih negara" />
                         </SelectTrigger>
                         <SelectContent className="bg-[#0d1424] border-white/10 text-white">
-                          <SelectItem value="United Kingdom">🇬🇧 United Kingdom</SelectItem>
+                          <SelectItem value="Malaysia">🇲🇾 Malaysia</SelectItem>
+                          <SelectItem value="Singapore">🇸🇬 Singapore</SelectItem>
                           <SelectItem value="Australia">🇦🇺 Australia</SelectItem>
+                          <SelectItem value="United Kingdom">🇬🇧 United Kingdom</SelectItem>
                           <SelectItem value="United States">🇺🇸 United States</SelectItem>
                           <SelectItem value="Canada">🇨🇦 Canada</SelectItem>
                           <SelectItem value="New Zealand">🇳🇿 New Zealand</SelectItem>
+                          <SelectItem value="Ireland">🇮🇪 Ireland</SelectItem>
                           <SelectItem value="Netherlands">🇳🇱 Netherlands</SelectItem>
                           <SelectItem value="Germany">🇩🇪 Germany</SelectItem>
-                          <SelectItem value="Singapore">🇸🇬 Singapore</SelectItem>
+                          <SelectItem value="China">🇨🇳 China</SelectItem>
                           <SelectItem value="Japan">🇯🇵 Japan</SelectItem>
                           <SelectItem value="South Korea">🇰🇷 South Korea</SelectItem>
                           <SelectItem value="Other">🌍 Other</SelectItem>
