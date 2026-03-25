@@ -13,6 +13,7 @@ import { registerXenditWebhook } from "../xenditWebhook";
 import { processDripEmails, checkCampaignPerformanceAlerts } from "../dripCampaignService";
 import { seedDefaultCampaigns } from "../dripCampaignDefaults";
 import { runWeeklyPerformanceReport } from "../agentWeeklyReport";
+import { runAutoParentWeeklyEmail } from "../agentParentWeeklyEmail";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -385,6 +386,16 @@ setInterval(async () => {
     if (result.sent) console.log("[WeeklyReport] Weekly performance report sent successfully");
   } catch (e) {
     console.error("[WeeklyReport] Scheduled run failed:", e);
+  }
+}, 60 * 60 * 1000);
+
+// Auto Weekly Parent Email — runs every Monday at 9AM WIB (checked hourly)
+setInterval(async () => {
+  try {
+    const result = await runAutoParentWeeklyEmail();
+    if (result.sent > 0) console.log(`[ParentWeeklyEmail] Sent ${result.sent} parent reports (${result.errors} errors)`);
+  } catch (e) {
+    console.error("[ParentWeeklyEmail] Scheduled run failed:", e);
   }
 }, 60 * 60 * 1000);
 

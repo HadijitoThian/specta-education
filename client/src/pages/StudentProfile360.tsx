@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Phone, MessageCircle, Mail, FileText, ChevronRight, User, Globe,
   GraduationCap, Calendar, Clock, CheckCircle2, AlertCircle, Plus,
-  BookOpen, Star, ArrowRight, TrendingUp, Zap, RefreshCw, ExternalLink
+  BookOpen, Star, ArrowRight, TrendingUp, Zap, RefreshCw, ExternalLink, Brain, Lightbulb
 } from "lucide-react";
 
 type PipelineStage = "new" | "contacted" | "qualified" | "enrolled" | "in_progress" | "completed" | "lost";
@@ -37,6 +37,8 @@ export default function StudentProfile360() {
   const [noteOpen, setNoteOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
+  const [scoreExplainOpen, setScoreExplainOpen] = useState(false);
+  const [scoreExplanation, setScoreExplanation] = useState("");
   const [activeTab, setActiveTab] = useState<"overview" | "notes" | "tasks" | "documents" | "appointments" | "timeline" | "applications" | "ai">("overview");
 
   // Queries
@@ -58,6 +60,17 @@ export default function StudentProfile360() {
   });
   const updateTask = trpc.crm.updateTask.useMutation({
     onSuccess: () => refetchTasks(),
+  });
+  const explainScore = trpc.crm.explainScore.useMutation({
+    onSuccess: (data) => {
+      if (data.success) {
+        setScoreExplanation(String(data.explanation || ""));
+        setScoreExplainOpen(true);
+      } else {
+        toast.error(String(data.explanation || "Failed to generate explanation"));
+      }
+    },
+    onError: (e) => toast.error(e.message),
   });
 
   // Note form
@@ -125,7 +138,7 @@ export default function StudentProfile360() {
     <div className="min-h-screen bg-[#0a0f1e] text-white">
       {/* Header */}
       <div className="border-b border-white/10 bg-[#0d1424]/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center gap-4">
             <Link href="/crm">
               <Button variant="ghost" size="sm" className="text-white/60 hover:text-white gap-2">
@@ -134,29 +147,32 @@ export default function StudentProfile360() {
               </Button>
             </Link>
             <div className="flex-1">
-              <h1 className="text-xl font-bold text-white">{lead.studentName}</h1>
-              <p className="text-xs text-white/40">{lead.email} · {lead.phone}</p>
+              <h1 className="text-base sm:text-xl font-bold text-white truncate">{lead.studentName}</h1>
+              <p className="text-xs text-white/40 hidden sm:block truncate">{lead.email} · {lead.phone}</p>
             </div>
             <div className="flex items-center gap-2">
               {/* Quick Action Buttons */}
               {lead.phone && (
                 <a href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
-                  <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white gap-2">
-                    <MessageCircle className="w-4 h-4" /> WhatsApp
+                  <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white gap-1 px-2 sm:px-3">
+                    <MessageCircle className="w-4 h-4" />
+                    <span className="hidden sm:inline">WhatsApp</span>
                   </Button>
                 </a>
               )}
               {lead.phone && (
                 <a href={`tel:${lead.phone}`}>
-                  <Button size="sm" variant="outline" className="border-white/20 text-white gap-2">
-                    <Phone className="w-4 h-4" /> Call
+                  <Button size="sm" variant="outline" className="border-white/20 text-white gap-1 px-2 sm:px-3">
+                    <Phone className="w-4 h-4" />
+                    <span className="hidden sm:inline">Call</span>
                   </Button>
                 </a>
               )}
               {lead.email && (
                 <a href={`mailto:${lead.email}`}>
-                  <Button size="sm" variant="outline" className="border-white/20 text-white gap-2">
-                    <Mail className="w-4 h-4" /> Email
+                  <Button size="sm" variant="outline" className="border-white/20 text-white gap-1 px-2 sm:px-3 hidden sm:flex">
+                    <Mail className="w-4 h-4" />
+                    <span className="hidden sm:inline">Email</span>
                   </Button>
                 </a>
               )}
@@ -165,7 +181,7 @@ export default function StudentProfile360() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-6">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* ── Left Column: Student Info + Quick Actions ── */}
@@ -179,9 +195,17 @@ export default function StudentProfile360() {
                   </div>
                   <div>
                     <div className="font-semibold text-white">{lead.studentName}</div>
-                    <div className={`text-sm font-bold ${scoreColor}`}>
-                      Score: {pipeline?.leadScore ?? 50}/100
-                    </div>
+                    <div className="flex items-center gap-2">
+                    <span className={`text-sm font-bold ${scoreColor}`}>Score: {pipeline?.leadScore ?? 50}/100</span>
+                    <button
+                      onClick={() => explainScore.mutate({ leadId })}
+                      disabled={explainScore.isPending}
+                      className="text-white/30 hover:text-[#f59e0b] transition-colors"
+                      title="AI: Explain this score"
+                    >
+                      {explainScore.isPending ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
                   </div>
                 </div>
 
@@ -724,13 +748,39 @@ export default function StudentProfile360() {
                 />
               </div>
             )}
-          </div>
+           </div>
         </div>
       </div>
+
+      {/* ── Score Explanation Modal ── */}
+      <Dialog open={scoreExplainOpen} onOpenChange={setScoreExplainOpen}>
+        <DialogContent className="bg-[#0d1424] border-white/10 text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Brain className="w-5 h-5 text-[#f59e0b]" />
+              AI Score Explanation
+            </DialogTitle>
+          </DialogHeader>
+          <div className="pt-2">
+            <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-white/5">
+              <div className={`text-2xl font-bold ${scoreColor}`}>{pipeline?.leadScore ?? 50}</div>
+              <div>
+                <div className="text-xs text-white/40">Current Lead Score</div>
+                <div className="text-sm text-white/70">{lead.studentName}</div>
+              </div>
+            </div>
+            <div className="text-sm text-white/80 leading-relaxed whitespace-pre-wrap">{scoreExplanation}</div>
+            <div className="mt-4 pt-4 border-t border-white/10 flex justify-end">
+              <Button size="sm" onClick={() => setScoreExplainOpen(false)} className="bg-[#e91e8c] hover:bg-[#c2185b]">
+                Got it
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
 // ─── Document Checklist Component ────────────────────────────────────────────
 function DocumentChecklist({ leadId }: { leadId: number }) {
   const { data, refetch } = trpc.crm.getDocChecklist.useQuery({ leadId });

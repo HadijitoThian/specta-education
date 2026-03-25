@@ -6170,6 +6170,60 @@ Help the counselor with: answering questions about this student, drafting messag
         return { success: true };
       } catch (e: any) { return { success: false }; }
     }),
+
+    // ── Explain Lead Score (AI) ──────────────────────────────────────────────
+    explainScore: publicProcedure
+      .input(z.object({ leadId: z.number() }))
+      .mutation(async ({ input }) => {
+        try {
+          const lead = await getLeadById(input.leadId);
+          if (!lead) return { success: false, explanation: "Student not found." };
+          const docs = await getCrmDocsByLead(input.leadId);
+          const timeline = await getActivityTimeline(input.leadId);
+          const score = (lead as any).leadScore ?? 50;
+          const stage = (lead as any).pipelineStage || (lead as any).status || "new";
+          const docsSubmitted = (docs as any[]).filter((d: any) => d.status === "submitted" || d.status === "verified").length;
+          const totalDocs = (docs as any[]).length;
+          const activityCount = (timeline as any[]).length;
+          const hasEmail = !!(lead as any).studentEmail;
+          const hasPhone = !!(lead as any).studentPhone;
+          const hasProgram = !!(lead as any).programInterest;
+          const hasCountry = !!(lead as any).preferredCountry;
+          const hasIntake = !!(lead as any).intakeDate;
+
+          const prompt = `You are an expert education counselor CRM analyst. Analyze this student's lead score and provide a clear, actionable explanation.
+
+Student: ${(lead as any).studentName}
+Current Score: ${score}/100
+Pipeline Stage: ${stage}
+Country Interest: ${(lead as any).preferredCountry || "Not set"}
+Program/Major: ${(lead as any).programInterest || "Not set"}
+Study Level: ${(lead as any).studyLevel || "Not set"}
+Target Intake: ${(lead as any).intakeDate || "Not set"}
+Has Email: ${hasEmail ? "Yes" : "No"}
+Has Phone: ${hasPhone ? "Yes" : "No"}
+Documents Submitted: ${docsSubmitted}/${totalDocs || 0}
+Total Activities Logged: ${activityCount}
+
+Based on this data, provide:
+1. WHY the student has this score (2-3 specific reasons based on the data above)
+2. TOP 3 ACTIONS the counselor should take RIGHT NOW to improve this score
+3. What the score would likely be after completing those actions
+
+Be specific, practical, and concise. Format as clear paragraphs, not bullet points. Keep it under 200 words.`;
+
+          const response = await invokeLLM({
+            messages: [
+              { role: "system", content: "You are a CRM analyst for an education consultancy. Give specific, data-driven insights about student lead scores." },
+              { role: "user", content: prompt },
+            ],
+          });
+          const explanation = response?.choices?.[0]?.message?.content || "Unable to generate explanation.";
+          return { success: true, explanation, score };
+        } catch (e: any) {
+          return { success: false, explanation: "Error generating explanation: " + e.message };
+        }
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;

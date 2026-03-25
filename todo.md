@@ -1564,3 +1564,10 @@
 - [x] Student Progress Timeline (visual history of all actions per student)
 - [ ] In-App Notification Center (alerts for tasks due, new leads, stage changes)
 - [ ] CRM Dashboard Quick Stats refresh (auto-refresh every 5 mins)
+
+## Sprint 7 — Mobile + AI Score + Auto Parent Email
+- [x] Auto Weekly Parent Email (every Monday for all students with parentEmail)
+- [x] Student Score AI Explanation button on student profile
+- [ ] CRM mobile-responsive layout (counselors can use from phone)
+- [ ] Student Profile mobile-responsive layout
+- [ ] Touch-friendly pipeline stage change on mobile

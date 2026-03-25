@@ -346,20 +346,21 @@ export default function CounselorCRM() {
     <div className="min-h-screen bg-[#0a0f1e] text-white">
       {/* Header */}
       <div className="border-b border-white/10 bg-[#0d1424]/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-[1600px] mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
           <div className="flex items-center gap-4">
             <Link href="/staff-dashboard">
-              <Button variant="ghost" size="sm" className="text-white/60 hover:text-white gap-2">
+              <Button variant="ghost" size="sm" className="text-white/60 hover:text-white gap-1 px-2">
                 <ChevronRight className="w-4 h-4 rotate-180" />
-                Dashboard
+                <span className="hidden sm:inline">Dashboard</span>
               </Button>
             </Link>
             <div>
-              <h1 className="text-xl font-bold text-white flex items-center gap-2">
-                <Zap className="w-5 h-5 text-[#f59e0b]" />
-                CRM Workspace
+              <h1 className="text-base sm:text-xl font-bold text-white flex items-center gap-2">
+                <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-[#f59e0b]" />
+                <span className="hidden sm:inline">CRM Workspace</span>
+                <span className="sm:hidden">CRM</span>
               </h1>
-              <p className="text-xs text-white/40">{staffUser.name} · {isAdmin ? "Admin" : "Counselor"}</p>
+              <p className="text-xs text-white/40 hidden sm:block">{staffUser.name} · {isAdmin ? "Admin" : "Counselor"}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -372,9 +373,10 @@ export default function CounselorCRM() {
             <NotificationBell staffEmail={staffUser.email} />
 
             {/* CSV Import Button */}
-            <Button size="sm" variant="outline" className="border-green-500/40 text-green-400 hover:bg-green-500/10 gap-2"
+            <Button size="sm" variant="outline" className="border-green-500/40 text-green-400 hover:bg-green-500/10 gap-1 px-2 sm:px-3"
               onClick={() => setCsvImportOpen(true)}>
-              <Upload className="w-4 h-4" /> Import CSV
+              <Upload className="w-4 h-4" />
+              <span className="hidden sm:inline">Import CSV</span>
             </Button>
 
             {/* Edit Student Dialog */}
@@ -735,10 +737,10 @@ export default function CounselorCRM() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="max-w-[1600px] mx-auto px-6 flex gap-1 pb-0 overflow-x-auto">
+        <div className="max-w-[1600px] mx-auto px-2 sm:px-6 flex gap-0 sm:gap-1 pb-0 overflow-x-auto scrollbar-none">
           {tabs.map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === tab.id ? "border-[#f59e0b] text-[#f59e0b]" : "border-transparent text-white/50 hover:text-white/80"
               } ${(tab as any).adminOnly ? "text-amber-300" : ""}`}>
               {tab.icon}
@@ -754,10 +756,10 @@ export default function CounselorCRM() {
         </div>
       </div>
 
-      <div className="max-w-[1600px] mx-auto px-6 py-6">
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-6 py-4 sm:py-6">
 
         {/* KPI Strip */}
-        <div className="grid grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3 mb-4 sm:mb-6">
           {kpis.map((kpi, i) => (
             <Card key={i} className="bg-[#0d1424]/80 border-white/10">
               <CardContent className="p-3 text-center">
