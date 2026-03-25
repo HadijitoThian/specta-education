@@ -6873,7 +6873,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
         const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
         const token = await new SignJWT({ sub: String(account.id), leadId: account.leadId, role: "student" })
           .setProtectedHeader({ alg: "HS256" })
-          .setExpirationTime("7d")
+          .setExpirationTime("30d")
           .sign(secret);
         // Detect if request is secure (handles reverse proxy with x-forwarded-proto)
         const forwardedProto = ctx.req.headers["x-forwarded-proto"];
@@ -6884,7 +6884,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
           httpOnly: true,
           secure: isSecure,
           sameSite: isSecure ? "none" : "lax",
-          maxAge: 60 * 60 * 24 * 7,
+          maxAge: 60 * 60 * 24 * 30, // 30 days — stay logged in unless explicitly logged out
           path: "/",
         });
         return { success: true, leadId: account.leadId };
