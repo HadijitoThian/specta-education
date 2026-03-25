@@ -227,6 +227,7 @@ import { sendProAccessLinkEmail, sendPaymentConfirmationEmail } from "./resendSe
 import { autoEnrollContact, processDripEmails, bulkEnrollAllLeads } from "./dripCampaignService";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
+import { parse as parseCookies } from "cookie";
 import { triggerAgent, initializeAgents, startAgentScheduler } from "./agentScheduler";
 import { getLatestGmReport, getGmReports, getGmRecommendations, updateGmRecommendationStatus, getGmHealthHistory, runGeneralManagerCycle, generateAndSendExecutiveReport } from "./agentGeneralManager";
 import { runGeoMonitor, getLatestGeoReport } from "./agentGeoMonitor";
@@ -6778,10 +6779,15 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
           .setProtectedHeader({ alg: "HS256" })
           .setExpirationTime("7d")
           .sign(secret);
+        // Detect if request is secure (handles reverse proxy with x-forwarded-proto)
+        const forwardedProto = ctx.req.headers["x-forwarded-proto"];
+        const isSecure = ctx.req.protocol === "https" || 
+          (Array.isArray(forwardedProto) ? forwardedProto : (forwardedProto || "").split(","))
+            .some((p: string) => p.trim().toLowerCase() === "https");
         ctx.res.cookie("student_portal_token", token, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
+          secure: isSecure,
+          sameSite: isSecure ? "none" : "lax",
           maxAge: 60 * 60 * 24 * 7,
           path: "/",
         });
@@ -6796,7 +6802,10 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
 
     // Get student dashboard data (authenticated via JWT cookie)
     getDashboard: publicProcedure.query(async ({ ctx }) => {
-      const token = (ctx.req as any).cookies?.student_portal_token;
+      // Parse cookie from raw header using the 'cookie' package
+      const cookieHeader = ctx.req.headers.cookie || "";
+      const cookies = parseCookies(cookieHeader);
+      const token = cookies["student_portal_token"];
       if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
       try {
         const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
@@ -6812,7 +6821,10 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
 
     // Check if student is logged in
     me: publicProcedure.query(async ({ ctx }) => {
-      const token = (ctx.req as any).cookies?.student_portal_token;
+      // Parse cookie from raw header using the 'cookie' package
+      const cookieHeader = ctx.req.headers.cookie || "";
+      const cookies = parseCookies(cookieHeader);
+      const token = cookies["student_portal_token"];
       if (!token) return null;
       try {
         const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");

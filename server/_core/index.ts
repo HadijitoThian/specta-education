@@ -45,6 +45,9 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
+  // Trust reverse proxy (required for req.protocol to return 'https' in production)
+  app.set("trust proxy", 1);
+
   // ── Performance: gzip compression (reduces page size ~70%) ──
   app.use(compression());
 
