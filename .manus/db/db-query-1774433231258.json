@@ -1,0 +1,70 @@
+{
+  "query": "SELECT subject, contactEmail, status, sentAt FROM dripEmailLogs ORDER BY sentAt DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT subject, contactEmail, status, sentAt FROM dripEmailLogs ORDER BY sentAt DESC LIMIT 10;",
+  "rows": [
+    {
+      "subject": "Updated Subject Astri sulvi",
+      "contactEmail": "hafshoh.aini@gmail.com",
+      "status": "sent",
+      "sentAt": "2026-03-25 09:15:13"
+    },
+    {
+      "subject": "Updated Subject Zaskia alzarah ",
+      "contactEmail": "kilzrh119@gmail.com",
+      "status": "sent",
+      "sentAt": "2026-03-25 09:15:08"
+    },
+    {
+      "subject": "Updated Subject Sovi indah",
+      "contactEmail": "soviindah19@gmail.com",
+      "status": "sent",
+      "sentAt": "2026-03-25 09:15:00"
+    },
+    {
+      "subject": "Updated Subject Putri Shayla",
+      "contactEmail": "putrishayla57@gmail.com",
+      "status": "sent",
+      "sentAt": "2026-03-25 09:14:58"
+    },
+    {
+      "subject": "Updated Subject Novantryhambabandju ",
+      "contactEmail": "novantryhambabandju@gmail.com",
+      "status": "sent",
+      "sentAt": "2026-03-25 09:14:57"
+    },
+    {
+      "subject": "Updated Subject CHRISTIAN SINAGA ",
+      "contactEmail": "christian190609@gmail.com",
+      "status": "sent",
+      "sentAt": "2026-03-25 09:14:56"
+    },
+    {
+      "subject": "Updated Subject Riqah",
+      "contactEmail": "riquhriq@gmail.com",
+      "status": "sent",
+      "sentAt": "2026-03-25 09:14:54"
+    },
+    {
+      "subject": "Updated Subject Jason Christian Hariyanto",
+      "contactEmail": "jasonchriyanto@gmail.com",
+      "status": "sent",
+      "sentAt": "2026-03-25 09:14:52"
+    },
+    {
+      "subject": "Updated Subject Bunga Nur roup",
+      "contactEmail": "bunganurroup@gmail.com",
+      "status": "sent",
+      "sentAt": "2026-03-25 09:14:51"
+    },
+    {
+      "subject": "Updated Subject Alyahafizhaazzahra",
+      "contactEmail": "Alyahafizhaazzahra@gmail.com",
+      "status": "sent",
+      "sentAt": "2026-03-25 09:14:50"
+    }
+  ],
+  "messages": [],
+  "stdout": "subject\tcontactEmail\tstatus\tsentAt\nUpdated Subject Astri sulvi\thafshoh.aini@gmail.com\tsent\t2026-03-25 09:15:13\nUpdated Subject Zaskia alzarah \tkilzrh119@gmail.com\tsent\t2026-03-25 09:15:08\nUpdated Subject Sovi indah\tsoviindah19@gmail.com\tsent\t2026-03-25 09:15:00\nUpdated Subject Putri Shayla\tputrishayla57@gmail.com\tsent\t2026-03-25 09:14:58\nUpdated Subject Novantryhambabandju \tnovantryhambabandju@gmail.com\tsent\t2026-03-25 09:14:57\nUpdated Subject CHRISTIAN SINAGA \tchristian190609@gmail.com\tsent\t2026-03-25 09:14:56\nUpdated Subject Riqah\triquhriq@gmail.com\tsent\t2026-03-25 09:14:54\nUpdated Subject Jason Christian Hariyanto\tjasonchriyanto@gmail.com\tsent\t2026-03-25 09:14:52\nUpdated Subject Bunga Nur roup\tbunganurroup@gmail.com\tsent\t2026-03-25 09:14:51\nUpdated Subject Alyahafizhaazzahra\tAlyahafizhaazzahra@gmail.com\tsent\t2026-03-25 09:14:50\n",
+  "stderr": "",
+  "execution_time_ms": 1618
+}

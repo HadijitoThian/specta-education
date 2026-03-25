@@ -1,0 +1,52 @@
+{
+  "query": "SELECT dc.id, dc.name, dc.isActive, es.subject FROM dripCampaigns dc LEFT JOIN dripEmailSteps es ON es.campaignId = dc.id ORDER BY dc.id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT dc.id, dc.name, dc.isActive, es.subject FROM dripCampaigns dc LEFT JOIN dripEmailSteps es ON es.campaignId = dc.id ORDER BY dc.id;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Tes Bakat AI Pro - Upsell",
+      "isActive": "1",
+      "subject": "{{name}}, sudah lihat hasil tes bakat kamu? 🧠"
+    },
+    {
+      "id": "1",
+      "name": "Tes Bakat AI Pro - Upsell",
+      "isActive": "1",
+      "subject": "Siswa lain sudah menemukan jurusan impian mereka 🎓"
+    },
+    {
+      "id": "6",
+      "name": "China Full Scholarship - Guaranteed Acceptance",
+      "isActive": "1",
+      "subject": "NULL"
+    },
+    {
+      "id": "150003",
+      "name": "Updated Campaign",
+      "isActive": "1",
+      "subject": "NULL"
+    },
+    {
+      "id": "150004",
+      "name": "Updated Campaign",
+      "isActive": "1",
+      "subject": "NULL"
+    },
+    {
+      "id": "180002",
+      "name": "Updated Campaign",
+      "isActive": "1",
+      "subject": "NULL"
+    },
+    {
+      "id": "180004",
+      "name": "Updated Campaign",
+      "isActive": "1",
+      "subject": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tisActive\tsubject\n1\tTes Bakat AI Pro - Upsell\t1\t{{name}}, sudah lihat hasil tes bakat kamu? 🧠\n1\tTes Bakat AI Pro - Upsell\t1\tSiswa lain sudah menemukan jurusan impian mereka 🎓\n6\tChina Full Scholarship - Guaranteed Acceptance\t1\tNULL\n150003\tUpdated Campaign\t1\tNULL\n150004\tUpdated Campaign\t1\tNULL\n180002\tUpdated Campaign\t1\tNULL\n180004\tUpdated Campaign\t1\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 1550
+}

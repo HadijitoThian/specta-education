@@ -390,17 +390,20 @@ ${allPages.map(p => `  <url>
       }
     })();
 
-    // Process drip campaign emails every hour
-    setInterval(async () => {
-      try {
-        const result = await processDripEmails();
-        if (result.sent > 0 || result.errors > 0) {
-          console.log(`[DripCampaign] Processed: ${result.sent} sent, ${result.errors} errors`);
-        }
-      } catch (e) {
-        console.error("[DripCampaign] Scheduled processing failed:", e);
-      }
-    }, 60 * 60 * 1000); // Every 1 hour
+    // DRIP CAMPAIGN AUTO-SCHEDULER DISABLED
+    // Campaigns must be manually triggered from the admin panel to prevent accidental bulk sends.
+    // To re-enable, uncomment the setInterval block below and ensure all campaign content is reviewed.
+    // setInterval(async () => {
+    //   try {
+    //     const result = await processDripEmails();
+    //     if (result.sent > 0 || result.errors > 0) {
+    //       console.log(`[DripCampaign] Processed: ${result.sent} sent, ${result.errors} errors`);
+    //     }
+    //   } catch (e) {
+    //     console.error("[DripCampaign] Scheduled processing failed:", e);
+    //   }
+    // }, 60 * 60 * 1000); // Every 1 hour
+    console.log("[DripCampaign] Auto-scheduler is DISABLED. Use admin panel to manually send campaigns.");
 
     // Check campaign performance alerts daily (every 24 hours)
     // Also run once on startup (delayed by 30 seconds to let data load)

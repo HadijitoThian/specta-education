@@ -1,0 +1,22 @@
+{
+  "query": "SHOW TABLES LIKE '%drip%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SHOW TABLES LIKE '%drip%';",
+  "rows": [
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%drip%)": "dripCampaigns"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%drip%)": "dripEmailLogs"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%drip%)": "dripEmailSteps"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%drip%)": "dripEnrollments"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%drip%)\ndripCampaigns\ndripEmailLogs\ndripEmailSteps\ndripEnrollments\n",
+  "stderr": "",
+  "execution_time_ms": 1588
+}

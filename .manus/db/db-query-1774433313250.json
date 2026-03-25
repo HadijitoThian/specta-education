@@ -1,0 +1,9 @@
+{
+  "query": "DELETE FROM dripEnrollments WHERE campaignId IN (150003, 150004, 180002, 180004); DELETE FROM dripEmailSteps WHERE campaignId IN (150003, 150004, 180002, 180004); DELETE FROM dripCampaigns WHERE name = 'Updated Campaign';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute DELETE FROM dripEnrollments WHERE campaignId IN (150003, 150004, 180002, 180004); DELETE FROM dripEmailSteps WHERE campaignId IN (150003, 150004, 180002, 180004); DELETE FROM dripCampaigns WHERE name = 'Updated Campaign';",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2102
+}

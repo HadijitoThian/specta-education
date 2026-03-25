@@ -1,0 +1,8 @@
+{
+  "query": "SELECT es.id, es.step_order, es.subject, LEFT(es.html_content, 200) as content_preview, dc.name as campaign_name FROM dripEmailSteps es JOIN dripCampaigns dc ON es.campaign_id = dc.id LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT es.id, es.step_order, es.subject, LEFT(es.html_content, 200) as content_preview, dc.name as campaign_name FROM dripEmailSteps es JOIN dripCampaigns dc ON es.campaign_id = dc.id LIMIT 10;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'es.campaign_id' in 'on clause'"
+  ]
+}

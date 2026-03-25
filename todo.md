@@ -1667,3 +1667,10 @@
 - [x] "Send Portal Invite" button in Quick Actions on student profile
 - [x] Welcome email sent to student with portal login credentials
 - [x] 12/12 vitest tests passing
+
+## URGENT BUG FIX (March 2026) — Drip Campaign Sending Broken Emails
+- [x] Stop drip campaign auto-scheduler immediately
+- [x] Delete broken placeholder campaigns (Updated Campaign x4) from database
+- [x] Delete all orphaned enrollments for broken campaigns
+- [x] Add admin confirmation gate before any bulk email send
+- [x] Make drip campaign manual-only (no auto-trigger without approval)
