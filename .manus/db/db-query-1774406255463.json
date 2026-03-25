@@ -1,0 +1,62 @@
+{
+  "query": "SELECT id, name, email, role, isActive FROM staffAccounts ORDER BY id LIMIT 10; SHOW TABLES LIKE '%crm%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT id, name, email, role, isActive FROM staffAccounts ORDER BY id LIMIT 10; SHOW TABLES LIKE '%crm%';",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Adhitya",
+      "email": "adhitya@spectaeducation.com",
+      "role": "admin",
+      "isActive": "1"
+    },
+    {
+      "id": "2",
+      "name": "Fitriana",
+      "email": "fitriana@spectaeducation.com",
+      "role": "counselor",
+      "isActive": "1"
+    },
+    {
+      "id": "3",
+      "name": "Nezwa",
+      "email": "nezwa@spectaeducation.com",
+      "role": "counselor",
+      "isActive": "1"
+    },
+    {
+      "id": "4",
+      "name": "Jenny",
+      "email": "jenny@spectaeducation.com",
+      "role": "counselor",
+      "isActive": "1"
+    },
+    {
+      "id": "5",
+      "name": "Intar",
+      "email": "intar@spectaeducation.com",
+      "role": "counselor",
+      "isActive": "1"
+    },
+    {
+      "id": "6",
+      "name": "Wulandari",
+      "email": "wulan@spectaeducation.com",
+      "role": "counselor",
+      "isActive": "1"
+    },
+    {
+      "id": "60001",
+      "name": "Hadi Jito Thian",
+      "email": "hadijitothian@gmail.com",
+      "role": "counselor",
+      "isActive": "1"
+    }
+  ],
+  "messages": [
+    "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%crm%)",
+    "crm_tasks"
+  ],
+  "stdout": "id\tname\temail\trole\tisActive\n1\tAdhitya\tadhitya@spectaeducation.com\tadmin\t1\n2\tFitriana\tfitriana@spectaeducation.com\tcounselor\t1\n3\tNezwa\tnezwa@spectaeducation.com\tcounselor\t1\n4\tJenny\tjenny@spectaeducation.com\tcounselor\t1\n5\tIntar\tintar@spectaeducation.com\tcounselor\t1\n6\tWulandari\twulan@spectaeducation.com\tcounselor\t1\n60001\tHadi Jito Thian\thadijitothian@gmail.com\tcounselor\t1\nTables_in_HYZQfmGzLP8hwhgd2UnqHZ (%crm%)\ncrm_tasks\n",
+  "stderr": "",
+  "execution_time_ms": 1848
+}

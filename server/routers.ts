@@ -5467,7 +5467,7 @@ Return JSON with the refined article:
           const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
           const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
           const staffId = payload.staffId as number;
-          const staffEmail = payload.staffEmail as string;
+          const staffEmail = payload.email as string;
           const id = await createCrmTask({
             staffId, staffEmail,
             relatedType: input.relatedType,
@@ -5524,7 +5524,7 @@ Return JSON with the refined article:
       try {
         const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
         const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
-        const staffEmail = payload.staffEmail as string;
+        const staffEmail = payload.email as string;
         await ensurePipelineStagesForCounselor(staffEmail);
         const pipeline = await getPipelineByStaff(staffEmail);
         return { pipeline };
@@ -5557,7 +5557,7 @@ Return JSON with the refined article:
         try {
           const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
           const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
-          await upsertLeadPipelineStage(input.leadId, input.stage, payload.staffEmail as string, input.note);
+          await upsertLeadPipelineStage(input.leadId, input.stage, payload.email as string, input.note);
           return { success: true };
         } catch (e: any) { return { success: false, error: e.message }; }
       }),
@@ -5591,7 +5591,7 @@ Return JSON with the refined article:
           const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
           const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
           const staffId = payload.staffId as number;
-          const staffEmail = payload.staffEmail as string;
+          const staffEmail = payload.email as string;
           // AI expand the note
           let expandedNote = input.rawNote;
           try {
@@ -5640,7 +5640,7 @@ Return JSON with the refined article:
         const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
         const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
         const staffId = payload.staffId as number;
-        const staffEmail = payload.staffEmail as string;
+        const staffEmail = payload.email as string;
         await upsertCounselorPerformanceSnapshot(staffId, staffEmail);
         return { performance: await getCounselorPerformanceByStaff(staffId, 30) };
       } catch { return { performance: [] }; }
@@ -5773,6 +5773,67 @@ Return JSON with the refined article:
           const response = await invokeLLM({ messages });
           const content = response.choices?.[0]?.message?.content || "Maaf, saya tidak bisa memproses permintaan ini.";
           return { success: true, reply: content };
+        } catch (e: any) { return { success: false, error: e.message }; }
+      }),
+
+    // ── Student Management ────────────────────────────────────────────────────
+    getMyStudents: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { students: [], isAdmin: false };
+      try {
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        const staffEmail = payload.email as string;
+        const role = payload.role as string;
+        const allLeads = await getAllLeads();
+        const students = role === "admin"
+          ? allLeads
+          : allLeads.filter((l: any) => l.assignedTo === staffEmail || l.assignedCounselor === staffEmail);
+        return { students, isAdmin: role === "admin" };
+      } catch { return { students: [], isAdmin: false }; }
+    }),
+
+    addStudent: publicProcedure
+      .input(z.object({
+        studentName: z.string().min(1),
+        studentEmail: z.string().optional(),
+        studentPhone: z.string().optional(),
+        preferredCountry: z.string().optional(),
+        studyLevel: z.string().optional(),
+        intakeDate: z.string().optional(),
+        programInterest: z.string().optional(),
+        notes: z.string().optional(),
+        assignedCounselor: z.string().optional(), // email of assigned counselor (admin can assign to others)
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+          const staffEmail = payload.email as string;
+          // Admin can assign to any counselor; others assign to themselves
+          const assignedTo = input.assignedCounselor || staffEmail;
+          const lead = await createLead({
+            conversationId: null as any,  // manual CRM entry - no conversation
+            studentName: input.studentName,
+            studentEmail: input.studentEmail || undefined,
+            studentPhone: input.studentPhone || undefined,
+            preferredCountry: input.preferredCountry || undefined,
+            studyLevel: input.studyLevel || undefined,
+            intakeDate: input.intakeDate || undefined,
+            notes: input.notes || undefined,
+            assignedTo: assignedTo,
+            assignedCounselor: assignedTo,
+            programInterest: input.programInterest || undefined,
+            status: "new",
+            source: "crm_manual",
+          } as any);
+          if (!lead) return { success: false, error: "Failed to create student" };
+          await upsertLeadPipelineStage(lead.id, "new", staffEmail, "Student added manually via CRM");
+          return { success: true, leadId: lead.id };
         } catch (e: any) { return { success: false, error: e.message }; }
       }),
   }),

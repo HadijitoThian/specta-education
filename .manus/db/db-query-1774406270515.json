@@ -1,0 +1,25 @@
+{
+  "query": "SHOW TABLES LIKE '%pipeline%'; SHOW TABLES LIKE '%consultation%'; SHOW TABLES LIKE '%counselor_perf%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SHOW TABLES LIKE '%pipeline%'; SHOW TABLES LIKE '%consultation%'; SHOW TABLES LIKE '%counselor_perf%';",
+  "rows": [
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%pipeline%)": "lead_pipeline_stages"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%pipeline%)": "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%consultation%)"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%pipeline%)": "consultation_notes"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%pipeline%)": "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%counselor_perf%)"
+    },
+    {
+      "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%pipeline%)": "counselor_performance"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_HYZQfmGzLP8hwhgd2UnqHZ (%pipeline%)\nlead_pipeline_stages\nTables_in_HYZQfmGzLP8hwhgd2UnqHZ (%consultation%)\nconsultation_notes\nTables_in_HYZQfmGzLP8hwhgd2UnqHZ (%counselor_perf%)\ncounselor_performance\n",
+  "stderr": "",
+  "execution_time_ms": 2080
+}

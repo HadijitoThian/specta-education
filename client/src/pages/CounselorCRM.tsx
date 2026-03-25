@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,11 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   Phone, MessageCircle, Mail, FileText, CheckCircle2, Clock, AlertCircle,
   Plus, ChevronRight, Users, TrendingUp, Target, Award, Calendar,
-  Zap, Star, BarChart3, ArrowRight, RefreshCw, User, BookOpen
+  Zap, Star, BarChart3, ArrowRight, RefreshCw, User, BookOpen,
+  Search, Filter, UserPlus, Eye, Crown
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -50,15 +51,42 @@ const TASK_TYPE_ICONS: Record<string, React.ReactNode> = {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function CounselorCRM() {
-  const [activeTab, setActiveTab] = useState<"pipeline" | "tasks" | "performance">("pipeline");
+  const [, setLocation] = useLocation();
+  const [activeTab, setActiveTab] = useState<"pipeline" | "tasks" | "students" | "performance" | "ceo">("pipeline");
   const [newTaskOpen, setNewTaskOpen] = useState(false);
+  const [addStudentOpen, setAddStudentOpen] = useState(false);
   const [selectedStage, setSelectedStage] = useState<PipelineStage | "all">("all");
 
+  // Auth check
+  const { data: meData, isLoading: meLoading } = trpc.staffAuth.me.useQuery();
+  const staffUser = meData?.staff;
+  const isAdmin = staffUser?.role === "admin";
+
+  useEffect(() => {
+    if (!meLoading && !staffUser) {
+      setLocation("/staff-login");
+    }
+  }, [meLoading, staffUser, setLocation]);
+
   // Queries
-  const { data: pipelineData, refetch: refetchPipeline } = trpc.crm.getMyPipeline.useQuery();
-  const { data: tasksData, refetch: refetchTasks } = trpc.crm.getTodayTasks.useQuery();
-  const { data: allTasksData, refetch: refetchAllTasks } = trpc.crm.getAllTasks.useQuery();
-  const { data: perfData, refetch: refetchPerf } = trpc.crm.getMyPerformance.useQuery();
+  const { data: pipelineData, refetch: refetchPipeline } = trpc.crm.getMyPipeline.useQuery(
+    undefined, { enabled: !!staffUser }
+  );
+  const { data: tasksData, refetch: refetchTasks } = trpc.crm.getTodayTasks.useQuery(
+    undefined, { enabled: !!staffUser }
+  );
+  const { data: allTasksData, refetch: refetchAllTasks } = trpc.crm.getAllTasks.useQuery(
+    undefined, { enabled: !!staffUser }
+  );
+  const { data: perfData, refetch: refetchPerf } = trpc.crm.getMyPerformance.useQuery(
+    undefined, { enabled: !!staffUser }
+  );
+  const { data: studentsData, refetch: refetchStudents } = trpc.crm.getMyStudents.useQuery(
+    undefined, { enabled: !!staffUser }
+  );
+  const { data: allPerfData, refetch: refetchAllPerf } = trpc.crm.getAllPerformance.useQuery(
+    undefined, { enabled: !!staffUser && isAdmin }
+  );
 
   // Mutations
   const updateStage = trpc.crm.updatePipelineStage.useMutation({
@@ -68,10 +96,31 @@ export default function CounselorCRM() {
     onSuccess: () => { refetchTasks(); refetchAllTasks(); toast.success("Task updated"); },
   });
   const createTask = trpc.crm.createTask.useMutation({
-    onSuccess: () => { refetchTasks(); refetchAllTasks(); setNewTaskOpen(false); toast.success("Task created"); },
+    onSuccess: (data) => {
+      if (data.success) {
+        refetchTasks(); refetchAllTasks(); setNewTaskOpen(false);
+        setTaskForm({ title: "", taskType: "follow_up", priority: "medium", description: "", dueDate: "", relatedName: "" });
+        toast.success("Task berhasil dibuat!");
+      } else {
+        toast.error(data.error || "Gagal membuat task");
+      }
+    },
+    onError: (err) => toast.error("Error: " + err.message),
   });
   const deleteTask = trpc.crm.deleteTask.useMutation({
-    onSuccess: () => { refetchTasks(); refetchAllTasks(); },
+    onSuccess: () => { refetchTasks(); refetchAllTasks(); toast.success("Task dihapus"); },
+  });
+  const addStudent = trpc.crm.addStudent.useMutation({
+    onSuccess: (data) => {
+      if (data.success) {
+        refetchStudents(); refetchPipeline(); setAddStudentOpen(false);
+        setStudentForm({ studentName: "", studentEmail: "", studentPhone: "", preferredCountry: "", studyLevel: "", intakeDate: "", programInterest: "", notes: "", assignedCounselor: "" });
+        toast.success("Student berhasil ditambahkan!");
+      } else {
+        toast.error(data.error || "Gagal menambahkan student");
+      }
+    },
+    onError: (err) => toast.error("Error: " + err.message),
   });
 
   // Pipeline grouped by stage
@@ -89,15 +138,45 @@ export default function CounselorCRM() {
   const todayTasks = tasksData?.tasks || [];
   const allTasks = allTasksData?.tasks || [];
   const perf = perfData?.performance?.[0];
+  const allStudents = studentsData?.students || [];
+  const allPerf = allPerfData?.performance || [];
 
-  // New task form state
+  // Form states
   const [taskForm, setTaskForm] = useState({
     title: "", taskType: "follow_up" as any, priority: "medium" as any,
     description: "", dueDate: "", relatedName: "",
   });
+  const [studentForm, setStudentForm] = useState({
+    studentName: "", studentEmail: "", studentPhone: "",
+    preferredCountry: "", studyLevel: "", intakeDate: "",
+    programInterest: "", notes: "", assignedCounselor: "",
+  });
+
+  // Student list filters
+  const [studentSearch, setStudentSearch] = useState("");
+  const [studentCountryFilter, setStudentCountryFilter] = useState("all");
+  const [studentStatusFilter, setStudentStatusFilter] = useState("all");
+
+  const filteredStudents = useMemo(() => {
+    return allStudents.filter((s: any) => {
+      const matchSearch = !studentSearch ||
+        s.studentName?.toLowerCase().includes(studentSearch.toLowerCase()) ||
+        s.studentEmail?.toLowerCase().includes(studentSearch.toLowerCase()) ||
+        s.studentPhone?.includes(studentSearch);
+      const matchCountry = studentCountryFilter === "all" || s.preferredCountry === studentCountryFilter;
+      const matchStatus = studentStatusFilter === "all" || s.status === studentStatusFilter;
+      return matchSearch && matchCountry && matchStatus;
+    });
+  }, [allStudents, studentSearch, studentCountryFilter, studentStatusFilter]);
+
+  const uniqueCountries = useMemo(() => {
+    const countries = allStudents.map((s: any) => s.preferredCountry).filter(Boolean);
+    return Array.from(new Set(countries)) as string[];
+  }, [allStudents]);
 
   const handleCreateTask = () => {
-    if (!taskForm.title.trim()) return;
+    if (!taskForm.title.trim()) { toast.error("Judul task harus diisi"); return; }
+    if (!staffUser) { toast.error("Anda harus login terlebih dahulu"); return; }
     createTask.mutate({
       title: taskForm.title,
       taskType: taskForm.taskType,
@@ -109,6 +188,22 @@ export default function CounselorCRM() {
     });
   };
 
+  const handleAddStudent = () => {
+    if (!studentForm.studentName.trim()) { toast.error("Nama student harus diisi"); return; }
+    if (!staffUser) { toast.error("Anda harus login terlebih dahulu"); return; }
+    addStudent.mutate({
+      studentName: studentForm.studentName,
+      studentEmail: studentForm.studentEmail || undefined,
+      studentPhone: studentForm.studentPhone || undefined,
+      preferredCountry: studentForm.preferredCountry || undefined,
+      studyLevel: studentForm.studyLevel || undefined,
+      intakeDate: studentForm.intakeDate || undefined,
+      programInterest: studentForm.programInterest || undefined,
+      notes: studentForm.notes || undefined,
+      assignedCounselor: studentForm.assignedCounselor || undefined,
+    });
+  };
+
   const kpis = [
     { label: "Leads Assigned", value: perf?.leadsAssigned ?? 0, icon: <Users className="w-5 h-5" />, color: "text-blue-400" },
     { label: "Contacted", value: perf?.leadsContacted ?? 0, icon: <Phone className="w-5 h-5" />, color: "text-yellow-400" },
@@ -116,8 +211,37 @@ export default function CounselorCRM() {
     { label: "Converted", value: perf?.leadsConverted ?? 0, icon: <Award className="w-5 h-5" />, color: "text-green-400" },
     { label: "Active Apps", value: perf?.applicationsActive ?? 0, icon: <BookOpen className="w-5 h-5" />, color: "text-orange-400" },
     { label: "Conversion Rate", value: `${perf?.conversionRate ?? "0.0"}%`, icon: <TrendingUp className="w-5 h-5" />, color: "text-emerald-400" },
-    { label: "Tasks Done Today", value: perf?.tasksCompleted ?? 0, icon: <CheckCircle2 className="w-5 h-5" />, color: "text-cyan-400" },
+    { label: "Tasks Done", value: perf?.tasksCompleted ?? 0, icon: <CheckCircle2 className="w-5 h-5" />, color: "text-cyan-400" },
     { label: "Tasks Pending", value: perf?.tasksPending ?? 0, icon: <Clock className="w-5 h-5" />, color: "text-red-400" },
+  ];
+
+  if (meLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center">
+        <div className="text-white/60 text-sm animate-pulse">Loading CRM...</div>
+      </div>
+    );
+  }
+
+  if (!staffUser) {
+    return (
+      <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-white/60 text-sm mb-4">Login sebagai staff untuk mengakses CRM</div>
+          <Link href="/staff-login">
+            <Button className="bg-[#f59e0b] hover:bg-[#d97706] text-black font-semibold">Login Staff</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const tabs = [
+    { id: "pipeline", label: "Pipeline", icon: <BarChart3 className="w-4 h-4" /> },
+    { id: "tasks", label: "My Tasks", icon: <CheckCircle2 className="w-4 h-4" />, badge: todayTasks.length },
+    { id: "students", label: "Students", icon: <Users className="w-4 h-4" />, badge: allStudents.length },
+    { id: "performance", label: "Performance", icon: <TrendingUp className="w-4 h-4" /> },
+    ...(isAdmin ? [{ id: "ceo", label: "CEO View", icon: <Crown className="w-4 h-4" />, adminOnly: true }] : []),
   ];
 
   return (
@@ -137,17 +261,118 @@ export default function CounselorCRM() {
                 <Zap className="w-5 h-5 text-[#f59e0b]" />
                 CRM Workspace
               </h1>
-              <p className="text-xs text-white/40">Your daily counselor command center</p>
+              <p className="text-xs text-white/40">{staffUser.name} · {isAdmin ? "Admin" : "Counselor"}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost" size="sm"
-              className="text-white/60 hover:text-white"
-              onClick={() => { refetchPipeline(); refetchTasks(); refetchPerf(); }}
-            >
+            <Button variant="ghost" size="sm" className="text-white/60 hover:text-white"
+              onClick={() => { refetchPipeline(); refetchTasks(); refetchPerf(); refetchStudents(); }}>
               <RefreshCw className="w-4 h-4" />
             </Button>
+
+            {/* Add Student */}
+            <Dialog open={addStudentOpen} onOpenChange={setAddStudentOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline" className="border-[#f59e0b]/40 text-[#f59e0b] hover:bg-[#f59e0b]/10 gap-2">
+                  <UserPlus className="w-4 h-4" /> Add Student
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-[#0d1424] border-white/10 text-white max-w-lg">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <UserPlus className="w-5 h-5 text-[#f59e0b]" /> Tambah Student Baru
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 pt-2">
+                  <div>
+                    <Label className="text-white/70">Nama Lengkap *</Label>
+                    <Input placeholder="e.g. Ahmad Fauzi" className="bg-white/5 border-white/10 text-white mt-1"
+                      value={studentForm.studentName} onChange={e => setStudentForm(f => ({ ...f, studentName: e.target.value }))} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-white/70">Email</Label>
+                      <Input type="email" placeholder="email@example.com" className="bg-white/5 border-white/10 text-white mt-1"
+                        value={studentForm.studentEmail} onChange={e => setStudentForm(f => ({ ...f, studentEmail: e.target.value }))} />
+                    </div>
+                    <div>
+                      <Label className="text-white/70">No. HP / WhatsApp</Label>
+                      <Input placeholder="+62 812 3456 7890" className="bg-white/5 border-white/10 text-white mt-1"
+                        value={studentForm.studentPhone} onChange={e => setStudentForm(f => ({ ...f, studentPhone: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-white/70">Negara Tujuan</Label>
+                      <Select value={studentForm.preferredCountry} onValueChange={v => setStudentForm(f => ({ ...f, preferredCountry: v }))}>
+                        <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1">
+                          <SelectValue placeholder="Pilih negara" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#0d1424] border-white/10 text-white">
+                          <SelectItem value="United Kingdom">🇬🇧 United Kingdom</SelectItem>
+                          <SelectItem value="Australia">🇦🇺 Australia</SelectItem>
+                          <SelectItem value="United States">🇺🇸 United States</SelectItem>
+                          <SelectItem value="Canada">🇨🇦 Canada</SelectItem>
+                          <SelectItem value="New Zealand">🇳🇿 New Zealand</SelectItem>
+                          <SelectItem value="Netherlands">🇳🇱 Netherlands</SelectItem>
+                          <SelectItem value="Germany">🇩🇪 Germany</SelectItem>
+                          <SelectItem value="Singapore">🇸🇬 Singapore</SelectItem>
+                          <SelectItem value="Japan">🇯🇵 Japan</SelectItem>
+                          <SelectItem value="South Korea">🇰🇷 South Korea</SelectItem>
+                          <SelectItem value="Other">🌍 Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-white/70">Jenjang Studi</Label>
+                      <Select value={studentForm.studyLevel} onValueChange={v => setStudentForm(f => ({ ...f, studyLevel: v }))}>
+                        <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1">
+                          <SelectValue placeholder="Pilih jenjang" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#0d1424] border-white/10 text-white">
+                          <SelectItem value="High School">High School</SelectItem>
+                          <SelectItem value="Foundation">Foundation</SelectItem>
+                          <SelectItem value="Diploma">Diploma</SelectItem>
+                          <SelectItem value="Bachelor">Bachelor (S1)</SelectItem>
+                          <SelectItem value="Master">Master (S2)</SelectItem>
+                          <SelectItem value="PhD">PhD (S3)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-white/70">Program / Jurusan</Label>
+                      <Input placeholder="e.g. Computer Science" className="bg-white/5 border-white/10 text-white mt-1"
+                        value={studentForm.programInterest} onChange={e => setStudentForm(f => ({ ...f, programInterest: e.target.value }))} />
+                    </div>
+                    <div>
+                      <Label className="text-white/70">Target Intake</Label>
+                      <Input placeholder="e.g. September 2025" className="bg-white/5 border-white/10 text-white mt-1"
+                        value={studentForm.intakeDate} onChange={e => setStudentForm(f => ({ ...f, intakeDate: e.target.value }))} />
+                    </div>
+                  </div>
+                  {isAdmin && (
+                    <div>
+                      <Label className="text-white/70">Assign ke Counselor (email)</Label>
+                      <Input placeholder="email counselor (kosong = assign ke Anda)" className="bg-white/5 border-white/10 text-white mt-1"
+                        value={studentForm.assignedCounselor} onChange={e => setStudentForm(f => ({ ...f, assignedCounselor: e.target.value }))} />
+                    </div>
+                  )}
+                  <div>
+                    <Label className="text-white/70">Catatan Awal</Label>
+                    <Textarea placeholder="Informasi tambahan tentang student ini..." className="bg-white/5 border-white/10 text-white mt-1 resize-none"
+                      rows={2} value={studentForm.notes} onChange={e => setStudentForm(f => ({ ...f, notes: e.target.value }))} />
+                  </div>
+                  <Button className="w-full bg-[#f59e0b] hover:bg-[#d97706] text-black font-semibold"
+                    onClick={handleAddStudent} disabled={addStudent.isPending || !studentForm.studentName.trim()}>
+                    {addStudent.isPending ? "Menambahkan..." : "Tambah Student"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* New Task */}
             <Dialog open={newTaskOpen} onOpenChange={setNewTaskOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="bg-[#f59e0b] hover:bg-[#d97706] text-black font-semibold gap-2">
@@ -156,25 +381,19 @@ export default function CounselorCRM() {
               </DialogTrigger>
               <DialogContent className="bg-[#0d1424] border-white/10 text-white">
                 <DialogHeader>
-                  <DialogTitle>Create New Task</DialogTitle>
+                  <DialogTitle>Buat Task Baru</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 pt-2">
                   <div>
-                    <Label className="text-white/70">Task Title *</Label>
-                    <Input
-                      placeholder="e.g. Call Ahmad about UK application"
-                      className="bg-white/5 border-white/10 text-white mt-1"
-                      value={taskForm.title}
-                      onChange={e => setTaskForm(f => ({ ...f, title: e.target.value }))}
-                    />
+                    <Label className="text-white/70">Judul Task *</Label>
+                    <Input placeholder="e.g. Call Ahmad tentang aplikasi UK" className="bg-white/5 border-white/10 text-white mt-1"
+                      value={taskForm.title} onChange={e => setTaskForm(f => ({ ...f, title: e.target.value }))} />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label className="text-white/70">Type</Label>
+                      <Label className="text-white/70">Tipe</Label>
                       <Select value={taskForm.taskType} onValueChange={v => setTaskForm(f => ({ ...f, taskType: v as any }))}>
-                        <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1"><SelectValue /></SelectTrigger>
                         <SelectContent className="bg-[#0d1424] border-white/10 text-white">
                           <SelectItem value="call">📞 Call</SelectItem>
                           <SelectItem value="whatsapp">💬 WhatsApp</SelectItem>
@@ -187,11 +406,9 @@ export default function CounselorCRM() {
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-white/70">Priority</Label>
+                      <Label className="text-white/70">Prioritas</Label>
                       <Select value={taskForm.priority} onValueChange={v => setTaskForm(f => ({ ...f, priority: v as any }))}>
-                        <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1"><SelectValue /></SelectTrigger>
                         <SelectContent className="bg-[#0d1424] border-white/10 text-white">
                           <SelectItem value="urgent">🔴 Urgent</SelectItem>
                           <SelectItem value="high">🟠 High</SelectItem>
@@ -202,39 +419,23 @@ export default function CounselorCRM() {
                     </div>
                   </div>
                   <div>
-                    <Label className="text-white/70">Student Name (optional)</Label>
-                    <Input
-                      placeholder="e.g. Ahmad Fauzi"
-                      className="bg-white/5 border-white/10 text-white mt-1"
-                      value={taskForm.relatedName}
-                      onChange={e => setTaskForm(f => ({ ...f, relatedName: e.target.value }))}
-                    />
+                    <Label className="text-white/70">Nama Student (opsional)</Label>
+                    <Input placeholder="e.g. Ahmad Fauzi" className="bg-white/5 border-white/10 text-white mt-1"
+                      value={taskForm.relatedName} onChange={e => setTaskForm(f => ({ ...f, relatedName: e.target.value }))} />
                   </div>
                   <div>
-                    <Label className="text-white/70">Due Date (optional)</Label>
-                    <Input
-                      type="datetime-local"
-                      className="bg-white/5 border-white/10 text-white mt-1"
-                      value={taskForm.dueDate}
-                      onChange={e => setTaskForm(f => ({ ...f, dueDate: e.target.value }))}
-                    />
+                    <Label className="text-white/70">Deadline (opsional)</Label>
+                    <Input type="datetime-local" className="bg-white/5 border-white/10 text-white mt-1"
+                      value={taskForm.dueDate} onChange={e => setTaskForm(f => ({ ...f, dueDate: e.target.value }))} />
                   </div>
                   <div>
-                    <Label className="text-white/70">Notes (optional)</Label>
-                    <Textarea
-                      placeholder="Additional context..."
-                      className="bg-white/5 border-white/10 text-white mt-1 resize-none"
-                      rows={2}
-                      value={taskForm.description}
-                      onChange={e => setTaskForm(f => ({ ...f, description: e.target.value }))}
-                    />
+                    <Label className="text-white/70">Catatan (opsional)</Label>
+                    <Textarea placeholder="Konteks tambahan..." className="bg-white/5 border-white/10 text-white mt-1 resize-none"
+                      rows={2} value={taskForm.description} onChange={e => setTaskForm(f => ({ ...f, description: e.target.value }))} />
                   </div>
-                  <Button
-                    className="w-full bg-[#f59e0b] hover:bg-[#d97706] text-black font-semibold"
-                    onClick={handleCreateTask}
-                    disabled={createTask.isPending || !taskForm.title.trim()}
-                  >
-                    {createTask.isPending ? "Creating..." : "Create Task"}
+                  <Button className="w-full bg-[#f59e0b] hover:bg-[#d97706] text-black font-semibold"
+                    onClick={handleCreateTask} disabled={createTask.isPending || !taskForm.title.trim()}>
+                    {createTask.isPending ? "Membuat..." : "Buat Task"}
                   </Button>
                 </div>
               </DialogContent>
@@ -243,28 +444,20 @@ export default function CounselorCRM() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="max-w-[1600px] mx-auto px-6 flex gap-1 pb-0">
-          {[
-            { id: "pipeline", label: "Pipeline", icon: <BarChart3 className="w-4 h-4" /> },
-            { id: "tasks", label: "My Tasks", icon: <CheckCircle2 className="w-4 h-4" />, badge: todayTasks.length },
-            { id: "performance", label: "Performance", icon: <TrendingUp className="w-4 h-4" /> },
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? "border-[#f59e0b] text-[#f59e0b]"
-                  : "border-transparent text-white/50 hover:text-white/80"
-              }`}
-            >
+        <div className="max-w-[1600px] mx-auto px-6 flex gap-1 pb-0 overflow-x-auto">
+          {tabs.map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === tab.id ? "border-[#f59e0b] text-[#f59e0b]" : "border-transparent text-white/50 hover:text-white/80"
+              } ${(tab as any).adminOnly ? "text-amber-300" : ""}`}>
               {tab.icon}
               {tab.label}
-              {tab.badge !== undefined && tab.badge > 0 && (
+              {(tab as any).badge !== undefined && (tab as any).badge > 0 && (
                 <span className="bg-[#f59e0b] text-black text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                  {tab.badge}
+                  {(tab as any).badge}
                 </span>
               )}
+              {(tab as any).adminOnly && <Crown className="w-3 h-3 text-amber-400" />}
             </button>
           ))}
         </div>
@@ -272,7 +465,7 @@ export default function CounselorCRM() {
 
       <div className="max-w-[1600px] mx-auto px-6 py-6">
 
-        {/* ── KPI Strip ── */}
+        {/* KPI Strip */}
         <div className="grid grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
           {kpis.map((kpi, i) => (
             <Card key={i} className="bg-[#0d1424]/80 border-white/10">
@@ -285,29 +478,22 @@ export default function CounselorCRM() {
           ))}
         </div>
 
-        {/* ── Pipeline Tab ── */}
+        {/* Pipeline Tab */}
         {activeTab === "pipeline" && (
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-white">Lead Pipeline</h2>
-              <div className="flex gap-2">
-                <Button
-                  variant="ghost" size="sm"
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="ghost" size="sm"
                   className={`text-xs ${selectedStage === "all" ? "text-[#f59e0b]" : "text-white/50"}`}
-                  onClick={() => setSelectedStage("all")}
-                >All</Button>
+                  onClick={() => setSelectedStage("all")}>All</Button>
                 {PIPELINE_STAGES.slice(0, 4).map(s => (
-                  <Button
-                    key={s.id}
-                    variant="ghost" size="sm"
+                  <Button key={s.id} variant="ghost" size="sm"
                     className={`text-xs ${selectedStage === s.id ? s.color : "text-white/50"}`}
-                    onClick={() => setSelectedStage(s.id)}
-                  >{s.label}</Button>
+                    onClick={() => setSelectedStage(s.id)}>{s.label}</Button>
                 ))}
               </div>
             </div>
-
-            {/* Kanban Board */}
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
               {PIPELINE_STAGES.map(stage => {
                 const leads = pipelineByStage[stage.id] || [];
@@ -316,22 +502,14 @@ export default function CounselorCRM() {
                   <div key={stage.id} className={`rounded-xl border p-3 min-h-[200px] ${stage.bg}`}>
                     <div className="flex items-center justify-between mb-3">
                       <span className={`text-xs font-semibold ${stage.color}`}>{stage.label}</span>
-                      <span className={`text-xs rounded-full px-2 py-0.5 ${stage.bg} ${stage.color} border`}>
-                        {leads.length}
-                      </span>
+                      <span className={`text-xs rounded-full px-2 py-0.5 ${stage.bg} ${stage.color} border`}>{leads.length}</span>
                     </div>
                     <div className="space-y-2">
                       {leads.map((item: any) => (
-                        <LeadCard
-                          key={item.lead.id}
-                          item={item}
-                          stages={PIPELINE_STAGES}
-                          onStageChange={(leadId, newStage) => updateStage.mutate({ leadId, stage: newStage })}
-                        />
+                        <LeadCard key={item.lead.id} item={item} stages={PIPELINE_STAGES}
+                          onStageChange={(leadId, newStage) => updateStage.mutate({ leadId, stage: newStage })} />
                       ))}
-                      {leads.length === 0 && (
-                        <div className="text-center text-white/20 text-xs py-4">No leads</div>
-                      )}
+                      {leads.length === 0 && <div className="text-center text-white/20 text-xs py-4">No leads</div>}
                     </div>
                   </div>
                 );
@@ -340,14 +518,13 @@ export default function CounselorCRM() {
           </div>
         )}
 
-        {/* ── Tasks Tab ── */}
+        {/* Tasks Tab */}
         {activeTab === "tasks" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Today's Tasks */}
             <div>
               <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-[#f59e0b]" />
-                Today's Tasks
+                Tasks Hari Ini
                 <Badge className="bg-[#f59e0b]/20 text-[#f59e0b] border-[#f59e0b]/30">{todayTasks.length}</Badge>
               </h2>
               <div className="space-y-2">
@@ -355,65 +532,147 @@ export default function CounselorCRM() {
                   <Card className="bg-[#0d1424]/80 border-white/10">
                     <CardContent className="p-6 text-center text-white/40">
                       <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-green-400" />
-                      <p className="text-sm">All caught up! No tasks for today.</p>
+                      <p className="text-sm">Tidak ada task untuk hari ini.</p>
+                      <p className="text-xs mt-1">Buat task baru dengan tombol "New Task" di atas.</p>
                     </CardContent>
                   </Card>
-                ) : (
-                  todayTasks.map((task: any) => (
-                    <TaskCard key={task.id} task={task} onUpdate={(id, status) => updateTask.mutate({ id, status })} onDelete={(id) => deleteTask.mutate({ id })} />
-                  ))
-                )}
+                ) : todayTasks.map((task: any) => (
+                  <TaskCard key={task.id} task={task}
+                    onUpdate={(id, status) => updateTask.mutate({ id, status })}
+                    onDelete={(id) => deleteTask.mutate({ id })} />
+                ))}
               </div>
             </div>
-
-            {/* All Pending Tasks */}
             <div>
               <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <Clock className="w-5 h-5 text-orange-400" />
-                All Pending
+                Semua Pending
                 <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">
                   {allTasks.filter((t: any) => t.status === "pending" || t.status === "in_progress").length}
                 </Badge>
               </h2>
               <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-                {allTasks
-                  .filter((t: any) => t.status === "pending" || t.status === "in_progress")
-                  .map((task: any) => (
-                    <TaskCard key={task.id} task={task} onUpdate={(id, status) => updateTask.mutate({ id, status })} onDelete={(id) => deleteTask.mutate({ id })} />
-                  ))}
+                {allTasks.filter((t: any) => t.status === "pending" || t.status === "in_progress").length === 0 ? (
+                  <Card className="bg-[#0d1424]/80 border-white/10">
+                    <CardContent className="p-6 text-center text-white/40">
+                      <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-green-400" />
+                      <p className="text-sm">Semua task sudah selesai!</p>
+                    </CardContent>
+                  </Card>
+                ) : allTasks.filter((t: any) => t.status === "pending" || t.status === "in_progress").map((task: any) => (
+                  <TaskCard key={task.id} task={task}
+                    onUpdate={(id, status) => updateTask.mutate({ id, status })}
+                    onDelete={(id) => deleteTask.mutate({ id })} />
+                ))}
               </div>
             </div>
           </div>
         )}
 
-        {/* ── Performance Tab ── */}
+        {/* Students Tab */}
+        {activeTab === "students" && (
+          <div>
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-[#f59e0b]" />
+                Daftar Student
+                <Badge className="bg-[#f59e0b]/20 text-[#f59e0b] border-[#f59e0b]/30">{filteredStudents.length}</Badge>
+              </h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+                  <Input placeholder="Cari nama, email, telepon..."
+                    className="bg-white/5 border-white/10 text-white pl-9 w-64"
+                    value={studentSearch} onChange={e => setStudentSearch(e.target.value)} />
+                </div>
+                <Select value={studentCountryFilter} onValueChange={setStudentCountryFilter}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white w-40">
+                    <Filter className="w-3 h-3 mr-1" /><SelectValue placeholder="Negara" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#0d1424] border-white/10 text-white">
+                    <SelectItem value="all">Semua Negara</SelectItem>
+                    {uniqueCountries.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={studentStatusFilter} onValueChange={setStudentStatusFilter}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white w-36">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#0d1424] border-white/10 text-white">
+                    <SelectItem value="all">Semua Status</SelectItem>
+                    <SelectItem value="new">New</SelectItem>
+                    <SelectItem value="contacted">Contacted</SelectItem>
+                    <SelectItem value="qualified">Qualified</SelectItem>
+                    <SelectItem value="converted">Converted</SelectItem>
+                    <SelectItem value="closed">Closed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {filteredStudents.length === 0 ? (
+              <Card className="bg-[#0d1424]/80 border-white/10">
+                <CardContent className="p-12 text-center">
+                  <Users className="w-12 h-12 mx-auto mb-4 text-white/20" />
+                  <p className="text-white/60 mb-2">
+                    {allStudents.length === 0 ? "Belum ada student di CRM Anda." : "Tidak ada student yang cocok dengan filter."}
+                  </p>
+                  {allStudents.length === 0 && (
+                    <Button className="bg-[#f59e0b] hover:bg-[#d97706] text-black font-semibold mt-3 gap-2"
+                      onClick={() => setAddStudentOpen(true)}>
+                      <UserPlus className="w-4 h-4" /> Tambah Student Pertama
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="bg-[#0d1424]/80 border border-white/10 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/10 text-white/40 text-xs">
+                        <th className="text-left py-3 px-4">Nama Student</th>
+                        <th className="text-left py-3 px-4">Kontak</th>
+                        <th className="text-left py-3 px-4">Tujuan</th>
+                        <th className="text-left py-3 px-4">Program</th>
+                        <th className="text-left py-3 px-4">Status</th>
+                        <th className="text-left py-3 px-4">Tanggal Masuk</th>
+                        <th className="text-left py-3 px-4">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredStudents.map((student: any) => (
+                        <StudentRow key={student.id} student={student} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Performance Tab */}
         {activeTab === "performance" && (
           <div>
             <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-[#f59e0b]" />
-              My Performance (Last 30 Days)
+              <TrendingUp className="w-5 h-5 text-[#f59e0b]" /> Performa Saya (30 Hari Terakhir)
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
               {kpis.map((kpi, i) => (
                 <Card key={i} className="bg-[#0d1424]/80 border-white/10">
                   <CardContent className="p-5">
-                    <div className={`flex items-center gap-3 mb-2 ${kpi.color}`}>
-                      {kpi.icon}
-                      <span className="text-sm text-white/60">{kpi.label}</span>
-                    </div>
+                    <div className={`flex items-center gap-3 mb-2 ${kpi.color}`}>{kpi.icon}<span className="text-sm text-white/60">{kpi.label}</span></div>
                     <div className={`text-3xl font-bold ${kpi.color}`}>{kpi.value}</div>
                   </CardContent>
                 </Card>
               ))}
             </div>
-
-            {/* Performance History */}
             {(perfData?.performance?.length ?? 0) > 1 && (
               <Card className="bg-[#0d1424]/80 border-white/10">
                 <CardHeader>
                   <CardTitle className="text-white text-base flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-[#f59e0b]" />
-                    Performance History
+                    <BarChart3 className="w-4 h-4 text-[#f59e0b]" /> Riwayat Performa
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -421,7 +680,7 @@ export default function CounselorCRM() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="text-white/40 border-b border-white/10">
-                          <th className="text-left py-2 pr-4">Date</th>
+                          <th className="text-left py-2 pr-4">Tanggal</th>
                           <th className="text-right py-2 pr-4">Assigned</th>
                           <th className="text-right py-2 pr-4">Contacted</th>
                           <th className="text-right py-2 pr-4">Qualified</th>
@@ -437,7 +696,7 @@ export default function CounselorCRM() {
                             <td className="py-2 pr-4 text-right text-yellow-400">{p.leadsContacted}</td>
                             <td className="py-2 pr-4 text-right text-purple-400">{p.leadsQualified}</td>
                             <td className="py-2 pr-4 text-right text-green-400">{p.leadsConverted}</td>
-                            <td className="py-2 text-right text-emerald-400 font-semibold">{p.conversionRate}%</td>
+                            <td className="py-2 text-right text-emerald-400">{p.conversionRate}%</td>
                           </tr>
                         ))}
                       </tbody>
@@ -448,15 +707,141 @@ export default function CounselorCRM() {
             )}
           </div>
         )}
+
+        {/* CEO View Tab */}
+        {activeTab === "ceo" && isAdmin && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Crown className="w-5 h-5 text-amber-400" /> CEO Overview — Semua Counselor
+              </h2>
+              <Button variant="ghost" size="sm" className="text-white/60 hover:text-white gap-2" onClick={() => refetchAllPerf()}>
+                <RefreshCw className="w-4 h-4" /> Refresh
+              </Button>
+            </div>
+
+            {allPerf.length === 0 ? (
+              <Card className="bg-[#0d1424]/80 border-white/10">
+                <CardContent className="p-12 text-center">
+                  <Crown className="w-12 h-12 mx-auto mb-4 text-white/20" />
+                  <p className="text-white/60">Belum ada data performa counselor hari ini.</p>
+                  <p className="text-xs text-white/40 mt-2">Data akan muncul setelah setiap counselor login ke CRM.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  {[
+                    { label: "Total Leads", value: allPerf.reduce((s: number, p: any) => s + (p.leadsAssigned || 0), 0), color: "text-blue-400", icon: <Users className="w-5 h-5" /> },
+                    { label: "Total Converted", value: allPerf.reduce((s: number, p: any) => s + (p.leadsConverted || 0), 0), color: "text-green-400", icon: <Award className="w-5 h-5" /> },
+                    { label: "Active Applications", value: allPerf.reduce((s: number, p: any) => s + (p.applicationsActive || 0), 0), color: "text-orange-400", icon: <BookOpen className="w-5 h-5" /> },
+                    { label: "Avg Conversion", value: allPerf.length > 0 ? (allPerf.reduce((s: number, p: any) => s + parseFloat(p.conversionRate || "0"), 0) / allPerf.length).toFixed(1) + "%" : "0%", color: "text-emerald-400", icon: <TrendingUp className="w-5 h-5" /> },
+                  ].map((card, i) => (
+                    <Card key={i} className="bg-[#0d1424]/80 border-white/10">
+                      <CardContent className="p-5">
+                        <div className={`flex items-center gap-3 mb-2 ${card.color}`}>{card.icon}<span className="text-sm text-white/60">{card.label}</span></div>
+                        <div className={`text-3xl font-bold ${card.color}`}>{card.value}</div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                <Card className="bg-[#0d1424]/80 border-white/10 mb-6">
+                  <CardHeader>
+                    <CardTitle className="text-white text-base flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-amber-400" /> Performa Per Counselor (Hari Ini)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-white/40 border-b border-white/10 text-xs">
+                            <th className="text-left py-3 pr-4">Counselor</th>
+                            <th className="text-right py-3 pr-4">Leads</th>
+                            <th className="text-right py-3 pr-4">Contacted</th>
+                            <th className="text-right py-3 pr-4">Qualified</th>
+                            <th className="text-right py-3 pr-4">Converted</th>
+                            <th className="text-right py-3 pr-4">Apps Active</th>
+                            <th className="text-right py-3 pr-4">Tasks Done</th>
+                            <th className="text-right py-3 pr-4">Tasks Pending</th>
+                            <th className="text-right py-3">Conversion</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {allPerf.sort((a: any, b: any) => (b.leadsConverted || 0) - (a.leadsConverted || 0)).map((p: any, i: number) => {
+                            const convRate = parseFloat(p.conversionRate || "0");
+                            const rateColor = convRate >= 20 ? "text-green-400" : convRate >= 10 ? "text-yellow-400" : "text-red-400";
+                            return (
+                              <tr key={i} className="border-b border-white/5 hover:bg-white/5">
+                                <td className="py-3 pr-4">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-full bg-[#f59e0b]/20 flex items-center justify-center text-xs font-bold text-[#f59e0b]">
+                                      {p.staffEmail?.charAt(0).toUpperCase() || "?"}
+                                    </div>
+                                    <div>
+                                      <div className="text-white font-medium">{p.staffEmail?.split("@")[0] || "Unknown"}</div>
+                                      <div className="text-white/40 text-xs">{p.staffEmail}</div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="py-3 pr-4 text-right text-blue-400 font-semibold">{p.leadsAssigned || 0}</td>
+                                <td className="py-3 pr-4 text-right text-yellow-400">{p.leadsContacted || 0}</td>
+                                <td className="py-3 pr-4 text-right text-purple-400">{p.leadsQualified || 0}</td>
+                                <td className="py-3 pr-4 text-right text-green-400 font-semibold">{p.leadsConverted || 0}</td>
+                                <td className="py-3 pr-4 text-right text-orange-400">{p.applicationsActive || 0}</td>
+                                <td className="py-3 pr-4 text-right text-cyan-400">{p.tasksCompleted || 0}</td>
+                                <td className="py-3 pr-4 text-right text-red-400">{p.tasksPending || 0}</td>
+                                <td className={`py-3 text-right font-bold ${rateColor}`}>{p.conversionRate || "0.0"}%</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div>
+                  <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-[#f59e0b]" /> Distribusi Student per Counselor
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    {allPerf.map((p: any, i: number) => {
+                      const name = p.staffEmail?.split("@")[0] || "Unknown";
+                      const total = p.leadsAssigned || 0;
+                      const converted = p.leadsConverted || 0;
+                      const pct = total > 0 ? Math.round((converted / total) * 100) : 0;
+                      return (
+                        <Card key={i} className="bg-[#0d1424]/80 border-white/10">
+                          <CardContent className="p-4 text-center">
+                            <div className="w-10 h-10 rounded-full bg-[#f59e0b]/20 flex items-center justify-center text-sm font-bold text-[#f59e0b] mx-auto mb-2">
+                              {name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="text-white font-medium text-sm capitalize">{name}</div>
+                            <div className="text-white/40 text-xs mt-1">{total} leads</div>
+                            <div className="mt-2 bg-white/10 rounded-full h-1.5">
+                              <div className="bg-[#f59e0b] h-1.5 rounded-full" style={{ width: `${Math.min(pct, 100)}%` }} />
+                            </div>
+                            <div className="text-xs text-emerald-400 mt-1">{pct}% converted</div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ─── Lead Card Component ──────────────────────────────────────────────────────
+// ─── Lead Card ────────────────────────────────────────────────────────────────
 function LeadCard({ item, stages, onStageChange }: {
-  item: any;
-  stages: typeof PIPELINE_STAGES;
+  item: any; stages: typeof PIPELINE_STAGES;
   onStageChange: (leadId: number, stage: PipelineStage) => void;
 }) {
   const [showMove, setShowMove] = useState(false);
@@ -471,30 +856,20 @@ function LeadCard({ item, stages, onStageChange }: {
         <span className="font-medium text-white truncate flex-1">{lead.studentName}</span>
         <span className={`font-bold ${scoreColor} shrink-0`}>{score}</span>
       </div>
-      {lead.preferredCountry && (
-        <div className="text-white/40 mb-1.5">🌍 {lead.preferredCountry}</div>
-      )}
+      {lead.preferredCountry && <div className="text-white/40 mb-1.5">🌍 {lead.preferredCountry}</div>}
       <div className="flex items-center gap-1 flex-wrap">
         <Link href={`/crm/lead/${lead.id}`}>
           <button className="text-[#f59e0b] hover:text-[#d97706] flex items-center gap-0.5">
             View <ArrowRight className="w-3 h-3" />
           </button>
         </Link>
-        <button
-          className="text-white/40 hover:text-white ml-auto"
-          onClick={() => setShowMove(!showMove)}
-        >
-          Move →
-        </button>
+        <button className="text-white/40 hover:text-white ml-auto" onClick={() => setShowMove(!showMove)}>Move →</button>
       </div>
       {showMove && (
         <div className="mt-2 grid grid-cols-2 gap-1">
           {stages.filter(s => s.id !== pipeline.stage).map(s => (
-            <button
-              key={s.id}
-              className={`text-xs px-1.5 py-1 rounded border ${s.bg} ${s.color} hover:opacity-80`}
-              onClick={() => { onStageChange(lead.id, s.id); setShowMove(false); }}
-            >
+            <button key={s.id} className={`text-xs px-1.5 py-1 rounded border ${s.bg} ${s.color} hover:opacity-80`}
+              onClick={() => { onStageChange(lead.id, s.id); setShowMove(false); }}>
               {s.label}
             </button>
           ))}
@@ -504,7 +879,7 @@ function LeadCard({ item, stages, onStageChange }: {
   );
 }
 
-// ─── Task Card Component ──────────────────────────────────────────────────────
+// ─── Task Card ────────────────────────────────────────────────────────────────
 function TaskCard({ task, onUpdate, onDelete }: {
   task: any;
   onUpdate: (id: number, status: TaskStatus) => void;
@@ -519,32 +894,23 @@ function TaskCard({ task, onUpdate, onDelete }: {
       isDone ? "border-white/5 opacity-50" : isOverdue ? "border-red-500/30" : "border-white/10 hover:border-white/20"
     }`}>
       <div className="flex items-start gap-3">
-        <button
-          className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-            isDone ? "bg-green-500 border-green-500" : "border-white/30 hover:border-green-400"
-          }`}
-          onClick={() => onUpdate(task.id, isDone ? "pending" : "done")}
-        >
+        <button className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+          isDone ? "bg-green-500 border-green-500" : "border-white/30 hover:border-green-400"
+        }`} onClick={() => onUpdate(task.id, isDone ? "pending" : "done")}>
           {isDone && <CheckCircle2 className="w-3 h-3 text-white" />}
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-sm font-medium ${isDone ? "line-through text-white/40" : "text-white"}`}>
-              {task.title}
-            </span>
-            <Badge className={`text-xs px-1.5 py-0 border ${priority.color}`}>
-              {priority.icon} {priority.label}
-            </Badge>
+            <span className={`text-sm font-medium ${isDone ? "line-through text-white/40" : "text-white"}`}>{task.title}</span>
+            <Badge className={`text-xs px-1.5 py-0 border ${priority.color}`}>{priority.icon} {priority.label}</Badge>
           </div>
           {task.relatedName && (
-            <div className="text-xs text-white/50 mt-0.5 flex items-center gap-1">
-              <User className="w-3 h-3" /> {task.relatedName}
-            </div>
+            <div className="text-xs text-white/50 mt-0.5 flex items-center gap-1"><User className="w-3 h-3" /> {task.relatedName}</div>
           )}
           <div className="flex items-center gap-3 mt-1.5">
             <span className="flex items-center gap-1 text-xs text-white/40">
               {TASK_TYPE_ICONS[task.taskType] ?? TASK_TYPE_ICONS.other}
-              {task.taskType.replace("_", " ")}
+              {task.taskType?.replace("_", " ")}
             </span>
             {task.dueDate && (
               <span className={`text-xs flex items-center gap-1 ${isOverdue ? "text-red-400" : "text-white/40"}`}>
@@ -552,32 +918,73 @@ function TaskCard({ task, onUpdate, onDelete }: {
                 {new Date(task.dueDate).toLocaleDateString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
               </span>
             )}
-            {task.isAiGenerated && (
-              <span className="text-xs text-purple-400 flex items-center gap-1">
-                <Star className="w-3 h-3" /> AI
-              </span>
-            )}
+            {task.isAiGenerated && <span className="text-xs text-purple-400 flex items-center gap-1"><Star className="w-3 h-3" /> AI</span>}
           </div>
         </div>
         <div className="flex gap-1 shrink-0">
           {!isDone && (
-            <button
-              className="text-xs text-white/30 hover:text-yellow-400 transition-colors"
-              onClick={() => onUpdate(task.id, "in_progress")}
-              title="Mark in progress"
-            >
+            <button className="text-xs text-white/30 hover:text-yellow-400 transition-colors"
+              onClick={() => onUpdate(task.id, "in_progress")} title="Mark in progress">
               <AlertCircle className="w-4 h-4" />
             </button>
           )}
-          <button
-            className="text-xs text-white/30 hover:text-red-400 transition-colors"
-            onClick={() => onDelete(task.id)}
-            title="Delete task"
-          >
-            ×
-          </button>
+          <button className="text-xs text-white/30 hover:text-red-400 transition-colors"
+            onClick={() => onDelete(task.id)} title="Delete task">×</button>
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── Student Row ──────────────────────────────────────────────────────────────
+function StudentRow({ student }: { student: any }) {
+  const statusColors: Record<string, string> = {
+    new: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    contacted: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+    qualified: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+    converted: "bg-green-500/20 text-green-400 border-green-500/30",
+    closed: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+  };
+
+  return (
+    <tr className="border-b border-white/5 hover:bg-white/5 transition-colors">
+      <td className="py-3 px-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-[#f59e0b]/20 flex items-center justify-center text-xs font-bold text-[#f59e0b] shrink-0">
+            {student.studentName?.charAt(0)?.toUpperCase() || "?"}
+          </div>
+          <div>
+            <div className="text-white font-medium text-sm">{student.studentName}</div>
+            {student.source === "crm_manual" && <span className="text-xs text-white/30">Manual Entry</span>}
+          </div>
+        </div>
+      </td>
+      <td className="py-3 px-4">
+        <div className="space-y-0.5">
+          {student.studentEmail && <div className="text-xs text-white/60 flex items-center gap-1"><Mail className="w-3 h-3" /> {student.studentEmail}</div>}
+          {student.studentPhone && <div className="text-xs text-white/60 flex items-center gap-1"><Phone className="w-3 h-3" /> {student.studentPhone}</div>}
+        </div>
+      </td>
+      <td className="py-3 px-4">
+        <div className="text-sm text-white/80">{student.preferredCountry || "—"}</div>
+        {student.studyLevel && <div className="text-xs text-white/40">{student.studyLevel}</div>}
+      </td>
+      <td className="py-3 px-4">
+        <div className="text-sm text-white/80">{student.programInterest || student.intakeDate || "—"}</div>
+      </td>
+      <td className="py-3 px-4">
+        <Badge className={`text-xs border ${statusColors[student.status] || statusColors.new}`}>{student.status}</Badge>
+      </td>
+      <td className="py-3 px-4 text-xs text-white/40">
+        {new Date(student.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+      </td>
+      <td className="py-3 px-4">
+        <Link href={`/crm/lead/${student.id}`}>
+          <Button size="sm" variant="ghost" className="text-[#f59e0b] hover:text-[#d97706] hover:bg-[#f59e0b]/10 h-7 px-2 gap-1">
+            <Eye className="w-3 h-3" /> View
+          </Button>
+        </Link>
+      </td>
+    </tr>
   );
 }

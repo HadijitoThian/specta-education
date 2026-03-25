@@ -58,7 +58,7 @@ export type InsertMessage = typeof messages.$inferInsert;
  */
 export const leads = mysqlTable("leads", {
   id: int("id").autoincrement().primaryKey(),
-  conversationId: int("conversationId").notNull(),
+  conversationId: int("conversationId"),  // nullable for manual CRM entries
   studentName: varchar("studentName", { length: 255 }).notNull(),
   studentEmail: varchar("studentEmail", { length: 320 }),
   studentPhone: varchar("studentPhone", { length: 50 }),
@@ -67,6 +67,8 @@ export const leads = mysqlTable("leads", {
   intakeDate: varchar("intakeDate", { length: 100 }),
   notes: text("notes"),
   assignedTo: varchar("assignedTo", { length: 255 }),
+  assignedCounselor: varchar("assignedCounselor", { length: 255 }),
+  programInterest: varchar("programInterest", { length: 255 }),
   status: mysqlEnum("status", ["new", "contacted", "qualified", "converted", "closed"]).default("new").notNull(),
   forwardedAt: timestamp("forwardedAt"),
   intentSummary: text("intentSummary"),
