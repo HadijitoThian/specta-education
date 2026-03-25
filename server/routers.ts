@@ -7308,6 +7308,79 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
         return { success: true, leadId: lead.id };
       }),
 
+    // ── Student: list own documents ──
+    listDocuments: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req.headers.cookie || "";
+      const cookies = parseCookies(cookieHeader);
+      const token = cookies["student_portal_token"];
+      if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+      const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+      const { payload } = await jwtVerify(token, secret);
+      const leadId = Number(payload.leadId);
+      return getCrmDocsByLead(leadId);
+    }),
+
+    // ── Student: upload a document to S3 ──
+    uploadDocument: publicProcedure
+      .input(z.object({
+        docType: z.string(),
+        docLabel: z.string(),
+        fileName: z.string(),
+        fileType: z.string(),
+        fileBase64: z.string(), // base64-encoded file content
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req.headers.cookie || "";
+        const cookies = parseCookies(cookieHeader);
+        const token = cookies["student_portal_token"];
+        if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const { payload } = await jwtVerify(token, secret);
+        const leadId = Number(payload.leadId);
+        // Decode base64 to buffer
+        const buffer = Buffer.from(input.fileBase64, "base64");
+        if (buffer.length > 16 * 1024 * 1024) throw new TRPCError({ code: "PAYLOAD_TOO_LARGE", message: "File too large (max 16MB)" });
+        // Upload to S3
+        const suffix = Math.random().toString(36).slice(2, 8);
+        const fileKey = `student-docs/${leadId}/${input.docType}-${suffix}-${input.fileName}`;
+        const { url } = await storagePut(fileKey, buffer, input.fileType);
+        // Upsert doc record in DB
+        const docId = await upsertCrmDoc({
+          leadId,
+          docType: input.docType,
+          docLabel: input.docLabel,
+          status: "submitted",
+        });
+        // Update with file info
+        await updateCrmDocFile(docId, {
+          fileUrl: url,
+          fileKey,
+          fileName: input.fileName,
+          fileMimeType: input.fileType,
+        });
+        return { success: true, fileUrl: url, docId };
+      }),
+
+    // ── Student: delete own document ──
+    deleteDocument: publicProcedure
+      .input(z.object({ docId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req.headers.cookie || "";
+        const cookies = parseCookies(cookieHeader);
+        const token = cookies["student_portal_token"];
+        if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const { payload } = await jwtVerify(token, secret);
+        const leadId = Number(payload.leadId);
+        // Verify doc belongs to this student
+        const docs = await getCrmDocsByLead(leadId);
+        const doc = docs.find((d: any) => d.id === input.docId);
+        if (!doc) throw new TRPCError({ code: "NOT_FOUND", message: "Document not found" });
+        if (doc.status === "verified") throw new TRPCError({ code: "FORBIDDEN", message: "Cannot delete a verified document" });
+        await deleteCrmDoc(input.docId);
+        return { success: true };
+      }),
+
   }),
 
   // ─── AI Follow-up Assistant ──────────────────────────────────────────────────

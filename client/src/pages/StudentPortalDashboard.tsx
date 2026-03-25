@@ -280,7 +280,7 @@ export default function StudentPortalDashboard() {
 
           {/* ── DOCUMENTS TAB ── */}
           {activeTab === "documents" && (
-            <DocumentsTab documents={documents} lead={lead} utils={utils} />
+            <DocumentsTab utils={utils} />
           )}
 
           {/* ── WISHLIST TAB ── */}
@@ -786,42 +786,110 @@ function AppointmentsTab({ appointments, utils }: any) {
 }
 
 // ─── DOCUMENTS TAB ────────────────────────────────────────────────────────────
-function DocumentsTab({ documents, lead, utils }: any) {
-  const uploadMutation = trpc.crm.uploadCrmDocument.useMutation({
-    onSuccess: () => utils.studentPortal.getDashboard.invalidate(),
+// ─── DOCUMENT TYPES ──────────────────────────────────────────────────────────
+const DOCUMENT_TYPES = [
+  { value: "passport", label: "Passport", icon: "🛂", desc: "Valid for 18+ months" },
+  { value: "transcript", label: "Academic Transcript", icon: "📋", desc: "School/university grades" },
+  { value: "ielts", label: "IELTS / English Certificate", icon: "📝", desc: "English proficiency proof" },
+  { value: "personal_statement", label: "Personal Statement", icon: "✍️", desc: "Your motivation letter" },
+  { value: "recommendation", label: "Recommendation Letter", icon: "📨", desc: "From teacher or employer" },
+  { value: "birth_certificate", label: "Birth Certificate", icon: "📄", desc: "Official birth document" },
+  { value: "photo", label: "Passport-size Photo", icon: "🖼️", desc: "4x6 cm, white background" },
+  { value: "financial_proof", label: "Financial Proof", icon: "🏦", desc: "Bank statement / sponsor letter" },
+  { value: "diploma", label: "Diploma / Certificate", icon: "🎓", desc: "Graduation certificate" },
+  { value: "cv_resume", label: "CV / Resume", icon: "📌", desc: "Work and education history" },
+  { value: "other", label: "Other Document", icon: "📎", desc: "Any other required document" },
+];
+
+function getDocIcon(mimeType: string): string {
+  if (!mimeType) return "📄";
+  if (mimeType.includes("pdf")) return "📕";
+  if (mimeType.includes("image")) return "🖼️";
+  if (mimeType.includes("word") || mimeType.includes("document")) return "📝";
+  return "📄";
+}
+
+function DocumentsTab({ utils }: any) {
+  const { data: documents = [], isLoading } = trpc.studentPortal.listDocuments.useQuery();
+  const uploadMutation = trpc.studentPortal.uploadDocument.useMutation({
+    onSuccess: () => utils.studentPortal.listDocuments.invalidate(),
+    onError: (err: any) => alert(err.message),
+  });
+  const deleteMutation = trpc.studentPortal.deleteDocument.useMutation({
+    onSuccess: () => utils.studentPortal.listDocuments.invalidate(),
+    onError: (err: any) => alert(err.message),
   });
 
-  const handleUpload = async (docId: number, file: File) => {
-    return new Promise<void>((resolve) => {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = (reader.result as string).split(",")[1];
-        await uploadMutation.mutateAsync({ docId, leadId: lead.id, fileName: file.name, fileMimeType: file.type, fileData: base64 });
-        resolve();
-      };
-      reader.readAsDataURL(file);
-    });
+  const [showUpload, setShowUpload] = useState(false);
+  const [selectedDocType, setSelectedDocType] = useState("");
+  const [customLabel, setCustomLabel] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const verified = (documents as any[]).filter((d: any) => d.status === "verified").length;
+  const submitted = (documents as any[]).filter((d: any) => d.status === "submitted").length;
+  const pending = (documents as any[]).filter((d: any) => d.status === "pending").length;
+  const rejected = (documents as any[]).filter((d: any) => d.status === "rejected").length;
+
+  const handleFileSelect = async (file: File) => {
+    if (!selectedDocType) { alert("Please select a document type first."); return; }
+    if (file.size > 16 * 1024 * 1024) { alert("File too large. Maximum size is 16MB."); return; }
+    const allowed = ["application/pdf", "image/jpeg", "image/png", "image/jpg", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+    if (!allowed.includes(file.type)) { alert("Unsupported file type. Please upload PDF, JPG, PNG, or Word documents."); return; }
+    setUploadProgress(`Uploading ${file.name}...`);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = (reader.result as string).split(",")[1];
+      const docTypeInfo = DOCUMENT_TYPES.find(d => d.value === selectedDocType);
+      const label = customLabel.trim() || docTypeInfo?.label || selectedDocType;
+      try {
+        await uploadMutation.mutateAsync({
+          docType: selectedDocType,
+          docLabel: label,
+          fileName: file.name,
+          fileType: file.type,
+          fileBase64: base64,
+        });
+        setShowUpload(false);
+        setSelectedDocType("");
+        setCustomLabel("");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      } catch (e) { /* handled by onError */ }
+      setUploadProgress(null);
+    };
+    reader.readAsDataURL(file);
   };
 
-  const verified = documents.filter((d: any) => d.status === "verified");
-  const pending = documents.filter((d: any) => d.status === "pending");
-  const submitted = documents.filter((d: any) => d.status === "submitted");
-  const rejected = documents.filter((d: any) => d.status === "rejected");
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFileSelect(file);
+  };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-white font-bold text-xl">Document Vault</h2>
-        <p className="text-slate-400 text-sm mt-0.5">Upload and track your application documents</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-white font-bold text-xl">Document Vault</h2>
+          <p className="text-slate-400 text-sm mt-0.5">Upload and manage your application documents securely</p>
+        </div>
+        <Button
+          onClick={() => setShowUpload(!showUpload)}
+          className="bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white rounded-xl gap-2"
+        >
+          <Plus className="w-4 h-4" /> Upload Document
+        </Button>
       </div>
 
-      {/* Summary */}
+      {/* Stats */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: "Verified", count: verified.length, color: "text-green-400", bg: "bg-green-500/10 border-green-500/20" },
-          { label: "Submitted", count: submitted.length, color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
-          { label: "Pending", count: pending.length, color: "text-yellow-400", bg: "bg-yellow-500/10 border-yellow-500/20" },
-          { label: "Rejected", count: rejected.length, color: "text-red-400", bg: "bg-red-500/10 border-red-500/20" },
+          { label: "Verified", count: verified, color: "text-green-400", bg: "bg-green-500/10 border-green-500/20" },
+          { label: "Submitted", count: submitted, color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
+          { label: "Pending", count: pending, color: "text-yellow-400", bg: "bg-yellow-500/10 border-yellow-500/20" },
+          { label: "Rejected", count: rejected, color: "text-red-400", bg: "bg-red-500/10 border-red-500/20" },
         ].map(s => (
           <div key={s.label} className={`${s.bg} border rounded-xl p-3 text-center`}>
             <div className={`text-xl font-bold ${s.color}`}>{s.count}</div>
@@ -830,76 +898,141 @@ function DocumentsTab({ documents, lead, utils }: any) {
         ))}
       </div>
 
+      {/* Upload Panel */}
+      {showUpload && (
+        <div className="bg-slate-800/80 border border-violet-500/30 rounded-2xl p-5 space-y-4">
+          <h3 className="text-white font-semibold flex items-center gap-2">
+            <Upload className="w-4 h-4 text-violet-400" /> Upload New Document
+          </h3>
+          <div className="space-y-2">
+            <Label className="text-slate-300 text-sm">Document Type *</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {DOCUMENT_TYPES.map(dt => (
+                <button
+                  key={dt.value}
+                  onClick={() => setSelectedDocType(dt.value)}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    selectedDocType === dt.value
+                      ? "border-violet-500 bg-violet-500/20 text-white"
+                      : "border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-500"
+                  }`}
+                >
+                  <div className="text-lg mb-1">{dt.icon}</div>
+                  <div className="text-xs font-medium leading-tight">{dt.label}</div>
+                  <div className="text-xs text-slate-500 mt-0.5 leading-tight">{dt.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+          {selectedDocType === "other" && (
+            <div className="space-y-2">
+              <Label className="text-slate-300 text-sm">Document Name *</Label>
+              <Input
+                placeholder="e.g. Medical Certificate"
+                value={customLabel}
+                onChange={(e) => setCustomLabel(e.target.value)}
+                className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 rounded-xl"
+              />
+            </div>
+          )}
+          {selectedDocType && (
+            <div
+              className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${
+                dragOver ? "border-violet-400 bg-violet-500/10" : "border-slate-600 hover:border-slate-500"
+              }`}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {uploadProgress ? (
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
+                  <p className="text-violet-300 text-sm">{uploadProgress}</p>
+                </div>
+              ) : (
+                <>
+                  <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                  <p className="text-slate-300 text-sm font-medium">Drop your file here or click to browse</p>
+                  <p className="text-slate-500 text-xs mt-1">PDF, JPG, PNG, Word — max 16MB</p>
+                </>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); }}
+              />
+            </div>
+          )}
+          <div className="flex justify-end">
+            <Button variant="ghost" onClick={() => { setShowUpload(false); setSelectedDocType(""); setCustomLabel(""); }} className="text-slate-400">
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Documents list */}
-      {documents.length === 0 ? (
-        <div className="text-center py-12 text-slate-500">
-          <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p>No documents assigned yet</p>
-          <p className="text-xs mt-1">Your counselor will add required documents here</p>
+      {isLoading ? (
+        <div className="text-center py-12"><Loader2 className="w-8 h-8 text-violet-400 animate-spin mx-auto" /></div>
+      ) : (documents as any[]).length === 0 ? (
+        <div className="text-center py-16 text-slate-500">
+          <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <FileText className="w-10 h-10 opacity-30" />
+          </div>
+          <p className="text-slate-300 font-medium">No documents yet</p>
+          <p className="text-xs mt-1">Click "Upload Document" to add your first document</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {documents.map((doc: any) => (
-            <DocItem key={doc.id} doc={doc} onUpload={handleUpload} />
+        <div className="space-y-3">
+          {(documents as any[]).map((doc: any) => (
+            <div key={doc.id} className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-slate-700/50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
+                  {doc.fileMimeType ? getDocIcon(doc.fileMimeType) : (DOCUMENT_TYPES.find(d => d.value === doc.docType)?.icon ?? "📄")}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-white text-sm font-semibold">{doc.docLabel || doc.docType}</p>
+                    <Badge className={`text-xs border ${DOC_STATUS_COLORS[doc.status] ?? "bg-slate-500/20 text-slate-400"}`}>
+                      {doc.status === "submitted" ? "Under Review" : doc.status === "verified" ? "✓ Verified" : doc.status === "rejected" ? "✗ Rejected" : "Pending"}
+                    </Badge>
+                  </div>
+                  {doc.fileName && <p className="text-slate-500 text-xs mt-0.5 truncate">{doc.fileName}</p>}
+                  {doc.notes && (
+                    <p className="text-amber-400 text-xs mt-1 bg-amber-500/10 rounded-lg px-2 py-1">💬 Counselor note: {doc.notes}</p>
+                  )}
+                  {doc.submittedAt && (
+                    <p className="text-slate-600 text-xs mt-1">Uploaded {new Date(doc.submittedAt).toLocaleDateString()}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {doc.fileUrl && (
+                    <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
+                      <Button size="sm" variant="ghost" className="h-8 px-2 text-slate-400 hover:text-white"><Eye className="w-3.5 h-3.5" /></Button>
+                    </a>
+                  )}
+                  {doc.status !== "verified" && (
+                    <Button size="sm" variant="ghost" className="h-8 px-2 text-red-400 hover:text-red-300"
+                      onClick={() => { if (confirm("Delete this document?")) deleteMutation.mutate({ docId: doc.id }); }}
+                      disabled={deleteMutation.isPending}
+                    ><Trash2 className="w-3.5 h-3.5" /></Button>
+                  )}
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       )}
-    </div>
-  );
-}
 
-function DocItem({ doc, onUpload }: { doc: any; onUpload: (docId: number, file: File) => void }) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    await onUpload(doc.id, file);
-    setUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const statusIcon = {
-    verified: <CheckCircle2 className="w-4 h-4 text-green-400" />,
-    submitted: <Clock className="w-4 h-4 text-blue-400" />,
-    rejected: <XCircle className="w-4 h-4 text-red-400" />,
-    pending: <AlertCircle className="w-4 h-4 text-yellow-400" />,
-  }[doc.status as string] ?? <AlertCircle className="w-4 h-4 text-yellow-400" />;
-
-  return (
-    <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 flex items-center gap-3">
-      {statusIcon}
-      <div className="flex-1 min-w-0">
-        <p className="text-white text-sm font-medium truncate">{doc.docType}</p>
-        {doc.notes && <p className="text-slate-500 text-xs truncate">{doc.notes}</p>}
-      </div>
-      <div className="flex items-center gap-2">
-        <Badge className={`text-xs border ${DOC_STATUS_COLORS[doc.status] ?? "bg-slate-500/20 text-slate-400"}`}>
-          {doc.status}
-        </Badge>
-        {doc.fileUrl && (
-          <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
-            <Button size="sm" variant="ghost" className="h-7 px-2 text-slate-400 hover:text-white">
-              <Eye className="w-3 h-3" />
-            </Button>
-          </a>
-        )}
-        {doc.status !== "verified" && (
-          <>
-            <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onChange={handleFileChange} />
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 px-2 text-violet-400 hover:text-violet-300"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-            >
-              {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-            </Button>
-          </>
-        )}
+      <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex gap-3">
+        <div className="text-blue-400 text-lg">☁️</div>
+        <div>
+          <p className="text-blue-300 text-sm font-medium">Secure Cloud Storage</p>
+          <p className="text-slate-500 text-xs mt-0.5">All your documents are encrypted and stored securely on cloud. Your counselor can view and verify them directly.</p>
+        </div>
       </div>
     </div>
   );
