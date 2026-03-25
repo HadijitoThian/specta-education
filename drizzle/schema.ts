@@ -1518,3 +1518,45 @@ export const crmNotifications = mysqlTable("crm_notifications", {
 });
 export type CrmNotification = typeof crmNotifications.$inferSelect;
 export type InsertCrmNotification = typeof crmNotifications.$inferInsert;
+
+/**
+ * Student Applications — track university applications per student
+ */
+export const studentApplications = mysqlTable("student_applications", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  universityName: varchar("universityName", { length: 500 }).notNull(),
+  programName: varchar("programName", { length: 500 }).notNull(),
+  country: varchar("country", { length: 100 }),
+  intakePeriod: varchar("intakePeriod", { length: 100 }),
+  applicationStatus: varchar("applicationStatus", { length: 50 }).default("preparing").notNull(),
+  // preparing | submitted | under_review | conditional_offer | unconditional_offer | rejected | enrolled | withdrawn
+  submittedAt: timestamp("submittedAt"),
+  offerReceivedAt: timestamp("offerReceivedAt"),
+  offerDeadline: timestamp("offerDeadline"),
+  tuitionFee: varchar("tuitionFee", { length: 100 }),
+  scholarshipInfo: text("scholarshipInfo"),
+  notes: text("notes"),
+  staffEmail: varchar("staffEmail", { length: 320 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type StudentApplication = typeof studentApplications.$inferSelect;
+export type InsertStudentApplication = typeof studentApplications.$inferInsert;
+
+/**
+ * Staff Team Chat — internal messaging between counselors
+ */
+export const staffTeamChat = mysqlTable("staff_team_chat", {
+  id: int("id").autoincrement().primaryKey(),
+  senderEmail: varchar("senderEmail", { length: 320 }).notNull(),
+  senderName: varchar("senderName", { length: 200 }).notNull(),
+  message: text("message").notNull(),
+  channel: varchar("channel", { length: 100 }).default("general").notNull(),
+  // general | leads | announcements
+  replyToId: int("replyToId"),
+  isEdited: tinyint("isEdited").default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type StaffTeamChat = typeof staffTeamChat.$inferSelect;
+export type InsertStaffTeamChat = typeof staffTeamChat.$inferInsert;

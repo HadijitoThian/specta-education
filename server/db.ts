@@ -2595,3 +2595,91 @@ export async function createNotification(data: { staffEmail: string; type: strin
   const db = await getDb();
   await db!.insert(crmNotifications).values({ ...data, isRead: 0 });
 }
+
+// ─── Sprint 8: Student Applications ──────────────────────────────────────────
+export async function getApplicationsByLead(leadId: number) {
+  const db = await getDb();
+  const { studentApplications } = await import("../drizzle/schema");
+  return db!.select().from(studentApplications).where(eq(studentApplications.leadId, leadId));
+}
+
+export async function createStudentApplication(data: {
+  leadId: number; universityName: string; programName: string; country?: string;
+  intakePeriod?: string; applicationStatus?: string; tuitionFee?: string;
+  scholarshipInfo?: string; notes?: string; staffEmail: string;
+}) {
+  const db = await getDb();
+  const { studentApplications } = await import("../drizzle/schema");
+  const [result] = await db!.insert(studentApplications).values({
+    leadId: data.leadId, universityName: data.universityName, programName: data.programName,
+    country: data.country, intakePeriod: data.intakePeriod,
+    applicationStatus: data.applicationStatus || "preparing",
+    tuitionFee: data.tuitionFee, scholarshipInfo: data.scholarshipInfo,
+    notes: data.notes, staffEmail: data.staffEmail,
+  });
+  return result;
+}
+
+export async function updateStudentApplication(id: number, data: Partial<{
+  universityName: string; programName: string; country: string; intakePeriod: string;
+  applicationStatus: string; tuitionFee: string; scholarshipInfo: string; notes: string;
+  submittedAt: Date; offerReceivedAt: Date; offerDeadline: Date;
+}>) {
+  const db = await getDb();
+  const { studentApplications } = await import("../drizzle/schema");
+  return db!.update(studentApplications).set(data).where(eq(studentApplications.id, id));
+}
+
+export async function deleteStudentApplication(id: number) {
+  const db = await getDb();
+  const { studentApplications } = await import("../drizzle/schema");
+  return db!.delete(studentApplications).where(eq(studentApplications.id, id));
+}
+
+export async function getAllStudentApplicationsStats() {
+  const db = await getDb();
+  const { studentApplications } = await import("../drizzle/schema");
+  return db!.select().from(studentApplications);
+}
+
+// ─── Sprint 8: Team Chat ──────────────────────────────────────────────────────
+export async function getTeamChatMessages(channel: string = "general", limit: number = 50) {
+  const db = await getDb();
+  const { staffTeamChat } = await import("../drizzle/schema");
+  return db!.select().from(staffTeamChat)
+    .where(eq(staffTeamChat.channel, channel))
+    .orderBy(staffTeamChat.createdAt)
+    .limit(limit);
+}
+
+export async function sendTeamChatMessage(data: {
+  senderEmail: string; senderName: string; message: string; channel?: string; replyToId?: number;
+}) {
+  const db = await getDb();
+  const { staffTeamChat } = await import("../drizzle/schema");
+  const [result] = await db!.insert(staffTeamChat).values({
+    senderEmail: data.senderEmail, senderName: data.senderName,
+    message: data.message, channel: data.channel || "general",
+    replyToId: data.replyToId,
+  });
+  return result;
+}
+
+export async function deleteTeamChatMessage(id: number) {
+  const db = await getDb();
+  const { staffTeamChat } = await import("../drizzle/schema");
+  return db!.delete(staffTeamChat).where(eq(staffTeamChat.id, id));
+}
+
+// ─── Sprint 8: Lead Source Analytics ─────────────────────────────────────────
+export async function getLeadSourceAnalytics() {
+  const db = await getDb();
+  const { leads, leadPipelineStages } = await import("../drizzle/schema");
+  const allLeads = await db!.select({
+    source: leads.source,
+    status: leadPipelineStages.stage,
+    country: leads.preferredCountry,
+    createdAt: leads.createdAt,
+  }).from(leads).leftJoin(leadPipelineStages, eq(leads.id, leadPipelineStages.leadId));
+  return allLeads;
+}

@@ -38,6 +38,7 @@ import SimulatorReport from "./pages/SimulatorReport";
 import AgentCommandCenter from "./pages/AgentCommandCenter";
 import CounselorCRM from "./pages/CounselorCRM";
 import StudentProfile360 from "./pages/StudentProfile360";
+import TeamChat from "./pages/TeamChat";
 import { useVisitorTracking } from "./hooks/useVisitorTracking";
 import AIAnswers from "./pages/AIAnswers";
 
@@ -75,6 +76,7 @@ function Router() {
       <Route path={"/staff-dashboard"} component={StaffDashboard} />
       <Route path={"/crm"} component={CounselorCRM} />
       <Route path={"/crm/lead/:id"} component={StudentProfile360} />
+      <Route path={"/crm/team-chat"} component={TeamChat} />
       <Route path={"/admin"} component={AdminDashboard} />
       <Route path={"/admin/agents"} component={AgentCommandCenter} />
       <Route path={"/blog"} component={Blog} />

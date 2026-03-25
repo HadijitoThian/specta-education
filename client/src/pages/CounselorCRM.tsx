@@ -15,7 +15,7 @@ import {
   Plus, ChevronRight, Users, TrendingUp, Target, Award, Calendar,
   Zap, Star, BarChart3, ArrowRight, RefreshCw, User, BookOpen,
   Search, Filter, UserPlus, Eye, Crown, Edit2, Upload, X, Download,
-  GripVertical, Bell, CheckCheck
+  GripVertical, Bell, CheckCheck, MessageSquare
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -86,6 +86,9 @@ export default function CounselorCRM() {
     undefined, { enabled: !!staffUser }
   );
   const { data: allPerfData, refetch: refetchAllPerf } = trpc.crm.getAllPerformance.useQuery(
+    undefined, { enabled: !!staffUser && isAdmin }
+  );
+  const { data: leadSourceData } = trpc.crm.getLeadSourceAnalytics.useQuery(
     undefined, { enabled: !!staffUser && isAdmin }
   );
 
@@ -371,6 +374,13 @@ export default function CounselorCRM() {
 
             {/* Notification Bell */}
             <NotificationBell staffEmail={staffUser.email} />
+            {/* Team Chat Button */}
+            <Link href="/crm/team-chat">
+              <Button size="sm" variant="outline" className="border-purple-500/40 text-purple-400 hover:bg-purple-500/10 gap-1 px-2 sm:px-3">
+                <MessageSquare className="w-4 h-4" />
+                <span className="hidden sm:inline">Team Chat</span>
+              </Button>
+            </Link>
 
             {/* CSV Import Button */}
             <Button size="sm" variant="outline" className="border-green-500/40 text-green-400 hover:bg-green-500/10 gap-1 px-2 sm:px-3"
@@ -1095,6 +1105,37 @@ export default function CounselorCRM() {
                   </CardContent>
                 </Card>
 
+                {/* Lead Source Analytics */}
+                <Card className="bg-[#0d1424]/80 border-white/10">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-white text-base flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-[#f59e0b]" /> Lead Source Analytics
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {((leadSourceData as any)?.sources || []).map((src: any, i: number) => {
+                        const colors = ["bg-blue-500", "bg-green-500", "bg-purple-500", "bg-orange-500", "bg-pink-500"];
+                        const textColors = ["text-blue-400", "text-green-400", "text-purple-400", "text-orange-400", "text-pink-400"];
+                        const total = ((leadSourceData as any)?.sources || []).reduce((s: number, x: any) => s + (x.count || 0), 0);
+                        const pct = total > 0 ? Math.round((src.count / total) * 100) : 0;
+                        return (
+                          <div key={i} className="bg-white/5 rounded-lg p-3 text-center">
+                            <div className={`text-2xl font-bold ${textColors[i % textColors.length]}`}>{src.count}</div>
+                            <div className="text-white/60 text-xs mt-1 capitalize">{src.source?.replace(/_/g, " ") || "Unknown"}</div>
+                            <div className="mt-2 bg-white/10 rounded-full h-1.5">
+                              <div className={`${colors[i % colors.length]} h-1.5 rounded-full`} style={{ width: `${pct}%` }} />
+                            </div>
+                            <div className="text-white/40 text-xs mt-1">{pct}%</div>
+                          </div>
+                        );
+                      })}
+                      {((leadSourceData as any)?.sources || []).length === 0 && (
+                        <div className="col-span-4 text-center text-white/40 py-4 text-sm">No lead source data yet</div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
                 <div>
                   <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
                     <Users className="w-4 h-4 text-[#f59e0b]" /> Distribusi Student per Counselor

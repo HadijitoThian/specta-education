@@ -239,6 +239,13 @@
       "when": 1774417748639,
       "tag": "0033_minor_cargill",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "5",
+      "when": 1774419963468,
+      "tag": "0034_outstanding_lord_hawal",
+      "breakpoints": true
     }
   ]
 }

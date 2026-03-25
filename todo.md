@@ -1571,3 +1571,8 @@
 - [ ] CRM mobile-responsive layout (counselors can use from phone)
 - [ ] Student Profile mobile-responsive layout
 - [ ] Touch-friendly pipeline stage change on mobile
+
+## Sprint 8 — Application Tracker + Team Chat + Analytics
+- [x] Student Application Tracker (per-student university applications with status tracking)
+- [x] Counselor Internal Team Chat (staff-to-staff messaging within CRM)
+- [x] Lead Source Analytics chart on CEO View dashboard

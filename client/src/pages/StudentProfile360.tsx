@@ -45,7 +45,7 @@ export default function StudentProfile360() {
   const { data: leadData, refetch: refetchLead } = trpc.crm.getLeadWithPipeline.useQuery({ leadId }, { enabled: leadId > 0 });
   const { data: notesData, refetch: refetchNotes } = trpc.crm.getNotesByLead.useQuery({ leadId }, { enabled: leadId > 0 });
   const { data: tasksData, refetch: refetchTasks } = trpc.crm.getAllTasks.useQuery();
-  const { data: appsData } = trpc.application.getAll.useQuery(undefined, { enabled: leadId > 0 });
+  const { data: appsData, refetch: refetchApps } = trpc.crm.getApplications.useQuery({ leadId }, { enabled: leadId > 0 });
 
   // Mutations
   const addNote = trpc.crm.addConsultationNote.useMutation({
@@ -683,43 +683,7 @@ export default function StudentProfile360() {
 
             {/* Applications Tab */}
             {activeTab === "applications" && (
-              <div className="space-y-3">
-                <h3 className="text-white font-medium">Applications ({applications.length})</h3>
-                {applications.length === 0 ? (
-                  <Card className="bg-[#0d1424]/80 border-white/10">
-                    <CardContent className="p-8 text-center text-white/40">
-                      <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                      <p className="text-sm">No applications yet.</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  applications.map((app: any) => (
-                    <Card key={app.id} className="bg-[#0d1424]/80 border-white/10">
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="font-medium text-white">{app.universityName || "University"}</div>
-                            <div className="text-sm text-white/50">{app.programName} · {app.country}</div>
-                            <div className="text-xs text-white/30 mt-1">Ref: {app.referenceNumber}</div>
-                          </div>
-                          <div className="flex flex-col items-end gap-2">
-                            <Badge className={`text-xs ${
-                              app.status === "approved" ? "bg-green-500/20 text-green-400 border-green-500/30" :
-                              app.status === "rejected" ? "bg-red-500/20 text-red-400 border-red-500/30" :
-                              "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
-                            }`}>{app.status}</Badge>
-                            <Link href={`/staff-dashboard/applications/${app.id}`}>
-                              <button className="text-xs text-[#f59e0b] flex items-center gap-1">
-                                View <ExternalLink className="w-3 h-3" />
-                              </button>
-                            </Link>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                )}
-              </div>
+              <ApplicationTracker leadId={leadId} refetchApps={refetchApps} />
             )}
 
             {/* ── Documents Tab ── */}
@@ -1088,5 +1052,149 @@ function ParentReportButton({ lead, leadId }: { lead: any; leadId: number }) {
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── Application Tracker Component ───────────────────────────────────────────
+function ApplicationTracker({ leadId, refetchApps }: { leadId: number; refetchApps: () => void }) {
+  const { data, refetch } = trpc.crm.getApplications.useQuery({ leadId });
+  const createMut = trpc.crm.addApplication.useMutation({ onSuccess: () => { refetch(); refetchApps(); setOpen(false); setForm(defaultForm); toast.success("Application added!"); } });
+  const updateMut = trpc.crm.updateStudentApp.useMutation({ onSuccess: () => refetch() });
+  const deleteMut = trpc.crm.deleteStudentApp.useMutation({ onSuccess: () => { refetch(); refetchApps(); toast.success("Application removed"); } });
+
+  const defaultForm = { universityName: "", programName: "", country: "", intakePeriod: "", applicationStatus: "preparing", tuitionFee: "", scholarshipInfo: "", notes: "" };
+  const [open, setOpen] = React.useState(false);
+  const [form, setForm] = React.useState(defaultForm);
+
+  const applications = (data as any)?.applications || [];
+
+  const statusColors: Record<string, string> = {
+    preparing: "bg-gray-500/20 text-gray-300 border-gray-500/30",
+    submitted: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+    under_review: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+    conditional_offer: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+    unconditional_offer: "bg-green-500/20 text-green-300 border-green-500/30",
+    rejected: "bg-red-500/20 text-red-300 border-red-500/30",
+    withdrawn: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+    enrolled: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+  };
+
+  const statusLabels: Record<string, string> = {
+    preparing: "Preparing", submitted: "Submitted", under_review: "Under Review",
+    conditional_offer: "Conditional Offer", unconditional_offer: "Unconditional Offer",
+    rejected: "Rejected", withdrawn: "Withdrawn", enrolled: "Enrolled",
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-white font-semibold">University Applications ({applications.length})</h3>
+        <button onClick={() => setOpen(true)}
+          className="px-3 py-1.5 bg-[#e91e8c] text-white text-xs rounded-lg hover:bg-[#c2185b] transition-colors">
+          + Add Application
+        </button>
+      </div>
+
+      {open && (
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+          <h4 className="text-white font-medium text-sm">New University Application</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-white/60 text-xs">University Name *</label>
+              <input value={form.universityName} onChange={e => setForm(f => ({ ...f, universityName: e.target.value }))}
+                className="w-full mt-1 bg-white/10 border border-white/20 text-white rounded px-2 py-1.5 text-sm" placeholder="e.g. University of Melbourne" />
+            </div>
+            <div>
+              <label className="text-white/60 text-xs">Program Name *</label>
+              <input value={form.programName} onChange={e => setForm(f => ({ ...f, programName: e.target.value }))}
+                className="w-full mt-1 bg-white/10 border border-white/20 text-white rounded px-2 py-1.5 text-sm" placeholder="e.g. Bachelor of Commerce" />
+            </div>
+            <div>
+              <label className="text-white/60 text-xs">Country</label>
+              <select value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))}
+                className="w-full mt-1 bg-white/10 border border-white/20 text-white rounded px-2 py-1.5 text-sm">
+                <option value="">Select country</option>
+                {["Australia","UK","Canada","USA","New Zealand","Malaysia","Singapore","Ireland","Netherlands","Germany","Japan","South Korea","China"].map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-white/60 text-xs">Intake Period</label>
+              <input value={form.intakePeriod} onChange={e => setForm(f => ({ ...f, intakePeriod: e.target.value }))}
+                className="w-full mt-1 bg-white/10 border border-white/20 text-white rounded px-2 py-1.5 text-sm" placeholder="e.g. September 2026" />
+            </div>
+            <div>
+              <label className="text-white/60 text-xs">Tuition Fee (per year)</label>
+              <input value={form.tuitionFee} onChange={e => setForm(f => ({ ...f, tuitionFee: e.target.value }))}
+                className="w-full mt-1 bg-white/10 border border-white/20 text-white rounded px-2 py-1.5 text-sm" placeholder="e.g. AUD 35,000" />
+            </div>
+            <div>
+              <label className="text-white/60 text-xs">Scholarship Info</label>
+              <input value={form.scholarshipInfo} onChange={e => setForm(f => ({ ...f, scholarshipInfo: e.target.value }))}
+                className="w-full mt-1 bg-white/10 border border-white/20 text-white rounded px-2 py-1.5 text-sm" placeholder="e.g. 20% merit scholarship" />
+            </div>
+            <div className="col-span-2">
+              <label className="text-white/60 text-xs">Notes</label>
+              <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                className="w-full mt-1 bg-white/10 border border-white/20 text-white rounded px-2 py-1.5 text-sm resize-none" rows={2} placeholder="Any additional notes..." />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => setOpen(false)} className="px-3 py-1.5 text-white/60 text-xs hover:text-white">Cancel</button>
+            <button onClick={() => {
+              if (!form.universityName || !form.programName) return toast.error("University and program name are required");
+              createMut.mutate({ leadId, ...form });
+            }} disabled={createMut.isPending}
+              className="px-4 py-1.5 bg-[#e91e8c] text-white text-xs rounded-lg hover:bg-[#c2185b] disabled:opacity-50">
+              {createMut.isPending ? "Adding..." : "Add Application"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {applications.length === 0 ? (
+        <div className="text-center py-12 text-white/30">
+          <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <p className="text-sm">No university applications yet.</p>
+          <p className="text-xs mt-1">Add applications to track the student's university journey.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {applications.map((app: any) => (
+            <Card key={app.id} className="bg-[#0d1424]/80 border-white/10">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-white truncate">{app.universityName}</span>
+                      <Badge className={`text-xs border ${statusColors[app.applicationStatus] || statusColors.preparing}`}>
+                        {statusLabels[app.applicationStatus] || app.applicationStatus}
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-white/60 mt-0.5">{app.programName}</div>
+                    <div className="flex flex-wrap gap-3 mt-2 text-xs text-white/40">
+                      {app.country && <span>🌏 {app.country}</span>}
+                      {app.intakePeriod && <span>📅 {app.intakePeriod}</span>}
+                      {app.tuitionFee && <span>💰 {app.tuitionFee}</span>}
+                      {app.scholarshipInfo && <span>🎓 {app.scholarshipInfo}</span>}
+                    </div>
+                    {app.notes && <p className="text-xs text-white/30 mt-2 italic">{app.notes}</p>}
+                  </div>
+                  <div className="flex flex-col gap-2 items-end shrink-0">
+                    <select
+                      value={app.applicationStatus}
+                      onChange={e => updateMut.mutate({ id: app.id, applicationStatus: e.target.value })}
+                      className="text-xs bg-white/10 border border-white/20 text-white rounded px-2 py-1">
+                      {Object.entries(statusLabels).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                    <button onClick={() => { if (confirm("Remove this application?")) deleteMut.mutate({ id: app.id }); }}
+                      className="text-xs text-red-400/60 hover:text-red-400 transition-colors">Remove</button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

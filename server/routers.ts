@@ -203,6 +203,14 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
   createNotification,
+  getApplicationsByLead,
+  createStudentApplication,
+  updateStudentApplication,
+  deleteStudentApplication,
+  getLeadSourceAnalytics,
+  getTeamChatMessages,
+  sendTeamChatMessage,
+  deleteTeamChatMessage,
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail } from "./email";
@@ -6224,6 +6232,167 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
           return { success: false, explanation: "Error generating explanation: " + e.message };
         }
       }),
+
+// ─── Sprint 8: Student Applications ──────────────────────────────────────
+    getApplications: publicProcedure
+      .input(z.object({ leadId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { applications: [] };
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        } catch { return { applications: [] }; }
+        const apps = await getApplicationsByLead(input.leadId);
+        return { applications: apps };
+      }),
+    addApplication: publicProcedure
+      .input(z.object({
+        leadId: z.number(),
+        universityName: z.string().min(1),
+        programName: z.string().min(1),
+        country: z.string().optional(),
+        intakePeriod: z.string().optional(),
+        applicationStatus: z.string().optional(),
+        tuitionFee: z.string().optional(),
+        scholarshipInfo: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        let staffEmail = "";
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+          staffEmail = payload.email as string || "";
+        } catch { return { success: false, error: "Not authenticated" }; }
+        try {
+          await createStudentApplication({ ...input, staffEmail });
+          return { success: true };
+        } catch (e: any) {
+          return { success: false, error: e.message };
+        }
+      }),
+    updateStudentApp: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        universityName: z.string().optional(),
+        programName: z.string().optional(),
+        country: z.string().optional(),
+        intakePeriod: z.string().optional(),
+        applicationStatus: z.string().optional(),
+        tuitionFee: z.string().optional(),
+        scholarshipInfo: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        } catch { return { success: false, error: "Not authenticated" }; }
+        const { id, ...data } = input;
+        try {
+          await updateStudentApplication(id, data as any);
+          return { success: true };
+        } catch (e: any) {
+          return { success: false, error: e.message };
+        }
+      }),
+    deleteStudentApp: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        } catch { return { success: false, error: "Not authenticated" }; }
+        try {
+          await deleteStudentApplication(input.id);
+          return { success: true };
+        } catch (e: any) {
+          return { success: false, error: e.message };
+        }
+      }),
+    // ─── Sprint 8: Team Chat ──────────────────────────────────────────────────
+    getTeamChat: publicProcedure
+      .input(z.object({ channel: z.string().default("general"), limit: z.number().default(50) }))
+      .query(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { messages: [] };
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        } catch { return { messages: [] }; }
+        const messages = await getTeamChatMessages(input.channel, input.limit);
+        return { messages };
+      }),
+    sendTeamChat: publicProcedure
+      .input(z.object({
+        message: z.string().min(1).max(2000),
+        channel: z.string().default("general"),
+        replyToId: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        let senderName = "Staff", senderEmail = "";
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+          senderName = payload.name as string || "Staff";
+          senderEmail = payload.email as string || "";
+        } catch { return { success: false, error: "Not authenticated" }; }
+        try {
+          await sendTeamChatMessage({ senderEmail, senderName, message: input.message, channel: input.channel, replyToId: input.replyToId });
+          return { success: true };
+        } catch (e: any) {
+          return { success: false, error: e.message };
+        }
+      }),
+    deleteTeamChat: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        } catch { return { success: false, error: "Not authenticated" }; }
+        try {
+          await deleteTeamChatMessage(input.id);
+          return { success: true };
+        } catch (e: any) {
+          return { success: false, error: e.message };
+        }
+      }),
+    // ─── Sprint 8: Lead Source Analytics ─────────────────────────────────────
+    getLeadSourceAnalytics: publicProcedure
+      .query(async ({ ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { data: [] };
+        let isAdmin = false;
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+          isAdmin = payload.role === "admin" || payload.role === "ceo";
+        } catch { return { data: [] }; }
+        if (!isAdmin) return { data: [] };
+        const data = await getLeadSourceAnalytics();
+        return { data };
+      }),
+
   }),
 });
 export type AppRouter = typeof appRouter;
