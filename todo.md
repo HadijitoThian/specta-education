@@ -1620,3 +1620,24 @@
 - [x] Team chat celebration post when student reaches enrolled
 - [x] Application status summary card on Overview tab in StudentProfile360
 - [x] Visa prompt button on Overview when unconditional offer / enrolled
+
+## Sprint 11 (March 2026) — WhatsApp, Document Upload & Overview Summary
+- [ ] Backend: tRPC uploadDocument procedure (S3 upload, store URL + metadata in DB)
+- [ ] Backend: tRPC getDocumentsByLead procedure (return docs with file URLs)
+- [ ] Backend: tRPC updateDocumentStatus procedure (pending/submitted/verified/rejected)
+- [ ] Frontend: Document tab — file upload UI (drag & drop + button), file preview/download
+- [ ] Frontend: Document tab — status badge management per document
+- [ ] Frontend: Overview tab — document status summary card (missing docs alert)
+- [ ] Frontend: WhatsApp button on StudentProfile360 sidebar (with pre-filled message template)
+- [ ] Frontend: WhatsApp button on pipeline LeadCard
+- [ ] Frontend: WhatsApp button on student list row
+
+## Sprint 11 (March 2026) — WhatsApp, Document Upload, Document Summary
+- [x] Document file upload to S3 (PDF, JPG, PNG, DOC) with base64 encoding
+- [x] File preview modal (images inline, PDFs in iframe, other files downloadable)
+- [x] Document status management (pending/submitted/verified/rejected) with timeline logging
+- [x] Document status summary card on Overview tab (counts + missing docs alert)
+- [x] WhatsApp button on pipeline cards with pre-filled message template
+- [x] WhatsApp button on student list with pre-filled message template
+- [x] WhatsApp button already existed on student profile sidebar + quick actions
+- [x] 9/9 vitest tests passing, 0 TypeScript errors

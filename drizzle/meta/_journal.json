@@ -253,6 +253,13 @@
       "when": 1774422059562,
       "tag": "0035_peaceful_ultimates",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "5",
+      "when": 1774426073785,
+      "tag": "0036_magenta_bloodstrike",
+      "breakpoints": true
     }
   ]
 }

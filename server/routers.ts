@@ -192,6 +192,9 @@ import {
   getCrmDocsByLead,
   upsertCrmDoc,
   initDefaultDocChecklist,
+  updateCrmDocFile,
+  updateCrmDocStatus,
+  deleteCrmDoc,
   getCrmAppointmentsByLead,
   getCrmAppointmentsByStaff,
   getAllCrmAppointments,
@@ -6599,6 +6602,91 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
         } catch { return { success: false, error: "Not authenticated" }; }
         const result = await seedUniversitiesIfEmpty();
         return { success: true, ...result };
+      }),
+
+    // ─── Sprint 11: CRM Document File Upload ─────────────────────────────────
+    uploadCrmDocument: publicProcedure
+      .input(z.object({
+        docId: z.number(),
+        leadId: z.number(),
+        fileName: z.string(),
+        fileData: z.string(), // base64
+        fileMimeType: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        let staffEmail = "";
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+          staffEmail = payload.email as string || "";
+        } catch { return { success: false, error: "Not authenticated" }; }
+        try {
+          const buffer = Buffer.from(input.fileData, "base64");
+          const fileKey = `crm-docs/${input.leadId}/${nanoid()}-${input.fileName}`;
+          const { url } = await storagePut(fileKey, buffer, input.fileMimeType);
+          await updateCrmDocFile(input.docId, {
+            fileUrl: url,
+            fileKey,
+            fileName: input.fileName,
+            fileMimeType: input.fileMimeType,
+            staffEmail,
+          });
+          // Log timeline
+          await logActivity({
+            leadId: input.leadId,
+            activityType: "document_upload",
+            title: `Document uploaded: ${input.fileName}`,
+            description: `Document uploaded for checklist item`,
+            staffEmail,
+          });
+          return { success: true, fileUrl: url };
+        } catch (e: any) {
+          return { success: false, error: e.message };
+        }
+      }),
+
+    updateCrmDocumentStatus: publicProcedure
+      .input(z.object({
+        docId: z.number(),
+        leadId: z.number(),
+        status: z.enum(["pending", "submitted", "verified", "rejected"]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        let staffEmail = "";
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+          staffEmail = payload.email as string || "";
+        } catch { return { success: false, error: "Not authenticated" }; }
+        await updateCrmDocStatus(input.docId, input.status, staffEmail);
+        await logActivity({
+          leadId: input.leadId,
+          activityType: "document_upload",
+          title: `Document status updated to: ${input.status}`,
+          description: `Document status changed`,
+          staffEmail,
+        });
+        return { success: true };
+      }),
+
+    deleteCrmDocument: publicProcedure
+      .input(z.object({ docId: z.number(), leadId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        } catch { return { success: false, error: "Not authenticated" }; }
+        await deleteCrmDoc(input.docId);
+        return { success: true };
       }),
 
     // ─── Sprint 9: Visa Tracking ──────────────────────────────────────────────

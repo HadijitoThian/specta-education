@@ -2559,6 +2559,30 @@ export async function createCrmAppointment(data: typeof crmAppointments.$inferIn
   const [result] = await db!.insert(crmAppointments).values(data);
   return (result as any).insertId as number;
 }
+export async function updateCrmDocFile(id: number, data: { fileUrl: string; fileKey: string; fileName: string; fileMimeType: string; staffEmail?: string }) {
+  const db = await getDb();
+  await db!.update(crmStudentDocuments).set({
+    fileUrl: data.fileUrl,
+    fileKey: data.fileKey,
+    fileName: data.fileName,
+    fileMimeType: data.fileMimeType,
+    status: "submitted",
+    submittedAt: new Date(),
+    staffEmail: data.staffEmail,
+    updatedAt: new Date(),
+  }).where(eq(crmStudentDocuments.id, id));
+}
+export async function updateCrmDocStatus(id: number, status: "pending"|"submitted"|"verified"|"rejected", staffEmail?: string) {
+  const db = await getDb();
+  const updates: Record<string, any> = { status, updatedAt: new Date(), staffEmail };
+  if (status === "submitted") updates.submittedAt = new Date();
+  if (status === "verified") updates.verifiedAt = new Date();
+  await db!.update(crmStudentDocuments).set(updates).where(eq(crmStudentDocuments.id, id));
+}
+export async function deleteCrmDoc(id: number) {
+  const db = await getDb();
+  await db!.delete(crmStudentDocuments).where(eq(crmStudentDocuments.id, id));
+}
 export async function updateCrmAppointment(id: number, data: Partial<typeof crmAppointments.$inferInsert>) {
   const db = await getDb();
   await db!.update(crmAppointments).set({ ...data, updatedAt: new Date() }).where(eq(crmAppointments.id, id));

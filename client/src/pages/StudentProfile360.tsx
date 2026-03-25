@@ -621,6 +621,9 @@ export default function StudentProfile360() {
                     </CardContent>
                   </Card>
                 )}
+
+                {/* Document Status Summary on Overview */}
+                <DocStatusSummary leadId={leadId} onViewDocs={() => setActiveTab("documents")} />
               </div>
             )}
 
@@ -804,12 +807,90 @@ export default function StudentProfile360() {
     </div>
   );
 }
+// ─── Document Status Summary (Overview) ─────────────────────────────────────
+function DocStatusSummary({ leadId, onViewDocs }: { leadId: number; onViewDocs: () => void }) {
+  const { data } = trpc.crm.getDocChecklist.useQuery({ leadId });
+  const docs = (data as any)?.docs || [];
+  if (docs.length === 0) return null;
+
+  const pending = docs.filter((d: any) => d.status === "pending").length;
+  const submitted = docs.filter((d: any) => d.status === "submitted").length;
+  const verified = docs.filter((d: any) => d.status === "verified").length;
+  const rejected = docs.filter((d: any) => d.status === "rejected").length;
+  const withFile = docs.filter((d: any) => d.fileUrl).length;
+  const missingDocs = docs.filter((d: any) => d.status === "pending" && !d.fileUrl);
+
+  return (
+    <Card className={`bg-[#0d1424]/80 border ${
+      rejected > 0 ? "border-red-500/30" :
+      pending > 0 ? "border-yellow-500/20" :
+      "border-green-500/20"
+    }`}>
+      <CardHeader>
+        <CardTitle className="text-white text-sm flex items-center justify-between">
+          <span>📄 Documents ({docs.length})</span>
+          <button className="text-[#f59e0b] text-xs hover:underline" onClick={onViewDocs}>Manage →</button>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-5 pt-0 space-y-3">
+        {/* Progress bar */}
+        <div className="w-full bg-white/10 rounded-full h-1.5">
+          <div className="bg-gradient-to-r from-[#e91e8c] to-[#f59e0b] h-1.5 rounded-full"
+            style={{ width: `${Math.round((verified / docs.length) * 100)}%` }} />
+        </div>
+        {/* Status counts */}
+        <div className="grid grid-cols-4 gap-2 text-center">
+          <div className="bg-yellow-500/10 rounded-lg p-2">
+            <div className="text-yellow-300 font-bold text-lg">{pending}</div>
+            <div className="text-white/40 text-xs">Pending</div>
+          </div>
+          <div className="bg-blue-500/10 rounded-lg p-2">
+            <div className="text-blue-300 font-bold text-lg">{submitted}</div>
+            <div className="text-white/40 text-xs">Submitted</div>
+          </div>
+          <div className="bg-green-500/10 rounded-lg p-2">
+            <div className="text-green-300 font-bold text-lg">{verified}</div>
+            <div className="text-white/40 text-xs">Verified</div>
+          </div>
+          <div className="bg-purple-500/10 rounded-lg p-2">
+            <div className="text-purple-300 font-bold text-lg">{withFile}</div>
+            <div className="text-white/40 text-xs">Files Uploaded</div>
+          </div>
+        </div>
+        {/* Missing docs alert */}
+        {missingDocs.length > 0 && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+            <p className="text-red-300 text-xs font-semibold mb-1">⚠️ {missingDocs.length} document(s) still missing:</p>
+            <div className="flex flex-wrap gap-1">
+              {missingDocs.slice(0, 4).map((d: any) => (
+                <span key={d.id} className="text-xs bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full">{d.docLabel}</span>
+              ))}
+              {missingDocs.length > 4 && <span className="text-xs text-red-300/60">+{missingDocs.length - 4} more</span>}
+            </div>
+          </div>
+        )}
+        {rejected > 0 && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2">
+            <p className="text-red-300 text-xs">❌ {rejected} document(s) rejected — action required</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Document Checklist Component ────────────────────────────────────────────
 function DocumentChecklist({ leadId }: { leadId: number }) {
   const { data, refetch } = trpc.crm.getDocChecklist.useQuery({ leadId });
   const initMut = trpc.crm.initDocChecklist.useMutation({ onSuccess: () => refetch() });
   const updateMut = trpc.crm.updateDocStatus.useMutation({ onSuccess: () => refetch() });
+  const uploadMut = trpc.crm.uploadCrmDocument.useMutation({ onSuccess: () => refetch() });
+  const updateStatusMut = trpc.crm.updateCrmDocumentStatus.useMutation({ onSuccess: () => refetch() });
+  const deleteMut = trpc.crm.deleteCrmDocument.useMutation({ onSuccess: () => refetch() });
   const docs = (data as any)?.docs || [];
+  const [uploadingId, setUploadingId] = React.useState<number | null>(null);
+  const [previewDoc, setPreviewDoc] = React.useState<any | null>(null);
+  const fileInputRefs = React.useRef<Record<number, HTMLInputElement | null>>({});
 
   const statusColors: Record<string, string> = {
     pending: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
@@ -819,6 +900,26 @@ function DocumentChecklist({ leadId }: { leadId: number }) {
   };
   const statusIcons: Record<string, string> = { pending: "⏳", submitted: "📤", verified: "✅", rejected: "❌" };
   const submitted = docs.filter((d: any) => d.status === "submitted" || d.status === "verified").length;
+
+  const handleFileUpload = async (doc: any, file: File) => {
+    if (file.size > 16 * 1024 * 1024) { alert("File too large. Max 16MB."); return; }
+    setUploadingId(doc.id);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64 = (e.target?.result as string).split(",")[1];
+        await uploadMut.mutateAsync({
+          docId: doc.id, leadId,
+          fileName: file.name, fileData: base64, fileMimeType: file.type,
+        });
+        setUploadingId(null);
+      };
+      reader.readAsDataURL(file);
+    } catch { setUploadingId(null); }
+  };
+
+  const isImage = (mime?: string) => mime?.startsWith("image/");
+  const isPdf = (mime?: string) => mime === "application/pdf";
 
   return (
     <div className="space-y-4">
@@ -848,28 +949,93 @@ function DocumentChecklist({ leadId }: { leadId: number }) {
       ) : (
         <div className="space-y-2">
           {docs.map((doc: any) => (
-            <div key={doc.id} className="flex items-center justify-between bg-white/5 rounded-lg px-4 py-3 border border-white/10">
-              <div className="flex items-center gap-3">
-                <span className="text-lg">{statusIcons[doc.status] || "📄"}</span>
-                <div>
-                  <p className="text-white text-sm font-medium">{doc.docLabel}</p>
-                  {doc.notes && <p className="text-white/40 text-xs mt-0.5">{doc.notes}</p>}
+            <div key={doc.id} className={`bg-white/5 rounded-lg px-4 py-3 border transition-all ${
+              doc.status === "verified" ? "border-green-500/30" :
+              doc.status === "rejected" ? "border-red-500/30" :
+              doc.fileUrl ? "border-blue-500/20" : "border-white/10"
+            }`}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <span className="text-lg shrink-0">{statusIcons[doc.status] || "📄"}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium truncate">{doc.docLabel}</p>
+                    {doc.fileName && (
+                      <p className="text-white/40 text-xs mt-0.5 truncate">📎 {doc.fileName}</p>
+                    )}
+                    {doc.notes && !doc.fileName && <p className="text-white/40 text-xs mt-0.5">{doc.notes}</p>}
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-xs px-2 py-1 rounded-full border ${statusColors[doc.status]}`}>{doc.status}</span>
-                <select
-                  value={doc.status}
-                  onChange={e => updateMut.mutate({ leadId, docType: doc.docType, docLabel: doc.docLabel, status: e.target.value as any })}
-                  className="text-xs bg-white/10 border border-white/20 text-white rounded px-2 py-1">
-                  <option value="pending">Pending</option>
-                  <option value="submitted">Submitted</option>
-                  <option value="verified">Verified</option>
-                  <option value="rejected">Rejected</option>
-                </select>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* File preview/download */}
+                  {doc.fileUrl && (
+                    <button
+                      onClick={() => setPreviewDoc(doc)}
+                      className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1 rounded border border-blue-500/30 bg-blue-500/10"
+                      title="View file">
+                      👁 View
+                    </button>
+                  )}
+                  {/* Upload button */}
+                  <button
+                    onClick={() => fileInputRefs.current[doc.id]?.click()}
+                    disabled={uploadingId === doc.id}
+                    className="text-xs text-[#f59e0b] hover:text-[#d97706] px-2 py-1 rounded border border-[#f59e0b]/30 bg-[#f59e0b]/10"
+                    title="Upload file">
+                    {uploadingId === doc.id ? "⏳" : "📤 Upload"}
+                  </button>
+                  <input
+                    ref={el => { fileInputRefs.current[doc.id] = el; }}
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(doc, f); e.target.value = ""; }}
+                  />
+                  {/* Status dropdown */}
+                  <select
+                    value={doc.status}
+                    onChange={e => updateStatusMut.mutate({ docId: doc.id, leadId, status: e.target.value as any })}
+                    className="text-xs bg-white/10 border border-white/20 text-white rounded px-2 py-1">
+                    <option value="pending">Pending</option>
+                    <option value="submitted">Submitted</option>
+                    <option value="verified">Verified</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* File Preview Modal */}
+      {previewDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={() => setPreviewDoc(null)}>
+          <div className="bg-[#0d1424] border border-white/20 rounded-xl p-4 max-w-2xl w-full mx-4 max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-white font-semibold text-sm">{previewDoc.docLabel}</h3>
+              <div className="flex items-center gap-2">
+                <a href={previewDoc.fileUrl} target="_blank" rel="noopener noreferrer"
+                  className="text-xs text-[#f59e0b] hover:underline px-2 py-1 border border-[#f59e0b]/30 rounded">
+                  ⬇ Download
+                </a>
+                <button onClick={() => setPreviewDoc(null)} className="text-white/50 hover:text-white text-lg leading-none">×</button>
+              </div>
+            </div>
+            {isImage(previewDoc.fileMimeType) ? (
+              <img src={previewDoc.fileUrl} alt={previewDoc.docLabel} className="w-full rounded-lg max-h-[70vh] object-contain" />
+            ) : isPdf(previewDoc.fileMimeType) ? (
+              <iframe src={previewDoc.fileUrl} className="w-full h-[70vh] rounded-lg" title={previewDoc.docLabel} />
+            ) : (
+              <div className="text-center py-12 text-white/50">
+                <p className="text-4xl mb-3">📄</p>
+                <p className="text-sm">{previewDoc.fileName}</p>
+                <a href={previewDoc.fileUrl} target="_blank" rel="noopener noreferrer"
+                  className="mt-4 inline-block text-[#f59e0b] hover:underline text-sm">
+                  Click to download
+                </a>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
