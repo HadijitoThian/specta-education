@@ -1,4 +1,5 @@
 import { useState } from "react";
+import React from "react";
 import { useRoute, Link } from "wouter";
 import AICounselorAssistant from "@/components/AICounselorAssistant";
 import { trpc } from "@/lib/trpc";
@@ -36,7 +37,7 @@ export default function StudentProfile360() {
   const [noteOpen, setNoteOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "notes" | "tasks" | "applications" | "ai">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "notes" | "tasks" | "documents" | "appointments" | "timeline" | "applications" | "ai">("overview");
 
   // Queries
   const { data: leadData, refetch: refetchLead } = trpc.crm.getLeadWithPipeline.useQuery({ leadId }, { enabled: leadId > 0 });
@@ -422,6 +423,7 @@ export default function StudentProfile360() {
                     </Button>
                   </a>
                 )}
+                <ParentReportButton lead={lead} leadId={leadId} />
               </CardContent>
             </Card>
 
@@ -462,6 +464,9 @@ export default function StudentProfile360() {
                 { id: "overview", label: "Overview", icon: <User className="w-4 h-4" /> },
                 { id: "notes", label: `Notes (${notes.length})`, icon: <BookOpen className="w-4 h-4" /> },
                 { id: "tasks", label: `Tasks (${leadTasks.length})`, icon: <CheckCircle2 className="w-4 h-4" /> },
+                { id: "documents", label: "📄 Documents", icon: null },
+                { id: "appointments", label: "📅 Appointments", icon: null },
+                { id: "timeline", label: "🕐 Timeline", icon: null },
                 { id: "applications", label: `Applications (${applications.length})`, icon: <FileText className="w-4 h-4" /> },
                 { id: "ai", label: "🤖 AI Assistant", icon: null },
               ].map(tab => (
@@ -693,6 +698,21 @@ export default function StudentProfile360() {
               </div>
             )}
 
+            {/* ── Documents Tab ── */}
+            {activeTab === "documents" && (
+              <DocumentChecklist leadId={leadId} />
+            )}
+
+            {/* ── Appointments Tab ── */}
+            {activeTab === "appointments" && (
+              <AppointmentsPanel leadId={leadId} studentName={lead.studentName} studentEmail={lead.studentEmail} studentPhone={lead.studentPhone} />
+            )}
+
+            {/* ── Timeline Tab ── */}
+            {activeTab === "timeline" && (
+              <ActivityTimeline leadId={leadId} />
+            )}
+
             {/* ── AI Assistant Tab ── */}
             {activeTab === "ai" && (
               <div className="h-full" style={{ minHeight: "560px" }}>
@@ -708,5 +728,315 @@ export default function StudentProfile360() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── Document Checklist Component ────────────────────────────────────────────
+function DocumentChecklist({ leadId }: { leadId: number }) {
+  const { data, refetch } = trpc.crm.getDocChecklist.useQuery({ leadId });
+  const initMut = trpc.crm.initDocChecklist.useMutation({ onSuccess: () => refetch() });
+  const updateMut = trpc.crm.updateDocStatus.useMutation({ onSuccess: () => refetch() });
+  const docs = (data as any)?.docs || [];
+
+  const statusColors: Record<string, string> = {
+    pending: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+    submitted: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+    verified: "bg-green-500/20 text-green-300 border-green-500/30",
+    rejected: "bg-red-500/20 text-red-300 border-red-500/30",
+  };
+  const statusIcons: Record<string, string> = { pending: "⏳", submitted: "📤", verified: "✅", rejected: "❌" };
+  const submitted = docs.filter((d: any) => d.status === "submitted" || d.status === "verified").length;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-white font-semibold">Document Checklist</h3>
+          <p className="text-white/50 text-xs mt-1">{submitted}/{docs.length} documents ready</p>
+        </div>
+        {docs.length === 0 && (
+          <button onClick={() => initMut.mutate({ leadId })} disabled={initMut.isPending}
+            className="px-3 py-1.5 bg-[#e91e8c] text-white text-xs rounded-lg hover:bg-[#c2185b] transition-colors">
+            {initMut.isPending ? "Initializing..." : "Initialize Checklist"}
+          </button>
+        )}
+      </div>
+      {docs.length > 0 && (
+        <div className="w-full bg-white/10 rounded-full h-2 mb-4">
+          <div className="bg-gradient-to-r from-[#e91e8c] to-[#f59e0b] h-2 rounded-full transition-all"
+            style={{ width: `${docs.length > 0 ? (submitted / docs.length) * 100 : 0}%` }} />
+        </div>
+      )}
+      {docs.length === 0 ? (
+        <div className="text-center py-12 text-white/40">
+          <p className="text-4xl mb-3">📋</p>
+          <p>No documents yet. Click "Initialize Checklist" to add the standard 8 documents.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {docs.map((doc: any) => (
+            <div key={doc.id} className="flex items-center justify-between bg-white/5 rounded-lg px-4 py-3 border border-white/10">
+              <div className="flex items-center gap-3">
+                <span className="text-lg">{statusIcons[doc.status] || "📄"}</span>
+                <div>
+                  <p className="text-white text-sm font-medium">{doc.docLabel}</p>
+                  {doc.notes && <p className="text-white/40 text-xs mt-0.5">{doc.notes}</p>}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs px-2 py-1 rounded-full border ${statusColors[doc.status]}`}>{doc.status}</span>
+                <select
+                  value={doc.status}
+                  onChange={e => updateMut.mutate({ leadId, docType: doc.docType, docLabel: doc.docLabel, status: e.target.value as any })}
+                  className="text-xs bg-white/10 border border-white/20 text-white rounded px-2 py-1">
+                  <option value="pending">Pending</option>
+                  <option value="submitted">Submitted</option>
+                  <option value="verified">Verified</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Appointments Panel Component ────────────────────────────────────────────
+function AppointmentsPanel({ leadId, studentName, studentEmail, studentPhone }: { leadId: number; studentName: string; studentEmail?: string; studentPhone?: string }) {
+  const { data, refetch } = trpc.crm.getAppointmentsByLead.useQuery({ leadId });
+  const createMut = trpc.crm.createAppointmentCrm.useMutation({ onSuccess: () => { refetch(); setOpen(false); } });
+  const updateMut = trpc.crm.updateAppointmentStatus.useMutation({ onSuccess: () => refetch() });
+  const [open, setOpen] = React.useState(false);
+  const [form, setForm] = React.useState({
+    appointmentType: "initial_consultation" as any,
+    scheduledAt: "", durationMinutes: 30, location: "", meetingLink: "", notes: ""
+  });
+  const appointments = (data as any)?.appointments || [];
+
+  const typeLabels: Record<string, string> = {
+    initial_consultation: "Initial Consultation", follow_up: "Follow Up",
+    document_review: "Document Review", offer_discussion: "Offer Discussion",
+    visa_prep: "Visa Preparation", other: "Other",
+  };
+  const statusColors: Record<string, string> = {
+    scheduled: "text-blue-300", completed: "text-green-300",
+    cancelled: "text-red-300", no_show: "text-yellow-300",
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-white font-semibold">Appointments ({appointments.length})</h3>
+        <button onClick={() => setOpen(true)}
+          className="px-3 py-1.5 bg-[#e91e8c] text-white text-xs rounded-lg hover:bg-[#c2185b] transition-colors">
+          + Book Appointment
+        </button>
+      </div>
+      {open && (
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+          <h4 className="text-white font-medium text-sm">New Appointment for {studentName}</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-white/60 text-xs">Type</label>
+              <select value={form.appointmentType} onChange={e => setForm(f => ({ ...f, appointmentType: e.target.value as any }))}
+                className="w-full mt-1 bg-white/10 border border-white/20 text-white rounded px-2 py-1.5 text-sm">
+                {Object.entries(typeLabels).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-white/60 text-xs">Date & Time</label>
+              <input type="datetime-local" value={form.scheduledAt} onChange={e => setForm(f => ({ ...f, scheduledAt: e.target.value }))}
+                className="w-full mt-1 bg-white/10 border border-white/20 text-white rounded px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-white/60 text-xs">Duration (minutes)</label>
+              <input type="number" value={form.durationMinutes} onChange={e => setForm(f => ({ ...f, durationMinutes: Number(e.target.value) }))}
+                className="w-full mt-1 bg-white/10 border border-white/20 text-white rounded px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-white/60 text-xs">Location / Platform</label>
+              <input type="text" placeholder="e.g. Zoom, Office, WhatsApp" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
+                className="w-full mt-1 bg-white/10 border border-white/20 text-white rounded px-2 py-1.5 text-sm" />
+            </div>
+          </div>
+          <div>
+            <label className="text-white/60 text-xs">Meeting Link (optional)</label>
+            <input type="text" placeholder="https://zoom.us/..." value={form.meetingLink} onChange={e => setForm(f => ({ ...f, meetingLink: e.target.value }))}
+              className="w-full mt-1 bg-white/10 border border-white/20 text-white rounded px-2 py-1.5 text-sm" />
+          </div>
+          <div>
+            <label className="text-white/60 text-xs">Notes</label>
+            <textarea rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+              className="w-full mt-1 bg-white/10 border border-white/20 text-white rounded px-2 py-1.5 text-sm resize-none" />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => createMut.mutate({ leadId, studentName, studentEmail, studentPhone, ...form })}
+              disabled={!form.scheduledAt || createMut.isPending}
+              className="px-4 py-2 bg-[#e91e8c] text-white text-sm rounded-lg hover:bg-[#c2185b] disabled:opacity-50">
+              {createMut.isPending ? "Booking..." : "Book Appointment"}
+            </button>
+            <button onClick={() => setOpen(false)} className="px-4 py-2 bg-white/10 text-white text-sm rounded-lg hover:bg-white/20">Cancel</button>
+          </div>
+        </div>
+      )}
+      {appointments.length === 0 && !open ? (
+        <div className="text-center py-12 text-white/40">
+          <p className="text-4xl mb-3">📅</p>
+          <p>No appointments yet. Book the first consultation!</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {appointments.map((appt: any) => (
+            <div key={appt.id} className="bg-white/5 border border-white/10 rounded-lg px-4 py-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-white font-medium text-sm">{typeLabels[appt.appointmentType] || appt.appointmentType}</p>
+                  <p className="text-white/50 text-xs mt-0.5">{new Date(appt.scheduledAt).toLocaleString()} · {appt.durationMinutes} min</p>
+                  {appt.location && <p className="text-white/40 text-xs">{appt.location}</p>}
+                  {appt.meetingLink && (
+                    <a href={appt.meetingLink} target="_blank" rel="noreferrer" className="text-[#e91e8c] text-xs hover:underline">Join Meeting</a>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-medium ${statusColors[appt.status]}`}>{appt.status}</span>
+                  <select value={appt.status} onChange={e => updateMut.mutate({ id: appt.id, status: e.target.value as any })}
+                    className="text-xs bg-white/10 border border-white/20 text-white rounded px-2 py-1">
+                    <option value="scheduled">Scheduled</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="no_show">No Show</option>
+                  </select>
+                </div>
+              </div>
+              {appt.notes && <p className="text-white/40 text-xs mt-2 border-t border-white/10 pt-2">{appt.notes}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Activity Timeline Component ─────────────────────────────────────────────
+function ActivityTimeline({ leadId }: { leadId: number }) {
+  const { data } = trpc.crm.getActivityTimeline.useQuery({ leadId });
+  const timeline = (data as any)?.timeline || [];
+
+  const typeIcons: Record<string, string> = {
+    doc_updated: "📄", appointment_booked: "📅", email_sent: "📧",
+    note_added: "📝", task_created: "✅", stage_changed: "🔄",
+    student_added: "👤", ai_chat: "🤖", default: "📌",
+  };
+  const typeColors: Record<string, string> = {
+    doc_updated: "bg-blue-500/20 border-blue-500/30",
+    appointment_booked: "bg-purple-500/20 border-purple-500/30",
+    email_sent: "bg-green-500/20 border-green-500/30",
+    note_added: "bg-yellow-500/20 border-yellow-500/30",
+    task_created: "bg-orange-500/20 border-orange-500/30",
+    stage_changed: "bg-pink-500/20 border-pink-500/30",
+    default: "bg-white/5 border-white/10",
+  };
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-white font-semibold">Activity Timeline ({timeline.length} events)</h3>
+      {timeline.length === 0 ? (
+        <div className="text-center py-12 text-white/40">
+          <p className="text-4xl mb-3">🕐</p>
+          <p>No activity recorded yet. Actions like booking appointments, updating documents, and adding notes will appear here.</p>
+        </div>
+      ) : (
+        <div className="relative">
+          <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-white/10" />
+          <div className="space-y-3">
+            {[...timeline].reverse().map((event: any) => (
+              <div key={event.id} className="flex gap-4 relative">
+                <div className={`w-10 h-10 rounded-full border flex items-center justify-center text-lg flex-shrink-0 z-10 ${typeColors[event.activityType] || typeColors.default}`}>
+                  {typeIcons[event.activityType] || typeIcons.default}
+                </div>
+                <div className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-3">
+                  <p className="text-white text-sm font-medium">{event.title}</p>
+                  {event.description && <p className="text-white/50 text-xs mt-1">{event.description}</p>}
+                  <div className="flex items-center gap-2 mt-1">
+                    {event.staffEmail && <span className="text-white/30 text-xs">{event.staffEmail}</span>}
+                    <span className="text-white/30 text-xs">·</span>
+                    <span className="text-white/30 text-xs">{new Date(event.createdAt).toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Parent Report Button Component ──────────────────────────────────────────
+function ParentReportButton({ lead, leadId }: { lead: any; leadId: number }) {
+  const [open, setOpen] = useState(false);
+  const [parentEmail, setParentEmail] = useState(lead.parentEmail || "");
+  const [parentName, setParentName] = useState(lead.parentName || "");
+
+  const sendReport = trpc.crm.sendParentReport.useMutation({
+    onSuccess: (data: any) => {
+      if (data.success) {
+        toast.success(`Progress report sent to ${parentEmail}!`);
+        setOpen(false);
+      } else {
+        toast.error(data.error || "Failed to send report");
+      }
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="w-full bg-purple-600/10 hover:bg-purple-600/20 text-purple-400 border border-purple-600/30 justify-start gap-2" variant="outline">
+          <Mail className="w-4 h-4" /> Send Parent Report
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="bg-[#0d1424] border-white/10 text-white max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-white flex items-center gap-2">
+            <Mail className="w-5 h-5 text-purple-400" /> Send Progress Report to Parent
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3 text-sm text-purple-300">
+            This will send a detailed progress report for <strong>{lead.studentName}</strong> to their parent/guardian via email.
+          </div>
+          <div>
+            <Label className="text-white/70">Parent Name</Label>
+            <Input
+              placeholder="e.g. Bapak/Ibu Ahmad"
+              className="bg-white/5 border-white/10 text-white mt-1"
+              value={parentName}
+              onChange={e => setParentName(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label className="text-white/70">Parent Email *</Label>
+            <Input
+              type="email"
+              placeholder="parent@email.com"
+              className="bg-white/5 border-white/10 text-white mt-1"
+              value={parentEmail}
+              onChange={e => setParentEmail(e.target.value)}
+            />
+          </div>
+          <Button
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold"
+            onClick={() => sendReport.mutate({ leadId, parentEmail, parentName: parentName || undefined })}
+            disabled={sendReport.isPending || !parentEmail.trim()}
+          >
+            {sendReport.isPending ? "Sending Report..." : "Send Progress Report"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

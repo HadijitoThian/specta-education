@@ -1549,3 +1549,18 @@
 - [x] Student Pipeline Kanban — drag-and-drop board: New Lead → Contacted → Docs Submitted → Offer → Enrolled
 - [x] WhatsApp Quick Action — one-click WA button on student card, pre-filled template message
 - [x] Bulk CSV Import — upload CSV/Excel to add multiple students at once with column mapping
+
+## Sprint 4 — Document Management + Reporting
+- [x] Document Checklist per Student (track passport, transcripts, IELTS, etc.)
+- [ ] Program/Major Filter in Students Tab
+- [x] Weekly Performance Email Report (auto Monday 8AM summary to CEO)
+
+## Sprint 5 — Appointments + Parent Communication
+- [ ] Appointment Booking system (counselors schedule consultations)
+- [x] Parent Email Report (send weekly progress to parent/guardian email)
+- [ ] Student Notes History (view all consultation notes in one timeline)
+
+## Sprint 6 — Timeline + Notifications
+- [x] Student Progress Timeline (visual history of all actions per student)
+- [ ] In-App Notification Center (alerts for tasks due, new leads, stage changes)
+- [ ] CRM Dashboard Quick Stats refresh (auto-refresh every 5 mins)

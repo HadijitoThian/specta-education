@@ -2506,3 +2506,92 @@ export async function clearCrmChatHistory(leadId: number) {
   const { crmChatHistory } = await import("../drizzle/schema");
   await db.delete(crmChatHistory).where(eq(crmChatHistory.leadId, leadId));
 }
+
+// ─── Sprint 4-6: CRM Student Documents ───────────────────────────────────────
+import { crmStudentDocuments, crmAppointments, crmActivityTimeline, crmNotifications } from "../drizzle/schema";
+export async function getCrmDocsByLead(leadId: number) {
+  const db = await getDb();
+  return db!.select().from(crmStudentDocuments).where(eq(crmStudentDocuments.leadId, leadId)).orderBy(crmStudentDocuments.createdAt);
+}
+export async function upsertCrmDoc(data: { leadId: number; docType: string; docLabel: string; status?: "pending"|"submitted"|"verified"|"rejected"; notes?: string; staffEmail?: string; fileUrl?: string }) {
+  const db = await getDb();
+  const existing = await db!.select().from(crmStudentDocuments)
+    .where(and(eq(crmStudentDocuments.leadId, data.leadId), eq(crmStudentDocuments.docType, data.docType)))
+    .limit(1);
+  if (existing.length > 0) {
+    await db!.update(crmStudentDocuments).set({ status: data.status || "pending", notes: data.notes, staffEmail: data.staffEmail, fileUrl: data.fileUrl, updatedAt: new Date() }).where(eq(crmStudentDocuments.id, existing[0].id));
+    return existing[0].id;
+  } else {
+    const [result] = await db!.insert(crmStudentDocuments).values({ leadId: data.leadId, docType: data.docType, docLabel: data.docLabel, status: data.status || "pending", notes: data.notes, staffEmail: data.staffEmail, fileUrl: data.fileUrl });
+    return (result as any).insertId;
+  }
+}
+export async function initDefaultDocChecklist(leadId: number, staffEmail: string) {
+  const defaults = [
+    { docType: "passport", docLabel: "Passport (Valid 18+ months)" },
+    { docType: "transcript", docLabel: "Academic Transcript / Rapor" },
+    { docType: "ielts", docLabel: "IELTS / English Proficiency Certificate" },
+    { docType: "personal_statement", docLabel: "Personal Statement / Essay" },
+    { docType: "recommendation", docLabel: "Recommendation Letter" },
+    { docType: "birth_certificate", docLabel: "Birth Certificate" },
+    { docType: "photo", docLabel: "Passport-size Photo (4x6)" },
+    { docType: "financial_proof", docLabel: "Financial Proof / Bank Statement" },
+  ];
+  for (const doc of defaults) {
+    await upsertCrmDoc({ ...doc, leadId, staffEmail });
+  }
+}
+// ─── Sprint 5: CRM Appointments ──────────────────────────────────────────────
+export async function getCrmAppointmentsByLead(leadId: number) {
+  const db = await getDb();
+  return db!.select().from(crmAppointments).where(eq(crmAppointments.leadId, leadId)).orderBy(crmAppointments.scheduledAt);
+}
+export async function getCrmAppointmentsByStaff(staffEmail: string) {
+  const db = await getDb();
+  return db!.select().from(crmAppointments).where(eq(crmAppointments.staffEmail, staffEmail)).orderBy(crmAppointments.scheduledAt);
+}
+export async function getAllCrmAppointments() {
+  const db = await getDb();
+  return db!.select().from(crmAppointments).orderBy(crmAppointments.scheduledAt);
+}
+export async function createCrmAppointment(data: typeof crmAppointments.$inferInsert) {
+  const db = await getDb();
+  const [result] = await db!.insert(crmAppointments).values(data);
+  return (result as any).insertId as number;
+}
+export async function updateCrmAppointment(id: number, data: Partial<typeof crmAppointments.$inferInsert>) {
+  const db = await getDb();
+  await db!.update(crmAppointments).set({ ...data, updatedAt: new Date() }).where(eq(crmAppointments.id, id));
+}
+// ─── Sprint 6: Activity Timeline ─────────────────────────────────────────────
+export async function getActivityTimeline(leadId: number) {
+  const db = await getDb();
+  return db!.select().from(crmActivityTimeline).where(eq(crmActivityTimeline.leadId, leadId)).orderBy(crmActivityTimeline.createdAt);
+}
+export async function logActivity(data: { leadId: number; activityType: string; title: string; description?: string; staffEmail?: string; metadata?: string }) {
+  const db = await getDb();
+  await db!.insert(crmActivityTimeline).values(data);
+}
+// ─── Sprint 6: Notifications ─────────────────────────────────────────────────
+// ─── Sprint 6: Notifications ─────────────────────────────────────────────────
+export async function getNotificationsForStaff(staffEmail: string, limit = 50) {
+  const db = await getDb();
+  return db!.select().from(crmNotifications).where(eq(crmNotifications.staffEmail, staffEmail)).orderBy(crmNotifications.createdAt).limit(limit);
+}
+export async function getUnreadNotificationCount(staffEmail: string) {
+  const db = await getDb();
+  const rows = await db!.select().from(crmNotifications).where(and(eq(crmNotifications.staffEmail, staffEmail), eq(crmNotifications.isRead, 0)));
+  return rows.length;
+}
+export async function markNotificationRead(id: number) {
+  const db = await getDb();
+  await db!.update(crmNotifications).set({ isRead: 1 }).where(eq(crmNotifications.id, id));
+}
+export async function markAllNotificationsRead(staffEmail: string) {
+  const db = await getDb();
+  await db!.update(crmNotifications).set({ isRead: 1 }).where(eq(crmNotifications.staffEmail, staffEmail));
+}
+export async function createNotification(data: { staffEmail: string; type: string; title: string; message?: string; leadId?: number; actionUrl?: string }) {
+  const db = await getDb();
+  await db!.insert(crmNotifications).values({ ...data, isRead: 0 });
+}

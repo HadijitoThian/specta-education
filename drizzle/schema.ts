@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, tinyint } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -69,6 +69,8 @@ export const leads = mysqlTable("leads", {
   assignedTo: varchar("assignedTo", { length: 255 }),
   assignedCounselor: varchar("assignedCounselor", { length: 255 }),
   programInterest: varchar("programInterest", { length: 255 }),
+  parentName: varchar("parentName", { length: 255 }),
+  parentEmail: varchar("parentEmail", { length: 320 }),
   status: mysqlEnum("status", ["new", "contacted", "qualified", "converted", "closed"]).default("new").notNull(),
   forwardedAt: timestamp("forwardedAt"),
   intentSummary: text("intentSummary"),
@@ -1437,3 +1439,82 @@ export const crmChatHistory = mysqlTable("crm_chat_history", {
 });
 export type CrmChatHistory = typeof crmChatHistory.$inferSelect;
 export type InsertCrmChatHistory = typeof crmChatHistory.$inferInsert;
+
+/**
+ * CRM Student Documents — document checklist per student lead
+ */
+export const crmStudentDocuments = mysqlTable("crm_student_documents", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  docType: varchar("docType", { length: 100 }).notNull(),
+  docLabel: varchar("docLabel", { length: 255 }).notNull(),
+  status: mysqlEnum("status", ["pending", "submitted", "verified", "rejected"]).default("pending").notNull(),
+  fileUrl: text("fileUrl"),
+  notes: text("notes"),
+  dueDate: timestamp("dueDate"),
+  submittedAt: timestamp("submittedAt"),
+  verifiedAt: timestamp("verifiedAt"),
+  staffEmail: varchar("staffEmail", { length: 320 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CrmStudentDocument = typeof crmStudentDocuments.$inferSelect;
+export type InsertCrmStudentDocument = typeof crmStudentDocuments.$inferInsert;
+
+/**
+ * CRM Appointments — consultation bookings between counselors and students
+ */
+export const crmAppointments = mysqlTable("crm_appointments", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  studentName: varchar("studentName", { length: 255 }).notNull(),
+  studentEmail: varchar("studentEmail", { length: 320 }),
+  studentPhone: varchar("studentPhone", { length: 50 }),
+  staffEmail: varchar("staffEmail", { length: 320 }).notNull(),
+  staffName: varchar("staffName", { length: 255 }),
+  appointmentType: mysqlEnum("appointmentType", ["initial_consultation", "follow_up", "document_review", "offer_discussion", "visa_prep", "other"]).default("initial_consultation").notNull(),
+  scheduledAt: timestamp("scheduledAt").notNull(),
+  durationMinutes: int("durationMinutes").default(30).notNull(),
+  location: varchar("location", { length: 255 }),
+  meetingLink: text("meetingLink"),
+  status: mysqlEnum("status", ["scheduled", "completed", "cancelled", "no_show"]).default("scheduled").notNull(),
+  notes: text("notes"),
+  reminderSent: tinyint("reminderSent").default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CrmAppointment = typeof crmAppointments.$inferSelect;
+export type InsertCrmAppointment = typeof crmAppointments.$inferInsert;
+
+/**
+ * CRM Activity Timeline — log of all actions per student
+ */
+export const crmActivityTimeline = mysqlTable("crm_activity_timeline", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  activityType: varchar("activityType", { length: 100 }).notNull(),
+  title: varchar("title", { length: 500 }).notNull(),
+  description: text("description"),
+  staffEmail: varchar("staffEmail", { length: 320 }),
+  metadata: text("metadata"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CrmActivityTimeline = typeof crmActivityTimeline.$inferSelect;
+export type InsertCrmActivityTimeline = typeof crmActivityTimeline.$inferInsert;
+
+/**
+ * CRM Notifications — in-app alerts for counselors
+ */
+export const crmNotifications = mysqlTable("crm_notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  staffEmail: varchar("staffEmail", { length: 320 }).notNull(),
+  type: varchar("type", { length: 100 }).notNull(),
+  title: varchar("title", { length: 500 }).notNull(),
+  message: text("message"),
+  leadId: int("leadId"),
+  isRead: tinyint("isRead").default(0).notNull(),
+  actionUrl: varchar("actionUrl", { length: 500 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CrmNotification = typeof crmNotifications.$inferSelect;
+export type InsertCrmNotification = typeof crmNotifications.$inferInsert;

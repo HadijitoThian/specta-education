@@ -15,7 +15,7 @@ import {
   Plus, ChevronRight, Users, TrendingUp, Target, Award, Calendar,
   Zap, Star, BarChart3, ArrowRight, RefreshCw, User, BookOpen,
   Search, Filter, UserPlus, Eye, Crown, Edit2, Upload, X, Download,
-  GripVertical
+  GripVertical, Bell, CheckCheck
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -368,6 +368,9 @@ export default function CounselorCRM() {
               <RefreshCw className="w-4 h-4" />
             </Button>
 
+            {/* Notification Bell */}
+            <NotificationBell staffEmail={staffUser.email} />
+
             {/* CSV Import Button */}
             <Button size="sm" variant="outline" className="border-green-500/40 text-green-400 hover:bg-green-500/10 gap-2"
               onClick={() => setCsvImportOpen(true)}>
@@ -635,6 +638,18 @@ export default function CounselorCRM() {
                         value={studentForm.assignedCounselor} onChange={e => setStudentForm(f => ({ ...f, assignedCounselor: e.target.value }))} />
                     </div>
                   )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-white/70">Nama Orang Tua</Label>
+                      <Input placeholder="e.g. Bapak Ahmad" className="bg-white/5 border-white/10 text-white mt-1"
+                        value={(studentForm as any).parentName || ""} onChange={e => setStudentForm(f => ({ ...f, parentName: e.target.value }))} />
+                    </div>
+                    <div>
+                      <Label className="text-white/70">Email Orang Tua</Label>
+                      <Input type="email" placeholder="parent@email.com" className="bg-white/5 border-white/10 text-white mt-1"
+                        value={(studentForm as any).parentEmail || ""} onChange={e => setStudentForm(f => ({ ...f, parentEmail: e.target.value }))} />
+                    </div>
+                  </div>
                   <div>
                     <Label className="text-white/70">Catatan Awal</Label>
                     <Textarea placeholder="Informasi tambahan tentang student ini..." className="bg-white/5 border-white/10 text-white mt-1 resize-none"
@@ -1275,5 +1290,99 @@ function StudentRow({ student, onEdit }: { student: any; onEdit: (s: any) => voi
         </div>
       </td>
     </tr>
+  );
+}
+
+// ─── Notification Bell Component ─────────────────────────────────────────────
+function NotificationBell({ staffEmail }: { staffEmail: string }) {
+  const [open, setOpen] = useState(false);
+  const { data, refetch } = trpc.crm.getNotifications.useQuery(undefined, {
+    refetchInterval: 60000, // Refresh every minute
+  });
+  const markRead = trpc.crm.markNotificationRead.useMutation({ onSuccess: () => refetch() });
+  const markAllRead = trpc.crm.markAllNotificationsRead.useMutation({ onSuccess: () => refetch() });
+
+  const notifications = (data as any)?.notifications || [];
+  const unread = (data as any)?.unread || 0;
+
+  const typeIcons: Record<string, string> = {
+    new_lead: "👤", task_due: "⏰", stage_change: "🔄",
+    appointment: "📅", doc_update: "📄", system: "🔔",
+  };
+
+  return (
+    <div className="relative">
+      <Button
+        variant="ghost" size="sm"
+        className="relative text-white/60 hover:text-white"
+        onClick={() => setOpen(!open)}
+      >
+        <Bell className="w-4 h-4" />
+        {unread > 0 && (
+          <span className="absolute -top-1 -right-1 bg-[#e91e8c] text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+            {unread > 9 ? "9+" : unread}
+          </span>
+        )}
+      </Button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-80 bg-[#0d1424] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+            <h3 className="text-white font-semibold text-sm">Notifications</h3>
+            <div className="flex items-center gap-2">
+              {unread > 0 && (
+                <button
+                  onClick={() => markAllRead.mutate()}
+                  className="text-xs text-[#e91e8c] hover:text-[#c2185b] flex items-center gap-1"
+                >
+                  <CheckCheck className="w-3 h-3" /> Mark all read
+                </button>
+              )}
+              <button onClick={() => setOpen(false)} className="text-white/40 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="max-h-80 overflow-y-auto">
+            {notifications.length === 0 ? (
+              <div className="text-center py-8 text-white/40">
+                <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">No notifications yet</p>
+              </div>
+            ) : (
+              notifications.map((notif: any) => (
+                <div
+                  key={notif.id}
+                  className={`px-4 py-3 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors ${notif.isRead ? "opacity-60" : ""}`}
+                  onClick={() => {
+                    if (!notif.isRead) markRead.mutate({ id: notif.id });
+                    if (notif.actionUrl) window.location.href = notif.actionUrl;
+                  }}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="text-lg flex-shrink-0">{typeIcons[notif.type] || "🔔"}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium truncate ${notif.isRead ? "text-white/60" : "text-white"}`}>
+                        {notif.title}
+                      </p>
+                      {notif.message && (
+                        <p className="text-xs text-white/40 mt-0.5 line-clamp-2">{notif.message}</p>
+                      )}
+                      <p className="text-xs text-white/30 mt-1">
+                        {new Date(notif.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                    {!notif.isRead && (
+                      <div className="w-2 h-2 bg-[#e91e8c] rounded-full flex-shrink-0 mt-1" />
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

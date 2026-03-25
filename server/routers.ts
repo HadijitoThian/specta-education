@@ -189,6 +189,20 @@ import {
   getCrmChatHistory,
   saveCrmChatMessage,
   clearCrmChatHistory,
+  getCrmDocsByLead,
+  upsertCrmDoc,
+  initDefaultDocChecklist,
+  getCrmAppointmentsByLead,
+  getCrmAppointmentsByStaff,
+  getAllCrmAppointments,
+  createCrmAppointment,
+  updateCrmAppointment,
+  getActivityTimeline,
+  logActivity,
+  getNotificationsForStaff,
+  markNotificationRead,
+  markAllNotificationsRead,
+  createNotification,
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail } from "./email";
@@ -5842,6 +5856,8 @@ Help the counselor with: answering questions about this student, drafting messag
         programInterest: z.string().optional(),
         notes: z.string().optional(),
         assignedCounselor: z.string().optional(),
+        parentName: z.string().optional(),
+        parentEmail: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const cookieHeader = ctx.req?.headers?.cookie || "";
@@ -5864,6 +5880,8 @@ Help the counselor with: answering questions about this student, drafting messag
             assignedTo: assignedTo,
             assignedCounselor: assignedTo,
             programInterest: input.programInterest || undefined,
+            parentName: input.parentName || undefined,
+            parentEmail: input.parentEmail || undefined,
             status: "new",
             source: "crm_manual",
           } as any);
@@ -5982,6 +6000,176 @@ Help the counselor with: answering questions about this student, drafting messag
           return { success: true, imported, errors };
         } catch (e: any) { return { success: false, error: e.message, imported: 0, errors: [] }; }
       }),
+
+    // Sprint 4: Document Checklist
+    getDocChecklist: publicProcedure.input(z.object({ leadId: z.number() })).query(async ({ input, ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { docs: [] };
+      try {
+        const docs = await getCrmDocsByLead(input.leadId);
+        return { docs };
+      } catch (e: any) { return { docs: [] }; }
+    }),
+    initDocChecklist: publicProcedure.input(z.object({ leadId: z.number() })).mutation(async ({ input, ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { success: false, error: "Not authenticated" };
+      try {
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        await initDefaultDocChecklist(input.leadId, payload.email as string);
+        return { success: true };
+      } catch (e: any) { return { success: false, error: e.message }; }
+    }),
+    updateDocStatus: publicProcedure.input(z.object({
+      leadId: z.number(),
+      docType: z.string(),
+      docLabel: z.string(),
+      status: z.enum(["pending", "submitted", "verified", "rejected"]),
+      notes: z.string().optional(),
+    })).mutation(async ({ input, ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { success: false, error: "Not authenticated" };
+      try {
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        await upsertCrmDoc({ leadId: input.leadId, docType: input.docType, docLabel: input.docLabel, status: input.status, notes: input.notes, staffEmail: payload.email as string });
+        await logActivity({ leadId: input.leadId, activityType: "doc_updated", title: `Document "${input.docLabel}" marked as ${input.status}`, staffEmail: payload.email as string });
+        return { success: true };
+      } catch (e: any) { return { success: false, error: e.message }; }
+    }),
+
+    // Sprint 5: Appointments
+    getMyAppointments: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { appointments: [] };
+      try {
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        const role = payload.role as string;
+        const staffEmail = payload.email as string;
+        const appts = role === "admin" ? await getAllCrmAppointments() : await getCrmAppointmentsByStaff(staffEmail);
+        return { appointments: appts };
+      } catch (e: any) { return { appointments: [] }; }
+    }),
+    getAppointmentsByLead: publicProcedure.input(z.object({ leadId: z.number() })).query(async ({ input, ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { appointments: [] };
+      try {
+        const appts = await getCrmAppointmentsByLead(input.leadId);
+        return { appointments: appts };
+      } catch (e: any) { return { appointments: [] }; }
+    }),
+    createAppointmentCrm: publicProcedure.input(z.object({
+      leadId: z.number(),
+      studentName: z.string(),
+      studentEmail: z.string().optional(),
+      studentPhone: z.string().optional(),
+      appointmentType: z.enum(["initial_consultation", "follow_up", "document_review", "offer_discussion", "visa_prep", "other"]),
+      scheduledAt: z.string(),
+      durationMinutes: z.number().default(30),
+      location: z.string().optional(),
+      meetingLink: z.string().optional(),
+      notes: z.string().optional(),
+    })).mutation(async ({ input, ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { success: false, error: "Not authenticated" };
+      try {
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        const staffEmail = payload.email as string;
+        const staffName = (payload.name as string) || staffEmail;
+        const apptId = await createCrmAppointment({
+          leadId: input.leadId, studentName: input.studentName,
+          studentEmail: input.studentEmail, studentPhone: input.studentPhone,
+          staffEmail, staffName, appointmentType: input.appointmentType,
+          scheduledAt: new Date(input.scheduledAt), durationMinutes: input.durationMinutes,
+          location: input.location, meetingLink: input.meetingLink, notes: input.notes, status: "scheduled",
+        });
+        await logActivity({ leadId: input.leadId, activityType: "appointment_booked", title: `Appointment booked: ${input.appointmentType.replace(/_/g, " ")} on ${new Date(input.scheduledAt).toLocaleDateString()}`, staffEmail });
+        return { success: true, id: apptId };
+      } catch (e: any) { return { success: false, error: e.message }; }
+    }),
+    updateAppointmentStatus: publicProcedure.input(z.object({
+      id: z.number(),
+      status: z.enum(["scheduled", "completed", "cancelled", "no_show"]),
+    })).mutation(async ({ input }) => {
+      try { await updateCrmAppointment(input.id, { status: input.status }); return { success: true }; }
+      catch (e: any) { return { success: false, error: e.message }; }
+    }),
+
+    // Sprint 5: Parent Email Report
+    sendParentReport: publicProcedure.input(z.object({
+      leadId: z.number(),
+      parentEmail: z.string().email(),
+      parentName: z.string().optional(),
+    })).mutation(async ({ input, ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { success: false, error: "Not authenticated" };
+      try {
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        const staffEmail = payload.email as string;
+        const lead = await getLeadById(input.leadId);
+        if (!lead) return { success: false, error: "Student not found" };
+        const docs = await getCrmDocsByLead(input.leadId);
+        const submitted = docs.filter((d: any) => d.status === "submitted" || d.status === "verified").length;
+        const total = docs.length;
+        const notes = await getNotesByLeadId(input.leadId);
+        const lastNote = notes[0]?.expandedNote || notes[0]?.rawNote || "No recent consultation notes.";
+        const emailHtml = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f9f9f9;padding:20px;border-radius:8px;"><div style="background:linear-gradient(135deg,#e91e8c,#9c27b0);padding:20px;border-radius:8px;text-align:center;margin-bottom:20px;"><h1 style="color:white;margin:0;font-size:22px;">SpecTa Education</h1><p style="color:rgba(255,255,255,0.9);margin:5px 0 0;">Student Progress Report</p></div><p>Dear ${input.parentName || "Parent/Guardian"},</p><p>Here is the latest progress update for <strong>${lead.studentName}</strong>:</p><table style="width:100%;border-collapse:collapse;margin:15px 0;"><tr style="background:#f0f0f0;"><td style="padding:8px;font-weight:bold;">Status</td><td style="padding:8px;">${lead.status?.toUpperCase()}</td></tr><tr><td style="padding:8px;font-weight:bold;">Preferred Country</td><td style="padding:8px;">${lead.preferredCountry || "Not specified"}</td></tr><tr style="background:#f0f0f0;"><td style="padding:8px;font-weight:bold;">Program Interest</td><td style="padding:8px;">${lead.programInterest || "Not specified"}</td></tr><tr><td style="padding:8px;font-weight:bold;">Study Level</td><td style="padding:8px;">${lead.studyLevel || "Not specified"}</td></tr><tr style="background:#f0f0f0;"><td style="padding:8px;font-weight:bold;">Target Intake</td><td style="padding:8px;">${lead.intakeDate || "Not specified"}</td></tr><tr><td style="padding:8px;font-weight:bold;">Documents Ready</td><td style="padding:8px;">${submitted}/${total} documents submitted</td></tr></table><div style="background:#fff;border-left:4px solid #e91e8c;padding:12px;margin:15px 0;border-radius:4px;"><strong>Latest Counselor Note:</strong><br/>${lastNote}</div><p style="color:#666;font-size:13px;">For questions, contact us at +62 811 8120 820 or reply to this email.</p><p style="color:#666;font-size:12px;text-align:center;margin-top:20px;">SpecTa Education — Your Study Abroad Partner</p></div>`;
+        await sendEmail({ to: input.parentEmail, subject: `Progress Report: ${lead.studentName} — SpecTa Education`, html: emailHtml });
+        await logActivity({ leadId: input.leadId, activityType: "email_sent", title: `Parent report sent to ${input.parentEmail}`, staffEmail });
+        return { success: true };
+      } catch (e: any) { return { success: false, error: e.message }; }
+    }),
+
+    // Sprint 6: Activity Timeline
+    getActivityTimeline: publicProcedure.input(z.object({ leadId: z.number() })).query(async ({ input, ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { timeline: [] };
+      try {
+        const timeline = await getActivityTimeline(input.leadId);
+        return { timeline };
+      } catch (e: any) { return { timeline: [] }; }
+    }),
+
+    // Sprint 6: Notifications
+    getNotifications: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { notifications: [], unread: 0 };
+      try {
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        const staffEmail = payload.email as string;
+        const notifications = await getNotificationsForStaff(staffEmail);
+        const unread = notifications.filter((n: any) => !n.isRead).length;
+        return { notifications, unread };
+      } catch (e: any) { return { notifications: [], unread: 0 }; }
+    }),
+    markNotificationRead: publicProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      try { await markNotificationRead(input.id); return { success: true }; }
+      catch (e: any) { return { success: false }; }
+    }),
+    markAllNotificationsRead: publicProcedure.mutation(async ({ ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { success: false };
+      try {
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        await markAllNotificationsRead(payload.email as string);
+        return { success: true };
+      } catch (e: any) { return { success: false }; }
+    }),
   }),
 });
 export type AppRouter = typeof appRouter;

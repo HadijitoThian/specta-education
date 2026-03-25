@@ -225,6 +225,20 @@
       "when": 1774415760812,
       "tag": "0031_great_bastion",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "5",
+      "when": 1774416669254,
+      "tag": "0032_shocking_hulk",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "5",
+      "when": 1774417748639,
+      "tag": "0033_minor_cargill",
+      "breakpoints": true
     }
   ]
 }

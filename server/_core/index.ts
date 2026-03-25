@@ -12,6 +12,7 @@ import { serveStatic, setupVite } from "./vite";
 import { registerXenditWebhook } from "../xenditWebhook";
 import { processDripEmails, checkCampaignPerformanceAlerts } from "../dripCampaignService";
 import { seedDefaultCampaigns } from "../dripCampaignDefaults";
+import { runWeeklyPerformanceReport } from "../agentWeeklyReport";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -376,5 +377,15 @@ ${allPages.map(p => `  <url>
     }, 24 * 60 * 60 * 1000); // Every 24 hours
   });
 }
+
+// Weekly CRM Performance Report — runs every Monday at 8AM WIB (checked hourly)
+setInterval(async () => {
+  try {
+    const result = await runWeeklyPerformanceReport();
+    if (result.sent) console.log("[WeeklyReport] Weekly performance report sent successfully");
+  } catch (e) {
+    console.error("[WeeklyReport] Scheduled run failed:", e);
+  }
+}, 60 * 60 * 1000);
 
 startServer().catch(console.error);
