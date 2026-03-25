@@ -6855,9 +6855,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
         let sent = 0;
         let created = 0;
         const errors: string[] = [];
-        const portalUrl = process.env.VITE_APP_ID
-          ? `https://${process.env.VITE_APP_ID}.manus.space/student/login`
-          : "https://spectaeducation.com/student/login";
+        const portalUrl = "https://spectaeducation.com/student/login";
 
         for (const lead of crmLeads) {
           if (!lead.studentEmail) continue;
