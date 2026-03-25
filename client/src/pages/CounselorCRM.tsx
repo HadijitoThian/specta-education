@@ -14,7 +14,8 @@ import {
   Phone, MessageCircle, Mail, FileText, CheckCircle2, Clock, AlertCircle,
   Plus, ChevronRight, Users, TrendingUp, Target, Award, Calendar,
   Zap, Star, BarChart3, ArrowRight, RefreshCw, User, BookOpen,
-  Search, Filter, UserPlus, Eye, Crown
+  Search, Filter, UserPlus, Eye, Crown, Edit2, Upload, X, Download,
+  GripVertical
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -157,6 +158,103 @@ export default function CounselorCRM() {
   const [studentCountryFilter, setStudentCountryFilter] = useState("all");
   const [studentStatusFilter, setStudentStatusFilter] = useState("all");
 
+  // Edit student state
+  const [editStudentOpen, setEditStudentOpen] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<any>(null);
+  const [editForm, setEditForm] = useState<any>({});
+
+  // Bulk CSV import state
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
+  const [csvPreview, setCsvPreview] = useState<any[]>([]);
+  const [csvError, setCsvError] = useState("");
+
+  // Mutations for Sprint 3
+  const editStudent = trpc.crm.editStudent.useMutation({
+    onSuccess: (data) => {
+      if (data.success) {
+        refetchStudents(); refetchPipeline(); setEditStudentOpen(false);
+        toast.success("Profil student berhasil diupdate!");
+      } else {
+        toast.error(data.error || "Gagal update student");
+      }
+    },
+    onError: (err) => toast.error("Error: " + err.message),
+  });
+
+  const bulkImport = trpc.crm.bulkImportStudents.useMutation({
+    onSuccess: (data) => {
+      if (data.success) {
+        refetchStudents(); refetchPipeline(); setCsvImportOpen(false); setCsvPreview([]);
+        toast.success(`Berhasil import ${data.imported} student!${data.errors.length > 0 ? ` (${data.errors.length} error)` : ""}`);
+      } else {
+        toast.error(data.error || "Gagal import");
+      }
+    },
+    onError: (err) => toast.error("Error: " + err.message),
+  });
+
+  const handleOpenEdit = (student: any) => {
+    setEditingStudent(student);
+    setEditForm({
+      studentName: student.studentName || "",
+      studentEmail: student.studentEmail || "",
+      studentPhone: student.studentPhone || "",
+      preferredCountry: student.preferredCountry || "",
+      studyLevel: student.studyLevel || "",
+      intakeDate: student.intakeDate || "",
+      programInterest: student.programInterest || "",
+      notes: student.notes || "",
+      status: student.status || "new",
+      assignedCounselor: student.assignedCounselor || "",
+    });
+    setEditStudentOpen(true);
+  };
+
+  const handleEditStudent = () => {
+    if (!editingStudent) return;
+    editStudent.mutate({ leadId: editingStudent.id, ...editForm });
+  };
+
+  const handleCsvFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvError("");
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const text = ev.target?.result as string;
+        const lines = text.split(/\r?\n/).filter(l => l.trim());
+        if (lines.length < 2) { setCsvError("File CSV harus memiliki header dan minimal 1 baris data"); return; }
+        const headers = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/["']/g, ""));
+        const rows = lines.slice(1).map(line => {
+          const vals = line.split(",").map(v => v.trim().replace(/^["']|["']$/g, ""));
+          const obj: any = {};
+          headers.forEach((h, i) => { obj[h] = vals[i] || ""; });
+          return obj;
+        }).filter(r => r.name || r.studentname || r["student name"]);
+        const mapped = rows.map(r => ({
+          studentName: r.name || r.studentname || r["student name"] || "",
+          studentEmail: r.email || r.studentemail || r["student email"] || "",
+          studentPhone: r.phone || r.studentphone || r["phone number"] || r.whatsapp || "",
+          preferredCountry: r.country || r.preferredcountry || r["preferred country"] || "",
+          studyLevel: r.level || r.studylevel || r["study level"] || "",
+          intakeDate: r.intake || r.intakedate || r["intake date"] || "",
+          programInterest: r.program || r.programinterest || r["program interest"] || r.major || "",
+          notes: r.notes || r.note || "",
+        }));
+        setCsvPreview(mapped);
+      } catch (err) {
+        setCsvError("Gagal membaca file CSV. Pastikan format benar.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleBulkImport = () => {
+    if (csvPreview.length === 0) return;
+    bulkImport.mutate({ students: csvPreview });
+  };
+
   const filteredStudents = useMemo(() => {
     return allStudents.filter((s: any) => {
       const matchSearch = !studentSearch ||
@@ -265,10 +363,185 @@ export default function CounselorCRM() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="text-white/60 hover:text-white"
+              <Button variant="ghost" size="sm" className="text-white/60 hover:text-white"
               onClick={() => { refetchPipeline(); refetchTasks(); refetchPerf(); refetchStudents(); }}>
               <RefreshCw className="w-4 h-4" />
             </Button>
+
+            {/* CSV Import Button */}
+            <Button size="sm" variant="outline" className="border-green-500/40 text-green-400 hover:bg-green-500/10 gap-2"
+              onClick={() => setCsvImportOpen(true)}>
+              <Upload className="w-4 h-4" /> Import CSV
+            </Button>
+
+            {/* Edit Student Dialog */}
+            <Dialog open={editStudentOpen} onOpenChange={setEditStudentOpen}>
+              <DialogContent className="bg-[#0d1424] border-white/10 text-white max-w-lg">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Edit2 className="w-5 h-5 text-[#f59e0b]" /> Edit Profil Student
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 pt-2">
+                  <div>
+                    <Label className="text-white/70">Nama Lengkap *</Label>
+                    <Input className="bg-white/5 border-white/10 text-white mt-1"
+                      value={editForm.studentName || ""} onChange={e => setEditForm((f: any) => ({ ...f, studentName: e.target.value }))} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-white/70">Email</Label>
+                      <Input type="email" className="bg-white/5 border-white/10 text-white mt-1"
+                        value={editForm.studentEmail || ""} onChange={e => setEditForm((f: any) => ({ ...f, studentEmail: e.target.value }))} />
+                    </div>
+                    <div>
+                      <Label className="text-white/70">No. HP / WhatsApp</Label>
+                      <Input className="bg-white/5 border-white/10 text-white mt-1"
+                        value={editForm.studentPhone || ""} onChange={e => setEditForm((f: any) => ({ ...f, studentPhone: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-white/70">Negara Tujuan</Label>
+                      <Select value={editForm.preferredCountry || ""} onValueChange={v => setEditForm((f: any) => ({ ...f, preferredCountry: v }))}>
+                        <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1"><SelectValue placeholder="Pilih negara" /></SelectTrigger>
+                        <SelectContent className="bg-[#0d1424] border-white/10 text-white">
+                          <SelectItem value="Malaysia">🇲🇾 Malaysia</SelectItem>
+                          <SelectItem value="Singapore">🇸🇬 Singapore</SelectItem>
+                          <SelectItem value="Australia">🇦🇺 Australia</SelectItem>
+                          <SelectItem value="United Kingdom">🇬🇧 United Kingdom</SelectItem>
+                          <SelectItem value="United States">🇺🇸 United States</SelectItem>
+                          <SelectItem value="Canada">🇨🇦 Canada</SelectItem>
+                          <SelectItem value="New Zealand">🇳🇿 New Zealand</SelectItem>
+                          <SelectItem value="Ireland">🇮🇪 Ireland</SelectItem>
+                          <SelectItem value="Netherlands">🇳🇱 Netherlands</SelectItem>
+                          <SelectItem value="Germany">🇩🇪 Germany</SelectItem>
+                          <SelectItem value="China">🇨🇳 China</SelectItem>
+                          <SelectItem value="Japan">🇯🇵 Japan</SelectItem>
+                          <SelectItem value="South Korea">🇰🇷 South Korea</SelectItem>
+                          <SelectItem value="Other">🌍 Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-white/70">Jenjang Studi</Label>
+                      <Select value={editForm.studyLevel || ""} onValueChange={v => setEditForm((f: any) => ({ ...f, studyLevel: v }))}>
+                        <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1"><SelectValue placeholder="Pilih jenjang" /></SelectTrigger>
+                        <SelectContent className="bg-[#0d1424] border-white/10 text-white">
+                          <SelectItem value="High School">High School</SelectItem>
+                          <SelectItem value="Foundation">Foundation</SelectItem>
+                          <SelectItem value="Diploma">Diploma</SelectItem>
+                          <SelectItem value="Bachelor">Bachelor (S1)</SelectItem>
+                          <SelectItem value="Master">Master (S2)</SelectItem>
+                          <SelectItem value="PhD">PhD (S3)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-white/70">Program / Jurusan</Label>
+                      <Input className="bg-white/5 border-white/10 text-white mt-1"
+                        value={editForm.programInterest || ""} onChange={e => setEditForm((f: any) => ({ ...f, programInterest: e.target.value }))} />
+                    </div>
+                    <div>
+                      <Label className="text-white/70">Target Intake</Label>
+                      <Input className="bg-white/5 border-white/10 text-white mt-1"
+                        value={editForm.intakeDate || ""} onChange={e => setEditForm((f: any) => ({ ...f, intakeDate: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-white/70">Status</Label>
+                    <Select value={editForm.status || "new"} onValueChange={v => setEditForm((f: any) => ({ ...f, status: v }))}>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-[#0d1424] border-white/10 text-white">
+                        <SelectItem value="new">New Lead</SelectItem>
+                        <SelectItem value="contacted">Contacted</SelectItem>
+                        <SelectItem value="qualified">Qualified</SelectItem>
+                        <SelectItem value="converted">Converted</SelectItem>
+                        <SelectItem value="closed">Closed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {isAdmin && (
+                    <div>
+                      <Label className="text-white/70">Assign ke Counselor (email)</Label>
+                      <Input className="bg-white/5 border-white/10 text-white mt-1"
+                        value={editForm.assignedCounselor || ""} onChange={e => setEditForm((f: any) => ({ ...f, assignedCounselor: e.target.value }))} />
+                    </div>
+                  )}
+                  <div>
+                    <Label className="text-white/70">Catatan</Label>
+                    <Textarea className="bg-white/5 border-white/10 text-white mt-1 resize-none" rows={2}
+                      value={editForm.notes || ""} onChange={e => setEditForm((f: any) => ({ ...f, notes: e.target.value }))} />
+                  </div>
+                  <Button className="w-full bg-[#f59e0b] hover:bg-[#d97706] text-black font-semibold"
+                    onClick={handleEditStudent} disabled={editStudent.isPending || !editForm.studentName?.trim()}>
+                    {editStudent.isPending ? "Menyimpan..." : "Simpan Perubahan"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* CSV Import Dialog */}
+            <Dialog open={csvImportOpen} onOpenChange={(o) => { setCsvImportOpen(o); if (!o) { setCsvPreview([]); setCsvError(""); } }}>
+              <DialogContent className="bg-[#0d1424] border-white/10 text-white max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Upload className="w-5 h-5 text-[#f59e0b]" /> Bulk Import via CSV
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-2">
+                  <div className="bg-white/5 rounded-lg p-3 text-xs text-white/60">
+                    <p className="font-semibold text-white/80 mb-1">Format CSV yang diterima:</p>
+                    <code className="text-green-400">name, email, phone, country, level, intake, program, notes</code>
+                    <p className="mt-1">Baris pertama harus berupa header. Kolom bisa dalam urutan apapun.</p>
+                    <a href="data:text/csv;charset=utf-8,name,email,phone,country,level,intake,program,notes%0AJohn Doe,john@email.com,+62812345,Malaysia,Bachelor,September 2025,Computer Science,Interested in scholarship"
+                      download="template_import.csv" className="text-[#f59e0b] hover:underline flex items-center gap-1 mt-2">
+                      <Download className="w-3 h-3" /> Download template CSV
+                    </a>
+                  </div>
+                  <div>
+                    <Label className="text-white/70">Upload File CSV</Label>
+                    <input type="file" accept=".csv,.txt" className="hidden" id="csv-upload"
+                      onChange={handleCsvFile} />
+                    <label htmlFor="csv-upload" className="mt-1 flex items-center justify-center gap-2 border-2 border-dashed border-white/20 rounded-lg p-6 cursor-pointer hover:border-[#f59e0b]/50 hover:bg-[#f59e0b]/5 transition-colors">
+                      <Upload className="w-5 h-5 text-white/40" />
+                      <span className="text-white/60 text-sm">Klik untuk pilih file CSV</span>
+                    </label>
+                    {csvError && <p className="text-red-400 text-xs mt-2">{csvError}</p>}
+                  </div>
+                  {csvPreview.length > 0 && (
+                    <div>
+                      <p className="text-white/70 text-sm mb-2">{csvPreview.length} student siap diimport:</p>
+                      <div className="max-h-48 overflow-y-auto bg-white/5 rounded-lg">
+                        <table className="w-full text-xs">
+                          <thead><tr className="text-white/40 border-b border-white/10">
+                            <th className="text-left p-2">Nama</th><th className="text-left p-2">Email</th>
+                            <th className="text-left p-2">Negara</th><th className="text-left p-2">Program</th>
+                          </tr></thead>
+                          <tbody>
+                            {csvPreview.slice(0, 20).map((s, i) => (
+                              <tr key={i} className="border-b border-white/5">
+                                <td className="p-2 text-white">{s.studentName}</td>
+                                <td className="p-2 text-white/60">{s.studentEmail || "—"}</td>
+                                <td className="p-2 text-white/60">{s.preferredCountry || "—"}</td>
+                                <td className="p-2 text-white/60">{s.programInterest || "—"}</td>
+                              </tr>
+                            ))}
+                            {csvPreview.length > 20 && <tr><td colSpan={4} className="p-2 text-white/40 text-center">...dan {csvPreview.length - 20} lainnya</td></tr>}
+                          </tbody>
+                        </table>
+                      </div>
+                      <Button className="w-full mt-3 bg-[#f59e0b] hover:bg-[#d97706] text-black font-semibold"
+                        onClick={handleBulkImport} disabled={bulkImport.isPending}>
+                        {bulkImport.isPending ? `Mengimport ${csvPreview.length} student...` : `Import ${csvPreview.length} Student`}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
 
             {/* Add Student */}
             <Dialog open={addStudentOpen} onOpenChange={setAddStudentOpen}>
@@ -645,7 +918,7 @@ export default function CounselorCRM() {
                     </thead>
                     <tbody>
                       {filteredStudents.map((student: any) => (
-                        <StudentRow key={student.id} student={student} />
+                        <StudentRow key={student.id} student={student} onEdit={handleOpenEdit} />
                       ))}
                     </tbody>
                   </table>
@@ -940,7 +1213,7 @@ function TaskCard({ task, onUpdate, onDelete }: {
 }
 
 // ─── Student Row ──────────────────────────────────────────────────────────────
-function StudentRow({ student }: { student: any }) {
+function StudentRow({ student, onEdit }: { student: any; onEdit: (s: any) => void }) {
   const statusColors: Record<string, string> = {
     new: "bg-blue-500/20 text-blue-400 border-blue-500/30",
     contacted: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
@@ -982,11 +1255,24 @@ function StudentRow({ student }: { student: any }) {
         {new Date(student.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
       </td>
       <td className="py-3 px-4">
-        <Link href={`/crm/lead/${student.id}`}>
-          <Button size="sm" variant="ghost" className="text-[#f59e0b] hover:text-[#d97706] hover:bg-[#f59e0b]/10 h-7 px-2 gap-1">
-            <Eye className="w-3 h-3" /> View
+        <div className="flex items-center gap-1">
+          <Link href={`/crm/lead/${student.id}`}>
+            <Button size="sm" variant="ghost" className="text-[#f59e0b] hover:text-[#d97706] hover:bg-[#f59e0b]/10 h-7 px-2 gap-1">
+              <Eye className="w-3 h-3" /> View
+            </Button>
+          </Link>
+          <Button size="sm" variant="ghost" className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 h-7 px-2"
+            onClick={() => onEdit(student)} title="Edit student">
+            <Edit2 className="w-3 h-3" />
           </Button>
-        </Link>
+          {student.studentPhone && (
+            <a href={`https://wa.me/${student.studentPhone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
+              <Button size="sm" variant="ghost" className="text-green-400 hover:text-green-300 hover:bg-green-500/10 h-7 px-2" title="WhatsApp">
+                <MessageCircle className="w-3 h-3" />
+              </Button>
+            </a>
+          )}
+        </div>
       </td>
     </tr>
   );

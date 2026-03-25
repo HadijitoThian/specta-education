@@ -218,6 +218,13 @@
       "when": 1774406879729,
       "tag": "0030_far_sister_grimm",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "5",
+      "when": 1774415760812,
+      "tag": "0031_great_bastion",
+      "breakpoints": true
     }
   ]
 }

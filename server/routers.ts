@@ -185,7 +185,10 @@ import {
   deleteBlogComment,
   getPostRatingSummary,
   getMultiplePostRatings,
-  countCommentsByPostId
+  countCommentsByPostId,
+  getCrmChatHistory,
+  saveCrmChatMessage,
+  clearCrmChatHistory,
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail } from "./email";
@@ -5801,6 +5804,11 @@ Help the counselor with: answering questions about this student, drafting messag
           ];
           const response = await invokeLLM({ messages });
           const content = response.choices?.[0]?.message?.content || "Maaf, saya tidak bisa memproses permintaan ini.";
+          // Persist to DB for AI memory
+          try {
+            await saveCrmChatMessage(input.leadId, "user", input.message);
+            await saveCrmChatMessage(input.leadId, "assistant", typeof content === "string" ? content : String(content));
+          } catch (_) { /* non-fatal */ }
           return { success: true, reply: content };
         } catch (e: any) { return { success: false, error: e.message }; }
       }),
@@ -5833,7 +5841,7 @@ Help the counselor with: answering questions about this student, drafting messag
         intakeDate: z.string().optional(),
         programInterest: z.string().optional(),
         notes: z.string().optional(),
-        assignedCounselor: z.string().optional(), // email of assigned counselor (admin can assign to others)
+        assignedCounselor: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const cookieHeader = ctx.req?.headers?.cookie || "";
@@ -5843,10 +5851,9 @@ Help the counselor with: answering questions about this student, drafting messag
           const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
           const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
           const staffEmail = payload.email as string;
-          // Admin can assign to any counselor; others assign to themselves
           const assignedTo = input.assignedCounselor || staffEmail;
           const lead = await createLead({
-            conversationId: null as any,  // manual CRM entry - no conversation
+            conversationId: null as any,
             studentName: input.studentName,
             studentEmail: input.studentEmail || undefined,
             studentPhone: input.studentPhone || undefined,
@@ -5864,6 +5871,116 @@ Help the counselor with: answering questions about this student, drafting messag
           await upsertLeadPipelineStage(lead.id, "new", staffEmail, "Student added manually via CRM");
           return { success: true, leadId: lead.id };
         } catch (e: any) { return { success: false, error: e.message }; }
+      }),
+
+    // ── Edit Student Profile ─────────────────────────────────────────────────
+    editStudent: publicProcedure
+      .input(z.object({
+        leadId: z.number(),
+        studentName: z.string().min(1).optional(),
+        studentEmail: z.string().optional(),
+        studentPhone: z.string().optional(),
+        preferredCountry: z.string().optional(),
+        studyLevel: z.string().optional(),
+        intakeDate: z.string().optional(),
+        programInterest: z.string().optional(),
+        notes: z.string().optional(),
+        assignedCounselor: z.string().optional(),
+        status: z.enum(["new", "contacted", "qualified", "converted", "closed"]).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+          const { leadId, ...updates } = input;
+          await updateLead(leadId, updates as any);
+          return { success: true };
+        } catch (e: any) { return { success: false, error: e.message }; }
+      }),
+
+    // ── AI Chat Memory ───────────────────────────────────────────────────────
+    getChatHistory: publicProcedure
+      .input(z.object({ leadId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { history: [] };
+        try {
+          await jwtVerify(match[1], new TextEncoder().encode(process.env.JWT_SECRET || "secret"), { algorithms: ["HS256"] });
+          const history = await getCrmChatHistory(input.leadId);
+          return { history };
+        } catch { return { history: [] }; }
+      }),
+
+    clearChatHistory: publicProcedure
+      .input(z.object({ leadId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        try {
+          await jwtVerify(match[1], new TextEncoder().encode(process.env.JWT_SECRET || "secret"), { algorithms: ["HS256"] });
+          await clearCrmChatHistory(input.leadId);
+          return { success: true };
+        } catch (e: any) { return { success: false, error: e.message }; }
+      }),
+
+    // ── Bulk CSV Import ──────────────────────────────────────────────────────
+    bulkImportStudents: publicProcedure
+      .input(z.object({
+        students: z.array(z.object({
+          studentName: z.string().min(1),
+          studentEmail: z.string().optional(),
+          studentPhone: z.string().optional(),
+          preferredCountry: z.string().optional(),
+          studyLevel: z.string().optional(),
+          intakeDate: z.string().optional(),
+          programInterest: z.string().optional(),
+          notes: z.string().optional(),
+          assignedCounselor: z.string().optional(),
+        })),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated", imported: 0, errors: [] };
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+          const staffEmail = payload.email as string;
+          let imported = 0;
+          const errors: string[] = [];
+          for (const s of input.students) {
+            try {
+              const assignedTo = s.assignedCounselor || staffEmail;
+              const lead = await createLead({
+                conversationId: null as any,
+                studentName: s.studentName,
+                studentEmail: s.studentEmail || undefined,
+                studentPhone: s.studentPhone || undefined,
+                preferredCountry: s.preferredCountry || undefined,
+                studyLevel: s.studyLevel || undefined,
+                intakeDate: s.intakeDate || undefined,
+                notes: s.notes || undefined,
+                assignedTo,
+                assignedCounselor: assignedTo,
+                programInterest: s.programInterest || undefined,
+                status: "new",
+                source: "csv_import",
+              } as any);
+              if (lead) {
+                await upsertLeadPipelineStage(lead.id, "new", staffEmail, "Imported via CSV");
+                imported++;
+              }
+            } catch (e: any) {
+              errors.push(`${s.studentName}: ${e.message}`);
+            }
+          }
+          return { success: true, imported, errors };
+        } catch (e: any) { return { success: false, error: e.message, imported: 0, errors: [] }; }
       }),
   }),
 });

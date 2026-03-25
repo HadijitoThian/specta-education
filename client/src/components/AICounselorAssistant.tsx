@@ -16,6 +16,7 @@ interface AICounselorAssistantProps {
   studentName: string;
   preferredCountry?: string | null;
   studyLevel?: string | null;
+  programInterest?: string | null;
 }
 
 const QUICK_ACTIONS = [
@@ -27,20 +28,41 @@ const QUICK_ACTIONS = [
   { id: "university_fit", label: "🎓 Uni Fit", description: "Analyze university matches" },
 ];
 
-export default function AICounselorAssistant({ leadId, studentName, preferredCountry, studyLevel }: AICounselorAssistantProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: `Halo! Saya adalah AI Assistant untuk konselor SpecTa Education. Saya siap membantu Anda mengelola kasus **${studentName}**.\n\nGunakan tombol cepat di atas atau tanyakan apa saja tentang siswa ini — mulai dari rekomendasi universitas, draft pesan WhatsApp/email, hingga strategi follow-up terbaik.`,
-      timestamp: new Date(),
-    },
-  ]);
+export default function AICounselorAssistant({ leadId, studentName, preferredCountry, studyLevel, programInterest }: AICounselorAssistantProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [activeQuickAction, setActiveQuickAction] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Load chat history from DB
+  const { data: historyData } = trpc.crm.getChatHistory.useQuery(
+    { leadId },
+    { enabled: !!leadId }
+  );
+  const clearHistoryMutation = trpc.crm.clearChatHistory.useMutation({
+    onSuccess: () => {
+      setMessages([{ role: "assistant", content: `Riwayat chat dihapus. Halo! Saya siap membantu Anda mengelola kasus **${studentName}**.`, timestamp: new Date() }]);
+    },
+  });
+
+  useEffect(() => {
+    if (historyData && !historyLoaded) {
+      setHistoryLoaded(true);
+      if (historyData.history && historyData.history.length > 0) {
+        const loaded: Message[] = historyData.history.map((h: any) => ({
+          role: h.role as "user" | "assistant",
+          content: h.content,
+          timestamp: new Date(h.createdAt),
+        }));
+        setMessages(loaded);
+      } else {
+        setMessages([{ role: "assistant", content: `Halo! Saya adalah AI Assistant untuk konselor SpecTa Education. Saya siap membantu Anda mengelola kasus **${studentName}**.\n\nGunakan tombol cepat di atas atau tanyakan apa saja tentang siswa ini — mulai dari rekomendasi universitas, draft pesan WhatsApp/email, hingga strategi follow-up terbaik.`, timestamp: new Date() }]);
+      }
+    }
+  }, [historyData, historyLoaded, studentName]);
 
   const consultationPrepMutation = trpc.crm.aiConsultationPrep.useMutation();
   const draftMessageMutation = trpc.crm.aiDraftMessage.useMutation();
@@ -52,8 +74,9 @@ export default function AICounselorAssistant({ leadId, studentName, preferredCou
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const addMessage = (role: "user" | "assistant", content: string) => {
+  const addMessage = (role: "user" | "assistant", content: string, persist = true) => {
     setMessages(prev => [...prev, { role, content, timestamp: new Date() }]);
+    // Persist to DB via the aiChat mutation which now saves history server-side
   };
 
   const handleQuickAction = async (actionId: string) => {
@@ -156,7 +179,14 @@ export default function AICounselorAssistant({ leadId, studentName, preferredCou
           <div className="text-white font-semibold text-sm">AI Counselor Assistant</div>
           <div className="text-gray-400 text-xs">Powered by SpecTa AI · Student: {studentName}</div>
         </div>
-        <Badge className="ml-auto bg-green-900/50 text-green-400 border-green-700 text-xs">Online</Badge>
+        <div className="ml-auto flex items-center gap-2">
+          <Badge className="bg-green-900/50 text-green-400 border-green-700 text-xs">Online</Badge>
+          <button
+            onClick={() => { if (window.confirm('Hapus semua riwayat chat untuk siswa ini?')) clearHistoryMutation.mutate({ leadId }); }}
+            className="text-xs text-gray-500 hover:text-red-400 transition-colors px-1.5 py-0.5 rounded hover:bg-red-900/20"
+            title="Hapus riwayat chat"
+          >🗑️</button>
+        </div>
       </div>
 
       {/* Quick Actions */}

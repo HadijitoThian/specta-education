@@ -2482,3 +2482,27 @@ export async function getAgentDashboardStats() {
     recentReports: reports,
   };
 }
+
+// ── CRM Chat History ─────────────────────────────────────────────────────────
+export async function getCrmChatHistory(leadId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { crmChatHistory } = await import("../drizzle/schema");
+  const { asc } = await import("drizzle-orm");
+  return db.select().from(crmChatHistory).where(eq(crmChatHistory.leadId, leadId)).orderBy(asc(crmChatHistory.createdAt));
+}
+
+export async function saveCrmChatMessage(leadId: number, role: "user" | "assistant", content: string, staffEmail?: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const { crmChatHistory } = await import("../drizzle/schema");
+  const result = await db.insert(crmChatHistory).values({ leadId, role, content, staffEmail: staffEmail ?? null });
+  return result;
+}
+
+export async function clearCrmChatHistory(leadId: number) {
+  const db = await getDb();
+  if (!db) return;
+  const { crmChatHistory } = await import("../drizzle/schema");
+  await db.delete(crmChatHistory).where(eq(crmChatHistory.leadId, leadId));
+}

@@ -1542,3 +1542,10 @@
 - [x] JSON markdown fence stripping fix for LLM responses
 - [x] getDueEnrollments wrapped with withDbRetry to fix "Pool is closed" errors
 - [x] 16 unit tests passing for GM logic
+
+## Sprint 3 — CRM Power Features (Mar 25, 2026)
+- [x] Edit Student Profile — inline modal to update name, email, phone, country, major, study level, intake, notes
+- [x] AI Chat Memory — save AI counselor chat history per student to DB; AI loads previous context on open
+- [x] Student Pipeline Kanban — drag-and-drop board: New Lead → Contacted → Docs Submitted → Offer → Enrolled
+- [x] WhatsApp Quick Action — one-click WA button on student card, pre-filled template message
+- [x] Bulk CSV Import — upload CSV/Excel to add multiple students at once with column mapping

@@ -1423,3 +1423,17 @@ export const counselorPerformance = mysqlTable("counselor_performance", {
 });
 export type CounselorPerformance = typeof counselorPerformance.$inferSelect;
 export type InsertCounselorPerformance = typeof counselorPerformance.$inferInsert;
+
+/**
+ * CRM AI Chat History — persisted chat messages per student for AI memory
+ */
+export const crmChatHistory = mysqlTable("crm_chat_history", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(), // references leads.id
+  role: mysqlEnum("role", ["user", "assistant"]).notNull(),
+  content: text("content").notNull(),
+  staffEmail: varchar("staffEmail", { length: 320 }), // who sent the message (for user role)
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CrmChatHistory = typeof crmChatHistory.$inferSelect;
+export type InsertCrmChatHistory = typeof crmChatHistory.$inferInsert;
