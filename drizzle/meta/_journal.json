@@ -267,6 +267,13 @@
       "when": 1774431044806,
       "tag": "0037_careless_banshee",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "5",
+      "when": 1774443264287,
+      "tag": "0038_bent_wallop",
+      "breakpoints": true
     }
   ]
 }

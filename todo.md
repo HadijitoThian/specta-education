@@ -1674,3 +1674,20 @@
 - [x] Delete all orphaned enrollments for broken campaigns
 - [x] Add admin confirmation gate before any bulk email send
 - [x] Make drip campaign manual-only (no auto-trigger without approval)
+
+## Sprint 13: Student Portal Rebuild
+- [ ] Add avatarUrl, bio, intakeMonth, intakeYear fields to student_portal_accounts table
+- [ ] Add student_appointments table (for booking counselling sessions)
+- [ ] Add student_university_wishlist table
+- [ ] tRPC: updateStudentProfile (avatar upload, bio, intake)
+- [ ] tRPC: bookStudentAppointment, getMyStudentAppointments
+- [ ] tRPC: addToWishlist, removeFromWishlist, getMyWishlist
+- [ ] tRPC: studentAIAdvisor (AI chat for students)
+- [ ] Rebuild StudentPortalDashboard with beautiful sidebar nav UI
+- [ ] Replace CRM stage names with student-friendly journey stages
+- [ ] Add AI Study Abroad Advisor tab (chat interface)
+- [ ] Add Book Appointment tab with time picker
+- [ ] Add University Wishlist tab with search
+- [ ] Add Document Vault tab (existing docs + upload)
+- [ ] Add Profile Settings tab (avatar upload, bio, intake date)
+- [ ] Add motivational elements (tips, countdown, progress percentage)

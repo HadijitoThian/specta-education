@@ -204,3 +204,162 @@ export async function deleteExistingSuggestions(counselorEmail: string, leadId: 
       ));
   }, "deleteExistingSuggestions");
 }
+
+// ─── Student Portal Profile ─────────────────────────────────────────────────
+
+import { studentPortalProfiles, studentPortalAppointments, studentUniversityWishlist, studentAiChatHistory } from "../drizzle/schema";
+
+export async function getStudentProfile(leadId: number) {
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("DB unavailable");
+    const rows = await db.select().from(studentPortalProfiles)
+      .where(eq(studentPortalProfiles.leadId, leadId)).limit(1);
+    return rows[0] ?? null;
+  }, "getStudentProfile");
+}
+
+export async function upsertStudentProfile(leadId: number, data: {
+  avatarUrl?: string;
+  avatarKey?: string;
+  bio?: string;
+  intakeMonth?: string;
+  intakeYear?: string;
+  dreamCountry?: string;
+  dreamProgram?: string;
+  motivationNote?: string;
+}) {
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("DB unavailable");
+    const existing = await db.select().from(studentPortalProfiles)
+      .where(eq(studentPortalProfiles.leadId, leadId)).limit(1);
+    if (existing[0]) {
+      await db.update(studentPortalProfiles).set(data)
+        .where(eq(studentPortalProfiles.leadId, leadId));
+    } else {
+      await db.insert(studentPortalProfiles).values({ leadId, ...data });
+    }
+    const rows = await db.select().from(studentPortalProfiles)
+      .where(eq(studentPortalProfiles.leadId, leadId)).limit(1);
+    return rows[0];
+  }, "upsertStudentProfile");
+}
+
+// ─── Student Portal Appointments ────────────────────────────────────────────
+
+export async function createStudentAppointment(data: {
+  leadId: number;
+  studentName: string;
+  studentEmail: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  sessionType: "initial_consultation" | "application_review" | "visa_guidance" | "scholarship_advice" | "general_inquiry";
+  notes?: string;
+}) {
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("DB unavailable");
+    const [result] = await db.insert(studentPortalAppointments).values({
+      ...data,
+      status: "pending",
+    });
+    return { id: (result as any).insertId };
+  }, "createStudentAppointment");
+}
+
+export async function getStudentAppointments(leadId: number) {
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("DB unavailable");
+    return db.select().from(studentPortalAppointments)
+      .where(eq(studentPortalAppointments.leadId, leadId))
+      .orderBy(desc(studentPortalAppointments.createdAt));
+  }, "getStudentAppointments");
+}
+
+export async function getAllStudentPortalAppointments() {
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("DB unavailable");
+    return db.select().from(studentPortalAppointments)
+      .orderBy(desc(studentPortalAppointments.createdAt));
+  }, "getAllStudentPortalAppointments");
+}
+
+export async function updateStudentAppointmentStatus(id: number, status: "pending" | "confirmed" | "completed" | "cancelled", counselorNotes?: string, meetingLink?: string) {
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("DB unavailable");
+    await db.update(studentPortalAppointments)
+      .set({ status, ...(counselorNotes ? { counselorNotes } : {}), ...(meetingLink ? { meetingLink } : {}) })
+      .where(eq(studentPortalAppointments.id, id));
+  }, "updateStudentAppointmentStatus");
+}
+
+// ─── Student University Wishlist ─────────────────────────────────────────────
+
+export async function getStudentWishlist(leadId: number) {
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("DB unavailable");
+    return db.select().from(studentUniversityWishlist)
+      .where(eq(studentUniversityWishlist.leadId, leadId))
+      .orderBy(desc(studentUniversityWishlist.createdAt));
+  }, "getStudentWishlist");
+}
+
+export async function addToStudentWishlist(leadId: number, data: {
+  universityName: string;
+  country: string;
+  program?: string;
+  notes?: string;
+  ranking?: string;
+  tuitionFee?: string;
+}) {
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("DB unavailable");
+    const [result] = await db.insert(studentUniversityWishlist).values({ leadId, ...data });
+    return { id: (result as any).insertId };
+  }, "addToStudentWishlist");
+}
+
+export async function removeFromStudentWishlist(id: number, leadId: number) {
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("DB unavailable");
+    await db.delete(studentUniversityWishlist)
+      .where(and(eq(studentUniversityWishlist.id, id), eq(studentUniversityWishlist.leadId, leadId)));
+  }, "removeFromStudentWishlist");
+}
+
+// ─── Student AI Chat History ─────────────────────────────────────────────────
+
+export async function getStudentAiChatHistory(leadId: number) {
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("DB unavailable");
+    return db.select().from(studentAiChatHistory)
+      .where(eq(studentAiChatHistory.leadId, leadId))
+      .orderBy(desc(studentAiChatHistory.createdAt))
+      .limit(50);
+  }, "getStudentAiChatHistory");
+}
+
+export async function addStudentAiMessage(leadId: number, role: "user" | "assistant", content: string) {
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("DB unavailable");
+    await db.insert(studentAiChatHistory).values({ leadId, role, content });
+  }, "addStudentAiMessage");
+}
+
+export async function clearStudentAiChatHistory(leadId: number) {
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("DB unavailable");
+    await db.delete(studentAiChatHistory)
+      .where(eq(studentAiChatHistory.leadId, leadId));
+  }, "clearStudentAiChatHistory");
+}

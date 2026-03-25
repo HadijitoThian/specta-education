@@ -1647,3 +1647,78 @@ export const aiFollowupSuggestions = mysqlTable("ai_followup_suggestions", {
 });
 export type AiFollowupSuggestion = typeof aiFollowupSuggestions.$inferSelect;
 export type InsertAiFollowupSuggestion = typeof aiFollowupSuggestions.$inferInsert;
+
+/**
+ * Student Portal Profile Extensions — Sprint 13
+ * Stores avatar, bio, intake preferences for student portal accounts
+ */
+export const studentPortalProfiles = mysqlTable("student_portal_profiles", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull().unique(),
+  avatarUrl: varchar("avatarUrl", { length: 1024 }),
+  avatarKey: varchar("avatarKey", { length: 512 }),
+  bio: text("bio"),
+  intakeMonth: varchar("intakeMonth", { length: 20 }),
+  intakeYear: varchar("intakeYear", { length: 10 }),
+  dreamCountry: varchar("dreamCountry", { length: 100 }),
+  dreamProgram: varchar("dreamProgram", { length: 255 }),
+  motivationNote: text("motivationNote"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type StudentPortalProfile = typeof studentPortalProfiles.$inferSelect;
+export type InsertStudentPortalProfile = typeof studentPortalProfiles.$inferInsert;
+
+/**
+ * Student Portal Appointments — Sprint 13
+ * Students can book counselling sessions from their portal
+ */
+export const studentPortalAppointments = mysqlTable("student_portal_appointments", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  studentName: varchar("studentName", { length: 255 }).notNull(),
+  studentEmail: varchar("studentEmail", { length: 320 }).notNull(),
+  appointmentDate: varchar("appointmentDate", { length: 20 }).notNull(),
+  appointmentTime: varchar("appointmentTime", { length: 10 }).notNull(),
+  sessionType: mysqlEnum("sessionType", ["initial_consultation", "application_review", "visa_guidance", "scholarship_advice", "general_inquiry"]).default("initial_consultation").notNull(),
+  notes: text("notes"),
+  status: mysqlEnum("status", ["pending", "confirmed", "completed", "cancelled"]).default("pending").notNull(),
+  counselorNotes: text("counselorNotes"),
+  meetingLink: varchar("meetingLink", { length: 512 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type StudentPortalAppointment = typeof studentPortalAppointments.$inferSelect;
+export type InsertStudentPortalAppointment = typeof studentPortalAppointments.$inferInsert;
+
+/**
+ * Student University Wishlist — Sprint 13
+ * Students can save universities they are interested in
+ */
+export const studentUniversityWishlist = mysqlTable("student_university_wishlist", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  universityName: varchar("universityName", { length: 255 }).notNull(),
+  country: varchar("country", { length: 100 }).notNull(),
+  program: varchar("program", { length: 255 }),
+  notes: text("notes"),
+  ranking: varchar("ranking", { length: 50 }),
+  tuitionFee: varchar("tuitionFee", { length: 100 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type StudentUniversityWishlist = typeof studentUniversityWishlist.$inferSelect;
+export type InsertStudentUniversityWishlist = typeof studentUniversityWishlist.$inferInsert;
+
+/**
+ * Student AI Advisor Chat History — Sprint 13
+ * Stores conversation history for the student AI advisor
+ */
+export const studentAiChatHistory = mysqlTable("student_ai_chat_history", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  role: mysqlEnum("role", ["user", "assistant"]).notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type StudentAiChatHistory = typeof studentAiChatHistory.$inferSelect;
+export type InsertStudentAiChatHistory = typeof studentAiChatHistory.$inferInsert;

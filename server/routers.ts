@@ -237,6 +237,10 @@ import {
   setStudentPortalResetToken, resetStudentPortalPassword,
   getAiSuggestionsForCounselor, markSuggestionActioned, clearOldSuggestions,
   insertAiSuggestion, deleteExistingSuggestions,
+  getStudentProfile, upsertStudentProfile,
+  createStudentAppointment, getStudentAppointments, getAllStudentPortalAppointments, updateStudentAppointmentStatus,
+  getStudentWishlist, addToStudentWishlist, removeFromStudentWishlist,
+  getStudentAiChatHistory, addStudentAiMessage, clearStudentAiChatHistory,
 } from "./studentPortalDb";
 import {
   getAllAgentConfigs,
@@ -6946,6 +6950,229 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
       .query(async ({ input }) => {
         const account = await getStudentPortalByLeadId(input.leadId);
         return { hasAccount: !!account, email: account?.email ?? null };
+      }),
+
+    // Get student profile (avatar, bio, etc.)
+    getProfile: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req.headers.cookie || "";
+      const cookies = parseCookies(cookieHeader);
+      const token = cookies["student_portal_token"];
+      if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+      try {
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const { payload } = await jwtVerify(token, secret);
+        const leadId = Number(payload.leadId);
+        return await getStudentProfile(leadId);
+      } catch {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Session expired" });
+      }
+    }),
+
+    // Update student profile
+    updateProfile: publicProcedure
+      .input(z.object({
+        bio: z.string().optional(),
+        intakeMonth: z.string().optional(),
+        intakeYear: z.string().optional(),
+        dreamCountry: z.string().optional(),
+        dreamProgram: z.string().optional(),
+        motivationNote: z.string().optional(),
+        avatarBase64: z.string().optional(),
+        avatarMimeType: z.string().optional(),
+        avatarFileName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req.headers.cookie || "";
+        const cookies = parseCookies(cookieHeader);
+        const token = cookies["student_portal_token"];
+        if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const { payload } = await jwtVerify(token, secret);
+        const leadId = Number(payload.leadId);
+        let avatarUrl: string | undefined;
+        let avatarKey: string | undefined;
+        if (input.avatarBase64 && input.avatarMimeType) {
+          const buffer = Buffer.from(input.avatarBase64, "base64");
+          const ext = input.avatarMimeType.split("/")[1] || "jpg";
+          const key = `student-avatars/${leadId}-${Date.now()}.${ext}`;
+          const uploaded = await storagePut(key, buffer, input.avatarMimeType);
+          avatarUrl = uploaded.url;
+          avatarKey = key;
+        }
+        const profile = await upsertStudentProfile(leadId, {
+          ...(avatarUrl ? { avatarUrl, avatarKey } : {}),
+          ...(input.bio !== undefined ? { bio: input.bio } : {}),
+          ...(input.intakeMonth !== undefined ? { intakeMonth: input.intakeMonth } : {}),
+          ...(input.intakeYear !== undefined ? { intakeYear: input.intakeYear } : {}),
+          ...(input.dreamCountry !== undefined ? { dreamCountry: input.dreamCountry } : {}),
+          ...(input.dreamProgram !== undefined ? { dreamProgram: input.dreamProgram } : {}),
+          ...(input.motivationNote !== undefined ? { motivationNote: input.motivationNote } : {}),
+        });
+        return { success: true, profile };
+      }),
+
+    // Book a counselling appointment
+    bookAppointment: publicProcedure
+      .input(z.object({
+        appointmentDate: z.string(),
+        appointmentTime: z.string(),
+        sessionType: z.enum(["initial_consultation", "application_review", "visa_guidance", "scholarship_advice", "general_inquiry"]),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req.headers.cookie || "";
+        const cookies = parseCookies(cookieHeader);
+        const token = cookies["student_portal_token"];
+        if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const { payload } = await jwtVerify(token, secret);
+        const leadId = Number(payload.leadId);
+        const dashboard = await getStudentPortalDashboard(leadId);
+        if (!dashboard) throw new TRPCError({ code: "NOT_FOUND", message: "Student not found" });
+        const result = await createStudentAppointment({
+          leadId,
+          studentName: dashboard.lead.studentName || "Student",
+          studentEmail: dashboard.lead.studentEmail || "",
+          ...input,
+        });
+        return { success: true, id: result.id };
+      }),
+
+    // Get my appointments
+    getAppointments: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req.headers.cookie || "";
+      const cookies = parseCookies(cookieHeader);
+      const token = cookies["student_portal_token"];
+      if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+      const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+      const { payload } = await jwtVerify(token, secret);
+      const leadId = Number(payload.leadId);
+      return getStudentAppointments(leadId);
+    }),
+
+    // Get wishlist
+    getWishlist: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req.headers.cookie || "";
+      const cookies = parseCookies(cookieHeader);
+      const token = cookies["student_portal_token"];
+      if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+      const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+      const { payload } = await jwtVerify(token, secret);
+      const leadId = Number(payload.leadId);
+      return getStudentWishlist(leadId);
+    }),
+
+    // Add to wishlist
+    addToWishlist: publicProcedure
+      .input(z.object({
+        universityName: z.string(),
+        country: z.string(),
+        program: z.string().optional(),
+        notes: z.string().optional(),
+        ranking: z.string().optional(),
+        tuitionFee: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req.headers.cookie || "";
+        const cookies = parseCookies(cookieHeader);
+        const token = cookies["student_portal_token"];
+        if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const { payload } = await jwtVerify(token, secret);
+        const leadId = Number(payload.leadId);
+        return addToStudentWishlist(leadId, input);
+      }),
+
+    // Remove from wishlist
+    removeFromWishlist: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req.headers.cookie || "";
+        const cookies = parseCookies(cookieHeader);
+        const token = cookies["student_portal_token"];
+        if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const { payload } = await jwtVerify(token, secret);
+        const leadId = Number(payload.leadId);
+        await removeFromStudentWishlist(input.id, leadId);
+        return { success: true };
+      }),
+
+    // AI Study Advisor chat
+    aiAdvisorChat: publicProcedure
+      .input(z.object({ message: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req.headers.cookie || "";
+        const cookies = parseCookies(cookieHeader);
+        const token = cookies["student_portal_token"];
+        if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const { payload } = await jwtVerify(token, secret);
+        const leadId = Number(payload.leadId);
+        // Get student context
+        const dashboard = await getStudentPortalDashboard(leadId);
+        const profile = await getStudentProfile(leadId);
+        const history = await getStudentAiChatHistory(leadId);
+        const recentHistory = [...history].reverse().slice(-10);
+        // Save user message
+        await addStudentAiMessage(leadId, "user", input.message);
+        // Build context
+        const studentContext = `Student: ${dashboard?.lead?.studentName || "Student"}, interested in studying in ${dashboard?.lead?.preferredCountry || profile?.dreamCountry || "abroad"}, level: ${dashboard?.lead?.studyLevel || "not specified"}, program: ${dashboard?.lead?.programInterest || profile?.dreamProgram || "not specified"}.`;
+        const messages: any[] = [
+          { role: "system", content: `You are SpecTa AI, a friendly and knowledgeable study abroad advisor for SpecTa Education. You help students with university selection, application processes, visa requirements, scholarships, and life abroad. Be warm, encouraging, and specific. Always reference SpecTa Education's counselors as a resource for personalized guidance. ${studentContext}` },
+          ...recentHistory.map((h: any) => ({ role: h.role, content: h.content })),
+          { role: "user", content: input.message },
+        ];
+        const response = await invokeLLM({ messages });
+        const aiReply = response.choices?.[0]?.message?.content || "I'm here to help! Could you tell me more about what you'd like to know?";
+        await addStudentAiMessage(leadId, "assistant", typeof aiReply === "string" ? aiReply : JSON.stringify(aiReply));
+        return { reply: typeof aiReply === "string" ? aiReply : JSON.stringify(aiReply) };
+      }),
+
+    // Get AI chat history
+    getAiChatHistory: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req.headers.cookie || "";
+      const cookies = parseCookies(cookieHeader);
+      const token = cookies["student_portal_token"];
+      if (!token) return [];
+      try {
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const { payload } = await jwtVerify(token, secret);
+        const leadId = Number(payload.leadId);
+        const history = await getStudentAiChatHistory(leadId);
+        return [...history].reverse();
+      } catch { return []; }
+    }),
+
+    // Clear AI chat history
+    clearAiChat: publicProcedure.mutation(async ({ ctx }) => {
+      const cookieHeader = ctx.req.headers.cookie || "";
+      const cookies = parseCookies(cookieHeader);
+      const token = cookies["student_portal_token"];
+      if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+      const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+      const { payload } = await jwtVerify(token, secret);
+      const leadId = Number(payload.leadId);
+      await clearStudentAiChatHistory(leadId);
+      return { success: true };
+    }),
+
+    // Admin: get all student portal appointments
+    getAllAppointments: protectedProcedure.query(async () => {
+      return getAllStudentPortalAppointments();
+    }),
+
+    // Admin: update appointment status
+    updateAppointmentStatus: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["pending", "confirmed", "completed", "cancelled"]),
+        counselorNotes: z.string().optional(),
+        meetingLink: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        await updateStudentAppointmentStatus(input.id, input.status, input.counselorNotes, input.meetingLink);
+        return { success: true };
       }),
 
   }),
