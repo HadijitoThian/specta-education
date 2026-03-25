@@ -1292,6 +1292,9 @@ function ProfileTab({ lead, profile, utils }: any) {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(profile?.avatarUrl || null);
   const [avatarData, setAvatarData] = useState<{ base64: string; mimeType: string; fileName: string } | null>(null);
   const [saved, setSaved] = useState(false);
+  const [parentName, setParentName] = useState(lead.parentName || "");
+  const [parentEmail, setParentEmail] = useState(lead.parentEmail || "");
+  const [parentSaved, setParentSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const updateMutation = trpc.studentPortal.updateProfile.useMutation({
@@ -1299,6 +1302,13 @@ function ProfileTab({ lead, profile, utils }: any) {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
       utils.studentPortal.getProfile.invalidate();
+    },
+  });
+
+  const updateParentMutation = trpc.studentPortal.updateParentInfo.useMutation({
+    onSuccess: () => {
+      setParentSaved(true);
+      setTimeout(() => setParentSaved(false), 2000);
     },
   });
 
@@ -1429,6 +1439,38 @@ function ProfileTab({ lead, profile, utils }: any) {
           <><Save className="w-4 h-4 mr-2" /> Save Profile</>
         )}
       </Button>
+
+      {/* Parent / Guardian */}
+      <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-6 space-y-4">
+        <h3 className="text-white font-semibold flex items-center gap-2">
+          <span className="text-lg">👨‍👩‍👧</span>
+          Parent / Guardian Info
+        </h3>
+        <p className="text-slate-400 text-xs">Your counselor will send weekly progress reports to your parent's email every Monday.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="text-slate-300 text-sm">Parent / Guardian Name</Label>
+            <Input value={parentName} onChange={e => setParentName(e.target.value)} placeholder="e.g. John Doe" className="bg-slate-700/50 border-slate-600 text-white focus:border-violet-500 rounded-xl" />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-slate-300 text-sm">Parent / Guardian Email</Label>
+            <Input type="email" value={parentEmail} onChange={e => setParentEmail(e.target.value)} placeholder="parent@email.com" className="bg-slate-700/50 border-slate-600 text-white focus:border-violet-500 rounded-xl" />
+          </div>
+        </div>
+        <Button
+          onClick={() => updateParentMutation.mutate({ parentName, parentEmail })}
+          disabled={updateParentMutation.isPending}
+          className={`w-full py-2.5 rounded-xl font-semibold transition-all text-sm ${parentSaved ? "bg-green-600 hover:bg-green-600" : "bg-slate-700 hover:bg-slate-600 border border-slate-600"}`}
+        >
+          {updateParentMutation.isPending ? (
+            <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Saving...</>
+          ) : parentSaved ? (
+            <><CheckCircle2 className="w-4 h-4 mr-2" /> Parent Info Saved!</>
+          ) : (
+            <><Save className="w-4 h-4 mr-2" /> Save Parent Info</>
+          )}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -220,7 +220,7 @@ import {
   upsertVisaTracking,
 } from "./db";
 import { notifyOwner } from "./_core/notification";
-import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail } from "./email";
+import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail, sendParentProgressEmail } from "./email";
 import crypto from "crypto";
 import { createProTestInvoice, verifyWebhookToken, generateExternalId, getProTestPrice, getProTestDiscountPrice } from "./xenditService";
 import { sendProAccessLinkEmail, sendPaymentConfirmationEmail } from "./resendService";
@@ -6149,14 +6149,57 @@ Help the counselor with: answering questions about this student, drafting messag
         const staffEmail = payload.email as string;
         const lead = await getLeadById(input.leadId);
         if (!lead) return { success: false, error: "Student not found" };
+        // Save parent info to lead if provided
+        if (input.parentEmail || input.parentName) {
+          await updateLead(input.leadId, {
+            ...(input.parentEmail ? { parentEmail: input.parentEmail } : {}),
+            ...(input.parentName ? { parentName: input.parentName } : {}),
+          });
+        }
         const docs = await getCrmDocsByLead(input.leadId);
-        const submitted = docs.filter((d: any) => d.status === "submitted" || d.status === "verified").length;
-        const total = docs.length;
-        const notes = await getNotesByLeadId(input.leadId);
-        const lastNote = notes[0]?.expandedNote || notes[0]?.rawNote || "No recent consultation notes.";
-        const emailHtml = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f9f9f9;padding:20px;border-radius:8px;"><div style="background:linear-gradient(135deg,#e91e8c,#9c27b0);padding:20px;border-radius:8px;text-align:center;margin-bottom:20px;"><h1 style="color:white;margin:0;font-size:22px;">SpecTa Education</h1><p style="color:rgba(255,255,255,0.9);margin:5px 0 0;">Student Progress Report</p></div><p>Dear ${input.parentName || "Parent/Guardian"},</p><p>Here is the latest progress update for <strong>${lead.studentName}</strong>:</p><table style="width:100%;border-collapse:collapse;margin:15px 0;"><tr style="background:#f0f0f0;"><td style="padding:8px;font-weight:bold;">Status</td><td style="padding:8px;">${lead.status?.toUpperCase()}</td></tr><tr><td style="padding:8px;font-weight:bold;">Preferred Country</td><td style="padding:8px;">${lead.preferredCountry || "Not specified"}</td></tr><tr style="background:#f0f0f0;"><td style="padding:8px;font-weight:bold;">Program Interest</td><td style="padding:8px;">${lead.programInterest || "Not specified"}</td></tr><tr><td style="padding:8px;font-weight:bold;">Study Level</td><td style="padding:8px;">${lead.studyLevel || "Not specified"}</td></tr><tr style="background:#f0f0f0;"><td style="padding:8px;font-weight:bold;">Target Intake</td><td style="padding:8px;">${lead.intakeDate || "Not specified"}</td></tr><tr><td style="padding:8px;font-weight:bold;">Documents Ready</td><td style="padding:8px;">${submitted}/${total} documents submitted</td></tr></table><div style="background:#fff;border-left:4px solid #e91e8c;padding:12px;margin:15px 0;border-radius:4px;"><strong>Latest Counselor Note:</strong><br/>${lastNote}</div><p style="color:#666;font-size:13px;">For questions, contact us at +62 811 8120 820 or reply to this email.</p><p style="color:#666;font-size:12px;text-align:center;margin-top:20px;">SpecTa Education — Your Study Abroad Partner</p></div>`;
-        await sendEmail({ to: input.parentEmail, subject: `Progress Report: ${lead.studentName} — SpecTa Education`, html: emailHtml });
-        await logActivity({ leadId: input.leadId, activityType: "email_sent", title: `Parent report sent to ${input.parentEmail}`, staffEmail });
+        const verifiedDocs = docs.filter((d: any) => d.status === "verified").length;
+        const pendingDocs = docs.filter((d: any) => d.status === "pending" || d.status === "submitted").length;
+        const totalDocs = docs.length;
+        const appointments = await getStudentAppointments(input.leadId);
+        const now = Date.now();
+        const upcomingSessions = appointments
+          .filter((a: any) => a.status === "confirmed" && new Date(a.scheduledAt).getTime() > now)
+          .slice(0, 3)
+          .map((a: any) => ({ sessionType: a.sessionType, scheduledAt: a.scheduledAt }));
+        const counselorName = lead.assignedCounselor || undefined;
+        await sendParentProgressEmail({
+          parentEmail: input.parentEmail,
+          parentName: input.parentName || "Parent/Guardian",
+          studentName: lead.studentName,
+          journeyStage: lead.status || "new_lead",
+          preferredCountry: lead.preferredCountry || undefined,
+          preferredDegree: lead.studyLevel || undefined,
+          preferredProgram: lead.programInterest || undefined,
+          verifiedDocs,
+          pendingDocs,
+          totalDocs,
+          upcomingSessions,
+          counselorName,
+          portalUrl: "https://spectaeducation.com/student/login",
+        });
+        await logActivity({ leadId: input.leadId, activityType: "email_sent", title: `Weekly progress report sent to parent: ${input.parentEmail}`, staffEmail });
+        return { success: true };
+      } catch (e: any) { return { success: false, error: e.message }; }
+    }),
+    // Update parent info for a lead
+    updateParentInfo: publicProcedure.input(z.object({
+      leadId: z.number(),
+      parentEmail: z.string().email().optional(),
+      parentName: z.string().optional(),
+    })).mutation(async ({ input, ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { success: false, error: "Not authenticated" };
+      try {
+        await updateLead(input.leadId, {
+          ...(input.parentEmail !== undefined ? { parentEmail: input.parentEmail } : {}),
+          ...(input.parentName !== undefined ? { parentName: input.parentName } : {}),
+        });
         return { success: true };
       } catch (e: any) { return { success: false, error: e.message }; }
     }),
@@ -7574,9 +7617,29 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
       await markAllStudentNotificationsRead(leadId);
       return { success: true };
     }),
-  }),
 
-  // ─── AI Follow-up Assistant ──────────────────────────────────────────────────
+    // ── Student: update parent/guardian info ──
+    updateParentInfo: publicProcedure.input(z.object({
+      parentName: z.string().optional(),
+      parentEmail: z.string().email().optional(),
+    })).mutation(async ({ input, ctx }) => {
+      const cookieHeader = ctx.req.headers.cookie || "";
+      const cookies = parseCookies(cookieHeader);
+      const token = cookies["student_portal_token"];
+      if (!token) return { success: false, error: "Not authenticated" };
+      try {
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const { payload } = await jwtVerify(token, secret);
+        const leadId = Number(payload.leadId);
+        await updateLead(leadId, {
+          ...(input.parentName !== undefined ? { parentName: input.parentName } : {}),
+          ...(input.parentEmail !== undefined ? { parentEmail: input.parentEmail } : {}),
+        });
+        return { success: true };
+      } catch (e: any) { return { success: false, error: e.message }; }
+    }),
+  }),
+  // ─── AI Follow-up Assistantt ──────────────────────────────────────────────────
   aiAssistant: router({
 
     // Get all suggestions for the current counselor

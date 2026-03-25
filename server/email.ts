@@ -54,6 +54,8 @@ const ALWAYS_ALLOW_PATTERNS = [
   "Outreach Sent:",
   "Rekomendasi Jurusan",
   "Action Required: Document Requested",
+  "Weekly Progress Report:",
+  "Weekly Progress Update:",
 ];
 
 function shouldBypassThrottle(subject: string): boolean {
@@ -1046,4 +1048,100 @@ export async function sendPartnershipEmail({
     console.error(`[Partnership Email] Failed to send to ${to}:`, error);
     return { success: false, error: "Network error — could not reach email service" };
   }
+}
+
+// ==========================================
+// WEEKLY PARENT PROGRESS REPORT EMAIL
+// ==========================================
+export async function sendParentProgressEmail({
+  parentEmail,
+  parentName,
+  studentName,
+  journeyStage,
+  preferredCountry,
+  preferredDegree,
+  preferredProgram,
+  verifiedDocs,
+  pendingDocs,
+  totalDocs,
+  upcomingSessions,
+  counselorName,
+  portalUrl,
+}: {
+  parentEmail: string;
+  parentName: string;
+  studentName: string;
+  journeyStage: string;
+  preferredCountry?: string;
+  preferredDegree?: string;
+  preferredProgram?: string;
+  verifiedDocs: number;
+  pendingDocs: number;
+  totalDocs: number;
+  upcomingSessions: Array<{ sessionType: string; scheduledAt: string }>;
+  counselorName?: string;
+  portalUrl: string;
+}): Promise<boolean> {
+  const stageLabels: Record<string, string> = {
+    new_lead: "Getting Started",
+    contacted: "Planning",
+    qualified: "Preparing",
+    in_progress: "In Progress",
+    enrolled: "Offer Received",
+    completed: "Enrolled",
+  };
+  const stageLabel = stageLabels[journeyStage] || journeyStage;
+  const stageEmojis: Record<string, string> = {
+    new_lead: "🌱", contacted: "📋", qualified: "📚", in_progress: "🚀", enrolled: "🎉", completed: "🎓",
+  };
+  const stageEmoji = stageEmojis[journeyStage] || "📌";
+
+  const docProgress = totalDocs > 0
+    ? `<div style="background:#f0fdf4;border-radius:8px;padding:16px;margin:12px 0;border-left:4px solid #22c55e;">
+        <p style="margin:4px 0;"><strong>✅ Verified:</strong> ${verifiedDocs} document${verifiedDocs !== 1 ? "s" : ""}</p>
+        <p style="margin:4px 0;"><strong>⏳ Pending Review:</strong> ${pendingDocs} document${pendingDocs !== 1 ? "s" : ""}</p>
+        <p style="margin:4px 0;"><strong>📁 Total Submitted:</strong> ${totalDocs} document${totalDocs !== 1 ? "s" : ""}</p>
+      </div>`
+    : `<p style="color:#888;font-style:italic;">No documents submitted yet this week.</p>`;
+
+  const sessionsHtml = upcomingSessions.length > 0
+    ? `<ul style="padding-left:20px;margin:8px 0;">${upcomingSessions.map(s => `
+        <li style="margin:6px 0;color:#333;">
+          <strong>${s.sessionType.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</strong>
+          — ${new Date(s.scheduledAt).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+        </li>`).join("")}</ul>`
+    : `<p style="color:#888;font-style:italic;">No upcoming sessions scheduled.</p>`;
+
+  const html = emailWrapper(`
+    <h3 style="color:#1a1a1a;margin-top:0;">Weekly Progress Report — ${studentName}</h3>
+    <p>Dear <strong>${parentName}</strong>,</p>
+    <p>Here is your weekly update on <strong>${studentName}</strong>'s study abroad journey with SpecTa Education.</p>
+
+    <div class="info-box" style="border-left-color:#7c3aed;">
+      <p style="margin:4px 0;font-size:18px;">${stageEmoji} <strong>Current Stage:</strong> ${stageLabel}</p>
+      ${preferredCountry ? `<p style="margin:4px 0;">🌏 <strong>Destination:</strong> ${preferredCountry}</p>` : ""}
+      ${preferredDegree ? `<p style="margin:4px 0;">🎓 <strong>Degree:</strong> ${preferredDegree}${preferredProgram ? ` — ${preferredProgram}` : ""}</p>` : ""}
+      ${counselorName ? `<p style="margin:4px 0;">👤 <strong>Counselor:</strong> ${counselorName}</p>` : ""}
+    </div>
+
+    <h4 style="color:#1a1a1a;margin-bottom:8px;">📄 Document Status</h4>
+    ${docProgress}
+
+    <h4 style="color:#1a1a1a;margin-bottom:8px;">📅 Upcoming Counselling Sessions</h4>
+    ${sessionsHtml}
+
+    <p style="margin-top:20px;">You can view ${studentName}'s full progress and documents by visiting the student portal:</p>
+    <a href="${portalUrl}" class="btn" style="background:#7c3aed;">View Student Portal</a>
+
+    <p style="color:#666;font-size:13px;margin-top:20px;">
+      This is an automated weekly progress report from SpecTa Education.<br>
+      If you have any questions, please contact us at <a href="https://wa.me/628118120820" style="color:#e53e3e;">+62 811 8120 820</a>.
+    </p>
+  `);
+
+  return sendEmail({
+    to: parentEmail,
+    subject: `Weekly Progress Report: ${studentName} — ${stageLabel}`,
+    html,
+  });
 }
