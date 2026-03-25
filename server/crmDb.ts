@@ -125,32 +125,50 @@ export async function upsertLeadPipelineStage(
 export async function getPipelineByStaff(staffEmail: string): Promise<Array<{
   lead: typeof leads.$inferSelect;
   pipeline: LeadPipelineStage;
+  activeAppsCount: number;
+  lastActivityAt: Date | null;
 }>> {
   return withDbRetry(async () => {
     const db = await getDb();
     if (!db) throw new Error("DB unavailable");
+    const { studentApplications } = await import("../drizzle/schema");
     const rows = await db
       .select({ lead: leads, pipeline: leadPipelineStages })
       .from(leads)
       .innerJoin(leadPipelineStages, eq(leads.id, leadPipelineStages.leadId))
       .where(eq(leads.assignedTo, staffEmail))
       .orderBy(desc(leadPipelineStages.leadScore), desc(leads.createdAt));
-    return rows;
+    // Enrich each row with active apps count and last activity
+    const enriched = await Promise.all(rows.map(async (row) => {
+      const apps = await db.select().from(studentApplications).where(eq(studentApplications.leadId, row.lead.id));
+      const activeAppsCount = apps.filter(a => !['rejected','withdrawn'].includes(a.applicationStatus || '')).length;
+      return { ...row, activeAppsCount, lastActivityAt: row.pipeline.stageChangedAt ?? null };
+    }));
+    return enriched;
   });
 }
 
 export async function getAllPipelineLeads(): Promise<Array<{
   lead: typeof leads.$inferSelect;
   pipeline: LeadPipelineStage;
+  activeAppsCount: number;
+  lastActivityAt: Date | null;
 }>> {
   return withDbRetry(async () => {
     const db = await getDb();
     if (!db) throw new Error("DB unavailable");
-    return db
+    const { studentApplications } = await import("../drizzle/schema");
+    const rows = await db
       .select({ lead: leads, pipeline: leadPipelineStages })
       .from(leads)
       .innerJoin(leadPipelineStages, eq(leads.id, leadPipelineStages.leadId))
       .orderBy(desc(leadPipelineStages.leadScore), desc(leads.createdAt));
+    const enriched = await Promise.all(rows.map(async (row) => {
+      const apps = await db.select().from(studentApplications).where(eq(studentApplications.leadId, row.lead.id));
+      const activeAppsCount = apps.filter(a => !['rejected','withdrawn'].includes(a.applicationStatus || '')).length;
+      return { ...row, activeAppsCount, lastActivityAt: row.pipeline.stageChangedAt ?? null };
+    }));
+    return enriched;
   });
 }
 

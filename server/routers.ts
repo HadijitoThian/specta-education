@@ -6275,6 +6275,60 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
         } catch { return { success: false, error: "Not authenticated" }; }
         try {
           await createStudentApplication({ ...input, staffEmail });
+
+          // ── CONNECTED CRM: Auto-advance pipeline to "in_progress" ──────────
+          const currentPipeline = await getLeadPipelineStage(input.leadId);
+          const currentStage = currentPipeline?.stage || "new";
+          const stageOrder = ["new","contacted","qualified","in_progress","enrolled","completed","lost"];
+          const currentIdx = stageOrder.indexOf(currentStage);
+          const inProgressIdx = stageOrder.indexOf("in_progress");
+          // Only advance forward (not if already in_progress, enrolled, or completed)
+          if (currentIdx < inProgressIdx) {
+            await upsertLeadPipelineStage(input.leadId, "in_progress", staffEmail,
+              `Auto-advanced: application added for ${input.universityName}`);
+          }
+
+          // ── CONNECTED CRM: Log timeline event ────────────────────────────
+          await logActivity({
+            leadId: input.leadId,
+            activityType: "application_added",
+            title: `Application added: ${input.universityName}`,
+            description: `Program: ${input.programName}${input.country ? ` | Country: ${input.country}` : ""}${input.intakePeriod ? ` | Intake: ${input.intakePeriod}` : ""}`,
+            staffEmail,
+          });
+
+          // ── CONNECTED CRM: Auto-create follow-up task ─────────────────────
+          const lead = await getLeadById(input.leadId);
+          const staffAcct = await getStaffAccountByEmail(staffEmail);
+          if (staffAcct) {
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 7);
+            await createCrmTask({
+              staffId: staffAcct.id,
+              staffEmail,
+              relatedType: "lead",
+              relatedId: input.leadId,
+              relatedName: lead?.studentName || "Student",
+              title: `Follow up on ${input.universityName} application`,
+              description: `Check application status for ${input.programName} at ${input.universityName}`,
+              taskType: "follow_up",
+              priority: "medium",
+              dueDate,
+              isAiGenerated: true,
+              aiReason: "Auto-created when application was added",
+            });
+          }
+
+          // ── CONNECTED CRM: Notify counselor ───────────────────────────────
+          await createNotification({
+            staffEmail,
+            type: "application",
+            title: `Application added for ${lead?.studentName || "student"}`,
+            message: `${input.universityName} — ${input.programName}. Pipeline advanced to In Progress.`,
+            leadId: input.leadId,
+            actionUrl: `/crm/lead/${input.leadId}`,
+          });
+
           return { success: true };
         } catch (e: any) {
           return { success: false, error: e.message };
@@ -6301,8 +6355,115 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
           await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
         } catch { return { success: false, error: "Not authenticated" }; }
         const { id, ...data } = input;
+        let staffEmail = "";
         try {
+          const secretKey2 = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          const { payload } = await jwtVerify(match[1], secretKey2, { algorithms: ["HS256"] });
+          staffEmail = payload.email as string || "";
+        } catch {}
+        try {
+          // Fetch current app state before update
+          const { studentApplications } = await import("../drizzle/schema");
+          const db2 = await (await import("./db")).getDb();
+          const [currentApp] = db2 ? await db2.select().from(studentApplications).where((await import("drizzle-orm")).eq(studentApplications.id, id)) : [];
+          const oldStatus = currentApp?.applicationStatus || "";
+          const newStatus = data.applicationStatus || oldStatus;
+
           await updateStudentApplication(id, data as any);
+
+          // ── CONNECTED CRM: Status change triggers ────────────────────────
+          if (newStatus !== oldStatus && currentApp && staffEmail) {
+            const lead = await getLeadById(currentApp.leadId);
+            const studentName = lead?.studentName || "Student";
+            const uniName = data.universityName || currentApp.universityName;
+
+            // Log timeline
+            await logActivity({
+              leadId: currentApp.leadId,
+              activityType: "application_status_changed",
+              title: `Application status: ${oldStatus} → ${newStatus}`,
+              description: `${uniName} — ${data.programName || currentApp.programName}`,
+              staffEmail,
+            });
+
+            const staffAcct = await getStaffAccountByEmail(staffEmail);
+
+            // Status-specific actions
+            if (newStatus === "submitted") {
+              // Auto-task: check status in 14 days
+              if (staffAcct) {
+                const due = new Date(); due.setDate(due.getDate() + 14);
+                await createCrmTask({
+                  staffId: staffAcct.id, staffEmail,
+                  relatedType: "lead", relatedId: currentApp.leadId, relatedName: studentName,
+                  title: `Check ${uniName} application status`,
+                  description: `Application was submitted. Follow up with university for update.`,
+                  taskType: "follow_up", priority: "medium", dueDate: due,
+                  isAiGenerated: true, aiReason: "Auto-created on application submission",
+                });
+              }
+              await createNotification({ staffEmail, type: "application",
+                title: `${studentName}: ${uniName} submitted`,
+                message: `Check back in 14 days for a response.`,
+                leadId: currentApp.leadId, actionUrl: `/crm/lead/${currentApp.leadId}` });
+            }
+
+            if (newStatus === "conditional_offer") {
+              // Auto-task: send acceptance docs in 3 days
+              if (staffAcct) {
+                const due = new Date(); due.setDate(due.getDate() + 3);
+                await createCrmTask({
+                  staffId: staffAcct.id, staffEmail,
+                  relatedType: "lead", relatedId: currentApp.leadId, relatedName: studentName,
+                  title: `Send acceptance documents to ${studentName} for ${uniName}`,
+                  description: `Conditional offer received. Student needs to fulfill conditions.`,
+                  taskType: "document_request", priority: "high", dueDate: due,
+                  isAiGenerated: true, aiReason: "Auto-created on conditional offer",
+                });
+              }
+              await createNotification({ staffEmail, type: "application",
+                title: `🎉 Conditional Offer: ${studentName} — ${uniName}`,
+                message: `Conditional offer received! Send acceptance documents within 3 days.`,
+                leadId: currentApp.leadId, actionUrl: `/crm/lead/${currentApp.leadId}` });
+            }
+
+            if (newStatus === "unconditional_offer" || newStatus === "enrolled") {
+              // Auto-advance pipeline to enrolled
+              await upsertLeadPipelineStage(currentApp.leadId, "enrolled", staffEmail,
+                `Auto-advanced: ${uniName} offer accepted`);
+              // Auto-task: start visa process
+              if (staffAcct) {
+                const due = new Date(); due.setDate(due.getDate() + 2);
+                await createCrmTask({
+                  staffId: staffAcct.id, staffEmail,
+                  relatedType: "lead", relatedId: currentApp.leadId, relatedName: studentName,
+                  title: `Start visa process for ${studentName} — ${uniName}`,
+                  description: `Unconditional offer received. Begin visa application immediately.`,
+                  taskType: "other", priority: "urgent", dueDate: due,
+                  isAiGenerated: true, aiReason: "Auto-created on unconditional offer/enrollment",
+                });
+              }
+              // Team chat celebration
+              const chatClients = (global as any).__chatSSEClients as Map<string, Set<any>> | undefined;
+              const celebMsg = await sendTeamChatMessage({
+                senderEmail: "system@spectaeducation.com",
+                senderName: "🎉 SpecTa CRM",
+                message: `🎉 ${staffEmail.split("@")[0]} just enrolled **${studentName}** to **${uniName}**! Congratulations! 🎓`,
+                channel: "general",
+              });
+              if (chatClients?.has("general")) {
+                const payload2 = JSON.stringify({ type: "new_message", message: celebMsg });
+                chatClients.get("general")!.forEach((c: any) => {
+                  try { c.write(`event: new_message\ndata: ${payload2}\n\n`); } catch {}
+                });
+              }
+              await createNotification({ staffEmail, type: "application",
+                title: `🎉 ${studentName} ENROLLED at ${uniName}!`,
+                message: `Unconditional offer confirmed. Pipeline moved to Enrolled. Start visa process now!`,
+                leadId: currentApp.leadId, actionUrl: `/crm/lead/${currentApp.leadId}` });
+            }
+          }
+
           return { success: true };
         } catch (e: any) {
           return { success: false, error: e.message };

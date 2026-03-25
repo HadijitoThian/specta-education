@@ -568,6 +568,59 @@ export default function StudentProfile360() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Applications Summary on Overview */}
+                {appsData?.applications && appsData.applications.length > 0 && (
+                  <Card className="bg-[#0d1424]/80 border-white/10">
+                    <CardHeader>
+                      <CardTitle className="text-white text-sm flex items-center justify-between">
+                        <span>University Applications ({appsData.applications.length})</span>
+                        <button className="text-[#f59e0b] text-xs hover:underline" onClick={() => setActiveTab("applications")}>View All →</button>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-5 pt-0 space-y-2">
+                      {appsData.applications.map((app: any) => {
+                        const statusColors: Record<string, string> = {
+                          preparing: "bg-gray-500/20 text-gray-300 border-gray-500/30",
+                          submitted: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+                          conditional_offer: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+                          unconditional_offer: "bg-green-500/20 text-green-400 border-green-500/30",
+                          enrolled: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+                          rejected: "bg-red-500/20 text-red-400 border-red-500/30",
+                          withdrawn: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+                        };
+                        const statusLabel: Record<string, string> = {
+                          preparing: "Preparing", submitted: "Submitted",
+                          conditional_offer: "Conditional Offer", unconditional_offer: "Unconditional Offer 🎉",
+                          enrolled: "Enrolled 🎓", rejected: "Rejected", withdrawn: "Withdrawn",
+                        };
+                        const isOffer = app.applicationStatus === "unconditional_offer" || app.applicationStatus === "enrolled";
+                        return (
+                          <div key={app.id} className={`flex items-center justify-between p-2.5 rounded-lg border ${
+                            isOffer ? "border-green-500/30 bg-green-500/5" : "border-white/10 bg-white/2"
+                          }`}>
+                            <div>
+                              <div className="text-white text-sm font-medium">{app.universityName}</div>
+                              <div className="text-white/50 text-xs">{app.programName}{app.country ? ` • ${app.country}` : ""}</div>
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                              <span className={`text-xs px-2 py-0.5 rounded border ${
+                                statusColors[app.applicationStatus] || "bg-gray-500/20 text-gray-400 border-gray-500/30"
+                              }`}>
+                                {statusLabel[app.applicationStatus] || app.applicationStatus}
+                              </span>
+                              {isOffer && (
+                                <button className="text-xs text-[#f59e0b] hover:underline" onClick={() => setActiveTab("visa")}>
+                                  🛂 Start Visa Process →
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             )}
 

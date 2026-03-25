@@ -1605,3 +1605,18 @@
 - [x] Visa Tracker — 12-item document checklist with progress bar
 - [x] Visa Tracker — key dates (application, biometrics, decision, expiry)
 - [x] Sprint 9 vitest tests — 8/8 passing
+
+## Sprint 10 (March 2026) — Connected CRM Flow
+- [x] Auto-advance pipeline to 'In Progress' when application is added
+- [x] Auto-advance pipeline to 'Enrolled' when unconditional offer / enrolled status set
+- [x] Active apps counter on pipeline board cards (excludes rejected/withdrawn)
+- [x] Overdue indicator on pipeline cards (red border + warning if no activity 7+ days)
+- [x] Auto-create follow-up task (7 days) when application is added
+- [x] Auto-create check-status task (14 days) when application is submitted
+- [x] Auto-create document task (3 days, high priority) on conditional offer
+- [x] Auto-create urgent visa task (2 days) on unconditional offer / enrolled
+- [x] Timeline auto-log for every application status change
+- [x] Bell notification to counselor on every key application event
+- [x] Team chat celebration post when student reaches enrolled
+- [x] Application status summary card on Overview tab in StudentProfile360
+- [x] Visa prompt button on Overview when unconditional offer / enrolled

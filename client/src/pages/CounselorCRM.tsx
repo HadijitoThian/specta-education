@@ -1190,14 +1190,34 @@ function LeadCard({ item, stages, onStageChange }: {
   const pipeline = item.pipeline;
   const score = pipeline.leadScore ?? 50;
   const scoreColor = score >= 70 ? "text-green-400" : score >= 40 ? "text-yellow-400" : "text-red-400";
+  const activeAppsCount = item.activeAppsCount ?? 0;
+  // Overdue: no activity for 7+ days
+  const lastActivity = item.lastActivityAt ? new Date(item.lastActivityAt) : null;
+  const daysSinceActivity = lastActivity ? Math.floor((Date.now() - lastActivity.getTime()) / (1000 * 60 * 60 * 24)) : null;
+  const isOverdue = daysSinceActivity !== null && daysSinceActivity >= 7;
 
   return (
-    <div className="bg-[#0a0f1e]/80 border border-white/10 rounded-lg p-2.5 text-xs hover:border-white/20 transition-colors">
+    <div className={`bg-[#0a0f1e]/80 border rounded-lg p-2.5 text-xs hover:border-white/20 transition-colors ${
+      isOverdue ? "border-red-500/40" : "border-white/10"
+    }`}>
+      {isOverdue && (
+        <div className="flex items-center gap-1 text-red-400 mb-1.5 bg-red-500/10 rounded px-1.5 py-0.5">
+          <span className="text-xs">⚠️ No activity {daysSinceActivity}d</span>
+        </div>
+      )}
       <div className="flex items-start justify-between gap-1 mb-1">
         <span className="font-medium text-white truncate flex-1">{lead.studentName}</span>
         <span className={`font-bold ${scoreColor} shrink-0`}>{score}</span>
       </div>
-      {lead.preferredCountry && <div className="text-white/40 mb-1.5">🌍 {lead.preferredCountry}</div>}
+      {lead.preferredCountry && <div className="text-white/40 mb-1">🌍 {lead.preferredCountry}</div>}
+      {/* Active Apps Badge */}
+      {activeAppsCount > 0 && (
+        <div className="flex items-center gap-1 mb-1.5">
+          <span className="bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded px-1.5 py-0.5 text-xs">
+            📚 {activeAppsCount} app{activeAppsCount > 1 ? "s" : ""}
+          </span>
+        </div>
+      )}
       <div className="flex items-center gap-1 flex-wrap">
         <Link href={`/crm/lead/${lead.id}`}>
           <button className="text-[#f59e0b] hover:text-[#d97706] flex items-center gap-0.5">
