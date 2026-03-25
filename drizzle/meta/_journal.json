@@ -204,6 +204,13 @@
       "when": 1773992018782,
       "tag": "0028_flippant_otto_octavius",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "5",
+      "when": 1774402478772,
+      "tag": "0029_fuzzy_living_lightning",
+      "breakpoints": true
     }
   ]
 }

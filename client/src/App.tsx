@@ -36,6 +36,8 @@ import Simulator from "./pages/Simulator";
 import SimulatorExperience from "./pages/SimulatorExperience";
 import SimulatorReport from "./pages/SimulatorReport";
 import AgentCommandCenter from "./pages/AgentCommandCenter";
+import CounselorCRM from "./pages/CounselorCRM";
+import StudentProfile360 from "./pages/StudentProfile360";
 import { useVisitorTracking } from "./hooks/useVisitorTracking";
 import AIAnswers from "./pages/AIAnswers";
 
@@ -71,6 +73,8 @@ function Router() {
       <Route path={"/quiz"}>{() => <Redirect to="/play/quiz" />}</Route>
       <Route path={"/staff-login"} component={StaffLogin} />
       <Route path={"/staff-dashboard"} component={StaffDashboard} />
+      <Route path={"/crm"} component={CounselorCRM} />
+      <Route path={"/crm/lead/:id"} component={StudentProfile360} />
       <Route path={"/admin"} component={AdminDashboard} />
       <Route path={"/admin/agents"} component={AgentCommandCenter} />
       <Route path={"/blog"} component={Blog} />

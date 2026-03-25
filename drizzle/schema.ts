@@ -1314,3 +1314,110 @@ export const gmExecutiveReports = mysqlTable("gm_executive_reports", {
 });
 export type GmExecutiveReport = typeof gmExecutiveReports.$inferSelect;
 export type InsertGmExecutiveReport = typeof gmExecutiveReports.$inferInsert;
+
+// ==========================================
+// Sprint 1 CRM Tables — Counselor Workspace
+// ==========================================
+
+/**
+ * CRM Tasks — AI-generated and manual daily tasks for counselors
+ */
+export const crmTasks = mysqlTable("crm_tasks", {
+  id: int("id").autoincrement().primaryKey(),
+  staffId: int("staffId").notNull(), // references staffAccounts.id
+  staffEmail: varchar("staffEmail", { length: 320 }).notNull(),
+  // What the task is about
+  relatedType: mysqlEnum("relatedType", ["lead", "application", "general"]).default("lead").notNull(),
+  relatedId: int("relatedId"), // leadId or applicationId
+  relatedName: varchar("relatedName", { length: 255 }), // student name for display
+  // Task details
+  title: varchar("title", { length: 500 }).notNull(),
+  description: text("description"),
+  taskType: mysqlEnum("taskType", ["call", "whatsapp", "email", "document_request", "follow_up", "consultation", "other"]).default("follow_up").notNull(),
+  priority: mysqlEnum("priority", ["urgent", "high", "medium", "low"]).default("medium").notNull(),
+  // Status
+  status: mysqlEnum("status", ["pending", "in_progress", "done", "skipped"]).default("pending").notNull(),
+  dueDate: timestamp("dueDate"),
+  completedAt: timestamp("completedAt"),
+  // AI or manual
+  isAiGenerated: boolean("isAiGenerated").default(false).notNull(),
+  aiReason: text("aiReason"), // why AI generated this task
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CrmTask = typeof crmTasks.$inferSelect;
+export type InsertCrmTask = typeof crmTasks.$inferInsert;
+
+/**
+ * Lead Pipeline Stage — tracks which pipeline stage a lead is in
+ * Extends the basic leads.status with richer CRM pipeline tracking
+ */
+export const leadPipelineStages = mysqlTable("lead_pipeline_stages", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull().unique(), // references leads.id
+  stage: mysqlEnum("stage", ["new", "contacted", "qualified", "enrolled", "in_progress", "completed", "lost"]).default("new").notNull(),
+  previousStage: mysqlEnum("previousStage", ["new", "contacted", "qualified", "enrolled", "in_progress", "completed", "lost"]),
+  stageChangedAt: timestamp("stageChangedAt").defaultNow().notNull(),
+  stageChangedBy: varchar("stageChangedBy", { length: 255 }), // staff name
+  stageNote: text("stageNote"), // reason for stage change
+  // Scoring
+  leadScore: int("leadScore").default(50), // 0-100 AI score
+  scoreReason: text("scoreReason"),
+  // Next action
+  nextActionDue: timestamp("nextActionDue"),
+  nextActionNote: varchar("nextActionNote", { length: 500 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type LeadPipelineStage = typeof leadPipelineStages.$inferSelect;
+export type InsertLeadPipelineStage = typeof leadPipelineStages.$inferInsert;
+
+/**
+ * Consultation Notes — structured notes from counselor consultations
+ */
+export const consultationNotes = mysqlTable("consultation_notes", {
+  id: int("id").autoincrement().primaryKey(),
+  staffId: int("staffId").notNull(),
+  staffName: varchar("staffName", { length: 255 }).notNull(),
+  // What was consulted
+  relatedType: mysqlEnum("relatedType", ["lead", "application"]).default("lead").notNull(),
+  relatedId: int("relatedId").notNull(),
+  studentName: varchar("studentName", { length: 255 }).notNull(),
+  // Note content
+  rawNote: text("rawNote"), // what counselor typed
+  expandedNote: text("expandedNote"), // AI-expanded structured note
+  consultationType: mysqlEnum("consultationType", ["call", "whatsapp", "in_person", "email", "online_meeting"]).default("call").notNull(),
+  durationMinutes: int("durationMinutes"),
+  // Outcomes
+  outcome: mysqlEnum("outcome", ["positive", "neutral", "negative", "no_answer"]).default("neutral").notNull(),
+  nextStepAction: varchar("nextStepAction", { length: 500 }),
+  nextStepDueDate: timestamp("nextStepDueDate"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type ConsultationNote = typeof consultationNotes.$inferSelect;
+export type InsertConsultationNote = typeof consultationNotes.$inferInsert;
+
+/**
+ * Counselor Performance Snapshots — daily KPI snapshots per counselor
+ */
+export const counselorPerformance = mysqlTable("counselor_performance", {
+  id: int("id").autoincrement().primaryKey(),
+  staffId: int("staffId").notNull(),
+  staffEmail: varchar("staffEmail", { length: 320 }).notNull(),
+  snapshotDate: varchar("snapshotDate", { length: 20 }).notNull(), // YYYY-MM-DD
+  // KPIs
+  leadsAssigned: int("leadsAssigned").default(0).notNull(),
+  leadsContacted: int("leadsContacted").default(0).notNull(),
+  leadsQualified: int("leadsQualified").default(0).notNull(),
+  leadsConverted: int("leadsConverted").default(0).notNull(),
+  applicationsActive: int("applicationsActive").default(0).notNull(),
+  applicationsCompleted: int("applicationsCompleted").default(0).notNull(),
+  tasksCompleted: int("tasksCompleted").default(0).notNull(),
+  tasksPending: int("tasksPending").default(0).notNull(),
+  avgResponseTimeMinutes: int("avgResponseTimeMinutes"),
+  conversionRate: varchar("conversionRate", { length: 10 }), // e.g. "23.5"
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CounselorPerformance = typeof counselorPerformance.$inferSelect;
+export type InsertCounselorPerformance = typeof counselorPerformance.$inferInsert;

@@ -1,4 +1,11 @@
 import { COOKIE_NAME } from "@shared/const";
+import {
+  getTasksByStaff, getTodayTasksByStaff, createCrmTask, updateCrmTask, deleteCrmTask,
+  getPipelineByStaff, getAllPipelineLeads, upsertLeadPipelineStage, ensurePipelineStagesForCounselor,
+  getConsultationNotesByLead, getConsultationNotesByApplication, createConsultationNote,
+  getCounselorPerformanceByStaff, getAllCounselorPerformanceLatest, upsertCounselorPerformanceSnapshot,
+  getLeadPipelineStage,
+} from "./crmDb";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
@@ -5404,7 +5411,7 @@ Return JSON with the refined article:
           recommendations: report.recommendations,
         };
       }),
-    getLatestGeoReport: protectedProcedure
+     getLatestGeoReport: protectedProcedure
       .query(async ({ ctx }) => {
         if (ctx.user.role !== "admin" && ctx.user.role !== "general_manager") {
           throw new TRPCError({ code: "FORBIDDEN" });
@@ -5412,8 +5419,247 @@ Return JSON with the refined article:
         return getLatestGeoReport();
       }),
   }),
-});
 
+  // ─── CRM Router — Counselor Workspace ────────────────────────────────────────
+  crm: router({
+
+    // ── Tasks ────────────────────────────────────────────────────────────────
+    getTodayTasks: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { tasks: [] };
+      try {
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        const tasks = await getTodayTasksByStaff(payload.staffId as number);
+        return { tasks };
+      } catch { return { tasks: [] }; }
+    }),
+
+    getAllTasks: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { tasks: [] };
+      try {
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        const tasks = await getTasksByStaff(payload.staffId as number);
+        return { tasks };
+      } catch { return { tasks: [] }; }
+    }),
+
+    createTask: publicProcedure
+      .input(z.object({
+        relatedType: z.enum(["lead", "application", "general"]).default("lead"),
+        relatedId: z.number().optional(),
+        relatedName: z.string().optional(),
+        title: z.string().min(1),
+        description: z.string().optional(),
+        taskType: z.enum(["call", "whatsapp", "email", "document_request", "follow_up", "consultation", "other"]).default("follow_up"),
+        priority: z.enum(["urgent", "high", "medium", "low"]).default("medium"),
+        dueDate: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+          const staffId = payload.staffId as number;
+          const staffEmail = payload.staffEmail as string;
+          const id = await createCrmTask({
+            staffId, staffEmail,
+            relatedType: input.relatedType,
+            relatedId: input.relatedId ?? null,
+            relatedName: input.relatedName ?? null,
+            title: input.title,
+            description: input.description ?? null,
+            taskType: input.taskType,
+            priority: input.priority,
+            dueDate: input.dueDate ? new Date(input.dueDate) : null,
+            isAiGenerated: false,
+          });
+          return { success: true, id };
+        } catch (e: any) { return { success: false, error: e.message }; }
+      }),
+
+    updateTask: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["pending", "in_progress", "done", "skipped"]).optional(),
+        priority: z.enum(["urgent", "high", "medium", "low"]).optional(),
+        title: z.string().optional(),
+        description: z.string().optional(),
+        dueDate: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...rest } = input;
+        const update: Record<string, any> = { ...rest };
+        if (rest.dueDate) update.dueDate = new Date(rest.dueDate);
+        if (rest.status === "done") update.completedAt = new Date();
+        await updateCrmTask(id, update);
+        return { success: true };
+      }),
+
+    deleteTask: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteCrmTask(input.id);
+        return { success: true };
+      }),
+
+    // ── Pipeline ─────────────────────────────────────────────────────────────
+    getLeadWithPipeline: publicProcedure
+      .input(z.object({ leadId: z.number() }))
+      .query(async ({ input }) => {
+        const lead = await getLeadById(input.leadId);
+        const pipeline = await getLeadPipelineStage(input.leadId);
+        return { lead, pipeline };
+      }),
+    getMyPipeline: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { pipeline: [] };
+      try {
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        const staffEmail = payload.staffEmail as string;
+        await ensurePipelineStagesForCounselor(staffEmail);
+        const pipeline = await getPipelineByStaff(staffEmail);
+        return { pipeline };
+      } catch { return { pipeline: [] }; }
+    }),
+
+    getAllPipeline: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { pipeline: [] };
+      try {
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        const staff = await getStaffAccountById(payload.staffId as number);
+        if (!staff || staff.role !== "admin") return { pipeline: [] };
+        return { pipeline: await getAllPipelineLeads() };
+      } catch { return { pipeline: [] }; }
+    }),
+
+    updatePipelineStage: publicProcedure
+      .input(z.object({
+        leadId: z.number(),
+        stage: z.enum(["new", "contacted", "qualified", "enrolled", "in_progress", "completed", "lost"]),
+        note: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+          await upsertLeadPipelineStage(input.leadId, input.stage, payload.staffEmail as string, input.note);
+          return { success: true };
+        } catch (e: any) { return { success: false, error: e.message }; }
+      }),
+
+    // ── Consultation Notes ────────────────────────────────────────────────────
+    getNotesByLead: publicProcedure
+      .input(z.object({ leadId: z.number() }))
+      .query(async ({ input }) => ({ notes: await getConsultationNotesByLead(input.leadId) })),
+
+    getNotesByApplication: publicProcedure
+      .input(z.object({ applicationId: z.number() }))
+      .query(async ({ input }) => ({ notes: await getConsultationNotesByApplication(input.applicationId) })),
+
+    addConsultationNote: publicProcedure
+      .input(z.object({
+        relatedType: z.enum(["lead", "application"]),
+        relatedId: z.number(),
+        studentName: z.string(),
+        rawNote: z.string().min(1),
+        consultationType: z.enum(["call", "whatsapp", "in_person", "email", "online_meeting"]).default("call"),
+        durationMinutes: z.number().optional(),
+        outcome: z.enum(["positive", "neutral", "negative", "no_answer"]).default("neutral"),
+        nextStepAction: z.string().optional(),
+        nextStepDueDate: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+          const staffId = payload.staffId as number;
+          const staffEmail = payload.staffEmail as string;
+          // AI expand the note
+          let expandedNote = input.rawNote;
+          try {
+            const aiResp = await invokeLLM({
+              messages: [
+                { role: "system", content: "You are a professional education consultant note-taker. Expand the counselor's brief note into a structured, professional consultation record. Include: Summary, Student Situation, Key Discussion Points, Concerns Raised, Next Steps. Keep it concise and factual. Output in Indonesian or English based on the note language." },
+                { role: "user", content: `Counselor note: ${input.rawNote}\nStudent: ${input.studentName}\nType: ${input.consultationType}\nOutcome: ${input.outcome}` },
+              ],
+            });
+            expandedNote = (aiResp.choices?.[0]?.message?.content as string) || input.rawNote;
+          } catch { /* use raw note if AI fails */ }
+          const id = await createConsultationNote({
+            staffId, staffName: staffEmail,
+            relatedType: input.relatedType, relatedId: input.relatedId,
+            studentName: input.studentName,
+            rawNote: input.rawNote, expandedNote,
+            consultationType: input.consultationType,
+            durationMinutes: input.durationMinutes ?? null,
+            outcome: input.outcome,
+            nextStepAction: input.nextStepAction ?? null,
+            nextStepDueDate: input.nextStepDueDate ? new Date(input.nextStepDueDate) : null,
+          });
+          // Auto-create follow-up task if next step defined
+          if (input.nextStepAction) {
+            await createCrmTask({
+              staffId, staffEmail,
+              relatedType: input.relatedType, relatedId: input.relatedId,
+              relatedName: input.studentName,
+              title: input.nextStepAction,
+              taskType: "follow_up", priority: "medium",
+              dueDate: input.nextStepDueDate ? new Date(input.nextStepDueDate) : null,
+              isAiGenerated: true,
+              aiReason: "Auto-created from consultation note next step",
+            });
+          }
+          return { success: true, id };
+        } catch (e: any) { return { success: false, error: e.message }; }
+      }),
+
+    // ── Performance ───────────────────────────────────────────────────────────
+    getMyPerformance: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { performance: [] };
+      try {
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        const staffId = payload.staffId as number;
+        const staffEmail = payload.staffEmail as string;
+        await upsertCounselorPerformanceSnapshot(staffId, staffEmail);
+        return { performance: await getCounselorPerformanceByStaff(staffId, 30) };
+      } catch { return { performance: [] }; }
+    }),
+
+    getAllPerformance: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return { performance: [] };
+      try {
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        const staff = await getStaffAccountById(payload.staffId as number);
+        if (!staff || staff.role !== "admin") return { performance: [] };
+        return { performance: await getAllCounselorPerformanceLatest() };
+      } catch { return { performance: [] }; }
+    }),
+  }),
+});
 export type AppRouter = typeof appRouter;
 
 // Start agent scheduler when server starts

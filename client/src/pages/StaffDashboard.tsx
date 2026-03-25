@@ -344,6 +344,19 @@ export default function StaffDashboard() {
           </Card>
         </div>
 
+        {/* CRM Dashboard - available to all staff */}
+        <Card className="mb-6 border-blue-200 bg-blue-50">
+          <CardContent className="py-4 flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-gray-900">🎯 Counselor CRM Dashboard</p>
+              <p className="text-sm text-gray-600">Manage your leads, tasks, pipeline, and student profiles with AI assistance.</p>
+            </div>
+            <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => setLocation("/crm")}>
+              Open CRM Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Admin link for admin role */}
         {staffUser?.role === "admin" && (
           <Card className="mb-6 border-rose-200 bg-rose-50">
