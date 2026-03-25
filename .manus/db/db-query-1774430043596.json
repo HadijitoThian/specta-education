@@ -1,0 +1,16 @@
+{
+  "query": "SELECT id, studentName, studentEmail, studentPhone FROM leads WHERE studentName LIKE '%Raiden%' LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute SELECT id, studentName, studentEmail, studentPhone FROM leads WHERE studentName LIKE '%Raiden%' LIMIT 5;",
+  "rows": [
+    {
+      "id": "300001",
+      "studentName": "Raiden Thian",
+      "studentEmail": "thianraiden@gmail.com",
+      "studentPhone": "+62818773312"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tstudentName\tstudentEmail\tstudentPhone\n300001\tRaiden Thian\tthianraiden@gmail.com\t+62818773312\n",
+  "stderr": "",
+  "execution_time_ms": 1610
+}

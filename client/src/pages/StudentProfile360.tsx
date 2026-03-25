@@ -148,20 +148,25 @@ export default function StudentProfile360() {
             </Link>
             <div className="flex-1">
               <h1 className="text-base sm:text-xl font-bold text-white truncate">{lead.studentName}</h1>
-              <p className="text-xs text-white/40 hidden sm:block truncate">{lead.email} · {lead.phone}</p>
+              <p className="text-xs text-white/40 hidden sm:block truncate">{lead.email}{lead.studentPhone ? ` · ${lead.studentPhone}` : ""}</p>
             </div>
             <div className="flex items-center gap-2">
               {/* Quick Action Buttons */}
-              {lead.phone && (
-                <a href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
+              {lead.studentPhone ? (
+                <a href={`https://wa.me/${lead.studentPhone.replace(/[^0-9]/g, "")}?text=Hi ${encodeURIComponent(lead.studentName)}, this is from SpecTa Education. Following up on your study abroad consultation.`} target="_blank" rel="noopener noreferrer">
                   <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white gap-1 px-2 sm:px-3">
                     <MessageCircle className="w-4 h-4" />
                     <span className="hidden sm:inline">WhatsApp</span>
                   </Button>
                 </a>
+              ) : (
+                <Button size="sm" className="bg-green-600/30 text-green-400/50 gap-1 px-2 sm:px-3 cursor-not-allowed" disabled title="No phone number on file">
+                  <MessageCircle className="w-4 h-4" />
+                  <span className="hidden sm:inline">WhatsApp</span>
+                </Button>
               )}
-              {lead.phone && (
-                <a href={`tel:${lead.phone}`}>
+              {lead.studentPhone && (
+                <a href={`tel:${lead.studentPhone}`}>
                   <Button size="sm" variant="outline" className="border-white/20 text-white gap-1 px-2 sm:px-3">
                     <Phone className="w-4 h-4" />
                     <span className="hidden sm:inline">Call</span>
@@ -440,12 +445,16 @@ export default function StudentProfile360() {
                   </DialogContent>
                 </Dialog>
 
-                {lead.phone && (
-                  <a href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, "")}?text=Halo ${lead.studentName}, saya dari SpecTa Education ingin menindaklanjuti konsultasi studi luar negeri Anda.`} target="_blank" rel="noopener noreferrer" className="block">
+                {lead.studentPhone ? (
+                  <a href={`https://wa.me/${lead.studentPhone.replace(/[^0-9]/g, "")}?text=Hi ${encodeURIComponent(lead.studentName)}, this is from SpecTa Education. Following up on your study abroad consultation.`} target="_blank" rel="noopener noreferrer" className="block">
                     <Button className="w-full bg-green-600/10 hover:bg-green-600/20 text-green-400 border border-green-600/30 justify-start gap-2" variant="outline">
-                      <MessageCircle className="w-4 h-4" /> WhatsApp with Template
+                      <MessageCircle className="w-4 h-4" /> WhatsApp {lead.studentPhone}
                     </Button>
                   </a>
+                ) : (
+                  <Button className="w-full bg-white/5 text-white/30 border border-white/10 justify-start gap-2 cursor-not-allowed" variant="outline" disabled>
+                    <MessageCircle className="w-4 h-4" /> WhatsApp — No phone number
+                  </Button>
                 )}
                 <ParentReportButton lead={lead} leadId={leadId} />
               </CardContent>
@@ -517,7 +526,7 @@ export default function StudentProfile360() {
                       {[
                         { label: "Full Name", value: lead.studentName },
                         { label: "Email", value: lead.email },
-                        { label: "Phone", value: lead.phone },
+                        { label: "Phone", value: lead.studentPhone },
                         { label: "Preferred Country", value: lead.preferredCountry },
                         { label: "Study Level", value: lead.studyLevel },
                         { label: "Program / Major", value: (lead as any).programInterest },
