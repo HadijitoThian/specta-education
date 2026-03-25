@@ -243,6 +243,8 @@ import {
   getStudentAiChatHistory, addStudentAiMessage, clearStudentAiChatHistory,
   getOrCreateReferralCode, getReferralCodeByCode, getMyReferrals, getMyRewards,
   createReferral, markReferralSignedUp, completeReferralAndGrantReward, claimReward, getReferralStats,
+  createStudentNotification, getStudentNotifications, getStudentUnreadCount,
+  markStudentNotificationRead, markAllStudentNotificationsRead,
 } from "./studentPortalDb";
 import {
   getAllAgentConfigs,
@@ -6761,6 +6763,16 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
             </tr>
           `).join("");
 
+          // Create in-app notification for student
+          try {
+            await createStudentNotification({
+              leadId: input.leadId,
+              type: "document_request",
+              title: `📄 Document Requested: ${input.docLabel}`,
+              message: input.notes ? `Your counselor says: "${input.notes}"` : `Your counselor has requested your ${input.docLabel}. Please upload it as soon as possible.`,
+              actionTab: "documents",
+            });
+          } catch (e) { /* non-fatal */ }
           await sendEmail({
             to: studentEmail,
             subject: `Action Required: Document Requested by Your Counselor`,
@@ -7127,6 +7139,27 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
           studentEmail: dashboard.lead.studentEmail || "",
           ...input,
         });
+        // Notify assigned counselor via CRM notification
+        try {
+          const assignedCounselor = dashboard.lead.assignedCounselor || dashboard.lead.assignedTo;
+          if (assignedCounselor) {
+            const sessionLabels: Record<string, string> = {
+              initial_consultation: "Initial Consultation",
+              application_review: "Application Review",
+              visa_guidance: "Visa Guidance",
+              scholarship_advice: "Scholarship Advice",
+              general_inquiry: "General Inquiry",
+            };
+            await createNotification({
+              staffEmail: assignedCounselor,
+              type: "appointment_request",
+              title: `📅 New Session Request from ${dashboard.lead.studentName || "Student"}`,
+              message: `${sessionLabels[input.sessionType] || input.sessionType} on ${input.appointmentDate} at ${input.appointmentTime}${input.notes ? ` — Note: "${input.notes}"` : ""}`,
+              leadId,
+              actionUrl: `/crm/lead/${leadId}`,
+            });
+          }
+        } catch (e) { /* non-fatal */ }
         return { success: true, id: result.id };
       }),
 
@@ -7448,6 +7481,21 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
           fileName: input.fileName,
           fileMimeType: input.fileType,
         });
+        // Notify assigned counselor
+        try {
+          const dashboard = await getStudentPortalDashboard(leadId);
+          const assignedCounselor = dashboard?.lead?.assignedCounselor || dashboard?.lead?.assignedTo;
+          if (assignedCounselor) {
+            await createNotification({
+              staffEmail: assignedCounselor,
+              type: "document_uploaded",
+              title: `📄 Document Uploaded by ${dashboard?.lead?.studentName || "Student"}`,
+              message: `${input.docLabel} has been uploaded and is ready for review.`,
+              leadId,
+              actionUrl: `/crm/lead/${leadId}`,
+            });
+          }
+        } catch (e) { /* non-fatal */ }
         return { success: true, fileUrl: url, docId };
       }),
 
@@ -7471,6 +7519,61 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
         return { success: true };
       }),
 
+    // ── Student: get notifications ──
+    getNotifications: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req.headers.cookie || "";
+      const cookies = parseCookies(cookieHeader);
+      const token = cookies["student_portal_token"];
+      if (!token) return [];
+      try {
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const { payload } = await jwtVerify(token, secret);
+        const leadId = Number(payload.leadId);
+        return getStudentNotifications(leadId);
+      } catch { return []; }
+    }),
+
+    // ── Student: get unread notification count ──
+    getUnreadCount: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req.headers.cookie || "";
+      const cookies = parseCookies(cookieHeader);
+      const token = cookies["student_portal_token"];
+      if (!token) return 0;
+      try {
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const { payload } = await jwtVerify(token, secret);
+        const leadId = Number(payload.leadId);
+        return getStudentUnreadCount(leadId);
+      } catch { return 0; }
+    }),
+
+    // ── Student: mark one notification read ──
+    markRead: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req.headers.cookie || "";
+        const cookies = parseCookies(cookieHeader);
+        const token = cookies["student_portal_token"];
+        if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const { payload } = await jwtVerify(token, secret);
+        const leadId = Number(payload.leadId);
+        await markStudentNotificationRead(input.id, leadId);
+        return { success: true };
+      }),
+
+    // ── Student: mark all notifications read ──
+    markAllRead: publicProcedure.mutation(async ({ ctx }) => {
+      const cookieHeader = ctx.req.headers.cookie || "";
+      const cookies = parseCookies(cookieHeader);
+      const token = cookies["student_portal_token"];
+      if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+      const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+      const { payload } = await jwtVerify(token, secret);
+      const leadId = Number(payload.leadId);
+      await markAllStudentNotificationsRead(leadId);
+      return { success: true };
+    }),
   }),
 
   // ─── AI Follow-up Assistant ──────────────────────────────────────────────────

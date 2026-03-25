@@ -540,3 +540,62 @@ export async function getReferralStats(leadId: number) {
     };
   }, "getReferralStats");
 }
+
+// ─── Student Notifications ─────────────────────────────────────────────────
+
+import { studentNotifications } from "../drizzle/schema";
+
+export async function createStudentNotification(data: {
+  leadId: number;
+  type: string;
+  title: string;
+  message?: string;
+  actionTab?: string;
+}) {
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("DB unavailable");
+    await db.insert(studentNotifications).values({ ...data, isRead: 0 });
+  }, "createStudentNotification");
+}
+
+export async function getStudentNotifications(leadId: number, limit = 30) {
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("DB unavailable");
+    return db.select().from(studentNotifications)
+      .where(eq(studentNotifications.leadId, leadId))
+      .orderBy(desc(studentNotifications.createdAt))
+      .limit(limit);
+  }, "getStudentNotifications");
+}
+
+export async function getStudentUnreadCount(leadId: number) {
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("DB unavailable");
+    const rows = await db.select().from(studentNotifications)
+      .where(and(eq(studentNotifications.leadId, leadId), eq(studentNotifications.isRead, 0)));
+    return rows.length;
+  }, "getStudentUnreadCount");
+}
+
+export async function markStudentNotificationRead(id: number, leadId: number) {
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("DB unavailable");
+    await db.update(studentNotifications)
+      .set({ isRead: 1 })
+      .where(and(eq(studentNotifications.id, id), eq(studentNotifications.leadId, leadId)));
+  }, "markStudentNotificationRead");
+}
+
+export async function markAllStudentNotificationsRead(leadId: number) {
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("DB unavailable");
+    await db.update(studentNotifications)
+      .set({ isRead: 1 })
+      .where(eq(studentNotifications.leadId, leadId));
+  }, "markAllStudentNotificationsRead");
+}

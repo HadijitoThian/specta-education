@@ -1778,3 +1778,19 @@ export const studentRewards = mysqlTable("student_rewards", {
 });
 export type StudentReward = typeof studentRewards.$inferSelect;
 export type InsertStudentReward = typeof studentRewards.$inferInsert;
+
+/**
+ * Student Notifications — in-app notifications for the student portal
+ */
+export const studentNotifications = mysqlTable("student_notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  type: varchar("type", { length: 100 }).notNull(), // "document_request" | "doc_verified" | "doc_rejected" | "appointment_confirmed" | "appointment_cancelled" | "general"
+  title: varchar("title", { length: 500 }).notNull(),
+  message: text("message"),
+  isRead: tinyint("isRead").default(0).notNull(),
+  actionTab: varchar("actionTab", { length: 50 }), // which tab to open: "documents" | "sessions" | "journey"
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type StudentNotification = typeof studentNotifications.$inferSelect;
+export type InsertStudentNotification = typeof studentNotifications.$inferInsert;

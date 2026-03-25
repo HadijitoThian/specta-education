@@ -88,6 +88,11 @@ export default function StudentPortalDashboard() {
   const { data: appointments } = trpc.studentPortal.getAppointments.useQuery();
   const { data: wishlist } = trpc.studentPortal.getWishlist.useQuery();
   const { data: aiHistory } = trpc.studentPortal.getAiChatHistory.useQuery();
+  const { data: notifications, refetch: refetchNotifs } = trpc.studentPortal.getNotifications.useQuery();
+  const { data: unreadCount } = trpc.studentPortal.getUnreadCount.useQuery(undefined, { refetchInterval: 30000 });
+  const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const markReadMutation = trpc.studentPortal.markRead.useMutation({ onSuccess: () => { refetchNotifs(); utils.studentPortal.getUnreadCount.invalidate(); } });
+  const markAllReadMutation = trpc.studentPortal.markAllRead.useMutation({ onSuccess: () => { refetchNotifs(); utils.studentPortal.getUnreadCount.invalidate(); } });
 
   const logoutMutation = trpc.studentPortal.logout.useMutation({
     onSuccess: () => setLocation("/student/login"),
@@ -199,6 +204,61 @@ export default function StudentPortalDashboard() {
           ))}
         </nav>
 
+        {/* Notification Bell */}
+        <div className="px-3 pb-2 relative">
+          <button
+            onClick={() => setShowNotifPanel(v => !v)}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all relative"
+          >
+            <Bell className="w-4 h-4 flex-shrink-0" />
+            <span className="flex-1 text-left">Notifications</span>
+            {(unreadCount ?? 0) > 0 && (
+              <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[20px] text-center">{unreadCount}</span>
+            )}
+          </button>
+          {/* Notification dropdown panel */}
+          {showNotifPanel && (
+            <div className="absolute bottom-full left-3 right-3 mb-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 max-h-80 overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+                <span className="text-white font-semibold text-sm">Notifications</span>
+                {(unreadCount ?? 0) > 0 && (
+                  <button onClick={() => markAllReadMutation.mutate()} className="text-xs text-violet-400 hover:text-violet-300">Mark all read</button>
+                )}
+              </div>
+              <div className="overflow-y-auto flex-1">
+                {(!notifications || (notifications as any[]).length === 0) ? (
+                  <div className="p-6 text-center">
+                    <Bell className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                    <p className="text-slate-500 text-sm">No notifications yet</p>
+                  </div>
+                ) : (
+                  (notifications as any[]).map((n: any) => (
+                    <button
+                      key={n.id}
+                      onClick={() => {
+                        markReadMutation.mutate({ id: n.id });
+                        if (n.actionTab) setActiveTab(n.actionTab as NavTab);
+                        setShowNotifPanel(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 border-b border-slate-700/50 hover:bg-slate-700/50 transition-all ${
+                        n.isRead ? "opacity-60" : "bg-violet-500/5"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        {!n.isRead && <div className="w-2 h-2 bg-violet-400 rounded-full mt-1.5 flex-shrink-0" />}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-xs font-medium truncate">{n.title}</p>
+                          {n.message && <p className="text-slate-400 text-xs mt-0.5 line-clamp-2">{n.message}</p>}
+                          <p className="text-slate-600 text-xs mt-1">{new Date(n.createdAt).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
         {/* Logout */}
         <div className="p-3 border-t border-slate-700/50">
           <button
