@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useRoute, Link } from "wouter";
+import AICounselorAssistant from "@/components/AICounselorAssistant";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +36,7 @@ export default function StudentProfile360() {
   const [noteOpen, setNoteOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "notes" | "tasks" | "applications">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "notes" | "tasks" | "applications" | "ai">("overview");
 
   // Queries
   const { data: leadData, refetch: refetchLead } = trpc.crm.getLeadWithPipeline.useQuery({ leadId }, { enabled: leadId > 0 });
@@ -456,6 +457,7 @@ export default function StudentProfile360() {
                 { id: "notes", label: `Notes (${notes.length})`, icon: <BookOpen className="w-4 h-4" /> },
                 { id: "tasks", label: `Tasks (${leadTasks.length})`, icon: <CheckCircle2 className="w-4 h-4" /> },
                 { id: "applications", label: `Applications (${applications.length})`, icon: <FileText className="w-4 h-4" /> },
+                { id: "ai", label: "🤖 AI Assistant", icon: null },
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -681,6 +683,18 @@ export default function StudentProfile360() {
                     </Card>
                   ))
                 )}
+              </div>
+            )}
+
+            {/* ── AI Assistant Tab ── */}
+            {activeTab === "ai" && (
+              <div className="h-full" style={{ minHeight: "560px" }}>
+                <AICounselorAssistant
+                  leadId={leadId}
+                  studentName={lead.studentName}
+                  preferredCountry={lead.preferredCountry}
+                  studyLevel={lead.studyLevel}
+                />
               </div>
             )}
           </div>

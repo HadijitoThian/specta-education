@@ -215,6 +215,11 @@ export async function createConsultationNote(data: InsertConsultationNote): Prom
   });
 }
 
+// Alias for AI procedures
+export async function getNotesByLeadId(leadId: number): Promise<ConsultationNote[]> {
+  return getConsultationNotesByLead(leadId);
+}
+
 // ─── Counselor Performance ────────────────────────────────────────────────────
 
 export async function getCounselorPerformanceByStaff(staffId: number, days = 30): Promise<CounselorPerformance[]> {

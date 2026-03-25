@@ -4,7 +4,7 @@ import {
   getPipelineByStaff, getAllPipelineLeads, upsertLeadPipelineStage, ensurePipelineStagesForCounselor,
   getConsultationNotesByLead, getConsultationNotesByApplication, createConsultationNote,
   getCounselorPerformanceByStaff, getAllCounselorPerformanceLatest, upsertCounselorPerformanceSnapshot,
-  getLeadPipelineStage,
+  getLeadPipelineStage, getNotesByLeadId,
 } from "./crmDb";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -5655,13 +5655,129 @@ Return JSON with the refined article:
         const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
         const staff = await getStaffAccountById(payload.staffId as number);
         if (!staff || staff.role !== "admin") return { performance: [] };
-        return { performance: await getAllCounselorPerformanceLatest() };
+         return { performance: await getAllCounselorPerformanceLatest() };
       } catch { return { performance: [] }; }
     }),
+
+    // ── AI Counselor Assistant ────────────────────────────────────────────────
+    aiConsultationPrep: publicProcedure
+      .input(z.object({ leadId: z.number() }))
+      .mutation(async ({ input }) => {
+        try {
+          const lead = await getLeadById(input.leadId);
+          if (!lead) throw new Error("Lead not found");
+          const notes = await getNotesByLeadId(input.leadId);
+          const notesText = notes.length > 0
+            ? notes.slice(0, 5).map((n: any) => `[${new Date(n.createdAt).toLocaleDateString()}] ${n.rawNote || n.expandedNote || ''}`).join("\n")
+            : "No previous consultation notes.";
+          const response = await invokeLLM({
+            messages: [
+              { role: "system", content: `You are an expert education counselor assistant at SpecTa Education, a study abroad consultancy in Indonesia. Your job is to help counselors prepare for student consultations. Be specific, actionable, and professional.` },
+              { role: "user", content: `Prepare a consultation briefing for this student:\n\nName: ${lead.studentName}\nEmail: ${lead.studentEmail || 'N/A'}\nPhone: ${lead.studentPhone || 'N/A'}\nPreferred Country: ${lead.preferredCountry || 'Not specified'}\nStudy Level: ${lead.studyLevel || 'Not specified'}\nIntake Date: ${lead.intakeDate || 'Not specified'}\nCurrent Status: ${lead.status}\nIntent Summary: ${lead.intentSummary || 'N/A'}\nOriginal Notes: ${lead.notes || 'N/A'}\n\nPrevious Consultation Notes:\n${notesText}\n\nPlease provide:\n1. **Student Summary** - Key facts in 2-3 sentences\n2. **Key Discussion Points** - 3-5 specific topics to cover\n3. **Recommended Universities** - 3 specific universities matching their profile\n4. **Potential Concerns** - Any red flags or challenges\n5. **Next Steps** - Concrete actions after this consultation\n\nBe specific and tailored to this student.` }
+            ]
+          });
+          const content = response.choices?.[0]?.message?.content || "Unable to generate briefing.";
+          return { success: true, briefing: content };
+        } catch (e: any) { return { success: false, error: e.message }; }
+      }),
+
+    aiDraftMessage: publicProcedure
+      .input(z.object({
+        leadId: z.number(),
+        messageType: z.enum(["whatsapp_followup", "whatsapp_welcome", "email_followup", "email_offer", "email_reminder"]),
+        customContext: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        try {
+          const lead = await getLeadById(input.leadId);
+          if (!lead) throw new Error("Lead not found");
+          const notes = await getNotesByLeadId(input.leadId);
+          const lastNote = notes[0]?.rawNote || notes[0]?.expandedNote || "No recent notes.";
+          const typeDescriptions: Record<string, string> = {
+            whatsapp_followup: "a WhatsApp follow-up message (casual, friendly, max 3 sentences)",
+            whatsapp_welcome: "a WhatsApp welcome message for a new lead (warm, inviting, introduce SpecTa Education briefly)",
+            email_followup: "a professional follow-up email (formal, with subject line, body, and sign-off)",
+            email_offer: "an email presenting study abroad options (include 2-3 university suggestions)",
+            email_reminder: "a gentle reminder email for a pending action or document submission",
+          };
+          const response = await invokeLLM({
+            messages: [
+              { role: "system", content: `You are a communication specialist at SpecTa Education. Write messages that are warm, professional, and persuasive. Write in Bahasa Indonesia unless the context suggests English. For WhatsApp, keep it conversational and brief. For emails, be more formal.` },
+              { role: "user", content: `Write ${typeDescriptions[input.messageType]} for this student:\n\nStudent Name: ${lead.studentName}\nPreferred Country: ${lead.preferredCountry || 'Not specified'}\nStudy Level: ${lead.studyLevel || 'Not specified'}\nCurrent Status: ${lead.status}\nLast Consultation Note: ${lastNote}\n${input.customContext ? `Additional Context: ${input.customContext}` : ""}\n\nMake it personal and specific. Sign off as the SpecTa Education counselor team.` }
+            ]
+          });
+          const content = response.choices?.[0]?.message?.content || "Unable to generate message.";
+          return { success: true, message: content, messageType: input.messageType };
+        } catch (e: any) { return { success: false, error: e.message }; }
+      }),
+
+    aiNextAction: publicProcedure
+      .input(z.object({ leadId: z.number() }))
+      .mutation(async ({ input }) => {
+        try {
+          const lead = await getLeadById(input.leadId);
+          if (!lead) throw new Error("Lead not found");
+          const notes = await getNotesByLeadId(input.leadId);
+          const pipeline = await getLeadPipelineStage(input.leadId);
+          const notesText = notes.slice(0, 3).map((n: any) => `[${new Date(n.createdAt).toLocaleDateString()}] ${n.rawNote || n.expandedNote || ''}`).join("\n") || "No notes yet.";
+          const response = await invokeLLM({
+            messages: [
+              { role: "system", content: `You are an AI sales and counseling strategist for SpecTa Education. Analyze student data and recommend the single most impactful next action a counselor should take RIGHT NOW. Respond ONLY with valid JSON.` },
+              { role: "user", content: `Analyze this student and recommend the best next action:\n\nStudent: ${lead.studentName}\nStatus: ${lead.status}\nPipeline Stage: ${pipeline?.stage || 'new'}\nPreferred Country: ${lead.preferredCountry || 'Not specified'}\nStudy Level: ${lead.studyLevel || 'Not specified'}\nIntake Date: ${lead.intakeDate || 'Not specified'}\nDays Since Created: ${Math.floor((Date.now() - new Date(lead.createdAt).getTime()) / 86400000)}\nLast Updated: ${Math.floor((Date.now() - new Date(lead.updatedAt).getTime()) / 86400000)} days ago\n\nRecent Notes:\n${notesText}\n\nRespond with this JSON structure: {"urgency":"high|medium|low","action":"single clear action","reason":"why in 1-2 sentences","script":"exact opening line to say/write","dueIn":"today|tomorrow|this week|next week"}` }
+            ],
+            response_format: { type: "json_schema", json_schema: { name: "next_action", strict: true, schema: { type: "object", properties: { urgency: { type: "string", enum: ["high", "medium", "low"] }, action: { type: "string" }, reason: { type: "string" }, script: { type: "string" }, dueIn: { type: "string" } }, required: ["urgency", "action", "reason", "script", "dueIn"], additionalProperties: false } } },
+          });
+          const raw = String(response.choices?.[0]?.message?.content || "{}");
+          const parsed = JSON.parse(raw);
+          return { success: true, recommendation: parsed };
+        } catch (e: any) { return { success: false, error: e.message }; }
+      }),
+
+    aiUniversityFit: publicProcedure
+      .input(z.object({ leadId: z.number() }))
+      .mutation(async ({ input }) => {
+        try {
+          const lead = await getLeadById(input.leadId);
+          if (!lead) throw new Error("Lead not found");
+          const response = await invokeLLM({
+            messages: [
+              { role: "system", content: `You are a university admissions expert for Indonesian students. You have deep knowledge of universities in Australia, UK, USA, Canada, Malaysia, Singapore, Japan, South Korea, Netherlands, and Germany. Provide honest, specific recommendations. Respond ONLY with valid JSON.` },
+              { role: "user", content: `Recommend universities for:\n\nStudent: ${lead.studentName}\nPreferred Country: ${lead.preferredCountry || 'Open to suggestions'}\nStudy Level: ${lead.studyLevel || 'Not specified'}\nTarget Intake: ${lead.intakeDate || 'Flexible'}\nIntent: ${lead.intentSummary || lead.notes || 'General study abroad interest'}\n\nRespond with JSON: {"topPick":{"university":"name","country":"country","program":"program","fitScore":95,"reason":"why","deadline":"date"},"alternatives":[{"university":"name","country":"country","program":"program","fitScore":80,"reason":"brief reason"},{"university":"name","country":"country","program":"program","fitScore":75,"reason":"brief reason"}],"safetyOption":{"university":"name","country":"country","program":"program","fitScore":65,"reason":"why safe"},"scholarshipOpportunities":["scholarship 1","scholarship 2"],"counselorTip":"one specific tip"}` }
+            ],
+            response_format: { type: "json_schema", json_schema: { name: "university_fit", strict: true, schema: { type: "object", properties: { topPick: { type: "object", properties: { university: { type: "string" }, country: { type: "string" }, program: { type: "string" }, fitScore: { type: "number" }, reason: { type: "string" }, deadline: { type: "string" } }, required: ["university","country","program","fitScore","reason","deadline"], additionalProperties: false }, alternatives: { type: "array", items: { type: "object", properties: { university: { type: "string" }, country: { type: "string" }, program: { type: "string" }, fitScore: { type: "number" }, reason: { type: "string" } }, required: ["university","country","program","fitScore","reason"], additionalProperties: false } }, safetyOption: { type: "object", properties: { university: { type: "string" }, country: { type: "string" }, program: { type: "string" }, fitScore: { type: "number" }, reason: { type: "string" } }, required: ["university","country","program","fitScore","reason"], additionalProperties: false }, scholarshipOpportunities: { type: "array", items: { type: "string" } }, counselorTip: { type: "string" } }, required: ["topPick","alternatives","safetyOption","scholarshipOpportunities","counselorTip"], additionalProperties: false } } },
+          });
+          const raw = String(response.choices?.[0]?.message?.content || "{}");
+          const parsed = JSON.parse(raw);
+          return { success: true, analysis: parsed };
+        } catch (e: any) { return { success: false, error: e.message }; }
+      }),
+
+    aiChat: publicProcedure
+      .input(z.object({
+        leadId: z.number(),
+        message: z.string(),
+        history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        try {
+          const lead = await getLeadById(input.leadId);
+          if (!lead) throw new Error("Lead not found");
+          const notes = await getNotesByLeadId(input.leadId);
+          const notesText = notes.slice(0, 3).map((n: any) => `[${new Date(n.createdAt).toLocaleDateString()}] ${n.rawNote || n.expandedNote || ''}`).join("\n") || "No notes yet.";
+          const systemPrompt = `You are an AI Counselor Assistant at SpecTa Education, a study abroad consultancy in Indonesia. You are helping a human counselor manage a specific student case.\n\nSTUDENT PROFILE:\n- Name: ${lead.studentName}\n- Email: ${lead.studentEmail || 'N/A'}\n- Phone: ${lead.studentPhone || 'N/A'}\n- Preferred Country: ${lead.preferredCountry || 'Not specified'}\n- Study Level: ${lead.studyLevel || 'Not specified'}\n- Target Intake: ${lead.intakeDate || 'Not specified'}\n- Current Status: ${lead.status}\n- Intent: ${lead.intentSummary || lead.notes || 'N/A'}\n\nRECENT NOTES:\n${notesText}\n\nHelp the counselor with: answering questions about this student, drafting messages, suggesting universities, recommending next steps, explaining visa/deadlines/scholarships. Be concise and practical. Respond in Bahasa Indonesia unless the counselor writes in English.`;
+          const messages: any[] = [
+            { role: "system", content: systemPrompt },
+            ...(input.history || []).slice(-6),
+            { role: "user", content: input.message },
+          ];
+          const response = await invokeLLM({ messages });
+          const content = response.choices?.[0]?.message?.content || "Maaf, saya tidak bisa memproses permintaan ini.";
+          return { success: true, reply: content };
+        } catch (e: any) { return { success: false, error: e.message }; }
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;
-
 // Start agent scheduler when server starts
 startAgentScheduler();
 
