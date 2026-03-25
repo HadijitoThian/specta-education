@@ -15,7 +15,7 @@ import {
   Plus, ChevronRight, Users, TrendingUp, Target, Award, Calendar,
   Zap, Star, BarChart3, ArrowRight, RefreshCw, User, BookOpen,
   Search, Filter, UserPlus, Eye, Crown, Edit2, Upload, X, Download,
-  GripVertical, Bell, CheckCheck, MessageSquare, GraduationCap
+  GripVertical, Bell, CheckCheck, MessageSquare, GraduationCap, Brain
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -386,6 +386,14 @@ export default function CounselorCRM() {
               <Button size="sm" variant="outline" className="border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/10 gap-1 px-2 sm:px-3">
                 <GraduationCap className="w-4 h-4" />
                 <span className="hidden sm:inline">Universities</span>
+              </Button>
+            </Link>
+
+            {/* AI Follow-up Assistant Button */}
+            <Link href="/crm/ai-assistant">
+              <Button size="sm" variant="outline" className="border-violet-500/40 text-violet-400 hover:bg-violet-500/10 gap-1 px-2 sm:px-3">
+                <Brain className="w-4 h-4" />
+                <span className="hidden sm:inline">AI Assistant</span>
               </Button>
             </Link>
 

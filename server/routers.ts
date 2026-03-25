@@ -231,6 +231,13 @@ import { triggerAgent, initializeAgents, startAgentScheduler } from "./agentSche
 import { getLatestGmReport, getGmReports, getGmRecommendations, updateGmRecommendationStatus, getGmHealthHistory, runGeneralManagerCycle, generateAndSendExecutiveReport } from "./agentGeneralManager";
 import { runGeoMonitor, getLatestGeoReport } from "./agentGeoMonitor";
 import {
+  createStudentPortalAccount, getStudentPortalByEmail, getStudentPortalByLeadId,
+  verifyStudentPortalToken, validateStudentPortalLogin, getStudentPortalDashboard,
+  setStudentPortalResetToken, resetStudentPortalPassword,
+  getAiSuggestionsForCounselor, markSuggestionActioned, clearOldSuggestions,
+  insertAiSuggestion, deleteExistingSuggestions,
+} from "./studentPortalDb";
+import {
   getAllAgentConfigs,
   updateAgentConfig,
   getAgentRunLogs,
@@ -6745,6 +6752,278 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
       }),
 
   }),
+
+  // ─── Student Portal ──────────────────────────────────────────────────────────
+  studentPortal: router({
+
+    // Register student portal account (counselor creates it for student)
+    register: protectedProcedure
+      .input(z.object({ leadId: z.number(), email: z.string().email(), password: z.string().min(8), sendWelcomeEmail: z.boolean().optional() }))
+      .mutation(async ({ input }) => {
+        const existing = await getStudentPortalByLeadId(input.leadId);
+        if (existing) throw new TRPCError({ code: "CONFLICT", message: "Student portal account already exists" });
+        const { id, verifyToken } = await createStudentPortalAccount(input.leadId, input.email, input.password);
+        return { success: true, id, verifyToken };
+      }),
+
+    // Student self-login (public)
+    login: publicProcedure
+      .input(z.object({ email: z.string().email(), password: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        const account = await validateStudentPortalLogin(input.email, input.password);
+        if (!account) throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid email or password" });
+        // Sign a JWT for the student
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const token = await new SignJWT({ sub: String(account.id), leadId: account.leadId, role: "student" })
+          .setProtectedHeader({ alg: "HS256" })
+          .setExpirationTime("7d")
+          .sign(secret);
+        ctx.res.cookie("student_portal_token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          maxAge: 60 * 60 * 24 * 7,
+          path: "/",
+        });
+        return { success: true, leadId: account.leadId };
+      }),
+
+    // Student logout
+    logout: publicProcedure.mutation(({ ctx }) => {
+      ctx.res.clearCookie("student_portal_token", { path: "/" });
+      return { success: true };
+    }),
+
+    // Get student dashboard data (authenticated via JWT cookie)
+    getDashboard: publicProcedure.query(async ({ ctx }) => {
+      const token = (ctx.req as any).cookies?.student_portal_token;
+      if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+      try {
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const { payload } = await jwtVerify(token, secret);
+        const leadId = Number(payload.leadId);
+        const data = await getStudentPortalDashboard(leadId);
+        if (!data) throw new TRPCError({ code: "NOT_FOUND", message: "Student data not found" });
+        return data;
+      } catch (e: any) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Session expired" });
+      }
+    }),
+
+    // Check if student is logged in
+    me: publicProcedure.query(async ({ ctx }) => {
+      const token = (ctx.req as any).cookies?.student_portal_token;
+      if (!token) return null;
+      try {
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const { payload } = await jwtVerify(token, secret);
+        return { leadId: Number(payload.leadId), role: "student" };
+      } catch {
+        return null;
+      }
+    }),
+
+    // Request password reset
+    requestReset: publicProcedure
+      .input(z.object({ email: z.string().email() }))
+      .mutation(async ({ input }) => {
+        const account = await getStudentPortalByEmail(input.email);
+        if (!account) return { success: true }; // Don't reveal if email exists
+        await setStudentPortalResetToken(input.email);
+        return { success: true };
+      }),
+
+    // Send welcome emails to all CRM students (bulk onboarding)
+    sendWelcomeEmailsToAll: protectedProcedure
+      .input(z.object({ specificLeadId: z.number().optional() }))
+      .mutation(async ({ input }) => {
+        const { getDb: getDbLocal } = await import("./db");
+        const { leads: leadsTable } = await import("../drizzle/schema");
+        const { isNotNull: isNotNullOp, eq: eqOp } = await import("drizzle-orm");
+        const db = await getDbLocal();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+        // Get all leads with email addresses
+        let crmLeads;
+        if (input.specificLeadId) {
+          crmLeads = await db.select().from(leadsTable).where(eqOp(leadsTable.id, input.specificLeadId));
+        } else {
+          crmLeads = await db.select().from(leadsTable)
+            .where(isNotNullOp(leadsTable.studentEmail));
+        }
+
+        let sent = 0;
+        let created = 0;
+        const errors: string[] = [];
+        const portalUrl = process.env.VITE_APP_ID
+          ? `https://${process.env.VITE_APP_ID}.manus.space/student/login`
+          : "https://spectaeducation.com/student/login";
+
+        for (const lead of crmLeads) {
+          if (!lead.studentEmail) continue;
+          try {
+            // Check if account already exists
+            let existing = await getStudentPortalByLeadId(lead.id);
+            let tempPassword = "";
+            if (!existing) {
+              // Generate a readable temp password
+              const words = ["Study", "Learn", "Grow", "Excel", "Dream"];
+              const word = words[Math.floor(Math.random() * words.length)];
+              tempPassword = `${word}${Math.floor(1000 + Math.random() * 9000)}`;
+              await createStudentPortalAccount(lead.id, lead.studentEmail, tempPassword);
+              created++;
+            } else {
+              tempPassword = "(your existing password)";
+            }
+
+            // Send welcome email
+            const firstName = lead.studentName?.split(" ")[0] ?? "there";
+            const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, #7c3aed, #2563eb); padding: 40px 30px; text-align: center;">
+      <h1 style="color: white; margin: 0; font-size: 28px;">🎓 SpecTa Education</h1>
+      <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0;">Your Student Portal is Ready!</p>
+    </div>
+    <div style="padding: 30px;">
+      <h2 style="color: #1e293b; margin-top: 0;">Hi ${firstName}! 👋</h2>
+      <p style="color: #475569; line-height: 1.6;">Great news! Your personal student portal on SpecTa Education is now ready. You can use it to:</p>
+      <ul style="color: #475569; line-height: 2;">
+        <li>📋 Track your university application status in real-time</li>
+        <li>📁 Upload your documents directly (passport, transcripts, etc.)</li>
+        <li>✅ See which documents have been verified by your counselor</li>
+        <li>📊 View your study abroad journey progress</li>
+      </ul>
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <p style="margin: 0 0 8px; color: #64748b; font-size: 14px;">Your login details:</p>
+        <p style="margin: 4px 0; color: #1e293b;"><strong>Email:</strong> ${lead.studentEmail}</p>
+        <p style="margin: 4px 0; color: #1e293b;"><strong>Temporary Password:</strong> <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">${tempPassword}</code></p>
+        <p style="margin: 8px 0 0; color: #94a3b8; font-size: 12px;">Please change your password after your first login.</p>
+      </div>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${portalUrl}" style="background: linear-gradient(135deg, #7c3aed, #2563eb); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">Access My Portal →</a>
+      </div>
+      <p style="color: #94a3b8; font-size: 13px; text-align: center;">If you have any questions, WhatsApp us at <strong>+62 811 8120 820</strong></p>
+    </div>
+    <div style="background: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+      <p style="color: #94a3b8; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} SpecTa Education. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+            await sendEmail({
+              to: lead.studentEmail,
+              subject: `🎓 Your SpecTa Education Student Portal is Ready, ${firstName}!`,
+              html: emailHtml,
+              text: `Hi ${firstName}! Your student portal is ready. Login at ${portalUrl} with email: ${lead.studentEmail} and password: ${tempPassword}`,
+            });
+            sent++;
+          } catch (err: any) {
+            errors.push(`${lead.studentEmail}: ${err.message}`);
+          }
+        }
+
+        return { sent, created, errors, total: crmLeads.length };
+      }),
+
+    // Check if a lead already has a portal account
+    checkAccount: protectedProcedure
+      .input(z.object({ leadId: z.number() }))
+      .query(async ({ input }) => {
+        const account = await getStudentPortalByLeadId(input.leadId);
+        return { hasAccount: !!account, email: account?.email ?? null };
+      }),
+
+  }),
+
+  // ─── AI Follow-up Assistant ──────────────────────────────────────────────────
+  aiAssistant: router({
+
+    // Get all suggestions for the current counselor
+    getSuggestions: protectedProcedure.query(async ({ ctx }) => {
+      const counselorEmail = ctx.user.email ?? "";
+      if (!counselorEmail) return [];
+      return getAiSuggestionsForCounselor(counselorEmail);
+    }),
+
+    // Mark a suggestion as actioned
+    actionSuggestion: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await markSuggestionActioned(input.id);
+        return { success: true };
+      }),
+
+    // Generate fresh AI suggestions for the current counselor
+    generateSuggestions: protectedProcedure.mutation(async ({ ctx }) => {
+      const counselorEmail = ctx.user.email ?? "";
+      if (!counselorEmail) throw new TRPCError({ code: "BAD_REQUEST", message: "No counselor email" });
+
+      // Clear old suggestions first
+      await clearOldSuggestions(counselorEmail);
+
+      // Get all leads assigned to this counselor
+      const allLeads = await getAllLeads();
+      const myLeads = allLeads.filter((l: any) => l.assignedCounselor === counselorEmail || l.assignedTo === counselorEmail);
+
+      if (myLeads.length === 0) return { generated: 0 };
+
+      const now = Date.now();
+      let generated = 0;
+
+      for (const lead of myLeads.slice(0, 20)) { // Process up to 20 leads at a time
+        const daysSinceUpdate = Math.floor((now - new Date(lead.updatedAt).getTime()) / (1000 * 60 * 60 * 24));
+        const studentName = lead.studentName;
+
+        // 1. Overdue follow-up (no update in 3+ days)
+        if (daysSinceUpdate >= 3) {
+          await deleteExistingSuggestions(counselorEmail, lead.id, "overdue_followup");
+          const priority = daysSinceUpdate >= 7 ? "urgent" : daysSinceUpdate >= 5 ? "high" : "medium";
+          const aiResponse = await invokeLLM({
+            messages: [
+              { role: "system", content: "You are an AI assistant helping education counselors. Generate a short, warm WhatsApp message (max 3 sentences) and a brief advice tip for the counselor. Respond in JSON: {\"message\": \"...\", \"advice\": \"...\"}" },
+              { role: "user", content: `Student: ${studentName}, last contact: ${daysSinceUpdate} days ago, study interest: ${lead.preferredCountry || "not specified"}, level: ${lead.studyLevel || "not specified"}. Generate a friendly follow-up WhatsApp message and counselor advice.` },
+            ],
+            response_format: { type: "json_schema", json_schema: { name: "followup", strict: true, schema: { type: "object", properties: { message: { type: "string" }, advice: { type: "string" } }, required: ["message", "advice"], additionalProperties: false } } },
+          });
+          const rawContent = aiResponse.choices?.[0]?.message?.content;
+          const parsed = JSON.parse((typeof rawContent === "string" ? rawContent : null) || "{}");
+          await insertAiSuggestion({
+            counselorEmail, leadId: lead.id,
+            suggestionType: "overdue_followup", priority,
+            title: `Follow up with ${studentName} — ${daysSinceUpdate} days since last contact`,
+            aiMessage: parsed.message || `Hi ${studentName}! Just checking in — how are things going? 😊`,
+            aiAdvice: parsed.advice || "Re-engage with a warm, personal message. Ask about their current situation.",
+            expiresAt: new Date(now + 1000 * 60 * 60 * 24),
+          });
+          generated++;
+        }
+
+        // 2. Rapport check-in (every 2-3 days for active leads)
+        const activeStages = ["new", "contacted", "qualified", "in_progress"];
+        if (daysSinceUpdate >= 2 && daysSinceUpdate < 3 && activeStages.includes(lead.status)) {
+          await deleteExistingSuggestions(counselorEmail, lead.id, "rapport_checkin");
+          await insertAiSuggestion({
+            counselorEmail, leadId: lead.id,
+            suggestionType: "rapport_checkin", priority: "low",
+            title: `Say hi to ${studentName} — build rapport`,
+            aiMessage: `Hey ${studentName}! Hope you're having a great day! 😊 Just wanted to check in — any questions about your study abroad journey?`,
+            aiAdvice: "Regular check-ins build trust. A simple 'how are you' message keeps the relationship warm without being pushy.",
+            expiresAt: new Date(now + 1000 * 60 * 60 * 24),
+          });
+          generated++;
+        }
+      }
+
+      return { generated };
+    }),
+
+  }),
+
 });
 export type AppRouter = typeof appRouter;
 // Start agent scheduler when server starts

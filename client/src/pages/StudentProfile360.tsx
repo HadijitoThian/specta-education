@@ -457,6 +457,7 @@ export default function StudentProfile360() {
                   </Button>
                 )}
                 <ParentReportButton lead={lead} leadId={leadId} />
+                <PortalInviteButton lead={lead} leadId={leadId} />
               </CardContent>
             </Card>
 
@@ -1282,6 +1283,75 @@ function ParentReportButton({ lead, leadId }: { lead: any; leadId: number }) {
             disabled={sendReport.isPending || !parentEmail.trim()}
           >
             {sendReport.isPending ? "Sending Report..." : "Send Progress Report"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Portal Invite Button ────────────────────────────────────────────────────
+function PortalInviteButton({ lead, leadId }: { lead: any; leadId: number }) {
+  const [open, setOpen] = useState(false);
+  const checkAccount = trpc.studentPortal.checkAccount.useQuery({ leadId });
+
+  const sendInvite = trpc.studentPortal.sendWelcomeEmailsToAll.useMutation({
+    onSuccess: (data: any) => {
+      toast.success(`Portal invite sent to ${lead.studentEmail}! Account created: ${data.created > 0 ? 'Yes' : 'Already existed'}`);
+      setOpen(false);
+      checkAccount.refetch();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  if (!lead.studentEmail) {
+    return (
+      <Button className="w-full bg-white/5 text-white/30 border border-white/10 justify-start gap-2 cursor-not-allowed" variant="outline" disabled>
+        <Globe className="w-4 h-4" /> Portal Invite — No email
+      </Button>
+    );
+  }
+
+  const hasAccount = checkAccount.data?.hasAccount;
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="w-full bg-cyan-600/10 hover:bg-cyan-600/20 text-cyan-400 border border-cyan-600/30 justify-start gap-2" variant="outline">
+          <Globe className="w-4 h-4" />
+          {hasAccount ? '✅ Portal Active — Resend Invite' : '🌐 Send Portal Invite'}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="bg-[#0d1424] border-white/10 text-white max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-white flex items-center gap-2">
+            <Globe className="w-5 h-5 text-cyan-400" /> Student Portal Invite
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-3 text-sm text-cyan-300">
+            {hasAccount
+              ? `${lead.studentName} already has a portal account. Resending will send a reminder email with their existing login.`
+              : `This will create a portal account for ${lead.studentName} and send login credentials to ${lead.studentEmail}.`
+            }
+          </div>
+          <div className="bg-white/5 rounded-lg p-3 text-sm">
+            <p className="text-white/60 mb-1">Email will be sent to:</p>
+            <p className="text-white font-medium">{lead.studentEmail}</p>
+          </div>
+          <div className="bg-white/5 rounded-lg p-3 text-sm space-y-1">
+            <p className="text-white/60 text-xs font-medium mb-2">Student portal features:</p>
+            <p className="text-white/70">📋 Track application status in real-time</p>
+            <p className="text-white/70">📁 Upload documents directly</p>
+            <p className="text-white/70">✅ See verified documents</p>
+            <p className="text-white/70">📊 View study abroad journey</p>
+          </div>
+          <Button
+            className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold"
+            onClick={() => sendInvite.mutate({ specificLeadId: leadId })}
+            disabled={sendInvite.isPending}
+          >
+            {sendInvite.isPending ? 'Sending Invite...' : hasAccount ? 'Resend Portal Invite' : 'Send Portal Invite'}
           </Button>
         </div>
       </DialogContent>

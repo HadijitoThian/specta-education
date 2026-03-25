@@ -1641,3 +1641,29 @@
 - [x] WhatsApp button on student list with pre-filled message template
 - [x] WhatsApp button already existed on student profile sidebar + quick actions
 - [x] 9/9 vitest tests passing, 0 TypeScript errors
+
+## Sprint 12 (March 2026) — AI Follow-up Assistant + Student Portal
+- [x] Student Portal: email+password signup/login (no Manus account needed)
+- [x] Student Portal: student dashboard showing application status + pipeline stage
+- [x] Student Portal: student document upload (upload own docs to S3)
+- [x] Student Portal: student can view all their documents and statuses
+- [x] AI Follow-up Assistant: scheduled engine analyzes all leads per counselor
+- [x] AI Follow-up Assistant: overdue follow-up reminders (no contact 3+ days)
+- [x] AI Follow-up Assistant: application deadline alerts (intake date approaching)
+- [x] AI Follow-up Assistant: incomplete document reminders
+- [x] AI Follow-up Assistant: rapport-building suggestions (say hi every 2-3 days)
+- [x] AI Follow-up Assistant: AI-generated WhatsApp/email message drafts
+- [x] Welcome email to existing CRM students with portal link + login instructions
+
+## Sprint 12 (March 2026) — Student Portal + AI Follow-up Assistant
+- [x] Student portal accounts table (email+password, no Manus OAuth needed)
+- [x] AI follow-up suggestions table in database
+- [x] Student portal signup/login backend (bcrypt password hashing, JWT)
+- [x] Student portal dashboard (view applications, upload documents)
+- [x] Student portal login page (/student/login)
+- [x] AI Follow-up Assistant page for counselors (/crm/ai-assistant)
+- [x] AI generates proactive reminders: overdue contact, deadlines, missing docs, rapport building
+- [x] One-click WhatsApp/email action from AI suggestions
+- [x] "Send Portal Invite" button in Quick Actions on student profile
+- [x] Welcome email sent to student with portal login credentials
+- [x] 12/12 vitest tests passing

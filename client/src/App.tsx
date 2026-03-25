@@ -40,6 +40,9 @@ import CounselorCRM from "./pages/CounselorCRM";
 import StudentProfile360 from "./pages/StudentProfile360";
 import TeamChat from "./pages/TeamChat";
 import UniversityDatabase from "./pages/UniversityDatabase";
+import StudentPortalLogin from "./pages/StudentPortalLogin";
+import StudentPortalDashboard from "./pages/StudentPortalDashboard";
+import AIFollowUpAssistant from "./pages/AIFollowUpAssistant";
 import { useVisitorTracking } from "./hooks/useVisitorTracking";
 import AIAnswers from "./pages/AIAnswers";
 
@@ -79,6 +82,9 @@ function Router() {
       <Route path={"/crm/lead/:id"} component={StudentProfile360} />
       <Route path={"/crm/team-chat"} component={TeamChat} />
       <Route path={"/crm/universities"} component={UniversityDatabase} />
+      <Route path={"/crm/ai-assistant"} component={AIFollowUpAssistant} />
+      <Route path={"/student/login"} component={StudentPortalLogin} />
+      <Route path={"/student/dashboard"} component={StudentPortalDashboard} />
       <Route path={"/admin"} component={AdminDashboard} />
       <Route path={"/admin/agents"} component={AgentCommandCenter} />
       <Route path={"/blog"} component={Blog} />

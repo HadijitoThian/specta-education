@@ -1606,3 +1606,44 @@ export const studentVisaTracking = mysqlTable("student_visa_tracking", {
 });
 export type StudentVisaTracking = typeof studentVisaTracking.$inferSelect;
 export type InsertStudentVisaTracking = typeof studentVisaTracking.$inferInsert;
+
+/**
+ * Student Portal Accounts — email+password auth for students (no Manus account needed)
+ * Sprint 12: Student self-service portal
+ */
+export const studentPortalAccounts = mysqlTable("student_portal_accounts", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull().unique(),
+  email: varchar("email", { length: 320 }).notNull().unique(),
+  passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
+  isVerified: tinyint("isVerified").default(0),
+  verifyToken: varchar("verifyToken", { length: 128 }),
+  resetToken: varchar("resetToken", { length: 128 }),
+  resetTokenExpiry: timestamp("resetTokenExpiry"),
+  lastLoginAt: timestamp("lastLoginAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type StudentPortalAccount = typeof studentPortalAccounts.$inferSelect;
+export type InsertStudentPortalAccount = typeof studentPortalAccounts.$inferInsert;
+
+/**
+ * AI Follow-up Suggestions — AI-generated counselor action items
+ * Sprint 12: AI Counselor Assistant
+ */
+export const aiFollowupSuggestions = mysqlTable("ai_followup_suggestions", {
+  id: int("id").autoincrement().primaryKey(),
+  counselorEmail: varchar("counselorEmail", { length: 320 }).notNull(),
+  leadId: int("leadId").notNull(),
+  suggestionType: mysqlEnum("suggestionType", ["overdue_followup", "deadline_alert", "missing_docs", "rapport_checkin", "application_update", "visa_reminder"]).notNull(),
+  priority: mysqlEnum("priority", ["urgent", "high", "medium", "low"]).default("medium"),
+  title: varchar("title", { length: 500 }).notNull(),
+  aiMessage: text("aiMessage"),
+  aiAdvice: text("aiAdvice"),
+  isActioned: tinyint("isActioned").default(0),
+  actionedAt: timestamp("actionedAt"),
+  expiresAt: timestamp("expiresAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type AiFollowupSuggestion = typeof aiFollowupSuggestions.$inferSelect;
+export type InsertAiFollowupSuggestion = typeof aiFollowupSuggestions.$inferInsert;
