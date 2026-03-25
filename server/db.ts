@@ -2662,6 +2662,13 @@ export async function sendTeamChatMessage(data: {
     message: data.message, channel: data.channel || "general",
     replyToId: data.replyToId,
   });
+  // Fetch the newly inserted row so we can broadcast it
+  const { eq } = await import("drizzle-orm");
+  const insertId = (result as any).insertId ?? (result as any).lastInsertRowid;
+  if (insertId) {
+    const [row] = await db!.select().from(staffTeamChat).where(eq(staffTeamChat.id, Number(insertId)));
+    return row;
+  }
   return result;
 }
 
@@ -2682,4 +2689,63 @@ export async function getLeadSourceAnalytics() {
     createdAt: leads.createdAt,
   }).from(leads).leftJoin(leadPipelineStages, eq(leads.id, leadPipelineStages.leadId));
   return allLeads;
+}
+
+// ─── Sprint 9: University Database ───────────────────────────────────────────
+export async function getUniversities(country?: string, search?: string, limit = 100) {
+  const db = await getDb();
+  const { universities } = await import("../drizzle/schema");
+  const { like, and } = await import("drizzle-orm");
+  let conditions: any[] = [eq(universities.isActive, 1)];
+  if (country) conditions.push(eq(universities.country, country));
+  if (search) conditions.push(like(universities.name, `%${search}%`));
+  const rows = await db!.select().from(universities)
+    .where(and(...conditions))
+    .orderBy(universities.ranking)
+    .limit(limit);
+  return rows;
+}
+
+export async function seedUniversitiesIfEmpty() {
+  const db = await getDb();
+  const { universities } = await import("../drizzle/schema");
+  const existing = await db!.select({ id: universities.id }).from(universities).limit(1);
+  if (existing.length > 0) return { seeded: false, count: 0 };
+  const { UNIVERSITY_SEEDS } = await import("./universitySeeds");
+  await db!.insert(universities).values(UNIVERSITY_SEEDS as any);
+  return { seeded: true, count: UNIVERSITY_SEEDS.length };
+}
+
+// ─── Sprint 9: Visa Tracking ──────────────────────────────────────────────────
+export async function getVisaTracking(leadId: number) {
+  const db = await getDb();
+  const { studentVisaTracking } = await import("../drizzle/schema");
+  const [row] = await db!.select().from(studentVisaTracking).where(eq(studentVisaTracking.leadId, leadId));
+  return row || null;
+}
+
+export async function upsertVisaTracking(leadId: number, data: {
+  visaType?: string; visaStatus?: string; embassy?: string;
+  applicationDate?: Date | null; biometricsDate?: Date | null;
+  decisionDate?: Date | null; visaExpiryDate?: Date | null;
+  requiredDocs?: string; completedDocs?: string; notes?: string;
+  staffEmail: string;
+}) {
+  const db = await getDb();
+  const { studentVisaTracking } = await import("../drizzle/schema");
+  const existing = await getVisaTracking(leadId);
+  if (existing) {
+    await db!.update(studentVisaTracking)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(studentVisaTracking.leadId, leadId));
+    return { ...existing, ...data };
+  } else {
+    const [result] = await db!.insert(studentVisaTracking).values({ leadId, ...data });
+    const insertId = (result as any).insertId ?? (result as any).lastInsertRowid;
+    if (insertId) {
+      const [row] = await db!.select().from(studentVisaTracking).where(eq(studentVisaTracking.id, Number(insertId)));
+      return row;
+    }
+    return result;
+  }
 }

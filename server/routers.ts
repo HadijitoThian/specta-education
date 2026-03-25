@@ -211,6 +211,10 @@ import {
   getTeamChatMessages,
   sendTeamChatMessage,
   deleteTeamChatMessage,
+  getUniversities,
+  seedUniversitiesIfEmpty,
+  getVisaTracking,
+  upsertVisaTracking,
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail } from "./email";
@@ -6353,7 +6357,15 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
           senderEmail = payload.email as string || "";
         } catch { return { success: false, error: "Not authenticated" }; }
         try {
-          await sendTeamChatMessage({ senderEmail, senderName, message: input.message, channel: input.channel, replyToId: input.replyToId });
+          const newMsg = await sendTeamChatMessage({ senderEmail, senderName, message: input.message, channel: input.channel, replyToId: input.replyToId });
+          // Broadcast via SSE to all subscribers of this channel
+          const clients: Set<any> | undefined = (global as any).__chatSSEClients?.get(input.channel);
+          if (clients && clients.size > 0) {
+            const payload = JSON.stringify({ type: "message", data: newMsg });
+            clients.forEach((res: any) => {
+              try { res.write(`event: message\ndata: ${payload}\n\n`); } catch {}
+            });
+          }
           return { success: true };
         } catch (e: any) {
           return { success: false, error: e.message };
@@ -6393,11 +6405,106 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
         return { data };
       }),
 
+    // ─── Sprint 9: University Database ───────────────────────────────────────
+    getUniversities: publicProcedure
+      .input(z.object({
+        country: z.string().optional(),
+        search: z.string().optional(),
+        limit: z.number().default(100),
+      }))
+      .query(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { universities: [] };
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        } catch { return { universities: [] }; }
+        // Auto-seed on first call
+        await seedUniversitiesIfEmpty();
+        const unis = await getUniversities(input.country, input.search, input.limit);
+        return { universities: unis };
+      }),
+
+    seedUniversities: publicProcedure
+      .mutation(async ({ ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+          if (payload.role !== "admin" && payload.role !== "ceo") return { success: false, error: "Admin only" };
+        } catch { return { success: false, error: "Not authenticated" }; }
+        const result = await seedUniversitiesIfEmpty();
+        return { success: true, ...result };
+      }),
+
+    // ─── Sprint 9: Visa Tracking ──────────────────────────────────────────────
+    getVisaTracking: publicProcedure
+      .input(z.object({ leadId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { visa: null };
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        } catch { return { visa: null }; }
+        const visa = await getVisaTracking(input.leadId);
+        return { visa };
+      }),
+
+    upsertVisaTracking: publicProcedure
+      .input(z.object({
+        leadId: z.number(),
+        visaType: z.string().optional(),
+        visaStatus: z.string().optional(),
+        embassy: z.string().optional(),
+        applicationDate: z.string().optional(),
+        biometricsDate: z.string().optional(),
+        decisionDate: z.string().optional(),
+        visaExpiryDate: z.string().optional(),
+        requiredDocs: z.string().optional(),
+        completedDocs: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        let staffEmail = "";
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+          staffEmail = payload.email as string || "";
+        } catch { return { success: false, error: "Not authenticated" }; }
+        try {
+          const { leadId, applicationDate, biometricsDate, decisionDate, visaExpiryDate, ...rest } = input;
+          const result = await upsertVisaTracking(leadId, {
+            ...rest,
+            applicationDate: applicationDate ? new Date(applicationDate) : undefined,
+            biometricsDate: biometricsDate ? new Date(biometricsDate) : undefined,
+            decisionDate: decisionDate ? new Date(decisionDate) : undefined,
+            visaExpiryDate: visaExpiryDate ? new Date(visaExpiryDate) : undefined,
+            staffEmail,
+          });
+          return { success: true, visa: result };
+        } catch (e: any) {
+          return { success: false, error: e.message };
+        }
+      }),
+
   }),
 });
 export type AppRouter = typeof appRouter;
 // Start agent scheduler when server starts
 startAgentScheduler();
+
+// Auto-seed universities on startup
+seedUniversitiesIfEmpty().then(r => {
+  if (r.seeded) console.log(`[Universities] Seeded ${r.count} universities`);
+}).catch(e => console.error('[Universities] Seed error:', e));
 
 // ==================== SIMULATOR AI HELPERS ====================
 

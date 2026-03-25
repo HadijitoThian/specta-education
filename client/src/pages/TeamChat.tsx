@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, Send, Hash, Trash2, MessageSquare } from "lucide-react";
+import { ChevronRight, Send, Hash, Trash2, MessageSquare, Wifi, WifiOff, Circle } from "lucide-react";
 
 const CHANNELS = [
   { id: "general", label: "# general", desc: "General team discussion" },
@@ -15,9 +15,13 @@ const CHANNELS = [
 export default function TeamChat() {
   const [channel, setChannel] = useState("general");
   const [message, setMessage] = useState("");
-  const [staffToken, setStaffToken] = useState<string | null>(null);
   const [staffInfo, setStaffInfo] = useState<any>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<{ email: string; name: string }[]>([]);
+  const [sseConnected, setSseConnected] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const presenceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Get staff auth
   const { data: meData } = trpc.staffAuth.me.useQuery(undefined, {
@@ -26,31 +30,102 @@ export default function TeamChat() {
   } as any);
 
   useEffect(() => {
-    const token = document.cookie.split(";").find(c => c.trim().startsWith("staff_token="))?.split("=")[1];
-    setStaffToken(token || null);
-  }, []);
-
-  useEffect(() => {
     if (meData && (meData as any).staff) {
       setStaffInfo((meData as any).staff);
     }
   }, [meData]);
 
+  // Load initial messages
   const { data: chatData, refetch } = trpc.crm.getTeamChat.useQuery(
     { channel, limit: 100 },
-    { refetchInterval: 5000 } // Poll every 5 seconds for new messages
+    { refetchOnWindowFocus: false }
   );
 
+  useEffect(() => {
+    if (chatData) {
+      setMessages((chatData as any).messages || []);
+    }
+  }, [chatData]);
+
+  // Reload messages when channel changes
+  useEffect(() => {
+    refetch();
+  }, [channel]);
+
+  // SSE connection for real-time messages
+  const connectSSE = useCallback(() => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
+    const es = new EventSource(`/api/chat/stream?channel=${channel}`);
+    eventSourceRef.current = es;
+
+    es.addEventListener("message", (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.type === "message" && data.data) {
+          setMessages(prev => {
+            // Avoid duplicates
+            if (prev.some(m => m.id === data.data.id)) return prev;
+            return [...prev, data.data];
+          });
+        }
+      } catch {}
+    });
+
+    es.addEventListener("ping", () => {
+      // Keep-alive ping, do nothing
+    });
+
+    es.onopen = () => setSseConnected(true);
+    es.onerror = () => {
+      setSseConnected(false);
+      // Reconnect after 3s
+      setTimeout(() => connectSSE(), 3000);
+    };
+
+    return es;
+  }, [channel]);
+
+  useEffect(() => {
+    const es = connectSSE();
+    return () => {
+      es.close();
+      setSseConnected(false);
+    };
+  }, [connectSSE]);
+
+  // Presence heartbeat — send every 20s to register as online
+  const sendPresence = useCallback(async () => {
+    if (!staffInfo) return;
+    try {
+      const res = await fetch("/api/chat/presence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: staffInfo.email, name: staffInfo.name || staffInfo.email }),
+      });
+      const data = await res.json();
+      if (data.online) setOnlineUsers(data.online);
+    } catch {}
+  }, [staffInfo]);
+
+  useEffect(() => {
+    if (!staffInfo) return;
+    sendPresence(); // immediate
+    presenceIntervalRef.current = setInterval(sendPresence, 20000);
+    return () => {
+      if (presenceIntervalRef.current) clearInterval(presenceIntervalRef.current);
+    };
+  }, [staffInfo, sendPresence]);
+
   const sendMut = trpc.crm.sendTeamChat.useMutation({
-    onSuccess: () => { refetch(); setMessage(""); },
+    onSuccess: () => setMessage(""),
     onError: (e) => toast.error(e.message),
   });
 
   const deleteMut = trpc.crm.deleteTeamChat.useMutation({
     onSuccess: () => refetch(),
   });
-
-  const messages = (chatData as any)?.messages || [];
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -60,10 +135,7 @@ export default function TeamChat() {
   const handleSend = () => {
     if (!message.trim()) return;
     if (!staffInfo) return toast.error("Please login as staff first");
-    sendMut.mutate({
-      message: message.trim(),
-      channel,
-    });
+    sendMut.mutate({ message: message.trim(), channel });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -105,6 +177,14 @@ export default function TeamChat() {
             <MessageSquare className="w-5 h-5 text-[#e91e8c]" />
             <h1 className="text-lg font-bold text-white">Team Chat</h1>
           </div>
+          {/* SSE connection status */}
+          <div className="flex items-center gap-1.5 ml-2">
+            {sseConnected ? (
+              <><Wifi className="w-3.5 h-3.5 text-green-400" /><span className="text-xs text-green-400">Live</span></>
+            ) : (
+              <><WifiOff className="w-3.5 h-3.5 text-yellow-400" /><span className="text-xs text-yellow-400">Connecting…</span></>
+            )}
+          </div>
           {staffInfo && (
             <div className="ml-auto flex items-center gap-2">
               <div className={`w-7 h-7 rounded-full ${getColor(staffInfo.email)} flex items-center justify-center text-white text-xs font-bold`}>
@@ -117,8 +197,8 @@ export default function TeamChat() {
       </div>
 
       <div className="flex flex-1 max-w-6xl mx-auto w-full">
-        {/* Sidebar - Channels */}
-        <div className="w-56 border-r border-white/10 bg-[#0d1424]/50 p-3 space-y-1 hidden sm:block">
+        {/* Sidebar - Channels + Online Users */}
+        <div className="w-56 border-r border-white/10 bg-[#0d1424]/50 p-3 space-y-1 hidden sm:flex sm:flex-col">
           <div className="text-xs text-white/40 uppercase tracking-wider px-2 py-2">Channels</div>
           {CHANNELS.map(ch => (
             <button
@@ -136,6 +216,21 @@ export default function TeamChat() {
               </div>
             </button>
           ))}
+
+          {/* Online Users */}
+          {onlineUsers.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <div className="text-xs text-white/40 uppercase tracking-wider px-2 py-2">
+                Online — {onlineUsers.length}
+              </div>
+              {onlineUsers.map(u => (
+                <div key={u.email} className="flex items-center gap-2 px-2 py-1.5">
+                  <Circle className="w-2 h-2 text-green-400 fill-green-400 shrink-0" />
+                  <span className="text-xs text-white/60 truncate">{u.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Main Chat Area */}
@@ -222,7 +317,7 @@ export default function TeamChat() {
                     value={message}
                     onChange={e => setMessage(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder={`Message #${channel}... (Enter to send, Shift+Enter for new line)`}
+                    placeholder={`Message #${channel}… (Enter to send, Shift+Enter for new line)`}
                     className="w-full bg-white/10 border border-white/20 text-white rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:border-[#e91e8c]/50 placeholder:text-white/30"
                     rows={1}
                     style={{ minHeight: "44px", maxHeight: "120px" }}

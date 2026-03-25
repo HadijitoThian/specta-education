@@ -1560,3 +1560,46 @@ export const staffTeamChat = mysqlTable("staff_team_chat", {
 });
 export type StaffTeamChat = typeof staffTeamChat.$inferSelect;
 export type InsertStaffTeamChat = typeof staffTeamChat.$inferInsert;
+
+/**
+ * Universities — searchable database of universities per country
+ * Sprint 9: Used in Application Tracker dropdown
+ */
+export const universities = mysqlTable("universities", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 300 }).notNull(),
+  country: varchar("country", { length: 100 }).notNull(),
+  city: varchar("city", { length: 150 }),
+  ranking: int("ranking"),
+  website: varchar("website", { length: 500 }),
+  programs: text("programs"),
+  type: varchar("type", { length: 50 }).default("public"),
+  isActive: tinyint("isActive").default(1),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type University = typeof universities.$inferSelect;
+export type InsertUniversity = typeof universities.$inferInsert;
+
+/**
+ * Student Visa Tracking — per-student visa application progress
+ * Sprint 9: Dedicated visa section in StudentProfile360
+ */
+export const studentVisaTracking = mysqlTable("student_visa_tracking", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  visaType: varchar("visaType", { length: 100 }),
+  visaStatus: varchar("visaStatus", { length: 100 }).default("not_started"),
+  embassy: varchar("embassy", { length: 200 }),
+  applicationDate: timestamp("applicationDate"),
+  biometricsDate: timestamp("biometricsDate"),
+  decisionDate: timestamp("decisionDate"),
+  visaExpiryDate: timestamp("visaExpiryDate"),
+  requiredDocs: text("requiredDocs"),
+  completedDocs: text("completedDocs"),
+  notes: text("notes"),
+  staffEmail: varchar("staffEmail", { length: 320 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type StudentVisaTracking = typeof studentVisaTracking.$inferSelect;
+export type InsertStudentVisaTracking = typeof studentVisaTracking.$inferInsert;

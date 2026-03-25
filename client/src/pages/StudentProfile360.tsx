@@ -39,7 +39,7 @@ export default function StudentProfile360() {
   const [stageOpen, setStageOpen] = useState(false);
   const [scoreExplainOpen, setScoreExplainOpen] = useState(false);
   const [scoreExplanation, setScoreExplanation] = useState("");
-  const [activeTab, setActiveTab] = useState<"overview" | "notes" | "tasks" | "documents" | "appointments" | "timeline" | "applications" | "ai">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "notes" | "tasks" | "documents" | "appointments" | "timeline" | "applications" | "visa" | "ai">("overview");
 
   // Queries
   const { data: leadData, refetch: refetchLead } = trpc.crm.getLeadWithPipeline.useQuery({ leadId }, { enabled: leadId > 0 });
@@ -492,6 +492,7 @@ export default function StudentProfile360() {
                 { id: "appointments", label: "📅 Appointments", icon: null },
                 { id: "timeline", label: "🕐 Timeline", icon: null },
                 { id: "applications", label: `Applications (${applications.length})`, icon: <FileText className="w-4 h-4" /> },
+                { id: "visa", label: "🛂 Visa", icon: null },
                 { id: "ai", label: "🤖 AI Assistant", icon: null },
               ].map(tab => (
                 <button
@@ -699,6 +700,11 @@ export default function StudentProfile360() {
             {/* ── Timeline Tab ── */}
             {activeTab === "timeline" && (
               <ActivityTimeline leadId={leadId} />
+            )}
+
+            {/* ── Visa Tracker Tab ── */}
+            {activeTab === "visa" && (
+              <VisaTrackerPanel leadId={leadId} studentName={lead.studentName} preferredCountry={lead.preferredCountry} />
             )}
 
             {/* ── AI Assistant Tab ── */}
@@ -1195,6 +1201,251 @@ function ApplicationTracker({ leadId, refetchApps }: { leadId: number; refetchAp
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Visa Tracker Panel ───────────────────────────────────────────────────────
+const VISA_STATUSES = [
+  { value: "not_started", label: "Not Started", color: "bg-gray-500/20 text-gray-300 border-gray-500/30" },
+  { value: "documents_gathering", label: "Gathering Documents", color: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30" },
+  { value: "application_submitted", label: "Application Submitted", color: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
+  { value: "biometrics_done", label: "Biometrics Done", color: "bg-purple-500/20 text-purple-300 border-purple-500/30" },
+  { value: "approved", label: "Visa Approved ✅", color: "bg-green-500/20 text-green-300 border-green-500/30" },
+  { value: "rejected", label: "Visa Rejected ❌", color: "bg-red-500/20 text-red-300 border-red-500/30" },
+  { value: "expired", label: "Visa Expired", color: "bg-gray-500/20 text-gray-400 border-gray-500/30" },
+];
+
+const VISA_REQUIRED_DOCS = [
+  { key: "passport", label: "Valid Passport (6+ months)" },
+  { key: "offer_letter", label: "University Offer Letter" },
+  { key: "financial_proof", label: "Proof of Finances" },
+  { key: "bank_statement", label: "Bank Statement (3 months)" },
+  { key: "ielts_certificate", label: "IELTS/English Certificate" },
+  { key: "academic_transcripts", label: "Academic Transcripts" },
+  { key: "birth_certificate", label: "Birth Certificate" },
+  { key: "photo", label: "Passport-size Photos" },
+  { key: "medical_certificate", label: "Medical Certificate" },
+  { key: "police_clearance", label: "Police Clearance Letter" },
+  { key: "visa_form", label: "Completed Visa Application Form" },
+  { key: "travel_insurance", label: "Travel Insurance" },
+];
+
+function VisaTrackerPanel({ leadId, studentName, preferredCountry }: { leadId: number; studentName: string; preferredCountry?: string }) {
+  const { data, refetch } = trpc.crm.getVisaTracking.useQuery({ leadId }, { enabled: leadId > 0 });
+  const upsertMut = trpc.crm.upsertVisaTracking.useMutation({
+    onSuccess: () => { refetch(); toast.success("Visa info saved!"); setEditing(false); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const visa = (data as any)?.visa;
+  const [editing, setEditing] = React.useState(false);
+  const [form, setForm] = React.useState({
+    visaType: "", visaStatus: "not_started", embassy: "",
+    applicationDate: "", biometricsDate: "", decisionDate: "", visaExpiryDate: "",
+    notes: "",
+  });
+  const [completedDocs, setCompletedDocs] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    if (visa) {
+      setForm({
+        visaType: visa.visaType || "",
+        visaStatus: visa.visaStatus || "not_started",
+        embassy: visa.embassy || "",
+        applicationDate: visa.applicationDate ? new Date(visa.applicationDate).toISOString().split("T")[0] : "",
+        biometricsDate: visa.biometricsDate ? new Date(visa.biometricsDate).toISOString().split("T")[0] : "",
+        decisionDate: visa.decisionDate ? new Date(visa.decisionDate).toISOString().split("T")[0] : "",
+        visaExpiryDate: visa.visaExpiryDate ? new Date(visa.visaExpiryDate).toISOString().split("T")[0] : "",
+        notes: visa.notes || "",
+      });
+      try { setCompletedDocs(JSON.parse(visa.completedDocs || "[]")); } catch { setCompletedDocs([]); }
+    }
+  }, [visa]);
+
+  const toggleDoc = (key: string) => {
+    setCompletedDocs(prev => prev.includes(key) ? prev.filter(d => d !== key) : [...prev, key]);
+  };
+
+  const handleSave = () => {
+    upsertMut.mutate({
+      leadId,
+      ...form,
+      completedDocs: JSON.stringify(completedDocs),
+      requiredDocs: JSON.stringify(VISA_REQUIRED_DOCS.map(d => d.key)),
+    });
+  };
+
+  const currentStatus = VISA_STATUSES.find(s => s.value === (form.visaStatus || visa?.visaStatus || "not_started"));
+  const completedCount = completedDocs.length;
+  const totalDocs = VISA_REQUIRED_DOCS.length;
+  const progressPct = Math.round((completedCount / totalDocs) * 100);
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-white font-semibold text-lg">🛂 Visa Tracker</h3>
+          <p className="text-white/40 text-xs mt-0.5">{studentName} — {preferredCountry || "Destination TBD"}</p>
+        </div>
+        <button
+          onClick={() => setEditing(!editing)}
+          className="px-3 py-1.5 bg-[#e91e8c] text-white text-xs rounded-lg hover:bg-[#c2185b] transition-colors"
+        >
+          {editing ? "Cancel" : visa ? "Edit Visa Info" : "+ Setup Visa Tracker"}
+        </button>
+      </div>
+
+      {/* Status Card */}
+      <Card className="bg-[#0d1424]/80 border-white/10">
+        <CardContent className="p-5">
+          <div className="flex items-center gap-4 mb-4">
+            <div className={`px-3 py-1.5 rounded-full text-sm font-medium border ${currentStatus?.color}`}>
+              {currentStatus?.label || "Not Started"}
+            </div>
+            {visa?.visaType && (
+              <span className="text-white/60 text-sm">{visa.visaType}</span>
+            )}
+          </div>
+
+          {/* Progress bar */}
+          <div className="mb-4">
+            <div className="flex justify-between text-xs text-white/50 mb-1.5">
+              <span>Document Checklist</span>
+              <span>{completedCount}/{totalDocs} completed ({progressPct}%)</span>
+            </div>
+            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-[#e91e8c] to-[#f59e0b] rounded-full transition-all"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Key dates */}
+          {visa && (
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              {visa.embassy && (
+                <div><span className="text-white/40">Embassy:</span> <span className="text-white/80">{visa.embassy}</span></div>
+              )}
+              {visa.applicationDate && (
+                <div><span className="text-white/40">Applied:</span> <span className="text-white/80">{new Date(visa.applicationDate).toLocaleDateString()}</span></div>
+              )}
+              {visa.biometricsDate && (
+                <div><span className="text-white/40">Biometrics:</span> <span className="text-white/80">{new Date(visa.biometricsDate).toLocaleDateString()}</span></div>
+              )}
+              {visa.decisionDate && (
+                <div><span className="text-white/40">Decision:</span> <span className="text-white/80">{new Date(visa.decisionDate).toLocaleDateString()}</span></div>
+              )}
+              {visa.visaExpiryDate && (
+                <div><span className="text-white/40">Expires:</span> <span className="text-white/80">{new Date(visa.visaExpiryDate).toLocaleDateString()}</span></div>
+              )}
+            </div>
+          )}
+          {visa?.notes && (
+            <div className="mt-3 p-3 bg-white/5 rounded-lg text-white/70 text-sm">{visa.notes}</div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Edit Form */}
+      {editing && (
+        <Card className="bg-[#0d1424]/80 border-[#e91e8c]/30">
+          <CardHeader><CardTitle className="text-white text-sm">Update Visa Information</CardTitle></CardHeader>
+          <CardContent className="p-5 pt-0 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-white/60 text-xs">Visa Type</Label>
+                <Input value={form.visaType} onChange={e => setForm(f => ({ ...f, visaType: e.target.value }))}
+                  placeholder="e.g. Student Visa, Tier 4, F-1" className="bg-white/5 border-white/20 text-white text-sm mt-1" />
+              </div>
+              <div>
+                <Label className="text-white/60 text-xs">Status</Label>
+                <select value={form.visaStatus} onChange={e => setForm(f => ({ ...f, visaStatus: e.target.value }))}
+                  className="w-full mt-1 bg-white/5 border border-white/20 text-white rounded-md px-3 py-2 text-sm">
+                  {VISA_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <Label className="text-white/60 text-xs">Embassy / Consulate</Label>
+                <Input value={form.embassy} onChange={e => setForm(f => ({ ...f, embassy: e.target.value }))}
+                  placeholder="e.g. British Embassy Jakarta" className="bg-white/5 border-white/20 text-white text-sm mt-1" />
+              </div>
+              <div>
+                <Label className="text-white/60 text-xs">Application Date</Label>
+                <Input type="date" value={form.applicationDate} onChange={e => setForm(f => ({ ...f, applicationDate: e.target.value }))}
+                  className="bg-white/5 border-white/20 text-white text-sm mt-1" />
+              </div>
+              <div>
+                <Label className="text-white/60 text-xs">Biometrics Date</Label>
+                <Input type="date" value={form.biometricsDate} onChange={e => setForm(f => ({ ...f, biometricsDate: e.target.value }))}
+                  className="bg-white/5 border-white/20 text-white text-sm mt-1" />
+              </div>
+              <div>
+                <Label className="text-white/60 text-xs">Decision Date</Label>
+                <Input type="date" value={form.decisionDate} onChange={e => setForm(f => ({ ...f, decisionDate: e.target.value }))}
+                  className="bg-white/5 border-white/20 text-white text-sm mt-1" />
+              </div>
+              <div>
+                <Label className="text-white/60 text-xs">Visa Expiry Date</Label>
+                <Input type="date" value={form.visaExpiryDate} onChange={e => setForm(f => ({ ...f, visaExpiryDate: e.target.value }))}
+                  className="bg-white/5 border-white/20 text-white text-sm mt-1" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-white/60 text-xs">Notes</Label>
+              <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                placeholder="Any notes about the visa process..." className="bg-white/5 border-white/20 text-white text-sm mt-1" rows={3} />
+            </div>
+            <Button onClick={handleSave} disabled={upsertMut.isPending} className="bg-[#e91e8c] hover:bg-[#c2185b] text-white">
+              {upsertMut.isPending ? "Saving..." : "Save Visa Info"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Document Checklist */}
+      <Card className="bg-[#0d1424]/80 border-white/10">
+        <CardHeader>
+          <CardTitle className="text-white text-sm flex items-center justify-between">
+            <span>Document Checklist</span>
+            {editing && (
+              <span className="text-white/40 text-xs font-normal">Click to toggle completion</span>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-5 pt-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {VISA_REQUIRED_DOCS.map(doc => {
+              const isDone = completedDocs.includes(doc.key);
+              return (
+                <button
+                  key={doc.key}
+                  onClick={() => editing && toggleDoc(doc.key)}
+                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-left transition-colors ${
+                    isDone
+                      ? "bg-green-500/10 border border-green-500/30 text-green-300"
+                      : "bg-white/5 border border-white/10 text-white/60"
+                  } ${editing ? "cursor-pointer hover:border-white/30" : "cursor-default"}`}
+                >
+                  <span className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${isDone ? "bg-green-500 border-green-500" : "border-white/30"}`}>
+                    {isDone && <span className="text-white text-xs">✓</span>}
+                  </span>
+                  {doc.label}
+                </button>
+              );
+            })}
+          </div>
+          {editing && completedDocs.length > 0 && (
+            <div className="mt-3 flex justify-end">
+              <Button onClick={handleSave} disabled={upsertMut.isPending} size="sm" className="bg-green-600 hover:bg-green-700 text-white text-xs">
+                Save Checklist
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

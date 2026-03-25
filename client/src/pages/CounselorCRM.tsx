@@ -15,7 +15,7 @@ import {
   Plus, ChevronRight, Users, TrendingUp, Target, Award, Calendar,
   Zap, Star, BarChart3, ArrowRight, RefreshCw, User, BookOpen,
   Search, Filter, UserPlus, Eye, Crown, Edit2, Upload, X, Download,
-  GripVertical, Bell, CheckCheck, MessageSquare
+  GripVertical, Bell, CheckCheck, MessageSquare, GraduationCap
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -379,6 +379,13 @@ export default function CounselorCRM() {
               <Button size="sm" variant="outline" className="border-purple-500/40 text-purple-400 hover:bg-purple-500/10 gap-1 px-2 sm:px-3">
                 <MessageSquare className="w-4 h-4" />
                 <span className="hidden sm:inline">Team Chat</span>
+              </Button>
+            </Link>
+            {/* University Database Button */}
+            <Link href="/crm/universities">
+              <Button size="sm" variant="outline" className="border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/10 gap-1 px-2 sm:px-3">
+                <GraduationCap className="w-4 h-4" />
+                <span className="hidden sm:inline">Universities</span>
               </Button>
             </Link>
 

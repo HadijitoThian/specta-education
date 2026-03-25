@@ -1576,3 +1576,32 @@
 - [x] Student Application Tracker (per-student university applications with status tracking)
 - [x] Counselor Internal Team Chat (staff-to-staff messaging within CRM)
 - [x] Lead Source Analytics chart on CEO View dashboard
+
+## Sprint 9 — Real-time Chat, University DB, Visa Tracker
+- [ ] Real-time Team Chat with SSE and online status indicators
+- [ ] University Database with pre-loaded top universities per country
+- [ ] Student Visa Tracker (visa status, appointment dates, documents, embassy notes)
+
+## Sprint 9 (March 2026)
+- [x] Real-time Team Chat — SSE endpoint (Server-Sent Events) replacing polling
+- [x] Team Chat online presence tracking (active users per channel)
+- [x] University Database — 97 universities across 13 countries seeded
+- [x] University Database page at /crm/universities with country filter + search
+- [x] University Database link added to CounselorCRM header
+- [x] Student Visa Tracker — new tab in StudentProfile360
+- [x] Visa Tracker — 7 status stages (not started → approved/rejected)
+- [x] Visa Tracker — 12-item document checklist with progress bar
+- [x] Visa Tracker — key dates (application, biometrics, decision, expiry)
+- [x] Sprint 9 vitest tests — 8/8 passing
+
+## Sprint 9 (March 2026)
+- [x] Real-time Team Chat — SSE endpoint (Server-Sent Events) replacing polling
+- [x] Team Chat online presence tracking (active users per channel)
+- [x] University Database — 97 universities across 13 countries seeded
+- [x] University Database page at /crm/universities with country filter + search
+- [x] University Database link added to CounselorCRM header
+- [x] Student Visa Tracker — new tab in StudentProfile360
+- [x] Visa Tracker — 7 status stages (not started → approved/rejected)
+- [x] Visa Tracker — 12-item document checklist with progress bar
+- [x] Visa Tracker — key dates (application, biometrics, decision, expiry)
+- [x] Sprint 9 vitest tests — 8/8 passing

@@ -292,6 +292,49 @@ ${allPages.map(p => `  <url>
     }
   });
 
+  // ─── SSE: Real-time Team Chat ──────────────────────────────────────────────
+  // Map of channel -> Set of SSE response objects
+  const chatSSEClients = new Map<string, Set<any>>();
+  // Map of staffEmail -> { name, lastSeen }
+  const onlineStaff = new Map<string, { name: string; lastSeen: number }>();
+  // Expose broadcaster so tRPC procedures can push events
+  (global as any).__chatSSEClients = chatSSEClients;
+  (global as any).__onlineStaff = onlineStaff;
+
+  // SSE stream endpoint for team chat
+  app.get("/api/chat/stream", (req, res) => {
+    const channel = (req.query.channel as string) || "general";
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+    if (!chatSSEClients.has(channel)) chatSSEClients.set(channel, new Set());
+    chatSSEClients.get(channel)!.add(res);
+    const heartbeat = setInterval(() => {
+      try { res.write("event: ping\ndata: {}\n\n"); } catch {}
+    }, 25000);
+    req.on("close", () => {
+      clearInterval(heartbeat);
+      chatSSEClients.get(channel)?.delete(res);
+    });
+  });
+
+  // Online presence: staff heartbeat endpoint
+  app.post("/api/chat/presence", (req, res) => {
+    const { email, name } = req.body || {};
+    if (email && name) {
+      onlineStaff.set(email, { name, lastSeen: Date.now() });
+    }
+    const now = Date.now();
+    const keysToDelete: string[] = [];
+    onlineStaff.forEach((v, k) => { if (now - v.lastSeen > 45000) keysToDelete.push(k); });
+    keysToDelete.forEach(k => onlineStaff.delete(k));
+    const online: { email: string; name: string }[] = [];
+    onlineStaff.forEach((v, em) => online.push({ email: em, name: v.name }));
+    res.json({ online });
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

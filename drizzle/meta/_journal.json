@@ -246,6 +246,13 @@
       "when": 1774419963468,
       "tag": "0034_outstanding_lord_hawal",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "5",
+      "when": 1774422059562,
+      "tag": "0035_peaceful_ultimates",
+      "breakpoints": true
     }
   ]
 }
