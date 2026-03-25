@@ -53,6 +53,7 @@ const ALWAYS_ALLOW_PATTERNS = [
   "Approve Partnership",
   "Outreach Sent:",
   "Rekomendasi Jurusan",
+  "Action Required: Document Requested",
 ];
 
 function shouldBypassThrottle(subject: string): boolean {

@@ -897,10 +897,27 @@ function DocumentChecklist({ leadId }: { leadId: number }) {
   const uploadMut = trpc.crm.uploadCrmDocument.useMutation({ onSuccess: () => refetch() });
   const updateStatusMut = trpc.crm.updateCrmDocumentStatus.useMutation({ onSuccess: () => refetch() });
   const deleteMut = trpc.crm.deleteCrmDocument.useMutation({ onSuccess: () => refetch() });
+  const requestDocMut = trpc.crm.requestDocument.useMutation({ onSuccess: () => { refetch(); setShowRequestModal(false); setReqForm({ docType: "", docLabel: "", notes: "" }); } });
   const docs = (data as any)?.docs || [];
   const [uploadingId, setUploadingId] = React.useState<number | null>(null);
   const [previewDoc, setPreviewDoc] = React.useState<any | null>(null);
   const fileInputRefs = React.useRef<Record<number, HTMLInputElement | null>>({});
+  const [showRequestModal, setShowRequestModal] = React.useState(false);
+  const [reqForm, setReqForm] = React.useState({ docType: "", docLabel: "", notes: "" });
+
+  const DOC_TYPE_OPTIONS = [
+    { value: "passport", label: "Passport" },
+    { value: "transcript", label: "Academic Transcript" },
+    { value: "ielts", label: "IELTS / English Certificate" },
+    { value: "personal_statement", label: "Personal Statement" },
+    { value: "recommendation", label: "Recommendation Letter" },
+    { value: "birth_certificate", label: "Birth Certificate" },
+    { value: "photo", label: "Passport-size Photo" },
+    { value: "financial_proof", label: "Financial Proof" },
+    { value: "diploma", label: "Diploma / Certificate" },
+    { value: "cv_resume", label: "CV / Resume" },
+    { value: "other", label: "Other (custom)" },
+  ];
 
   const statusColors: Record<string, string> = {
     pending: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
@@ -933,18 +950,95 @@ function DocumentChecklist({ leadId }: { leadId: number }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
           <h3 className="text-white font-semibold">Document Checklist</h3>
           <p className="text-white/50 text-xs mt-1">{submitted}/{docs.length} documents ready</p>
         </div>
-        {docs.length === 0 && (
-          <button onClick={() => initMut.mutate({ leadId })} disabled={initMut.isPending}
-            className="px-3 py-1.5 bg-[#e91e8c] text-white text-xs rounded-lg hover:bg-[#c2185b] transition-colors">
-            {initMut.isPending ? "Initializing..." : "Initialize Checklist"}
+        <div className="flex items-center gap-2">
+          {docs.length === 0 && (
+            <button onClick={() => initMut.mutate({ leadId })} disabled={initMut.isPending}
+              className="px-3 py-1.5 bg-[#e91e8c] text-white text-xs rounded-lg hover:bg-[#c2185b] transition-colors">
+              {initMut.isPending ? "Initializing..." : "Initialize Checklist"}
+            </button>
+          )}
+          <button
+            onClick={() => setShowRequestModal(true)}
+            className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs rounded-lg transition-colors flex items-center gap-1">
+            📤 Request Document
           </button>
-        )}
+        </div>
       </div>
+
+      {/* Request Document Modal */}
+      {showRequestModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={() => setShowRequestModal(false)}>
+          <div className="bg-[#0d1424] border border-violet-500/30 rounded-xl p-5 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-semibold">📤 Request Document from Student</h3>
+              <button onClick={() => setShowRequestModal(false)} className="text-white/50 hover:text-white text-xl leading-none">×</button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-white/60 text-xs block mb-1">Document Type *</label>
+                <select
+                  value={reqForm.docType}
+                  onChange={e => {
+                    const opt = DOC_TYPE_OPTIONS.find(o => o.value === e.target.value);
+                    setReqForm(f => ({ ...f, docType: e.target.value, docLabel: opt?.label !== "Other (custom)" ? (opt?.label || "") : f.docLabel }));
+                  }}
+                  className="w-full bg-white/10 border border-white/20 text-white rounded-lg px-3 py-2 text-sm">
+                  <option value="">Select document type...</option>
+                  {DOC_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              {reqForm.docType === "other" && (
+                <div>
+                  <label className="text-white/60 text-xs block mb-1">Document Name *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Medical Certificate"
+                    value={reqForm.docLabel}
+                    onChange={e => setReqForm(f => ({ ...f, docLabel: e.target.value }))}
+                    className="w-full bg-white/10 border border-white/20 text-white rounded-lg px-3 py-2 text-sm placeholder:text-white/30"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="text-white/60 text-xs block mb-1">Note to Student (optional)</label>
+                <textarea
+                  placeholder="e.g. Please upload your bank statement for the last 3 months"
+                  value={reqForm.notes}
+                  onChange={e => setReqForm(f => ({ ...f, notes: e.target.value }))}
+                  rows={3}
+                  className="w-full bg-white/10 border border-white/20 text-white rounded-lg px-3 py-2 text-sm placeholder:text-white/30 resize-none"
+                />
+              </div>
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-xs text-blue-300">
+                📧 An email notification will be sent to the student listing all pending documents.
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => setShowRequestModal(false)}
+                  className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm rounded-lg transition-colors">
+                  Cancel
+                </button>
+                <button
+                  disabled={!reqForm.docType || (reqForm.docType === "other" && !reqForm.docLabel.trim()) || requestDocMut.isPending}
+                  onClick={() => requestDocMut.mutate({
+                    leadId,
+                    docType: reqForm.docType,
+                    docLabel: reqForm.docType === "other" ? reqForm.docLabel : (DOC_TYPE_OPTIONS.find(o => o.value === reqForm.docType)?.label || reqForm.docType),
+                    notes: reqForm.notes || undefined,
+                  })}
+                  className="flex-1 px-4 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-sm rounded-lg transition-colors">
+                  {requestDocMut.isPending ? "Sending..." : "Send Request + Email"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {docs.length > 0 && (
         <div className="w-full bg-white/10 rounded-full h-2 mb-4">
           <div className="bg-gradient-to-r from-[#e91e8c] to-[#f59e0b] h-2 rounded-full transition-all"

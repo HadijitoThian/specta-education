@@ -6703,6 +6703,96 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
         return { success: true };
       }),
 
+    // ─── Document Request (Counselor → Student) ────────────────────────────────
+    requestDocument: publicProcedure
+      .input(z.object({
+        leadId: z.number(),
+        docType: z.string(),
+        docLabel: z.string(),
+        notes: z.string().optional(), // counselor's note/instruction to student
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Verify counselor auth
+        const cookieHeader = ctx.req?.headers?.cookie || "";
+        const match = cookieHeader.match(/staff_token=([^;]+)/);
+        if (!match) return { success: false, error: "Not authenticated" };
+        let staffEmail = "";
+        try {
+          const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+          const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+          staffEmail = payload.email as string || "";
+        } catch { return { success: false, error: "Not authenticated" }; }
+
+        // Create the document request (pending status)
+        const docId = await upsertCrmDoc({
+          leadId: input.leadId,
+          docType: input.docType,
+          docLabel: input.docLabel,
+          status: "pending",
+          notes: input.notes || "",
+          staffEmail,
+        });
+
+        // Log timeline activity
+        await logActivity({
+          leadId: input.leadId,
+          activityType: "document_request",
+          title: `Document requested: ${input.docLabel}`,
+          description: input.notes || `Counselor requested ${input.docLabel}`,
+          staffEmail,
+        });
+
+        // Get student email to send notification
+        const lead = await getLeadById(input.leadId);
+        const studentEmail = lead?.studentEmail;
+        const studentName = lead?.studentName || "Student";
+
+        if (studentEmail) {
+          // Get all pending documents for this student to list them all in one email
+          const allDocs = await getCrmDocsByLead(input.leadId);
+          const pendingDocs = allDocs.filter((d: any) => d.status === "pending");
+
+          const docListHtml = pendingDocs.map((d: any) => `
+            <tr>
+              <td style="padding:10px 12px;border-bottom:1px solid #2d3748;">
+                <strong style="color:#e2e8f0;">${d.docLabel || d.docType}</strong>
+                ${d.notes ? `<br/><span style="color:#94a3b8;font-size:13px;">${d.notes}</span>` : ""}
+              </td>
+            </tr>
+          `).join("");
+
+          await sendEmail({
+            to: studentEmail,
+            subject: `Action Required: Document Requested by Your Counselor`,
+            html: `
+              <div style="font-family:Inter,Arial,sans-serif;background:#0f172a;padding:32px;border-radius:12px;max-width:600px;margin:0 auto;">
+                <div style="text-align:center;margin-bottom:24px;">
+                  <img src="https://spectaeducation.com/logo.png" alt="SpecTa Education" style="height:40px;" />
+                </div>
+                <h2 style="color:#a78bfa;font-size:22px;margin-bottom:8px;">📄 Documents Needed</h2>
+                <p style="color:#cbd5e1;font-size:15px;margin-bottom:20px;">Hi <strong style="color:#e2e8f0;">${studentName}</strong>,</p>
+                <p style="color:#94a3b8;font-size:14px;margin-bottom:20px;">
+                  Your counselor has requested the following document(s) to continue processing your application:
+                </p>
+                <table style="width:100%;border-collapse:collapse;background:#1e293b;border-radius:8px;overflow:hidden;margin-bottom:24px;">
+                  ${docListHtml}
+                </table>
+                <p style="color:#94a3b8;font-size:13px;margin-bottom:24px;">
+                  Please log in to your student portal and upload these documents as soon as possible to avoid delays in your application.
+                </p>
+                <div style="text-align:center;margin-bottom:24px;">
+                  <a href="https://spectaeducation.com/student/dashboard" style="background:linear-gradient(135deg,#7c3aed,#3b82f6);color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Upload Documents Now →</a>
+                </div>
+                <hr style="border:none;border-top:1px solid #1e293b;margin:20px 0;" />
+                <p style="color:#475569;font-size:12px;text-align:center;">SpecTa Education | Your Study Abroad Partner<br/>Need help? WhatsApp us at +62 811 8120 820</p>
+              </div>
+            `,
+          });
+        }
+
+        return { success: true, docId };
+      }),
+
     // ─── Sprint 9: Visa Tracking ──────────────────────────────────────────────
     getVisaTracking: publicProcedure
       .input(z.object({ leadId: z.number() }))

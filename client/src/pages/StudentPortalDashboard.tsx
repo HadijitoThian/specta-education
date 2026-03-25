@@ -988,41 +988,7 @@ function DocumentsTab({ utils }: any) {
       ) : (
         <div className="space-y-3">
           {(documents as any[]).map((doc: any) => (
-            <div key={doc.id} className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 bg-slate-700/50 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
-                  {doc.fileMimeType ? getDocIcon(doc.fileMimeType) : (DOCUMENT_TYPES.find(d => d.value === doc.docType)?.icon ?? "📄")}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-white text-sm font-semibold">{doc.docLabel || doc.docType}</p>
-                    <Badge className={`text-xs border ${DOC_STATUS_COLORS[doc.status] ?? "bg-slate-500/20 text-slate-400"}`}>
-                      {doc.status === "submitted" ? "Under Review" : doc.status === "verified" ? "✓ Verified" : doc.status === "rejected" ? "✗ Rejected" : "Pending"}
-                    </Badge>
-                  </div>
-                  {doc.fileName && <p className="text-slate-500 text-xs mt-0.5 truncate">{doc.fileName}</p>}
-                  {doc.notes && (
-                    <p className="text-amber-400 text-xs mt-1 bg-amber-500/10 rounded-lg px-2 py-1">💬 Counselor note: {doc.notes}</p>
-                  )}
-                  {doc.submittedAt && (
-                    <p className="text-slate-600 text-xs mt-1">Uploaded {new Date(doc.submittedAt).toLocaleDateString()}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  {doc.fileUrl && (
-                    <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
-                      <Button size="sm" variant="ghost" className="h-8 px-2 text-slate-400 hover:text-white"><Eye className="w-3.5 h-3.5" /></Button>
-                    </a>
-                  )}
-                  {doc.status !== "verified" && (
-                    <Button size="sm" variant="ghost" className="h-8 px-2 text-red-400 hover:text-red-300"
-                      onClick={() => { if (confirm("Delete this document?")) deleteMutation.mutate({ docId: doc.id }); }}
-                      disabled={deleteMutation.isPending}
-                    ><Trash2 className="w-3.5 h-3.5" /></Button>
-                  )}
-                </div>
-              </div>
-            </div>
+<DocVaultItem key={doc.id} doc={doc} onDelete={(id) => deleteMutation.mutate({ docId: id })} deleteLoading={deleteMutation.isPending} onUploadSuccess={() => utils.studentPortal.listDocuments.invalidate()} />
           ))}
         </div>
       )}
@@ -1038,7 +1004,115 @@ function DocumentsTab({ utils }: any) {
   );
 }
 
-// ─── WISHLIST TAB ─────────────────────────────────────────────────────────────
+//// ─── DOC VAULT ITEM ──────────────────────────────────────────────────────────
+function DocVaultItem({ doc, onDelete, deleteLoading, onUploadSuccess }: {
+  doc: any;
+  onDelete: (id: number) => void;
+  deleteLoading: boolean;
+  onUploadSuccess: () => void;
+}) {
+  const quickUploadRef = useRef<HTMLInputElement>(null);
+  const [quickUploading, setQuickUploading] = useState(false);
+  const uploadMutation = trpc.studentPortal.uploadDocument.useMutation({
+    onSuccess: () => { onUploadSuccess(); setQuickUploading(false); },
+    onError: (err: any) => { alert(err.message); setQuickUploading(false); },
+  });
+
+  // Counselor-requested = pending + no file uploaded yet + has staffEmail (set by counselor)
+  const isCounselorRequested = doc.status === "pending" && !doc.fileUrl && doc.staffEmail;
+
+  const handleQuickUpload = async (file: File) => {
+    if (file.size > 16 * 1024 * 1024) { alert("File too large. Max 16MB."); return; }
+    setQuickUploading(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = (reader.result as string).split(",")[1];
+      await uploadMutation.mutateAsync({
+        docType: doc.docType,
+        docLabel: doc.docLabel || doc.docType,
+        fileName: file.name,
+        fileType: file.type,
+        fileBase64: base64,
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className={`rounded-xl p-4 border ${
+      isCounselorRequested
+        ? "bg-amber-500/10 border-amber-500/40 ring-1 ring-amber-500/20"
+        : "bg-slate-800/60 border-slate-700/50"
+    }`}>
+      {/* Action Required Banner for counselor-requested docs */}
+      {isCounselorRequested && (
+        <div className="flex items-center gap-2 mb-3 bg-amber-500/20 rounded-lg px-3 py-2">
+          <span className="text-amber-400 text-sm">⚠️</span>
+          <p className="text-amber-300 text-xs font-semibold">Action Required — Your counselor has requested this document</p>
+        </div>
+      )}
+      <div className="flex items-start gap-3">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${
+          isCounselorRequested ? "bg-amber-500/20" : "bg-slate-700/50"
+        }`}>
+          {doc.fileMimeType ? getDocIcon(doc.fileMimeType) : (DOCUMENT_TYPES.find((d: any) => d.value === doc.docType)?.icon ?? "📄")}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-white text-sm font-semibold">{doc.docLabel || doc.docType}</p>
+            <Badge className={`text-xs border ${DOC_STATUS_COLORS[doc.status] ?? "bg-slate-500/20 text-slate-400"}`}>
+              {doc.status === "submitted" ? "Under Review" : doc.status === "verified" ? "✓ Verified" : doc.status === "rejected" ? "✗ Rejected" : "Pending"}
+            </Badge>
+          </div>
+          {doc.fileName && <p className="text-slate-500 text-xs mt-0.5 truncate">📎 {doc.fileName}</p>}
+          {doc.notes && (
+            <p className={`text-xs mt-1 rounded-lg px-2 py-1 ${
+              isCounselorRequested ? "text-amber-300 bg-amber-500/10" : "text-amber-400 bg-amber-500/10"
+            }`}>💬 Counselor: {doc.notes}</p>
+          )}
+          {doc.submittedAt && (
+            <p className="text-slate-600 text-xs mt-1">Uploaded {new Date(doc.submittedAt).toLocaleDateString()}</p>
+          )}
+          {/* Quick upload button for counselor-requested docs */}
+          {isCounselorRequested && (
+            <div className="mt-3">
+              <input
+                ref={quickUploadRef}
+                type="file"
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleQuickUpload(f); e.target.value = ""; }}
+              />
+              <Button
+                size="sm"
+                onClick={() => quickUploadRef.current?.click()}
+                disabled={quickUploading}
+                className="bg-amber-500 hover:bg-amber-600 text-black text-xs font-semibold rounded-lg gap-1.5 h-8"
+              >
+                {quickUploading ? <><Loader2 className="w-3 h-3 animate-spin" /> Uploading...</> : <><Upload className="w-3 h-3" /> Upload Now</>}
+              </Button>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {doc.fileUrl && (
+            <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
+              <Button size="sm" variant="ghost" className="h-8 px-2 text-slate-400 hover:text-white"><Eye className="w-3.5 h-3.5" /></Button>
+            </a>
+          )}
+          {doc.status !== "verified" && (
+            <Button size="sm" variant="ghost" className="h-8 px-2 text-red-400 hover:text-red-300"
+              onClick={() => { if (confirm("Delete this document?")) onDelete(doc.id); }}
+              disabled={deleteLoading}
+            ><Trash2 className="w-3.5 h-3.5" /></Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── WISHLIST TAB ──────────────────────────────────────────────────────────
 function WishlistTab({ wishlist, utils }: any) {
   const [showAdd, setShowAdd] = useState(false);
   const [uniName, setUniName] = useState("");
