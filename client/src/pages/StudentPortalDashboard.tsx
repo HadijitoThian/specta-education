@@ -12,7 +12,7 @@ import {
   MessageCircle, Star, BookOpen, Heart, Send, Trash2, Plus,
   ChevronRight, Sparkles, MapPin, Award, Target, Zap, Home,
   Settings, Bot, X, Camera, Edit3, Save, Bell, TrendingUp,
-  BookMarked, Video, Phone
+  BookMarked, Video, Phone, Gift, Copy, Check, Users, Trophy
 } from "lucide-react";
 
 // ─── Journey Stage Map (student-friendly names) ──────────────────────────────
@@ -65,7 +65,7 @@ const STUDY_TIPS = [
 ];
 
 // ─── Nav Items ────────────────────────────────────────────────────────────────
-type NavTab = "home" | "ai" | "appointments" | "documents" | "wishlist" | "profile";
+type NavTab = "home" | "ai" | "appointments" | "documents" | "wishlist" | "profile" | "refer";
 
 const NAV_ITEMS: { id: NavTab; label: string; icon: any; badge?: string }[] = [
   { id: "home", label: "My Journey", icon: Home },
@@ -73,6 +73,7 @@ const NAV_ITEMS: { id: NavTab; label: string; icon: any; badge?: string }[] = [
   { id: "appointments", label: "Book Session", icon: Calendar },
   { id: "documents", label: "Documents", icon: FileText },
   { id: "wishlist", label: "Wishlist", icon: Heart },
+  { id: "refer", label: "Refer & Earn", icon: Gift, badge: "🎁" },
   { id: "profile", label: "Profile", icon: Settings },
 ];
 
@@ -285,6 +286,11 @@ export default function StudentPortalDashboard() {
           {/* ── WISHLIST TAB ── */}
           {activeTab === "wishlist" && (
             <WishlistTab wishlist={wishlist} utils={utils} />
+          )}
+
+          {/* ── REFER & EARN TAB ── */}
+          {activeTab === "refer" && (
+            <ReferEarnTab lead={lead} utils={utils} />
           )}
 
           {/* ── PROFILE TAB ── */}
@@ -1156,6 +1162,249 @@ function ProfileTab({ lead, profile, utils }: any) {
           <><Save className="w-4 h-4 mr-2" /> Save Profile</>
         )}
       </Button>
+    </div>
+  );
+}
+
+// ─── REFER & EARN TAB ─────────────────────────────────────────────────────────
+function ReferEarnTab({ lead, utils }: any) {
+  const [friendName, setFriendName] = useState("");
+  const [friendEmail, setFriendEmail] = useState("");
+  const [friendPhone, setFriendPhone] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+
+  const { data: stats, isLoading } = trpc.studentPortal.getReferralStats.useQuery();
+
+  const inviteMutation = trpc.studentPortal.inviteFriend.useMutation({
+    onSuccess: (data) => {
+      if (data.alreadyExists) {
+        setSuccessMsg("This friend was already invited!");
+      } else {
+        setSuccessMsg(`Invitation sent to ${friendEmail}! 🎉`);
+        setFriendName(""); setFriendEmail(""); setFriendPhone("");
+      }
+      utils.studentPortal.getReferralStats.invalidate();
+      setTimeout(() => setSuccessMsg(""), 4000);
+    },
+  });
+
+  const claimMutation = trpc.studentPortal.claimReward.useMutation({
+    onSuccess: () => utils.studentPortal.getReferralStats.invalidate(),
+  });
+
+  const referralCode = stats?.code?.code ?? "Loading...";
+  const referralLink = `https://spectaeducation.com/student/register?ref=${referralCode}`;
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(referralLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const shareWhatsApp = () => {
+    const msg = encodeURIComponent(`Hey! I'm using SpecTa Education to plan my study abroad journey and it's amazing 🎓\n\nJoin me using my referral link and get started for free:\n${referralLink}`);
+    window.open(`https://wa.me/?text=${msg}`, "_blank");
+  };
+
+  const REWARDS_MAP: Record<string, { icon: string; color: string; desc: string }> = {
+    ielts_mock_test: { icon: "📝", color: "from-blue-600/20 to-cyan-600/20 border-blue-500/30", desc: "Practice IELTS with our expert-designed mock test" },
+    priority_session: { icon: "⚡", color: "from-amber-600/20 to-orange-600/20 border-amber-500/30", desc: "Skip the queue — get a priority counselling session" },
+    scholarship_guide: { icon: "💰", color: "from-emerald-600/20 to-green-600/20 border-emerald-500/30", desc: "Exclusive guide to 50+ scholarships for your destination" },
+    application_fee_waiver: { icon: "🎫", color: "from-violet-600/20 to-purple-600/20 border-violet-500/30", desc: "Application fee waiver for one university application" },
+  };
+
+  const REWARD_MILESTONES = [
+    { count: 1, type: "ielts_mock_test", label: "Free IELTS Mock Test", icon: "📝" },
+    { count: 2, type: "priority_session", label: "Priority Session", icon: "⚡" },
+    { count: 3, type: "scholarship_guide", label: "Scholarship Guide", icon: "💰" },
+    { count: 4, type: "application_fee_waiver", label: "Fee Waiver", icon: "🎫" },
+  ];
+
+  const completedCount = stats?.completedReferrals ?? 0;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-pink-900/50 via-rose-900/30 to-slate-900/60 border border-pink-500/20 p-6">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-pink-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="relative">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-600 rounded-xl flex items-center justify-center">
+              <Gift className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-white font-bold text-xl">Refer & Earn</h2>
+              <p className="text-slate-400 text-sm">Invite friends, earn amazing rewards!</p>
+            </div>
+          </div>
+          <p className="text-slate-300 text-sm leading-relaxed">
+            Share your unique referral link with friends. When they sign up and book a counselling session, you both win! 🎉
+          </p>
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 text-center">
+          <div className="text-2xl font-bold text-pink-400">{stats?.totalReferrals ?? 0}</div>
+          <div className="text-slate-400 text-xs mt-1">Invited</div>
+        </div>
+        <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 text-center">
+          <div className="text-2xl font-bold text-emerald-400">{completedCount}</div>
+          <div className="text-slate-400 text-xs mt-1">Completed</div>
+        </div>
+        <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 text-center">
+          <div className="text-2xl font-bold text-amber-400">{stats?.rewards?.length ?? 0}</div>
+          <div className="text-slate-400 text-xs mt-1">Rewards</div>
+        </div>
+      </div>
+
+      {/* Reward milestones */}
+      <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-5">
+        <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+          <Trophy className="w-4 h-4 text-amber-400" />
+          Reward Milestones
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {REWARD_MILESTONES.map(m => {
+            const unlocked = completedCount >= m.count;
+            return (
+              <div key={m.type} className={`rounded-xl p-3 border text-center transition-all ${unlocked ? "bg-gradient-to-br from-amber-600/20 to-yellow-600/20 border-amber-500/40" : "bg-slate-700/30 border-slate-600/30 opacity-60"}`}>
+                <div className="text-3xl mb-1">{m.icon}</div>
+                <p className={`text-xs font-semibold ${unlocked ? "text-amber-300" : "text-slate-400"}`}>{m.label}</p>
+                <p className={`text-xs mt-0.5 ${unlocked ? "text-emerald-400" : "text-slate-500"}`}>
+                  {unlocked ? "✓ Unlocked!" : `${m.count} referral${m.count > 1 ? "s" : ""}`}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Your referral code */}
+      <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-5 space-y-4">
+        <h3 className="text-white font-semibold flex items-center gap-2">
+          <Users className="w-4 h-4 text-violet-400" />
+          Your Referral Code
+        </h3>
+        <div className="bg-slate-900/60 border border-violet-500/30 rounded-xl p-4 text-center">
+          <p className="text-slate-400 text-xs mb-2">Share this code with friends</p>
+          <p className="text-3xl font-bold text-violet-300 tracking-widest font-mono">{referralCode}</p>
+        </div>
+        <div className="flex gap-2">
+          <div className="flex-1 bg-slate-700/50 border border-slate-600 rounded-xl px-3 py-2 text-slate-300 text-sm truncate font-mono">
+            {referralLink}
+          </div>
+          <Button onClick={copyLink} className={`px-4 rounded-xl transition-all ${copied ? "bg-green-600 hover:bg-green-600" : "bg-violet-600 hover:bg-violet-700"}`}>
+            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+          </Button>
+        </div>
+        <Button onClick={shareWhatsApp} className="w-full bg-green-600 hover:bg-green-700 rounded-xl">
+          <span className="mr-2">📲</span>
+          Share via WhatsApp
+        </Button>
+      </div>
+
+      {/* Invite a friend form */}
+      <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-5 space-y-4">
+        <h3 className="text-white font-semibold flex items-center gap-2">
+          <Send className="w-4 h-4 text-pink-400" />
+          Send Direct Invitation
+        </h3>
+        {successMsg && (
+          <div className="bg-green-500/20 border border-green-500/30 rounded-xl p-3 text-green-300 text-sm flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+            {successMsg}
+          </div>
+        )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-slate-300 text-sm">Friend's Name</Label>
+            <Input value={friendName} onChange={e => setFriendName(e.target.value)} placeholder="e.g. Sarah Lim" className="bg-slate-700/50 border-slate-600 text-white focus:border-pink-500 rounded-xl" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-slate-300 text-sm">Friend's Email *</Label>
+            <Input type="email" value={friendEmail} onChange={e => setFriendEmail(e.target.value)} placeholder="sarah@email.com" className="bg-slate-700/50 border-slate-600 text-white focus:border-pink-500 rounded-xl" />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-slate-300 text-sm">Friend's Phone (optional)</Label>
+          <Input value={friendPhone} onChange={e => setFriendPhone(e.target.value)} placeholder="+60 12 345 6789" className="bg-slate-700/50 border-slate-600 text-white focus:border-pink-500 rounded-xl" />
+        </div>
+        <Button
+          onClick={() => inviteMutation.mutate({ friendEmail, friendName, friendPhone })}
+          disabled={!friendEmail || inviteMutation.isPending}
+          className="w-full bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 rounded-xl"
+        >
+          {inviteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+          Send Invitation Email
+        </Button>
+      </div>
+
+      {/* My referrals list */}
+      {stats?.referrals && stats.referrals.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-slate-300 text-sm font-semibold">My Referrals</h3>
+          {stats.referrals.map((ref: any) => (
+            <div key={ref.id} className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 flex items-center gap-3">
+              <div className="w-9 h-9 bg-slate-700/50 rounded-full flex items-center justify-center text-sm font-bold text-slate-300">
+                {ref.friendName?.[0]?.toUpperCase() ?? ref.friendEmail[0].toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-sm font-medium">{ref.friendName || ref.friendEmail}</p>
+                <p className="text-slate-500 text-xs truncate">{ref.friendEmail}</p>
+              </div>
+              <Badge className={`text-xs ${
+                ref.status === "completed" ? "bg-green-500/20 text-green-300" :
+                ref.status === "booked_session" ? "bg-blue-500/20 text-blue-300" :
+                ref.status === "signed_up" ? "bg-violet-500/20 text-violet-300" :
+                "bg-slate-500/20 text-slate-400"
+              }`}>
+                {ref.status === "pending" ? "Invited" :
+                 ref.status === "signed_up" ? "Signed Up" :
+                 ref.status === "booked_session" ? "Booked Session" : "Completed ✓"}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* My rewards */}
+      {stats?.rewards && stats.rewards.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-slate-300 text-sm font-semibold">My Rewards</h3>
+          {stats.rewards.map((reward: any) => {
+            const info = REWARDS_MAP[reward.rewardType] ?? { icon: "🎁", color: "from-slate-600/20 to-slate-700/20 border-slate-500/30", desc: "" };
+            return (
+              <div key={reward.id} className={`bg-gradient-to-r ${info.color} border rounded-xl p-4 flex items-center gap-4`}>
+                <div className="text-3xl">{info.icon}</div>
+                <div className="flex-1">
+                  <p className="text-white font-semibold text-sm">{reward.rewardLabel}</p>
+                  <p className="text-slate-400 text-xs mt-0.5">{info.desc}</p>
+                  {reward.expiresAt && (
+                    <p className="text-slate-500 text-xs mt-1">Expires: {new Date(reward.expiresAt).toLocaleDateString()}</p>
+                  )}
+                </div>
+                {reward.status === "pending" ? (
+                  <Button
+                    size="sm"
+                    onClick={() => claimMutation.mutate({ rewardId: reward.id })}
+                    disabled={claimMutation.isPending}
+                    className="bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg text-xs"
+                  >
+                    Claim!
+                  </Button>
+                ) : (
+                  <Badge className="bg-green-500/20 text-green-300 text-xs">
+                    {reward.status === "claimed" ? "Claimed ✓" : "Redeemed ✓"}
+                  </Badge>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

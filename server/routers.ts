@@ -241,6 +241,8 @@ import {
   createStudentAppointment, getStudentAppointments, getAllStudentPortalAppointments, updateStudentAppointmentStatus,
   getStudentWishlist, addToStudentWishlist, removeFromStudentWishlist,
   getStudentAiChatHistory, addStudentAiMessage, clearStudentAiChatHistory,
+  getOrCreateReferralCode, getReferralCodeByCode, getMyReferrals, getMyRewards,
+  createReferral, markReferralSignedUp, completeReferralAndGrantReward, claimReward, getReferralStats,
 } from "./studentPortalDb";
 import {
   getAllAgentConfigs,
@@ -7173,6 +7175,137 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
       .mutation(async ({ input }) => {
         await updateStudentAppointmentStatus(input.id, input.status, input.counselorNotes, input.meetingLink);
         return { success: true };
+      }),
+
+    // ── Referral: get my referral code & stats ──
+    getReferralStats: publicProcedure.query(async ({ ctx }) => {
+      const cookieHeader = ctx.req.headers.cookie || "";
+      const cookies = parseCookies(cookieHeader);
+      const token = cookies["student_portal_token"];
+      if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+      const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+      const { payload } = await jwtVerify(token, secret);
+      const leadId = Number(payload.leadId);
+      const codeRow = await getOrCreateReferralCode(leadId);
+      const stats = await getReferralStats(leadId);
+      return { ...stats, code: codeRow };
+    }),
+
+    // ── Referral: invite a friend ──
+    inviteFriend: publicProcedure
+      .input(z.object({
+        friendEmail: z.string().email(),
+        friendName: z.string().optional(),
+        friendPhone: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req.headers.cookie || "";
+        const cookies = parseCookies(cookieHeader);
+        const token = cookies["student_portal_token"];
+        if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const { payload } = await jwtVerify(token, secret);
+        const leadId = Number(payload.leadId);
+        const codeRow = await getOrCreateReferralCode(leadId);
+        const dashboard = await getStudentPortalDashboard(leadId);
+        const result = await createReferral(leadId, codeRow.code, input.friendEmail, input.friendName, input.friendPhone);
+        if (result.alreadyExists) return { success: true, alreadyExists: true };
+        // Send invitation email via Resend
+        try {
+          const referrerName = dashboard?.lead?.studentName || "A friend";
+          const portalUrl = `https://spectaeducation.com/student/register?ref=${codeRow.code}`;
+          const emailHtml = `
+<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, #7c3aed, #2563eb); padding: 40px 30px; text-align: center;">
+      <h1 style="color: white; margin: 0; font-size: 28px;">🎓 SpecTa Education</h1>
+      <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0;">You've been invited to study abroad!</p>
+    </div>
+    <div style="padding: 30px;">
+      <h2 style="color: #1e293b; margin-top: 0;">Hi ${input.friendName || "there"}! 👋</h2>
+      <p style="color: #475569; line-height: 1.6;"><strong>${referrerName}</strong> thinks you'd love studying abroad and has invited you to join SpecTa Education — the leading study abroad consultancy!</p>
+      <p style="color: #475569; line-height: 1.6;">SpecTa Education helps students like you get into top universities in Australia, UK, Canada, Singapore, and more.</p>
+      <div style="background: #f8fafc; border: 2px dashed #7c3aed; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+        <p style="margin: 0 0 8px; color: #64748b; font-size: 14px;">Your exclusive referral code:</p>
+        <p style="margin: 0; font-size: 28px; font-weight: bold; color: #7c3aed; letter-spacing: 4px;">${codeRow.code}</p>
+      </div>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${portalUrl}" style="background: linear-gradient(135deg, #7c3aed, #2563eb); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">Create My Free Account 🚀</a>
+      </div>
+      <p style="color: #94a3b8; font-size: 12px; text-align: center;">SpecTa Education | spectaeducation.com</p>
+    </div>
+  </div>
+</body></html>`;
+          await sendEmail({
+            to: input.friendEmail,
+            subject: `${referrerName} invited you to study abroad with SpecTa Education! 🎓`,
+            html: emailHtml,
+          });
+        } catch (e) {
+          console.error("[Referral] Email send failed:", e);
+        }
+        return { success: true, alreadyExists: false };
+      }),
+
+    // ── Referral: claim a reward ──
+    claimReward: publicProcedure
+      .input(z.object({ rewardId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const cookieHeader = ctx.req.headers.cookie || "";
+        const cookies = parseCookies(cookieHeader);
+        const token = cookies["student_portal_token"];
+        if (!token) throw new TRPCError({ code: "UNAUTHORIZED", message: "Not logged in" });
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const { payload } = await jwtVerify(token, secret);
+        const leadId = Number(payload.leadId);
+        return claimReward(input.rewardId, leadId);
+      }),
+
+    // ── Admin: complete a referral and grant reward ──
+    completeReferral: protectedProcedure
+      .input(z.object({ referralId: z.number() }))
+      .mutation(async ({ input }) => {
+        return completeReferralAndGrantReward(input.referralId);
+      }),
+
+    // ── Public: validate referral code (used on signup page) ──
+    validateReferralCode: publicProcedure
+      .input(z.object({ code: z.string() }))
+      .query(async ({ input }) => {
+        const row = await getReferralCodeByCode(input.code);
+        return { valid: !!row, leadId: row?.leadId ?? null };
+      }),
+
+    // ── Public: student self-registration (via referral link or direct) ──
+    selfRegister: publicProcedure
+      .input(z.object({
+        name: z.string().min(2),
+        email: z.string().email(),
+        phone: z.string().optional(),
+        password: z.string().min(8),
+        referralCode: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Check if account already exists
+        const existing = await getStudentPortalByEmail(input.email);
+        if (existing) throw new TRPCError({ code: "CONFLICT", message: "An account with this email already exists. Please sign in." });
+        // Create a lead record for this self-registered student
+        const lead = await createLead({
+          studentName: input.name,
+          studentEmail: input.email,
+          studentPhone: input.phone,
+          source: input.referralCode ? `referral:${input.referralCode}` : "self_register",
+          status: "new",
+        });
+        if (!lead) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create account" });
+        // Create student portal account
+        await createStudentPortalAccount(lead.id, input.email, input.password);
+        // Mark referral as signed up if referral code provided
+        if (input.referralCode) {
+          try { await markReferralSignedUp(input.email); } catch (e) { /* non-fatal */ }
+        }
+        return { success: true, leadId: lead.id };
       }),
 
   }),

@@ -1722,3 +1722,59 @@ export const studentAiChatHistory = mysqlTable("student_ai_chat_history", {
 });
 export type StudentAiChatHistory = typeof studentAiChatHistory.$inferSelect;
 export type InsertStudentAiChatHistory = typeof studentAiChatHistory.$inferInsert;
+
+/**
+ * Student Referral Codes — Sprint 14
+ * Each student gets a unique referral code for sharing
+ */
+export const studentReferralCodes = mysqlTable("student_referral_codes", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull().unique(),
+  code: varchar("code", { length: 20 }).notNull().unique(),
+  totalReferrals: int("totalReferrals").default(0).notNull(),
+  completedReferrals: int("completedReferrals").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type StudentReferralCode = typeof studentReferralCodes.$inferSelect;
+export type InsertStudentReferralCode = typeof studentReferralCodes.$inferInsert;
+
+/**
+ * Student Referrals — Sprint 14
+ * Tracks each referral from a student to a friend
+ */
+export const studentReferrals = mysqlTable("student_referrals", {
+  id: int("id").autoincrement().primaryKey(),
+  referrerLeadId: int("referrerLeadId").notNull(),
+  referralCode: varchar("referralCode", { length: 20 }).notNull(),
+  friendName: varchar("friendName", { length: 255 }),
+  friendEmail: varchar("friendEmail", { length: 320 }).notNull(),
+  friendPhone: varchar("friendPhone", { length: 50 }),
+  status: mysqlEnum("status", ["pending", "signed_up", "booked_session", "completed"]).default("pending").notNull(),
+  signedUpAt: timestamp("signedUpAt"),
+  bookedSessionAt: timestamp("bookedSessionAt"),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type StudentReferral = typeof studentReferrals.$inferSelect;
+export type InsertStudentReferral = typeof studentReferrals.$inferInsert;
+
+/**
+ * Student Rewards — Sprint 14
+ * Rewards earned by students for successful referrals
+ */
+export const studentRewards = mysqlTable("student_rewards", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  referralId: int("referralId").notNull(),
+  rewardType: mysqlEnum("rewardType", ["ielts_mock_test", "priority_session", "scholarship_guide", "application_fee_waiver"]).notNull(),
+  rewardLabel: varchar("rewardLabel", { length: 255 }).notNull(),
+  status: mysqlEnum("status", ["pending", "claimed", "redeemed"]).default("pending").notNull(),
+  claimedAt: timestamp("claimedAt"),
+  redeemedAt: timestamp("redeemedAt"),
+  expiresAt: timestamp("expiresAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type StudentReward = typeof studentRewards.$inferSelect;
+export type InsertStudentReward = typeof studentRewards.$inferInsert;

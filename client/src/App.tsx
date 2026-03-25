@@ -41,6 +41,7 @@ import StudentProfile360 from "./pages/StudentProfile360";
 import TeamChat from "./pages/TeamChat";
 import UniversityDatabase from "./pages/UniversityDatabase";
 import StudentPortalLogin from "./pages/StudentPortalLogin";
+import StudentPortalRegister from "./pages/StudentPortalRegister";
 import StudentPortalDashboard from "./pages/StudentPortalDashboard";
 import AIFollowUpAssistant from "./pages/AIFollowUpAssistant";
 import { useVisitorTracking } from "./hooks/useVisitorTracking";
@@ -84,6 +85,7 @@ function Router() {
       <Route path={"/crm/universities"} component={UniversityDatabase} />
       <Route path={"/crm/ai-assistant"} component={AIFollowUpAssistant} />
       <Route path={"/student/login"} component={StudentPortalLogin} />
+      <Route path={"/student/register"} component={StudentPortalRegister} />
       <Route path={"/student/dashboard"} component={StudentPortalDashboard} />
       <Route path={"/admin"} component={AdminDashboard} />
       <Route path={"/admin/agents"} component={AgentCommandCenter} />
