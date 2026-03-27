@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { SEO } from '@/components/SEO';
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { GraduationCap, Globe, BookOpen, Phone, Mail, MapPin, ChevronRight, X, ChevronDown, Star, Quote } from "lucide-react";
+import { GraduationCap, Globe, BookOpen, Phone, Mail, MapPin, ChevronRight, X, ChevronDown, Star, Quote, Bell, FileCheck, Calendar, MessageSquare, ShieldCheck, TrendingUp, Users, CheckCircle2, Heart } from "lucide-react";
 import ChatBot from "@/components/ChatBot";
 import ChatBotButton from "@/components/ChatBotButton";
 import { motion, AnimatePresence } from "framer-motion";
@@ -372,28 +372,175 @@ export default function Home() {
               Comprehensive support for your international education journey
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
-              { icon: GraduationCap, title: "University Placement", desc: "Expert guidance to find and apply to the best universities matching your profile and aspirations." },
-              { icon: BookOpen, title: "IELTS Preparation", desc: "Comprehensive IELTS training with experienced teachers to help you achieve your target score." },
-              { icon: Globe, title: "Visa Assistance", desc: "Complete visa application support and documentation guidance for a smooth process." }
+              { icon: GraduationCap, title: "University Placement", subtitle: "Penempatan Universitas", desc: "Expert guidance to find and apply to the best universities matching your profile and aspirations.", color: "text-blue-500", bg: "bg-blue-500/10" },
+              { icon: BookOpen, title: "IELTS Preparation", subtitle: "Persiapan IELTS", desc: "Comprehensive IELTS training with experienced teachers to help you achieve your target score.", color: "text-purple-500", bg: "bg-purple-500/10" },
+              { icon: Globe, title: "Visa Assistance", subtitle: "Bantuan Visa", desc: "Complete visa application support and documentation guidance for a smooth process.", color: "text-green-500", bg: "bg-green-500/10" },
+              { icon: Bell, title: "Weekly Parent Reports", subtitle: "Laporan Mingguan Orang Tua", desc: "Automated weekly progress emails to parents — the only agency in Indonesia with this feature.", color: "text-pink-500", bg: "bg-pink-500/10", badge: "🇮🇩 #1 in Indonesia" }
             ].map((service, index) => (
               <motion.div 
                 key={index}
-                className="bg-card p-8 rounded-xl shadow-sm border border-border hover:shadow-md transition-shadow"
+                className="bg-card p-8 rounded-xl shadow-sm border border-border hover:shadow-md transition-shadow relative overflow-hidden"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 whileHover={{ y: -5 }}
               >
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-6">
-                  <service.icon className="w-6 h-6 text-primary" />
+                {service.badge && (
+                  <div className="absolute top-3 right-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    {service.badge}
+                  </div>
+                )}
+                <div className={`w-12 h-12 ${service.bg} rounded-lg flex items-center justify-center mb-6`}>
+                  <service.icon className={`w-6 h-6 ${service.color}`} />
                 </div>
-                <h3 className="text-xl font-semibold mb-3">{service.title}</h3>
-                <p className="text-muted-foreground">{service.desc}</p>
+                <h3 className="text-xl font-semibold mb-1">{service.title}</h3>
+                <p className="text-xs text-muted-foreground mb-3 italic">{service.subtitle}</p>
+                <p className="text-muted-foreground text-sm">{service.desc}</p>
               </motion.div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Parents Stay in the Loop Section */}
+      <section className="py-24 overflow-hidden relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-pink-50 via-white to-purple-50 dark:from-pink-950/20 dark:via-background dark:to-purple-950/20" />
+        <div className="container relative">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            {/* Left: Content */}
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-pink-500/10 rounded-full text-pink-600 dark:text-pink-400 text-sm font-semibold mb-6">
+                <span className="text-base">🇮🇩</span>
+                Satu-satunya di Indonesia · The Only One in Indonesia
+              </div>
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 leading-tight">
+                Parents,{" "}
+                <span className="bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
+                  Stay in the Loop
+                </span>
+              </h2>
+              <p className="text-lg text-muted-foreground mb-3 font-medium italic">
+                Orang Tua, Selalu Tahu Perkembangan Anak Anda
+              </p>
+              <p className="text-muted-foreground mb-8 leading-relaxed">
+                Most study abroad agencies leave parents in the dark. At SpecTa Education, we're the <strong>only agency in Indonesia</strong> that automatically sends a detailed weekly progress report directly to your inbox — every Monday morning.
+              </p>
+              <p className="text-muted-foreground mb-8 leading-relaxed text-sm italic">
+                Kebanyakan agen studi luar negeri membuat orang tua tidak tahu perkembangan anaknya. Di SpecTa Education, kami satu-satunya agen di Indonesia yang secara otomatis mengirimkan laporan kemajuan mingguan langsung ke email Anda — setiap Senin pagi.
+              </p>
+              <div className="space-y-4 mb-8">
+                {[
+                  { icon: TrendingUp, text: "Journey stage updates — know exactly where your child is in the process", sub: "Update tahap perjalanan — tahu persis di mana posisi anak Anda" },
+                  { icon: FileCheck, text: "Document submission status — passport, transcripts, visa applications", sub: "Status dokumen — paspor, transkrip, aplikasi visa" },
+                  { icon: Calendar, text: "Upcoming counselling sessions and appointment reminders", sub: "Sesi konseling mendatang dan pengingat janji temu" },
+                  { icon: MessageSquare, text: "Recent activity log — every interaction with your counselor", sub: "Log aktivitas terbaru — setiap interaksi dengan konselor" },
+                ].map((item, i) => (
+                  <motion.div
+                    key={i}
+                    className="flex items-start gap-3"
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.4, delay: i * 0.1 }}
+                  >
+                    <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <item.icon className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{item.text}</p>
+                      <p className="text-xs text-muted-foreground italic">{item.sub}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+              <a href="https://wa.me/628118120820?text=Hi,%20I'm%20interested%20in%20the%20weekly%20parent%20progress%20report%20feature" target="_blank" rel="noopener noreferrer">
+                <Button size="lg" className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0">
+                  <Heart className="w-5 h-5 mr-2" />
+                  Learn More for Parents · Pelajari Lebih Lanjut
+                </Button>
+              </a>
+            </motion.div>
+
+            {/* Right: Email mockup */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="relative"
+            >
+              {/* Floating badge */}
+              <div className="absolute -top-4 -right-4 z-10 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-sm font-bold px-4 py-2 rounded-2xl shadow-lg">
+                🏆 #1 in Indonesia
+              </div>
+              {/* Email mockup card */}
+              <div className="bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
+                {/* Email header */}
+                <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-5 text-white">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                      <Bell className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs opacity-80">From: SpecTa Education</p>
+                      <p className="text-xs opacity-80">To: parent@email.com</p>
+                    </div>
+                  </div>
+                  <h3 className="font-bold text-lg">📊 Weekly Progress Report</h3>
+                  <p className="text-white/80 text-sm">Your child's study abroad journey update</p>
+                </div>
+                {/* Email body */}
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                    <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">A</div>
+                    <div>
+                      <p className="font-semibold text-sm">Amanda Putri</p>
+                      <p className="text-xs text-muted-foreground">Singapore · Bachelor of Business</p>
+                    </div>
+                    <div className="ml-auto">
+                      <span className="bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-xs font-semibold px-2 py-1 rounded-full">In Progress</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: "Docs Verified", value: "3/5", color: "text-green-500" },
+                      { label: "Sessions Done", value: "2", color: "text-blue-500" },
+                      { label: "Days to Intake", value: "127", color: "text-purple-500" },
+                    ].map((stat, i) => (
+                      <div key={i} className="text-center p-2 bg-muted/30 rounded-lg">
+                        <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
+                        <p className="text-xs text-muted-foreground">{stat.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Recent Activity</p>
+                    {[
+                      { icon: "✅", text: "Passport verified by counselor" },
+                      { icon: "📅", text: "Session booked: Mon 10 Feb, 2PM" },
+                      { icon: "📄", text: "University application submitted" },
+                    ].map((act, i) => (
+                      <div key={i} className="flex items-center gap-2 text-sm">
+                        <span>{act.icon}</span>
+                        <span className="text-muted-foreground">{act.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-950/30 dark:to-purple-950/30 rounded-lg p-3 text-center">
+                    <p className="text-xs text-muted-foreground">Sent automatically every</p>
+                    <p className="font-bold text-sm text-primary">Monday · 9:00 AM WIB</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -527,6 +674,110 @@ export default function Home() {
               <svg className="w-5 h-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
               View all 276+ reviews on Google Maps
             </a>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* For Parents Section */}
+      <section className="py-24 bg-muted/30">
+        <div className="container">
+          <motion.div
+            className="text-center mb-14"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/10 rounded-full text-purple-600 dark:text-purple-400 text-sm font-semibold mb-4">
+              <Heart className="w-4 h-4" />
+              Untuk Orang Tua · For Parents
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              We Know What Parents{" "}
+              <span className="bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">Really Worry About</span>
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Kami mengerti kekhawatiran orang tua — dan kami membangun sistem untuk menjawabnya
+            </p>
+          </motion.div>
+
+          {/* Worry vs Solution grid */}
+          <div className="grid md:grid-cols-2 gap-6 mb-14">
+            {[
+              {
+                worry: "\"I don't know if my child is making progress\"",
+                worryId: "\"Saya tidak tahu apakah anak saya berkembang\"",
+                solution: "Weekly automated email every Monday with full journey status, documents, and sessions",
+                solutionId: "Email otomatis setiap Senin dengan status perjalanan, dokumen, dan sesi lengkap",
+                icon: TrendingUp,
+              },
+              {
+                worry: "\"Are the documents being handled properly?\"",
+                worryId: "\"Apakah dokumen-dokumen ditangani dengan benar?\"",
+                solution: "Real-time document vault with verification status — passport, transcripts, visa, all tracked",
+                solutionId: "Vault dokumen real-time dengan status verifikasi — paspor, transkrip, visa, semua terpantau",
+                icon: FileCheck,
+              },
+              {
+                worry: "\"When is the next counselling session?\"",
+                worryId: "\"Kapan sesi konseling berikutnya?\"",
+                solution: "Appointment reminders included in every weekly report with date, time, and counselor name",
+                solutionId: "Pengingat janji temu di setiap laporan mingguan dengan tanggal, waktu, dan nama konselor",
+                icon: Calendar,
+              },
+              {
+                worry: "\"Is my investment in the right hands?\"",
+                worryId: "\"Apakah investasi saya di tangan yang tepat?\"",
+                solution: "15+ years of experience, 1000+ students placed, 4.9★ Google rating across all branches",
+                solutionId: "15+ tahun pengalaman, 1000+ siswa ditempatkan, rating Google 4.9★ di semua cabang",
+                icon: ShieldCheck,
+              },
+            ].map((item, i) => (
+              <motion.div
+                key={i}
+                className="bg-card border border-border rounded-xl p-6 flex gap-4"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: i * 0.1 }}
+              >
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <item.icon className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground mb-1 italic">{item.worry}</p>
+                  <p className="text-xs text-muted-foreground/70 mb-3 italic">{item.worryId}</p>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{item.solution}</p>
+                      <p className="text-xs text-muted-foreground italic mt-0.5">{item.solutionId}</p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Parent testimonial highlight */}
+          <motion.div
+            className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-8 md:p-10 text-white text-center max-w-3xl mx-auto"
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
+            <Quote className="w-8 h-8 mx-auto mb-4 opacity-60" />
+            <p className="text-lg md:text-xl font-medium mb-4 leading-relaxed">
+              "I would like to express my heartfelt gratitude for your exceptional support in helping my daughter secure her admission to the University of Queensland, Australia. SpecTa has proven to be a highly professional agency."
+            </p>
+            <p className="text-sm italic mb-2 opacity-80">
+              "Saya ingin mengucapkan terima kasih yang tulus atas dukungan luar biasa dalam membantu putri saya masuk ke University of Queensland, Australia."
+            </p>
+            <div className="flex items-center justify-center gap-1 mb-2">
+              {[1,2,3,4,5].map(i => <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />)}
+            </div>
+            <p className="font-semibold">Marjono Suwandi</p>
+            <p className="text-white/70 text-sm">Parent of UQ Student · PIK Branch</p>
           </motion.div>
         </div>
       </section>
