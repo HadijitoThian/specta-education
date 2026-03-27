@@ -23,7 +23,10 @@ import {
   getAllAgentConfigs,
   resetDbConnection,
   getDailyReportByDate,
+  getDb,
 } from "./db";
+import { gmExecutiveReports } from "../drizzle/schema";
+import { eq } from "drizzle-orm";
 
 let schedulerInterval: NodeJS.Timeout | null = null;
 let gmInterval: NodeJS.Timeout | null = null;
@@ -37,17 +40,44 @@ async function runGmCycle(): Promise<void> {
   const wibOffset = 7 * 60 * 60 * 1000;
   const nowWib = new Date(now.getTime() + wibOffset);
   const wibHour = nowWib.getUTCHours();
+  const todayWib = nowWib.toISOString().split("T")[0];
 
-  // Throttle: don't run more than once every 3.5 hours
+  // In-memory throttle: don't run more than once every 3.5 hours
   if (lastGmRunAt && now.getTime() - lastGmRunAt.getTime() < 3.5 * 60 * 60 * 1000) return;
+
+  // Only run the executive report during 8 AM WIB window (7-9 AM)
+  const isReportWindow = wibHour >= 7 && wibHour < 9;
+
+  // DB-backed daily guard for the executive report: survives server restarts
+  // generateAndSendExecutiveReport() also has this guard, but we check here too
+  // to avoid running the expensive GM cycle unnecessarily
+  if (isReportWindow) {
+    try {
+      const db = await getDb();
+      if (db) {
+        const existing = await db.select()
+          .from(gmExecutiveReports)
+          .where(eq(gmExecutiveReports.reportDate, todayWib))
+          .limit(1)
+          .catch(() => []);
+        if (existing.length > 0 && existing[0].status === "sent") {
+          console.log(`[GM] Executive report already sent today (${todayWib}), skipping cycle`);
+          lastGmRunAt = now; // Update in-memory so we don't keep checking DB
+          return;
+        }
+      }
+    } catch (e) {
+      // DB check failed — proceed with cycle anyway, generateAndSendExecutiveReport has its own guard
+      console.error("[GM] DB guard check failed (non-fatal):", e);
+    }
+  }
 
   console.log(`[GM] Starting 4-hour oversight cycle at WIB hour ${wibHour}`);
   lastGmRunAt = now;
 
   try {
     const result = await runGeneralManagerCycle();
-    // Send executive report during 8 AM WIB window (7-9 AM)
-    if (wibHour >= 7 && wibHour < 9) {
+    if (isReportWindow) {
       await generateAndSendExecutiveReport(result);
     }
   } catch (err: unknown) {

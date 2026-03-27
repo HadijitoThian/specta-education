@@ -63,8 +63,20 @@ export async function runCentralReporterAgent(): Promise<{
     const wibDate = new Date(now.getTime() + wibOffset);
     const reportDate = wibDate.toISOString().split("T")[0];
 
-    // Check if report already exists for today
+    // Check if report already exists and was sent today — skip to prevent duplicates
     const existingReport = await getDailyReportByDate(reportDate);
+    if (existingReport?.status === "sent") {
+      console.log(`[Reporter Agent] Report already sent today (${reportDate}), skipping duplicate send`);
+      if (runLog) {
+        await updateAgentRunLog(runLog.id, {
+          status: "success",
+          summary: `Report already sent today (${reportDate}), skipped duplicate`,
+          durationMs: Date.now() - startTime,
+          completedAt: new Date(),
+        });
+      }
+      return { reportGenerated: false, emailSent: false, errors: 0 };
+    }
     
     // Build the report
     const reportHtml = buildReportEmail(reportData, reportDate);
