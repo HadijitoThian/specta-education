@@ -15,7 +15,7 @@ import {
   Plus, ChevronRight, Users, TrendingUp, Target, Award, Calendar,
   Zap, Star, BarChart3, ArrowRight, RefreshCw, User, BookOpen,
   Search, Filter, UserPlus, Eye, Crown, Edit2, Upload, X, Download,
-  GripVertical, Bell, CheckCheck, MessageSquare, GraduationCap, Brain
+  GripVertical, Bell, CheckCheck, MessageSquare, GraduationCap, Brain, LogOut
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -57,6 +57,14 @@ export default function CounselorCRM() {
   const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [addStudentOpen, setAddStudentOpen] = useState(false);
   const [selectedStage, setSelectedStage] = useState<PipelineStage | "all">("all");
+
+  // Logout
+  const logoutMutation = trpc.staffAuth.logout.useMutation({
+    onSuccess: () => {
+      toast.success("Logged out successfully");
+      setLocation("/staff-login");
+    },
+  });
 
   // Auth check
   const { data: meData, isLoading: meLoading, isFetching: meFetching } = trpc.staffAuth.me.useQuery(undefined, {
@@ -406,6 +414,13 @@ export default function CounselorCRM() {
               onClick={() => setCsvImportOpen(true)}>
               <Upload className="w-4 h-4" />
               <span className="hidden sm:inline">Import CSV</span>
+            </Button>
+            {/* Logout Button */}
+            <Button size="sm" variant="outline" className="border-red-500/40 text-red-400 hover:bg-red-500/10 gap-1 px-2 sm:px-3"
+              onClick={() => logoutMutation.mutate()}
+              disabled={logoutMutation.isPending}>
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">{logoutMutation.isPending ? "Logging out..." : "Logout"}</span>
             </Button>
 
             {/* Edit Student Dialog */}
