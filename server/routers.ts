@@ -7755,14 +7755,22 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
   aiAssistant: router({
 
     // Get all suggestions for the current counselor
-    getSuggestions: protectedProcedure.query(async ({ ctx }) => {
-      const counselorEmail = ctx.user.email ?? "";
-      if (!counselorEmail) return [];
-      return getAiSuggestionsForCounselor(counselorEmail);
+    getSuggestions: publicProcedure.query(async ({ ctx }) => {
+      // Use staff_token cookie (email/password login) instead of Manus OAuth
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) return [];
+      try {
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        const counselorEmail = (payload.email as string) ?? "";
+        if (!counselorEmail) return [];
+        return getAiSuggestionsForCounselor(counselorEmail);
+      } catch { return []; }
     }),
 
     // Mark a suggestion as actioned
-    actionSuggestion: protectedProcedure
+    actionSuggestion: publicProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await markSuggestionActioned(input.id);
@@ -7770,8 +7778,16 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
       }),
 
     // Generate fresh AI suggestions for the current counselor
-    generateSuggestions: protectedProcedure.mutation(async ({ ctx }) => {
-      const counselorEmail = ctx.user.email ?? "";
+    generateSuggestions: publicProcedure.mutation(async ({ ctx }) => {
+      const cookieHeader = ctx.req?.headers?.cookie || "";
+      const match = cookieHeader.match(/staff_token=([^;]+)/);
+      if (!match) throw new TRPCError({ code: "BAD_REQUEST", message: "Not authenticated" });
+      let counselorEmail = "";
+      try {
+        const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const { payload } = await jwtVerify(match[1], secretKey, { algorithms: ["HS256"] });
+        counselorEmail = (payload.email as string) ?? "";
+      } catch { throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid token" }); }
       if (!counselorEmail) throw new TRPCError({ code: "BAD_REQUEST", message: "No counselor email" });
 
       // Clear old suggestions first
