@@ -2019,7 +2019,7 @@ Rules:
           .setProtectedHeader({ alg: "HS256" })
           .setExpirationTime("7d")
           .sign(secretKey);
-        ctx.res.cookie("staff_token", token, { path: "/", httpOnly: true, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
+        ctx.res.cookie("staff_token", token, { ...getSessionCookieOptions(ctx.req), maxAge: 7 * 24 * 60 * 60 * 1000 });
         return {
           success: true,
           staff: { id: staff.id, name: staff.name, email: staff.email, role: staff.role, mustChangePassword: staff.mustChangePassword },
@@ -2068,7 +2068,7 @@ Rules:
       }),
 
     logout: publicProcedure.mutation(async ({ ctx }) => {
-      ctx.res.clearCookie("staff_token", { path: "/" });
+      ctx.res.clearCookie("staff_token", { ...getSessionCookieOptions(ctx.req), maxAge: -1 });
       return { success: true };
     }),
 

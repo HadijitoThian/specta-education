@@ -16,9 +16,23 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (typeof window === "undefined") return;
 
   const isUnauthorized = error.message === UNAUTHED_ERR_MSG;
-
   if (!isUnauthorized) return;
 
+  const path = window.location.pathname;
+
+  // Staff/CRM routes → redirect to staff login (email/password, NOT Manus OAuth)
+  if (path.startsWith("/crm") || path.startsWith("/staff")) {
+    window.location.href = "/staff-login";
+    return;
+  }
+
+  // Student portal routes → redirect to student login
+  if (path.startsWith("/student") || path.startsWith("/my-journey")) {
+    window.location.href = "/student/login";
+    return;
+  }
+
+  // Admin and all other routes → Manus OAuth
   window.location.href = getLoginUrl();
 };
 
