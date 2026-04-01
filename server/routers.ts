@@ -2392,15 +2392,127 @@ Rules:
         return { success: true };
       }),
 
-    deleteConversation: protectedProcedure
+     deleteConversation: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== "admin") return { success: false, error: "Unauthorized" };
         await deleteConversation(input.id);
         return { success: true };
       }),
-  }),
 
+    getDataCounts: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") return { counts: {} };
+      const { getDb } = await import("./db");
+      const db = await getDb();
+      if (!db) return { counts: {} };
+      const { sql } = await import("drizzle-orm");
+      const schema = await import("../drizzle/schema");
+      const count = async (table: any): Promise<number> => {
+        try {
+          const [r] = await db.select({ n: sql<number>`COUNT(*)` }).from(table);
+          return Number((r as any).n);
+        } catch { return 0; }
+      };
+      return {
+        counts: {
+          crmLeads: await count(schema.leads),
+          applications: await count(schema.applications),
+          appointments: await count(schema.appointments),
+          conversations: await count(schema.conversations),
+          dripEnrollments: await count(schema.dripEnrollments),
+          dripEmailLogs: await count(schema.dripEmailLogs),
+          agentRunLogs: await count(schema.agentRunLogs),
+          dailyReports: await count(schema.dailyReports),
+          gmReports: await count(schema.gmExecutiveReports),
+          studentAccounts: await count(schema.studentPortalAccounts),
+          studentChats: await count(schema.studentAiChatHistory),
+          visitorTracking: await count(schema.visitorTracking),
+          aptitudeResults: await count(schema.aptitudeResults),
+          ieltsPracticeResults: await count(schema.ieltsPracticeResults),
+          simulatorSessions: await count(schema.simulatorSessions),
+          crmDocuments: await count(schema.crmStudentDocuments),
+          followUpActions: await count(schema.followUpActions),
+        }
+      };
+    }),
+
+    bulkClear: protectedProcedure
+      .input(z.object({
+        category: z.enum([
+          "drip_enrollments",
+          "crm_leads",
+          "student_portal",
+          "agent_logs",
+          "visitor_tracking",
+          "conversations",
+          "aptitude_results",
+          "all_student_data",
+        ])
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") return { success: false, error: "Unauthorized", deleted: 0 };
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) return { success: false, error: "DB unavailable", deleted: 0 };
+        const schema = await import("../drizzle/schema");
+        let deleted = 0;
+        const del = async (table: any) => {
+          try { const r = await db.delete(table); deleted += (r as any).rowsAffected || 0; }
+          catch (e) { console.error("[BulkClear] error:", e); }
+        };
+        switch (input.category) {
+          case "drip_enrollments":
+            await del(schema.dripEmailLogs); await del(schema.dripEnrollments); break;
+          case "crm_leads":
+            await del(schema.followUpActions); await del(schema.leadAssignments);
+            await del(schema.crmTasks); await del(schema.crmActivityTimeline);
+            await del(schema.crmNotifications); await del(schema.crmStudentDocuments);
+            await del(schema.crmAppointments); await del(schema.consultationNotes);
+            await del(schema.aiFollowupSuggestions); await del(schema.leadPipelineStages);
+            await del(schema.counselorPerformance); await del(schema.applications);
+            await del(schema.appointments); await del(schema.leads); break;
+          case "student_portal":
+            await del(schema.studentNotifications); await del(schema.studentRewards);
+            await del(schema.studentReferrals); await del(schema.studentReferralCodes);
+            await del(schema.studentAiChatHistory); await del(schema.studentUniversityWishlist);
+            await del(schema.studentPortalAppointments); await del(schema.studentPortalProfiles);
+            await del(schema.studentApplications); await del(schema.studentVisaTracking);
+            await del(schema.studentPortalAccounts); break;
+          case "agent_logs":
+            await del(schema.agentRunLogs); await del(schema.dailyReports);
+            await del(schema.gmExecutiveReports); await del(schema.gmHealthChecks);
+            await del(schema.gmRecommendations); break;
+          case "visitor_tracking":
+            await del(schema.visitorTracking); break;
+          case "conversations":
+            await del(schema.messages); await del(schema.conversations); break;
+          case "aptitude_results":
+            await del(schema.aptitudeResults); await del(schema.ieltsPracticeResults);
+            await del(schema.simulatorChoices); await del(schema.simulatorResults);
+            await del(schema.simulatorSessions); break;
+          case "all_student_data":
+            await del(schema.studentNotifications); await del(schema.studentRewards);
+            await del(schema.studentReferrals); await del(schema.studentReferralCodes);
+            await del(schema.studentAiChatHistory); await del(schema.studentUniversityWishlist);
+            await del(schema.studentPortalAppointments); await del(schema.studentPortalProfiles);
+            await del(schema.studentApplications); await del(schema.studentVisaTracking);
+            await del(schema.studentPortalAccounts); await del(schema.crmNotifications);
+            await del(schema.crmActivityTimeline); await del(schema.crmAppointments);
+            await del(schema.crmStudentDocuments); await del(schema.aiFollowupSuggestions);
+            await del(schema.consultationNotes); await del(schema.followUpActions);
+            await del(schema.leadAssignments); await del(schema.leadPipelineStages);
+            await del(schema.crmTasks); await del(schema.counselorPerformance);
+            await del(schema.applications); await del(schema.appointments);
+            await del(schema.leads); await del(schema.dripEmailLogs);
+            await del(schema.dripEnrollments); await del(schema.aptitudeResults);
+            await del(schema.ieltsPracticeResults); await del(schema.simulatorChoices);
+            await del(schema.simulatorResults); await del(schema.simulatorSessions);
+            await del(schema.messages); await del(schema.conversations);
+            await del(schema.visitorTracking); break;
+        }
+        return { success: true, deleted };
+      }),
+  }),
   // ==========================================
   // APTITUDE TEST ROUTER
   // ==========================================

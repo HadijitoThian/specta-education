@@ -23,8 +23,9 @@ import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 import DripCampaignManager from "@/components/admin/DripCampaignManager";
 import BlogManager from "@/components/admin/BlogManager";
 import CommentModeration from "@/components/admin/CommentModeration";
+import DataManagement from "@/components/admin/DataManagement";
 
-type TabType = "analytics" | "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staff" | "accessLinks" | "universities" | "proOrders" | "campaigns" | "blog" | "comments";
+type TabType = "analytics" | "leads" | "conversations" | "documents" | "appointments" | "applications" | "ielts" | "counselors" | "team" | "scholarshipLeads" | "staff" | "accessLinks" | "universities" | "proOrders" | "campaigns" | "blog" | "comments" | "dataManagement";
 
 const APP_STATUS_OPTIONS = [
   "submitted", "reviewing", "processing", "on_hold", 
@@ -695,6 +696,9 @@ export default function AdminDashboard() {
               </Button>
               <Button variant={activeTab === 'comments' ? 'default' : 'outline'} onClick={() => setActiveTab('comments')} size="sm">
                 <MessageSquare className="w-4 h-4 mr-2" /> Comments
+              </Button>
+              <Button variant={activeTab === 'dataManagement' ? 'default' : 'outline'} onClick={() => setActiveTab('dataManagement')} size="sm">
+                <Trash2 className="w-4 h-4 mr-2" /> Data Management
               </Button>
             </>
           )}
@@ -2297,6 +2301,11 @@ export default function AdminDashboard() {
           {activeTab === 'comments' && user?.role === 'admin' && (
             <div className="p-4">
               <CommentModeration />
+            </div>
+          )}
+          {activeTab === 'dataManagement' && user?.role === 'admin' && (
+            <div className="p-4">
+              <DataManagement />
             </div>
           )}
         </div>
