@@ -328,14 +328,14 @@ export default function CounselorCRM() {
     { label: "Tasks Pending", value: perf?.tasksPending ?? 0, icon: <Clock className="w-5 h-5" />, color: "text-red-400" },
   ];
 
-  if (meLoading) {
+  // Show loading while auth query is in progress (initial load OR background refetch)
+  if (meLoading || meFetching) {
     return (
       <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center">
         <div className="text-white/60 text-sm animate-pulse">Loading CRM...</div>
       </div>
     );
   }
-
   if (!staffUser) {
     return (
       <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center">
@@ -348,7 +348,6 @@ export default function CounselorCRM() {
       </div>
     );
   }
-
   const tabs = [
     { id: "pipeline", label: "Pipeline", icon: <BarChart3 className="w-4 h-4" /> },
     { id: "tasks", label: "My Tasks", icon: <CheckCircle2 className="w-4 h-4" />, badge: todayTasks.length },
