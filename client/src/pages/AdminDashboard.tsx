@@ -15,6 +15,7 @@ import {
   CreditCard, TrendingUp, DollarSign, Bot
 } from "lucide-react";
 import { Link } from "wouter";
+import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { useEffect, useState } from "react";
 import { getLoginUrl } from "@/const";
 import AptitudeReportDownload from "@/components/AptitudeReportPDF";
@@ -848,7 +849,7 @@ export default function AdminDashboard() {
                             {/* Actions */}
                             <div className="flex gap-2 ml-4 shrink-0">
                               {lead.studentPhone && (
-                                <a href={`https://wa.me/${lead.studentPhone?.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
+                                <a href={buildWhatsAppUrl(lead.studentPhone)} target="_blank" rel="noopener noreferrer">
                                   <Button size="sm" variant="outline">
                                     <Phone className="w-4 h-4 mr-1" /> WhatsApp
                                   </Button>
@@ -1141,7 +1142,7 @@ export default function AdminDashboard() {
                           )}
                         </div>
                         <div className="flex gap-2">
-                          <a href={`https://wa.me/${apt.phone?.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
+                          <a href={buildWhatsAppUrl(apt.phone)} target="_blank" rel="noopener noreferrer">
                             <Button size="sm" variant="outline">
                               <Phone className="w-4 h-4 mr-1" /> WhatsApp
                             </Button>
@@ -1407,7 +1408,7 @@ export default function AdminDashboard() {
                             </span>
                           </div>
                         </div>
-                        <a href={`https://wa.me/${result.studentPhone?.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
+                        <a href={buildWhatsAppUrl(result.studentPhone)} target="_blank" rel="noopener noreferrer">
                           <Button size="sm" variant="outline">
                             <Phone className="w-4 h-4 mr-1" /> Follow Up
                           </Button>

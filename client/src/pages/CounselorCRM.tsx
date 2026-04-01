@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
+import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import {
   Phone, MessageCircle, Mail, FileText, CheckCircle2, Clock, AlertCircle,
   Plus, ChevronRight, Users, TrendingUp, Target, Award, Calendar,
@@ -1252,7 +1253,7 @@ function LeadCard({ item, stages, onStageChange }: {
         </Link>
         {lead.studentPhone && (
           <a
-            href={`https://wa.me/${lead.studentPhone.replace(/[^0-9]/g, "")}?text=Hi ${encodeURIComponent(lead.studentName)}, this is from SpecTa Education. Following up on your study abroad application.`}
+            href={buildWhatsAppUrl(lead.studentPhone, `Hi ${lead.studentName}, this is from SpecTa Education. Following up on your study abroad application.`)}
             target="_blank" rel="noopener noreferrer"
             className="text-green-400 hover:text-green-300 flex items-center gap-0.5"
             title="WhatsApp">
@@ -1386,7 +1387,7 @@ function StudentRow({ student, onEdit }: { student: any; onEdit: (s: any) => voi
             <Edit2 className="w-3 h-3" />
           </Button>
           {student.studentPhone && (
-            <a href={`https://wa.me/${student.studentPhone.replace(/[^0-9]/g, "")}?text=Hi ${encodeURIComponent(student.studentName)}, this is from SpecTa Education. Following up on your study abroad consultation.`} target="_blank" rel="noopener noreferrer">
+            <a href={buildWhatsAppUrl(student.studentPhone, `Hi ${student.studentName}, this is from SpecTa Education. Following up on your study abroad consultation.`)} target="_blank" rel="noopener noreferrer">
               <Button size="sm" variant="ghost" className="text-green-400 hover:text-green-300 hover:bg-green-500/10 h-7 px-2" title="WhatsApp">
                 <MessageCircle className="w-3 h-3" />
               </Button>

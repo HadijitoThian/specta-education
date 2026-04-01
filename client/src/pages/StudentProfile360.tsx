@@ -1,6 +1,7 @@
 import { useState } from "react";
 import React from "react";
 import { useRoute, Link } from "wouter";
+import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import AICounselorAssistant from "@/components/AICounselorAssistant";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -153,7 +154,7 @@ export default function StudentProfile360() {
             <div className="flex items-center gap-2">
               {/* Quick Action Buttons */}
               {lead.studentPhone ? (
-                <a href={`https://wa.me/${lead.studentPhone.replace(/[^0-9]/g, "")}?text=Hi ${encodeURIComponent(lead.studentName)}, this is from SpecTa Education. Following up on your study abroad consultation.`} target="_blank" rel="noopener noreferrer">
+                <a href={buildWhatsAppUrl(lead.studentPhone, `Hi ${lead.studentName}, this is from SpecTa Education. Following up on your study abroad consultation.`)} target="_blank" rel="noopener noreferrer">
                   <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white gap-1 px-2 sm:px-3">
                     <MessageCircle className="w-4 h-4" />
                     <span className="hidden sm:inline">WhatsApp</span>
@@ -446,7 +447,7 @@ export default function StudentProfile360() {
                 </Dialog>
 
                 {lead.studentPhone ? (
-                  <a href={`https://wa.me/${lead.studentPhone.replace(/[^0-9]/g, "")}?text=Hi ${encodeURIComponent(lead.studentName)}, this is from SpecTa Education. Following up on your study abroad consultation.`} target="_blank" rel="noopener noreferrer" className="block">
+                  <a href={buildWhatsAppUrl(lead.studentPhone, `Hi ${lead.studentName}, this is from SpecTa Education. Following up on your study abroad consultation.`)} target="_blank" rel="noopener noreferrer" className="block">
                     <Button className="w-full bg-green-600/10 hover:bg-green-600/20 text-green-400 border border-green-600/30 justify-start gap-2" variant="outline">
                       <MessageCircle className="w-4 h-4" /> WhatsApp {lead.studentPhone}
                     </Button>
