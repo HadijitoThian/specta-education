@@ -359,7 +359,7 @@ export default function CounselorCRM() {
             </Link>
             <div>
               <h1 className="text-base sm:text-xl font-bold text-white flex items-center gap-2">
-                <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-[#f59e0b]" />
+                <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/QxrYSewOYzAuPIEN.jpeg" alt="SpecTa Education" className="h-7 sm:h-8 w-auto object-contain rounded" />
                 <span className="hidden sm:inline">CRM Workspace</span>
                 <span className="sm:hidden">CRM</span>
               </h1>
