@@ -59,15 +59,19 @@ export default function CounselorCRM() {
   const [selectedStage, setSelectedStage] = useState<PipelineStage | "all">("all");
 
   // Auth check
-  const { data: meData, isLoading: meLoading } = trpc.staffAuth.me.useQuery();
+  const { data: meData, isLoading: meLoading, isFetching: meFetching } = trpc.staffAuth.me.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000, // 5 minutes — don't refetch on every navigation
+    retry: false,
+  });
   const staffUser = meData?.staff;
   const isAdmin = staffUser?.role === "admin";
 
   useEffect(() => {
-    if (!meLoading && !staffUser) {
+    // Only redirect when query is fully settled (not loading AND not background refetching)
+    if (!meLoading && !meFetching && !staffUser) {
       setLocation("/staff-login");
     }
-  }, [meLoading, staffUser, setLocation]);
+  }, [meLoading, meFetching, staffUser, setLocation]);
 
   // Queries
   const { data: pipelineData, refetch: refetchPipeline } = trpc.crm.getMyPipeline.useQuery(

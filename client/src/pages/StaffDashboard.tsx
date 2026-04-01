@@ -50,7 +50,10 @@ export default function StaffDashboard() {
   }, []);
 
   const [, setLocation] = useLocation();
-  const { data: meData, isLoading: meLoading } = trpc.staffAuth.me.useQuery();
+  const { data: meData, isLoading: meLoading, isFetching: meFetching } = trpc.staffAuth.me.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000, // 5 minutes — don't refetch on every navigation
+    retry: false,
+  });
   const { data: appsData, isLoading: appsLoading, refetch: refetchApps } = trpc.staffAuth.getMyApplications.useQuery();
   const logoutMutation = trpc.staffAuth.logout.useMutation();
   const changePasswordMutation = trpc.staffAuth.changePassword.useMutation();
@@ -83,8 +86,8 @@ export default function StaffDashboard() {
   const staffUser = meData?.staff;
   const applications = useMemo(() => appsData?.applications || [], [appsData]);
 
-  // Redirect to login if not authenticated
-  if (!meLoading && !staffUser) {
+  // Redirect to login if not authenticated (only when query is fully settled, not during background refetch)
+  if (!meLoading && !meFetching && !staffUser) {
     setLocation("/staff-login");
     return null;
   }
