@@ -344,21 +344,23 @@ export function startAgentScheduler(): void {
     });
   }, 5 * 60 * 1000);
 
+  // Delay initial run by 5 minutes so any manual DB operations or deployments
+  // can complete before agents start assigning leads and sending emails.
   setTimeout(() => {
     checkAndRunAgents().catch(err => {
       console.error("[Scheduler] Error in initial check:", err);
     });
-  }, 30 * 1000);
+  }, 5 * 60 * 1000); // 5 minutes
 
   // GM runs every 4 hours
   gmInterval = setInterval(() => {
     runGmCycle().catch((err: unknown) => console.error("[GM] Interval error:", err));
   }, 4 * 60 * 60 * 1000);
 
-  // First GM run after 2 minutes (let agents settle first)
+  // First GM run after 10 minutes (let agents settle first)
   setTimeout(() => {
     runGmCycle().catch((err: unknown) => console.error("[GM] Initial run error:", err));
-  }, 2 * 60 * 1000);
+  }, 10 * 60 * 1000); // 10 minutes
 }
 
 /**
