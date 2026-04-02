@@ -3,6 +3,7 @@ import { SEO } from '@/components/SEO';
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Loader2, Eye, EyeOff, Lock, Mail, ArrowLeft } from "lucide-react";
@@ -26,6 +27,7 @@ export default function StaffLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // Change password state
@@ -53,7 +55,7 @@ export default function StaffLogin() {
     }
     setIsLoading(true);
     try {
-      const result = await loginMutation.mutateAsync({ email, password });
+      const result = await loginMutation.mutateAsync({ email, password, rememberMe });
       if (result.success && result.staff) {
         toast.success(`Welcome back, ${result.staff.name}!`);
         if (result.staff.mustChangePassword) {
@@ -230,6 +232,22 @@ export default function StaffLogin() {
                 </button>
               </div>
             </div>
+
+            {/* Stay Logged In checkbox */}
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="rememberMe"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked === true)}
+              />
+              <label
+                htmlFor="rememberMe"
+                className="text-sm text-gray-600 cursor-pointer select-none"
+              >
+                Stay logged in for 30 days
+              </label>
+            </div>
+
             <Button type="submit" className="w-full bg-rose-600 hover:bg-rose-700" disabled={isLoading}>
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Sign In

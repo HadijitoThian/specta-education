@@ -2001,6 +2001,7 @@ Rules:
       .input(z.object({
         email: z.string().email(),
         password: z.string(),
+        rememberMe: z.boolean().optional().default(false),
       }))
       .mutation(async ({ input, ctx }) => {
         const staff = await getStaffAccountByEmail(input.email);
@@ -2015,11 +2016,12 @@ Rules:
         await updateStaffAccount(staff.id, { lastLoginAt: new Date() } as any);
         // Set session cookie using JWT (jose)
         const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "secret");
+        const sessionDays = input.rememberMe ? 30 : 7;
         const token = await new SignJWT({ staffId: staff.id, email: staff.email, role: staff.role, name: staff.name })
           .setProtectedHeader({ alg: "HS256" })
-          .setExpirationTime("7d")
+          .setExpirationTime(`${sessionDays}d`)
           .sign(secretKey);
-        ctx.res.cookie("staff_token", token, { ...getSessionCookieOptions(ctx.req), maxAge: 7 * 24 * 60 * 60 * 1000 });
+        ctx.res.cookie("staff_token", token, { ...getSessionCookieOptions(ctx.req), maxAge: sessionDays * 24 * 60 * 60 * 1000 });
         return {
           success: true,
           staff: { id: staff.id, name: staff.name, email: staff.email, role: staff.role, mustChangePassword: staff.mustChangePassword },
