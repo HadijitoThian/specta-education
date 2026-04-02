@@ -2284,6 +2284,14 @@ export async function getLeadAssignmentByLeadId(leadId: number, leadSource: stri
   return rows[0] ?? null;
 }
 
+export async function getLeadAssignmentById(id: number): Promise<LeadAssignment | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(leadAssignments)
+    .where(eq(leadAssignments.id, id))
+    .limit(1);
+  return rows[0] ?? null;
+}
 export async function getAllLeadAssignments(statusFilter?: string): Promise<LeadAssignment[]> {
   const db = await getDb();
   if (!db) return [];

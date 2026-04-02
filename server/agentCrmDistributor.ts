@@ -15,6 +15,7 @@ import {
   getAllScholarshipLeads,
   getAllCounselors,
   getLeadAssignmentByLeadId,
+  getLeadAssignmentById,
   createLeadAssignment,
   createFollowUpAction,
   getDueFollowUpActions,
@@ -170,7 +171,7 @@ async function assignUnassignedLeads(): Promise<{ assigned: number; errors: numb
           const counselor = pickCounselor(counselors, counselorWorkload);
           if (counselor) {
             try {
-              await createLeadAssignment({
+              const chatbotAssignment = await createLeadAssignment({
                 leadId: lead.id,
                 leadSource: "chatbot",
                 counselorId: counselor.id,
@@ -187,8 +188,8 @@ async function assignUnassignedLeads(): Promise<{ assigned: number; errors: numb
               counselorWorkload[counselor.email] = (counselorWorkload[counselor.email] || 0) + 1;
               assigned++;
 
-              // Create follow-up schedule
-              await createFollowUpSchedule(0, counselor, lead.studentName || "Student", lead.studentEmail, lead.studentPhone, lead.preferredCountry);
+              // Create follow-up schedule with real assignment ID so orphan guard works correctly
+              await createFollowUpSchedule(chatbotAssignment?.id ?? 0, counselor, lead.studentName || "Student", lead.studentEmail, lead.studentPhone, lead.preferredCountry);
 
               // Notify admin about new assignment
               await sendAdminAssignmentNotification({
@@ -219,7 +220,7 @@ async function assignUnassignedLeads(): Promise<{ assigned: number; errors: numb
           const counselor = pickCounselor(counselors, counselorWorkload);
           if (counselor) {
             try {
-              await createLeadAssignment({
+              const scholarshipAssignment = await createLeadAssignment({
                 leadId: lead.id,
                 leadSource: "scholarship",
                 counselorId: counselor.id,
@@ -235,7 +236,7 @@ async function assignUnassignedLeads(): Promise<{ assigned: number; errors: numb
               counselorWorkload[counselor.email] = (counselorWorkload[counselor.email] || 0) + 1;
               assigned++;
 
-              await createFollowUpSchedule(0, counselor, lead.studentName, lead.studentEmail, lead.studentPhone);
+              await createFollowUpSchedule(scholarshipAssignment?.id ?? 0, counselor, lead.studentName, lead.studentEmail, lead.studentPhone);
 
               // Notify admin about new assignment
               await sendAdminAssignmentNotification({
@@ -272,7 +273,7 @@ async function assignUnassignedLeads(): Promise<{ assigned: number; errors: numb
       if (!counselor) break;
 
       try {
-        await createLeadAssignment({
+        const aptitudeAssignment = await createLeadAssignment({
           leadId: result.id,
           leadSource: "aptitude_test",
           counselorId: counselor.id,
@@ -288,7 +289,7 @@ async function assignUnassignedLeads(): Promise<{ assigned: number; errors: numb
         counselorWorkload[counselor.email] = (counselorWorkload[counselor.email] || 0) + 1;
         assigned++;
 
-        await createFollowUpSchedule(0, counselor, result.studentName || "Student", result.studentEmail, result.studentPhone);
+        await createFollowUpSchedule(aptitudeAssignment?.id ?? 0, counselor, result.studentName || "Student", result.studentEmail, result.studentPhone);
 
         await sendAdminAssignmentNotification({
           studentName: result.studentName || "Unknown",
@@ -399,13 +400,26 @@ async function createFollowUpSchedule(
 async function processDueFollowUps(): Promise<{ sent: number; errors: number }> {
   let sent = 0;
   let errors = 0;
-
   try {
     const dueActions = await getDueFollowUpActions();
     console.log(`[CRM Agent] Processing ${dueActions.length} due follow-up actions`);
-
     for (const action of dueActions) {
       try {
+        // Guard: skip orphaned follow-up actions whose assignment no longer exists in the DB
+        // This prevents emails being sent for leads that were deleted via Data Management cleanup
+        if (action.assignmentId > 0) {
+          const assignment = await getLeadAssignmentById(action.assignmentId);
+          if (!assignment) {
+            console.log(`[CRM Agent] Skipping orphaned follow-up ${action.id} — assignment ${action.assignmentId} no longer exists`);
+            await updateFollowUpAction(action.id, { status: "skipped", errorMessage: "Assignment deleted" });
+            continue;
+          }
+        } else {
+          // assignmentId = 0 means it was created from old data before proper FK tracking — skip it
+          console.log(`[CRM Agent] Skipping legacy follow-up ${action.id} with assignmentId=0`);
+          await updateFollowUpAction(action.id, { status: "skipped", errorMessage: "Legacy record — no valid assignment" });
+          continue;
+        }
         const data = JSON.parse(action.content || "{}");
         let success = false;
 
