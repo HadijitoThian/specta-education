@@ -36,7 +36,11 @@ export default function StaffLogin() {
 
   const loginMutation = trpc.staffAuth.login.useMutation();
   const changePasswordMutation = trpc.staffAuth.changePassword.useMutation();
-  const { data: meData, refetch: refetchMe } = trpc.staffAuth.me.useQuery();
+  const utils = trpc.useUtils();
+  const { data: meData, refetch: refetchMe } = trpc.staffAuth.me.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
 
   // If already logged in and needs password change
   const staffUser = meData?.staff;
@@ -57,6 +61,9 @@ export default function StaffLogin() {
           setCurrentPassword(password);
           await refetchMe();
         } else {
+          // Pre-populate the staffAuth.me cache so StaffDashboard/CRM sees the user immediately
+          // without needing to refetch — prevents the brief null → redirect loop
+          utils.staffAuth.me.setData(undefined, { staff: result.staff });
           setLocation("/staff-dashboard");
         }
       } else {
@@ -168,6 +175,11 @@ export default function StaffLogin() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-pink-50 flex items-center justify-center p-4">
+      <SEO
+        title="Staff Login | SpecTa Education"
+        description="Staff login portal for SpecTa Education team members."
+        noindex
+      />
       <Card className="w-full max-w-md shadow-xl border-0">
         <CardHeader className="text-center space-y-2">
           <Link href="/" className="inline-flex items-center text-sm text-gray-500 hover:text-rose-600 mb-2 justify-center">
