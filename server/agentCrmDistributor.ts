@@ -465,11 +465,35 @@ async function escalateStaleLeads(): Promise<{ escalated: number; errors: number
   let escalated = 0;
   let errors = 0;
 
+  // Safety: cap escalation emails per run to prevent email floods from old/bulk data
+  const MAX_ESCALATIONS_PER_RUN = 5;
+  // Safety: skip assignments older than 7 days — these are clearly old/test data
+  const MAX_ASSIGNMENT_AGE_DAYS = 7;
+  const maxAgeMs = MAX_ASSIGNMENT_AGE_DAYS * 24 * 60 * 60 * 1000;
+
   try {
     const staleAssignments = await getStaleAssignments(48);
     console.log(`[CRM Agent] Found ${staleAssignments.length} stale assignments to escalate`);
 
     for (const assignment of staleAssignments) {
+      // Rate-limit guard: stop after MAX_ESCALATIONS_PER_RUN emails per cycle
+      if (escalated >= MAX_ESCALATIONS_PER_RUN) {
+        console.log(`[CRM Agent] Escalation cap reached (${MAX_ESCALATIONS_PER_RUN}/run). Remaining assignments will be escalated in next cycle.`);
+        break;
+      }
+
+      // Age guard: skip assignments older than 7 days — mark as escalated without emailing
+      const ageMs = Date.now() - new Date(assignment.assignedAt).getTime();
+      if (ageMs > maxAgeMs) {
+        console.log(`[CRM Agent] Skipping old assignment ${assignment.id} (${assignment.studentName}) — older than ${MAX_ASSIGNMENT_AGE_DAYS} days, marking escalated without email`);
+        await updateLeadAssignment(assignment.id, {
+          status: "escalated",
+          escalatedAt: new Date(),
+          escalationReason: `Auto-escalated without email — assignment older than ${MAX_ASSIGNMENT_AGE_DAYS} days`,
+        });
+        continue;
+      }
+
       try {
         await updateLeadAssignment(assignment.id, {
           status: "escalated",
