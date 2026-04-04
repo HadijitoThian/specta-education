@@ -162,116 +162,96 @@ async function assignUnassignedLeads(): Promise<{ assigned: number; errors: numb
       }
     }
 
-    // Source 1: Chatbot leads
-    const chatbotLeads = await getAllLeads();
+    // Source 1: Chatbot leads (only unassigned ones)
+    const { getUnassignedLeads, markLeadAsAssigned } = await import("./db");
+    const chatbotLeads = await getUnassignedLeads();
     for (const lead of chatbotLeads) {
-      if (lead.status === "new" || !lead.assignedTo) {
-        const existing = await getLeadAssignmentByLeadId(lead.id, "chatbot");
-        if (!existing) {
-          const counselor = pickCounselor(counselors, counselorWorkload);
-          if (counselor) {
-            try {
-              const chatbotAssignment = await createLeadAssignment({
-                leadId: lead.id,
-                leadSource: "chatbot",
-                counselorId: counselor.id,
-                counselorName: counselor.name,
-                counselorEmail: counselor.email,
-                studentName: lead.studentName || "Unknown Student",
-                studentEmail: lead.studentEmail || undefined,
-                studentPhone: lead.studentPhone || undefined,
-                preferredCountry: lead.preferredCountry || undefined,
-                status: "assigned",
-                priority: determinePriority(lead),
-                nextFollowUpAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h
-              });
-              counselorWorkload[counselor.email] = (counselorWorkload[counselor.email] || 0) + 1;
-              assigned++;
-
-              // Create follow-up schedule with real assignment ID so orphan guard works correctly
-              await createFollowUpSchedule(chatbotAssignment?.id ?? 0, counselor, lead.studentName || "Student", lead.studentEmail, lead.studentPhone, lead.preferredCountry);
-
-              // Notify admin about new assignment
-              await sendAdminAssignmentNotification({
-                studentName: lead.studentName || "Unknown Student",
-                studentEmail: lead.studentEmail || "N/A",
-                studentPhone: lead.studentPhone || "N/A",
-                preferredCountry: lead.preferredCountry || "Not specified",
-                counselorName: counselor.name,
-                counselorEmail: counselor.email,
-                leadSource: "Chatbot",
-                priority: determinePriority(lead),
-              });
-            } catch (err) {
-              console.error(`[CRM Agent] Failed to assign lead ${lead.id}:`, err);
-              errors++;
-            }
-          }
-        }
-      }
-    }
-
-    // Source 2: Scholarship leads
-    const scholarshipLeads = await getAllScholarshipLeads();
-    for (const lead of scholarshipLeads) {
-      if (lead.status === "new") {
-        const existing = await getLeadAssignmentByLeadId(lead.id, "scholarship");
-        if (!existing) {
-          const counselor = pickCounselor(counselors, counselorWorkload);
-          if (counselor) {
-            try {
-              const scholarshipAssignment = await createLeadAssignment({
-                leadId: lead.id,
-                leadSource: "scholarship",
-                counselorId: counselor.id,
-                counselorName: counselor.name,
-                counselorEmail: counselor.email,
-                studentName: lead.studentName,
-                studentEmail: lead.studentEmail,
-                studentPhone: lead.studentPhone,
-                status: "assigned",
-                priority: "high", // scholarship leads are high priority
-                nextFollowUpAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-              });
-              counselorWorkload[counselor.email] = (counselorWorkload[counselor.email] || 0) + 1;
-              assigned++;
-
-              await createFollowUpSchedule(scholarshipAssignment?.id ?? 0, counselor, lead.studentName, lead.studentEmail, lead.studentPhone);
-
-              // Notify admin about new assignment
-              await sendAdminAssignmentNotification({
-                studentName: lead.studentName,
-                studentEmail: lead.studentEmail || "N/A",
-                studentPhone: lead.studentPhone || "N/A",
-                preferredCountry: "Scholarship Interest",
-                counselorName: counselor.name,
-                counselorEmail: counselor.email,
-                leadSource: "Scholarship Form",
-                priority: "high",
-              });
-            } catch (err) {
-              console.error(`[CRM Agent] Failed to assign scholarship lead ${lead.id}:`, err);
-              errors++;
-            }
-          }
-        }
-      }
-    }
-
-    // Source 3: Aptitude test leads (students who completed the test)
-    const { getAllAptitudeResults } = await import("./db");
-    const aptitudeResults = await getAllAptitudeResults();
-
-    for (const result of aptitudeResults) {
-      if (!result.studentEmail) continue;
-
-      // Use DB check (same as chatbot/scholarship) to prevent duplicates across runs
-      const existingAptitude = await getLeadAssignmentByLeadId(result.id, "aptitude_test");
-      if (existingAptitude) continue;
-
       const counselor = pickCounselor(counselors, counselorWorkload);
       if (!counselor) break;
+      try {
+        const chatbotAssignment = await createLeadAssignment({
+          leadId: lead.id,
+          leadSource: "chatbot",
+          counselorId: counselor.id,
+          counselorName: counselor.name,
+          counselorEmail: counselor.email,
+          studentName: lead.studentName || "Unknown Student",
+          studentEmail: lead.studentEmail || undefined,
+          studentPhone: lead.studentPhone || undefined,
+          preferredCountry: lead.preferredCountry || undefined,
+          status: "assigned",
+          priority: determinePriority(lead),
+          nextFollowUpAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        });
+        // Mark as assigned immediately so it is never re-processed even if lead_assignments is cleared
+        await markLeadAsAssigned(lead.id);
+        counselorWorkload[counselor.email] = (counselorWorkload[counselor.email] || 0) + 1;
+        assigned++;
+        await createFollowUpSchedule(chatbotAssignment?.id ?? 0, counselor, lead.studentName || "Student", lead.studentEmail, lead.studentPhone, lead.preferredCountry);
+        await sendAdminAssignmentNotification({
+          studentName: lead.studentName || "Unknown Student",
+          studentEmail: lead.studentEmail || "N/A",
+          studentPhone: lead.studentPhone || "N/A",
+          preferredCountry: lead.preferredCountry || "Not specified",
+          counselorName: counselor.name,
+          counselorEmail: counselor.email,
+          leadSource: "Chatbot",
+          priority: determinePriority(lead),
+        });
+      } catch (err) {
+        console.error("[CRM Agent] Failed to assign lead " + lead.id + ":", err);
+        errors++;
+      }
+    }
 
+      // Source 2: Scholarship leads
+    const { getUnassignedScholarshipLeads, markScholarshipAsAssigned } = await import("./db");
+    const scholarshipLeads = await getUnassignedScholarshipLeads();
+    for (const lead of scholarshipLeads) {
+      const counselor = pickCounselor(counselors, counselorWorkload);
+      if (!counselor) break;
+      try {
+        const scholarshipAssignment = await createLeadAssignment({
+          leadId: lead.id,
+          leadSource: "scholarship",
+          counselorId: counselor.id,
+          counselorName: counselor.name,
+          counselorEmail: counselor.email,
+          studentName: lead.studentName,
+          studentEmail: lead.studentEmail,
+          studentPhone: lead.studentPhone,
+          status: "assigned",
+          priority: "high",
+          nextFollowUpAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        });
+        // Mark as assigned immediately so it's never re-processed even if lead_assignments is cleared
+        await markScholarshipAsAssigned(lead.id);
+        counselorWorkload[counselor.email] = (counselorWorkload[counselor.email] || 0) + 1;
+        assigned++;
+        await createFollowUpSchedule(scholarshipAssignment?.id ?? 0, counselor, lead.studentName, lead.studentEmail, lead.studentPhone);
+        await sendAdminAssignmentNotification({
+          studentName: lead.studentName,
+          studentEmail: lead.studentEmail || "N/A",
+          studentPhone: lead.studentPhone || "N/A",
+          preferredCountry: "Scholarship Interest",
+          counselorName: counselor.name,
+          counselorEmail: counselor.email,
+          leadSource: "Scholarship Form",
+          priority: "high",
+        });
+      } catch (err) {
+        console.error(`[CRM Agent] Failed to assign scholarship lead ${lead.id}:`, err);
+        errors++;
+      }
+    }
+
+        // Source 3: Aptitude test leads (students who completed the test)
+    const { getUnassignedAptitudeResults, markAptitudeAsAssigned } = await import("./db");
+    const aptitudeResults = await getUnassignedAptitudeResults();
+    for (const result of aptitudeResults) {
+      if (!result.studentEmail) continue;
+      const counselor = pickCounselor(counselors, counselorWorkload);
+      if (!counselor) break;
       try {
         const aptitudeAssignment = await createLeadAssignment({
           leadId: result.id,
@@ -286,11 +266,11 @@ async function assignUnassignedLeads(): Promise<{ assigned: number; errors: numb
           priority: "medium",
           nextFollowUpAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         });
+        // Mark as assigned immediately so it's never re-processed even if lead_assignments is cleared
+        await markAptitudeAsAssigned(result.id);
         counselorWorkload[counselor.email] = (counselorWorkload[counselor.email] || 0) + 1;
         assigned++;
-
         await createFollowUpSchedule(aptitudeAssignment?.id ?? 0, counselor, result.studentName || "Student", result.studentEmail, result.studentPhone);
-
         await sendAdminAssignmentNotification({
           studentName: result.studentName || "Unknown",
           studentEmail: result.studentEmail,

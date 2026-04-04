@@ -78,6 +78,7 @@ export const leads = mysqlTable("leads", {
   chatTranscript: text("chatTranscript"),
   source: varchar("source", { length: 50 }).default("chatbot"),
   isAnonymous: boolean("isAnonymous").default(false),
+  isAssigned: int("isAssigned").default(0).notNull(), // 1 = already assigned to counselor, prevents re-processing
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -308,12 +309,12 @@ export const scholarshipLeads = mysqlTable("scholarshipLeads", {
   scholarshipInterest: varchar("scholarshipInterest", { length: 100 }).notNull(), // china, mila_malaysia, lpdp, not_sure
   ieltsStatus: varchar("ieltsStatus", { length: 50 }).notNull(), // yes, not_yet, planning
   ieltsScore: varchar("ieltsScore", { length: 10 }), // optional, e.g. "6.5"
-  status: mysqlEnum("status", ["new", "contacted", "qualified", "converted", "closed"]).default("new").notNull(),
+   status: mysqlEnum("status", ["new", "contacted", "qualified", "converted", "closed"]).default("new").notNull(),
   adminNotes: text("adminNotes"),
+  isAssigned: int("isAssigned").default(0).notNull(), // 1 = already assigned to counselor, prevents re-processing
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
-
 export type ScholarshipLead = typeof scholarshipLeads.$inferSelect;
 export type InsertScholarshipLead = typeof scholarshipLeads.$inferInsert;
 
@@ -428,6 +429,7 @@ export const aptitudeResults = mysqlTable("aptitudeResults", {
   parentSummary: text("parentSummary"), // Parent-friendly explanation
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   nurtureEmailSent: int("nurtureEmailSent").default(0),
+  isAssigned: int("isAssigned").default(0).notNull(), // 1 = already assigned to counselor, prevents re-processing on agent cycles
 });
 
 export type AptitudeResult = typeof aptitudeResults.$inferSelect;

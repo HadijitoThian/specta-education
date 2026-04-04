@@ -278,6 +278,27 @@ export async function getAllLeads(): Promise<Lead[]> {
   return await db.select().from(leads).orderBy(desc(leads.createdAt));
 }
 
+/**
+ * Returns only leads that have NOT yet been assigned to a counselor.
+ * Used by the CRM agent to prevent re-processing already-assigned leads.
+ */
+export async function getUnassignedLeads(): Promise<Lead[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(leads)
+    .where(eq(leads.isAssigned, 0))
+    .orderBy(desc(leads.createdAt));
+}
+
+/**
+ * Mark a lead as assigned so the CRM agent never re-processes it.
+ */
+export async function markLeadAsAssigned(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(leads).set({ isAssigned: 1 }).where(eq(leads.id, id));
+}
+
 export async function getLeadById(id: number): Promise<Lead | null> {
   const db = await getDb();
   if (!db) return null;
@@ -636,8 +657,28 @@ export async function createScholarshipLead(data: InsertScholarshipLead): Promis
 export async function getAllScholarshipLeads(): Promise<ScholarshipLead[]> {
   const db = await getDb();
   if (!db) return [];
-
   return db.select().from(scholarshipLeads).orderBy(desc(scholarshipLeads.createdAt));
+}
+
+/**
+ * Returns only scholarship leads that have NOT yet been assigned to a counselor.
+ * Used by the CRM agent to prevent re-processing already-assigned leads.
+ */
+export async function getUnassignedScholarshipLeads(): Promise<ScholarshipLead[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(scholarshipLeads)
+    .where(eq(scholarshipLeads.isAssigned, 0))
+    .orderBy(desc(scholarshipLeads.createdAt));
+}
+
+/**
+ * Mark a scholarship lead as assigned so the CRM agent never re-processes it.
+ */
+export async function markScholarshipAsAssigned(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(scholarshipLeads).set({ isAssigned: 1 }).where(eq(scholarshipLeads.id, id));
 }
 
 export async function updateScholarshipLead(id: number, data: Partial<InsertScholarshipLead>): Promise<void> {
@@ -876,6 +917,27 @@ export async function getAllAptitudeResults(): Promise<AptitudeResult[]> {
   const db = await getDb();
   if (!db) return [];
   return await db.select().from(aptitudeResults).orderBy(desc(aptitudeResults.createdAt));
+}
+
+/**
+ * Returns only aptitude results that have NOT yet been assigned to a counselor.
+ * Used by the CRM agent to prevent re-processing already-assigned results.
+ */
+export async function getUnassignedAptitudeResults(): Promise<AptitudeResult[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(aptitudeResults)
+    .where(eq(aptitudeResults.isAssigned, 0))
+    .orderBy(desc(aptitudeResults.createdAt));
+}
+
+/**
+ * Mark an aptitude result as assigned so the CRM agent never re-processes it.
+ */
+export async function markAptitudeAsAssigned(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(aptitudeResults).set({ isAssigned: 1 }).where(eq(aptitudeResults.id, id));
 }
 
 // ==========================================

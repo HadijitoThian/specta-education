@@ -1,0 +1,1 @@
+ALTER TABLE `leads` ADD `isAssigned` int DEFAULT 0 NOT NULL;
