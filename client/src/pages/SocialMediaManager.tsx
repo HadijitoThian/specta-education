@@ -33,14 +33,16 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const TONES = ["professional", "casual", "inspirational", "urgent", "friendly", "educational"];
-const CONTENT_TYPES = [
-  { value: "scholarship_alert", label: "Scholarship Alert" },
-  { value: "student_success", label: "Student Success Story" },
-  { value: "university_spotlight", label: "University Spotlight" },
-  { value: "tips_advice", label: "Study Abroad Tips" },
-  { value: "event_promo", label: "Event Promotion" },
-  { value: "general_promo", label: "General Promotion" },
+const POST_CATEGORIES = [
+  { value: "ielts_prep", label: "🎓 IELTS Preparation" },
+  { value: "scholarship_alert", label: "🏆 Scholarship Alert" },
+  { value: "student_success", label: "⭐ Student Success Story" },
+  { value: "university_spotlight", label: "🏛️ University Spotlight" },
+  { value: "tips_advice", label: "💡 Study Abroad Tips" },
+  { value: "event_promo", label: "📅 Event Promotion" },
+  { value: "general_promo", label: "📢 General Promotion" },
 ];
+const CONTENT_TYPES = POST_CATEGORIES;
 
 export default function SocialMediaManager() {
   const [activeTab, setActiveTab] = useState<"create" | "scheduled" | "history" | "accounts" | "chat">("create");
@@ -50,6 +52,7 @@ export default function SocialMediaManager() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<Array<"instagram" | "facebook" | "tiktok">>(["instagram", "facebook"]);
   const [tone, setTone] = useState("professional");
   const [contentType, setContentType] = useState<"image" | "reel" | "text">("image");
+  const [postCategory, setPostCategory] = useState("general_promo");
   const [generatedCaption, setGeneratedCaption] = useState("");
   const [generatedHashtags, setGeneratedHashtags] = useState("");
   const [generatedImageUrl, setGeneratedImageUrl] = useState("");
@@ -134,7 +137,7 @@ export default function SocialMediaManager() {
     if (!brief.trim()) { toast.error("Please enter a brief first"); return; }
     setGeneratingImage(true);
     generateImageMutation.mutate(
-      { brief },
+      { brief, postCategory, tone },
       { onSettled: () => setGeneratingImage(false) }
     );
   };
@@ -258,17 +261,18 @@ export default function SocialMediaManager() {
                     />
                   </div>
 
-                  {/* Content Type */}
+                  {/* Post Category — drives AI image design style */}
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Content Type</label>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">Post Category</label>
+                    <p className="text-xs text-gray-400 mb-2">The AI designer uses this to craft the perfect visual style & marketing copy</p>
                     <div className="grid grid-cols-2 gap-2">
-                      {CONTENT_TYPES.map(ct => (
+                      {POST_CATEGORIES.map(ct => (
                         <button
                           key={ct.value}
-                          onClick={() => setContentType(ct.value as "image" | "reel" | "text")}
+                          onClick={() => setPostCategory(ct.value)}
                           className={`text-xs px-3 py-2 rounded-lg border transition-colors text-left ${
-                            contentType === ct.value
-                              ? "border-red-500 bg-red-50 text-red-700"
+                            postCategory === ct.value
+                              ? "border-red-500 bg-red-50 text-red-700 font-semibold"
                               : "border-gray-200 hover:border-gray-300 text-gray-600"
                           }`}
                         >
