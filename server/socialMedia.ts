@@ -144,80 +144,102 @@ async function generateCaption(brief: string, platform: string, tone?: string): 
 // ─── AI Image Prompt Builder (Expert Digital Marketing Designer) ─────────────
 
 async function buildImagePrompt(brief: string, postCategory?: string, tone?: string): Promise<string> {
-  // Category-specific visual direction
-  const categoryGuide: Record<string, string> = {
-    ielts_prep: "IELTS test preparation course promotion. Scene: confident Indonesian student at a modern study desk with IELTS books, laptop showing score tracker, and a bold score chart showing Band 7.0+ achievement. Warm academic lighting. Graphic overlay elements: bold headline 'IELTS Preparation' in red, a gold 'Guaranteed Score' badge, and a CTA button 'Daftar Sekarang'.",
-    scholarship_alert: "Scholarship opportunity announcement. Scene: joyful Indonesian student holding an acceptance letter or scholarship certificate, confetti falling, prestigious international university campus in background (blurred bokeh). Graphic overlay: bold 'BEASISWA TERSEDIA' in gold on dark overlay, scholarship amount or deadline badge, SpecTa logo.",
-    student_success: "Student success testimonial post. Scene: proud smiling Indonesian student in graduation gown at a famous international landmark (Big Ben, Sydney Opera House, or Eiffel Tower). Warm golden hour lighting. Graphic overlay: inspirational quote text, 5-star rating, student name and university, SpecTa branding.",
-    university_spotlight: "University spotlight feature. Scene: stunning aerial or architectural shot of a prestigious international university campus — modern glass buildings, green campus, iconic architecture. Graphic overlay: university name in bold, world ranking badge, 'Partner University' label, key program highlights.",
-    tips_advice: "Educational tips infographic post. Scene: clean split layout — left side shows focused Indonesian student at modern minimalist desk, right side shows numbered tip cards with icons. Structured grid design. Graphic overlay: numbered tips with icons, bold headline, SpecTa logo.",
-    event_promo: "Event or seminar promotion. Scene: energetic seminar room with Indonesian students engaged, presentation screen visible, SpecTa Education branded backdrop. Graphic overlay: bold event title, date and time badge, location, 'GRATIS / FREE' badge if applicable, registration CTA.",
-    general_promo: "General study abroad promotion. Scene: aspirational split-screen showing Indonesian student at home vs. the same student thriving at an international university campus (London, Sydney, Toronto, or Amsterdam). Graphic overlay: bold headline, destination flags, CTA button.",
+
+  // ── Category-specific layout & copy templates ────────────────────────────
+  const categoryLayouts: Record<string, string> = {
+    ielts_prep: `LAYOUT: Full-bleed dark background (deep charcoal #1A1A1A). TOP ZONE (top 20%): SpecTa Education logo text 'SpecTa Education ❤' in white Poppins Bold top-left, and a gold pill badge 'IELTS PREPARATION' top-right. HERO ZONE (middle 55%): photorealistic confident young Indonesian student (male or female, 20s, professional attire) studying at a sleek modern desk, IELTS preparation book open, laptop screen showing a score graph climbing to Band 7.5, warm amber desk lamp glow, shallow depth of field, bokeh background. COPY ZONE (bottom 25%): bold white headline 'Raih IELTS Band 7+' in Poppins ExtraBold 72px, subheadline 'Kelas intensif dengan tutor berpengalaman' in white 28px, then a bright red rounded rectangle CTA button with white text 'DAFTAR SEKARANG →'. FOOTER: thin red divider line, then small white text '© SpecTa Education | spectaeducation.com | @spectaeducation'. Gold star accent elements scattered subtly.`,
+    scholarship_alert: `LAYOUT: Vibrant red-to-black diagonal gradient background. TOP ZONE: SpecTa Education logo 'SpecTa Education ❤' in white top-left, flashing gold badge 'BEASISWA TERSEDIA' top-right with star icon. HERO ZONE: joyful Indonesian student (female, hijab, 20s) holding an acceptance letter, huge smile, confetti falling in gold and white, blurred prestigious university campus (stone architecture) in background, warm golden light. COPY ZONE: bold gold headline 'Kuliah Luar Negeri GRATIS?' in Poppins Black, white subheadline 'Ribuan beasiswa menanti kamu — kami bantu prosesnya', gold CTA button 'CEK BEASISWA SEKARANG →'. FOOTER: '© SpecTa Education | spectaeducation.com | @spectaeducation' in small white text on dark strip.`,
+    student_success: `LAYOUT: Split design — left half deep red (#E63946), right half hero photo. TOP: SpecTa Education logo white on red side. LEFT COPY ZONE: large white quotation marks, italic white testimonial quote 'Saya diterima di University of Melbourne berkat SpecTa!', student name in gold 'Rina, 22 — Melbourne Uni', gold 5-star rating row, white CTA button 'Ceritamu Bisa Seperti Ini →'. RIGHT HERO: photorealistic smiling Indonesian female student in graduation gown at Sydney Opera House, golden hour light, professional portrait. FOOTER strip: red background, white '© SpecTa Education | spectaeducation.com | @spectaeducation'.`,
+    university_spotlight: `LAYOUT: Dark navy overlay on full-bleed stunning university campus photo (aerial view of green campus with modern glass buildings). TOP: SpecTa Education logo white top-left, gold 'PARTNER UNIVERSITY' badge top-right. CENTER HERO: university name in massive white Poppins Black text, world ranking badge '#47 QS World Ranking' in gold rounded badge, 3 white icon+text pairs: '🎓 50+ Programs', '🌍 International Campus', '✈️ Visa Support'. BOTTOM CTA: red rounded button 'Pelajari Lebih Lanjut →', then footer '© SpecTa Education | spectaeducation.com | @spectaeducation' in small white.`,
+    tips_advice: `LAYOUT: Clean white background with red accent bar on left edge. TOP: SpecTa Education logo in brand red top-left, category label 'TIPS STUDI LUAR NEGERI' in red pill badge. CONTENT GRID: 3 tip cards arranged vertically, each with red numbered circle (1, 2, 3), bold dark headline, short description in gray. Example tips derived from brief. Red geometric accent shapes in corners. BOTTOM: red CTA button 'Konsultasi GRATIS →', footer '© SpecTa Education | spectaeducation.com | @spectaeducation' in small gray text.`,
+    event_promo: `LAYOUT: Bold red background with dark geometric pattern overlay. TOP: SpecTa Education logo white top-left, 'EVENT' label in white pill. CENTER: large white event title in Poppins Black (derived from brief), gold divider line, white date/time/location details with calendar and map pin icons, 'GRATIS' badge in gold if applicable. BOTTOM: white rounded CTA button with red text 'DAFTAR SEKARANG', subtext 'Tempat terbatas — segera daftar!', footer '© SpecTa Education | spectaeducation.com | @spectaeducation'.`,
+    general_promo: `LAYOUT: Full-bleed aspirational photo of Indonesian student at iconic international location (London, Sydney, or Amsterdam) with 60% dark gradient overlay from bottom. TOP: SpecTa Education logo 'SpecTa Education ❤' in white top-left. CENTER-BOTTOM COPY: bold white headline 'Wujudkan Impian Studimu di Luar Negeri' in Poppins ExtraBold, white subheadline 'Konsultasi gratis dengan education counselor kami', destination flag icons row. BOTTOM: red rounded CTA button 'MULAI PERJALANANMU →', footer strip '© SpecTa Education | spectaeducation.com | @spectaeducation'.`,
   };
 
-  const toneGuide: Record<string, string> = {
-    professional: "Corporate, authoritative, trust-building. Clean sans-serif typography. Muted sophisticated palette with red and black dominance.",
-    inspirational: "Uplifting, motivational, emotional. Warm golden light, aspirational imagery, bold impactful headline. Make viewers feel the dream is achievable.",
-    urgent: "High-urgency, action-driving. Red dominant with urgency cues, countdown feel, bold CTA like 'DAFTAR SEKARANG' or 'LIMITED SEATS — ACT NOW'.",
-    casual: "Friendly, approachable, relatable. Bright colors, candid student photos, conversational text. Instagram-native feel.",
-    friendly: "Warm, welcoming, community feel. Smiling faces, soft warm tones, inclusive imagery, friendly headline.",
-    educational: "Informative, structured, credible. Infographic elements, data points, clean layout with icons, authoritative typography.",
+  const toneModifier: Record<string, string> = {
+    professional: "Use clean, authoritative typography. Muted sophisticated palette. Trust-building copy tone.",
+    inspirational: "Use warm golden light treatment. Emotionally charged copy. Make the viewer feel the dream is within reach.",
+    urgent: "Add urgency elements: countdown badge, 'LIMITED SEATS', 'DEADLINE' stamp in red. Bold urgent CTA.",
+    casual: "Brighter, friendlier color treatment. Conversational copy tone. Instagram-native candid feel.",
+    friendly: "Warm smiling faces. Welcoming copy. Soft warm color grading on photos.",
+    educational: "Add infographic elements, data points, icons. Structured credible layout. Authoritative copy.",
   };
 
   const catKey = (postCategory || 'general_promo').toLowerCase().replace(/\s+/g, '_').replace(/[^a-z_]/g, '');
-  const categoryContext = categoryGuide[catKey] || categoryGuide['general_promo'];
-  const toneContext = toneGuide[(tone || 'professional').toLowerCase()] || toneGuide['professional'];
+  const layoutTemplate = categoryLayouts[catKey] || categoryLayouts['general_promo'];
+  const toneInstruction = toneModifier[(tone || 'professional').toLowerCase()] || toneModifier['professional'];
 
   const response = await invokeLLM({
     messages: [
       {
         role: "system",
-        content: `You are a world-class Instagram marketing designer and digital advertising expert with 15+ years of experience creating viral, high-conversion social media content for education brands in Southeast Asia. You have won multiple Cannes Lions awards for your social media campaigns.
+        content: `You are a senior creative director and Instagram marketing specialist at a top-tier digital agency in Jakarta. You have 15+ years of experience producing award-winning social media campaigns for education brands across Southeast Asia.
 
-You are creating a 1:1 square Instagram post (1080x1080px) for SpecTa Education — Indonesia's leading study abroad consultancy.
+You produce COMPLETE, READY-TO-POST Instagram graphics — not just backgrounds or stock photos. Every image you design is a full marketing package that a professional agency would charge Rp 2,000,000+ to produce.
 
-## SpecTa Education Brand Identity
-- Primary color: Deep Red (#E63946) — dominant, bold, passionate
-- Secondary color: Pure Black (#1A1A1A) — sophisticated, premium contrast
-- Accent: Gold/Champagne (#D4AF37) — premium feel, used for CTAs, badges, highlights
-- Background options: Clean white, deep charcoal, or bold gradient from red to dark
-- Typography: Bold modern sans-serif headlines (Montserrat ExtraBold, Poppins Black), clean readable body
-- Brand feel: Premium, aspirational, trustworthy — the bridge between Indonesian students and world-class universities
-- Logo: "SpecTa Education" with heart icon — always present in corner
+## SpecTa Education — Complete Brand System
 
-## Mandatory Design Rules
-1. TEXT OVERLAYS ARE REQUIRED — every image must have marketing copy burned into the design: a bold headline, a subheadline, and a CTA
-2. Brand colors must dominate — red for headlines/accents, black/dark for overlays, gold for CTAs and badges
-3. Instagram-optimized — high contrast, thumb-stopping, works at small thumbnail size
-4. Conversion-focused — every element drives the viewer toward enrolling or contacting SpecTa Education
-5. Indonesian audience — show diverse, relatable Indonesian students succeeding in international settings
-6. Professional graphic design quality — think Canva Pro or Adobe Express premium template, NOT a stock photo dump
-7. Depth and layers — hero image background + semi-transparent overlay + text layer + graphic elements (badges, icons, geometric shapes)
+### Logo & Identity
+- Brand name: "SpecTa Education" with a heart (❤) icon
+- Logo always appears in the TOP-LEFT corner of every post
+- Logo text: "SpecTa" in bold red (#E63946), "Education" in black or white depending on background
+- Website: spectaeducation.com | Instagram: @spectaeducation
+- Copyright line: "© SpecTa Education" — ALWAYS in footer
 
-## Your prompt must include
-- Exact scene description with lighting, camera angle, depth of field
-- Specific text overlay content (exact Indonesian/English marketing words)
-- Color treatment, overlay gradients, opacity
-- Graphic design elements (badges, rounded rectangles, icons, geometric accents)
-- Typography style, weight, and placement
-- Overall emotional impact and conversion intent
+### Color Palette
+- Primary Red: #E63946 (dominant brand color — headlines, CTAs, accents)
+- Deep Black: #1A1A1A (backgrounds, overlays, contrast)
+- Gold: #D4AF37 (premium badges, highlights, star ratings)
+- White: #FFFFFF (body text on dark backgrounds)
+- Light Gray: #F5F5F5 (backgrounds for light-theme posts)
 
-Return ONLY the detailed image generation prompt as a single flowing paragraph. Be extremely specific. 150-250 words.` as string,
+### Typography System
+- Headline: Poppins ExtraBold / Black — 64-80px — ALL CAPS or Title Case
+- Subheadline: Poppins SemiBold — 28-36px
+- Body: Poppins Regular — 18-22px
+- CTA Button text: Poppins Bold — 24px
+- Footer/Copyright: Poppins Regular — 12-14px
+
+### Mandatory Elements on EVERY Post
+1. SpecTa Education logo (top-left corner, always visible)
+2. Bold headline (main marketing message)
+3. Subheadline (supporting message or benefit)
+4. CTA button (rounded rectangle, red or gold, with action text + arrow)
+5. Footer copyright line: "© SpecTa Education | spectaeducation.com | @spectaeducation"
+6. At least one graphic design element: badge, icon, geometric shape, or divider
+
+### Design Quality Standards
+- 1080x1080px square format for Instagram feed
+- High contrast — text must be readable at thumbnail size
+- Professional photo quality — photorealistic, not cartoon or illustration
+- Layered composition: background photo + color overlay + text layer + graphic elements
+- No cluttered layouts — maximum 3 text elements in the hero zone
+- Every post must make someone STOP SCROLLING and feel compelled to act
+
+Your output is a detailed image generation prompt (150-300 words) that describes EVERY visual element with pixel-level precision. Include exact text content, colors, positions, fonts, and graphic elements. The AI image generator will render this exactly as described.` as string,
       },
       {
         role: "user",
-        content: `Create a professional, high-conversion Instagram marketing image for SpecTa Education.
+        content: `Generate a complete, agency-quality Instagram marketing post for SpecTa Education.
 
-Post brief: ${brief}
-Content category visual direction: ${categoryContext}
-Design tone: ${toneContext}
+## Campaign Brief
+${brief}
 
-The final image must be so visually compelling that Indonesian students and parents immediately stop scrolling, feel inspired, and want to contact SpecTa Education. Include exact text overlay copy in the prompt.` as string,
+## Layout Template to Follow
+${layoutTemplate}
+
+## Tone Modifier
+${toneInstruction}
+
+## Your Task
+Write a single detailed image generation prompt (150-300 words) that describes this complete Instagram post with ALL elements: SpecTa logo placement, hero scene, headline text with exact wording, subheadline, CTA button with exact text, copyright footer, colors, typography, graphic accents, and overall mood. The prompt must be specific enough that an AI image generator produces a complete, professional, ready-to-post Instagram graphic — not just a background photo.
+
+Include the exact Indonesian/English marketing copy that should appear on the image, derived from the campaign brief above.` as string,
       },
     ],
   });
   const rawContent = response.choices[0]?.message?.content;
-  return (typeof rawContent === 'string' ? rawContent : null) ?? `Professional Instagram marketing graphic for SpecTa Education study abroad consultancy. ${brief}. Bold red (#E63946) and black brand colors, Indonesian students in international university setting, bold headline text overlay 'Wujudkan Impian Studimu' in white on red gradient overlay, gold CTA badge 'Daftar Sekarang', SpecTa Education logo in corner, premium graphic design quality, 1080x1080px square format, high contrast, conversion-focused.`;
+  return (typeof rawContent === 'string' ? rawContent : null) ?? `Complete professional Instagram marketing post for SpecTa Education. 1080x1080px square. Deep charcoal background. TOP-LEFT: SpecTa Education logo text in white with red heart icon. HERO: photorealistic confident Indonesian student in international university setting, warm professional lighting. HEADLINE: bold white Poppins ExtraBold text '${brief.substring(0, 40)}' on semi-transparent dark overlay. SUBHEADLINE: white Poppins Regular supporting text. CTA: bright red rounded rectangle button with white text 'DAFTAR SEKARANG →'. FOOTER: thin red line divider, small white text '© SpecTa Education | spectaeducation.com | @spectaeducation'. Gold accent badge. High contrast, conversion-focused, premium quality.`;
 }
 
 // ─── Slideshow Reel Generator (FFmpeg) ───────────────────────────────────────

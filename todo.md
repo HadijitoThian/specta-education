@@ -1727,3 +1727,4 @@
 - [x] Frontend: Manual override controls (pause/scale/resume any ad)
 - [x] Scheduled runner: agent runs every 6 hours automatically
 - [x] Add Ads Agent link to Admin Dashboard navigation
+- [x] Rebuild AI image generator as complete agency-level Instagram design package (logo, copy, CTA, copyright, brand system)
