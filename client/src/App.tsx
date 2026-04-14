@@ -36,6 +36,7 @@ import Simulator from "./pages/Simulator";
 import SimulatorExperience from "./pages/SimulatorExperience";
 import SimulatorReport from "./pages/SimulatorReport";
 import AgentCommandCenter from "./pages/AgentCommandCenter";
+import SocialMediaManager from "./pages/SocialMediaManager";
 import CounselorCRM from "./pages/CounselorCRM";
 import StudentProfile360 from "./pages/StudentProfile360";
 import TeamChat from "./pages/TeamChat";
@@ -89,6 +90,7 @@ function Router() {
       <Route path={"/student/dashboard"} component={StudentPortalDashboard} />
       <Route path={"/admin"} component={AdminDashboard} />
       <Route path={"/admin/agents"} component={AgentCommandCenter} />
+      <Route path={"/admin/social-media"} component={SocialMediaManager} />
       <Route path={"/blog"} component={Blog} />
       <Route path={"/blog/:slug"} component={BlogPost} />
       <Route path={"/simulator"} component={Simulator} />

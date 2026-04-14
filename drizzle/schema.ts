@@ -1796,3 +1796,65 @@ export const studentNotifications = mysqlTable("student_notifications", {
 });
 export type StudentNotification = typeof studentNotifications.$inferSelect;
 export type InsertStudentNotification = typeof studentNotifications.$inferInsert;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Social Media Manager
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Social Media Connected Accounts — stores Meta/TikTok page tokens
+ */
+export const socialMediaAccounts = mysqlTable("social_media_accounts", {
+  id: int("id").autoincrement().primaryKey(),
+  platform: mysqlEnum("platform", ["facebook", "instagram", "tiktok"]).notNull(),
+  accountName: varchar("accountName", { length: 255 }).notNull(),
+  accountId: varchar("accountId", { length: 255 }).notNull(),
+  accessToken: text("accessToken"),
+  tokenExpiresAt: timestamp("tokenExpiresAt"),
+  isActive: tinyint("isActive").default(1).notNull(),
+  connectedBy: varchar("connectedBy", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type SocialMediaAccount = typeof socialMediaAccounts.$inferSelect;
+export type InsertSocialMediaAccount = typeof socialMediaAccounts.$inferInsert;
+
+/**
+ * Social Media Posts — stores all created/scheduled/published posts
+ */
+export const socialMediaPosts = mysqlTable("social_media_posts", {
+  id: int("id").autoincrement().primaryKey(),
+  brief: text("brief").notNull(),
+  caption: text("caption").notNull(),
+  imageUrl: text("imageUrl"),
+  videoUrl: text("videoUrl"),
+  platforms: varchar("platforms", { length: 255 }).notNull(),
+  status: mysqlEnum("status", ["draft", "scheduled", "publishing", "published", "failed"]).default("draft").notNull(),
+  scheduledAt: timestamp("scheduledAt"),
+  publishedAt: timestamp("publishedAt"),
+  facebookPostId: varchar("facebookPostId", { length: 255 }),
+  instagramPostId: varchar("instagramPostId", { length: 255 }),
+  errorMessage: text("errorMessage"),
+  createdBy: varchar("createdBy", { length: 255 }).notNull(),
+  contentType: mysqlEnum("contentType", ["image", "reel", "text"]).default("image").notNull(),
+  hashtags: text("hashtags"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type SocialMediaPost = typeof socialMediaPosts.$inferSelect;
+export type InsertSocialMediaPost = typeof socialMediaPosts.$inferInsert;
+
+/**
+ * Social Media Templates — reusable branded content templates
+ */
+export const socialMediaTemplates = mysqlTable("social_media_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  category: mysqlEnum("category", ["scholarship", "destination", "ielts", "testimonial", "promo", "general"]).notNull(),
+  promptTemplate: text("promptTemplate").notNull(),
+  exampleImageUrl: text("exampleImageUrl"),
+  isActive: tinyint("isActive").default(1).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type SocialMediaTemplate = typeof socialMediaTemplates.$inferSelect;
+export type InsertSocialMediaTemplate = typeof socialMediaTemplates.$inferInsert;

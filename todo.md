@@ -1691,3 +1691,21 @@
 - [ ] Add Document Vault tab (existing docs + upload)
 - [ ] Add Profile Settings tab (avatar upload, bio, intake date)
 - [ ] Add motivational elements (tips, countdown, progress percentage)
+
+## Social Media Manager Module
+- [ ] DB schema: social_media_posts, social_media_accounts, social_media_schedules tables
+- [ ] Backend: AI caption generator (per platform tone)
+- [ ] Backend: AI image generator with SpecTa branded templates
+- [ ] Backend: Slideshow reel (MP4) generator using FFmpeg
+- [ ] Backend: Meta Graph API integration (Facebook + Instagram posting)
+- [ ] Backend: Post scheduler (cron-based)
+- [ ] Backend: Post history with status tracking
+- [ ] Frontend: Social Media Manager page at /crm/social-media
+- [ ] Frontend: Content creator form (brief → AI generates caption + image)
+- [ ] Frontend: Platform selector (Facebook, Instagram, TikTok)
+- [ ] Frontend: Image preview + regenerate
+- [ ] Frontend: Schedule picker (post now or schedule)
+- [ ] Frontend: Post history table with status badges
+- [ ] Frontend: Connect accounts panel (Meta OAuth placeholder)
+- [ ] Route: Add /crm/social-media to App.tsx
+- [ ] Navigation: Add Social Media link to CRM sidebar
