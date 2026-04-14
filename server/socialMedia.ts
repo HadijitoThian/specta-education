@@ -189,9 +189,9 @@ DO NOT replace specific brief details with generic alternatives. The brief overr
 ## SpecTa Education — Complete Brand System
 
 ### Logo & Identity
-- Brand name: "SpecTa Education" with a heart (❤) icon
-- Logo always appears in the TOP-LEFT corner of every post
-- Logo text: "SpecTa" in bold red (#E63946), "Education" in black or white depending on background
+- The OFFICIAL SpecTa Education logo is a hand-lettered script logo: 'SpecTa' in bold red with blue outline, a red heart icon, and 'Education' in blue below it
+- Logo CDN URL (use this exact logo): https://d2xsxph8kpxj0f.cloudfront.net/310519663225686644/HYZQfmGzLP8hwhgd2UnqHZ/specta_logo_official_9fa82bda.jpeg
+- Logo always appears in the TOP-LEFT corner of every post, on a white or semi-transparent white background patch so it is clearly visible
 - Website: spectaeducation.com | Instagram: @spectaeducation
 - Copyright line: "© SpecTa Education" — ALWAYS in footer
 
@@ -208,18 +208,30 @@ DO NOT replace specific brief details with generic alternatives. The brief overr
 - Footer/Copyright: Poppins Regular — 12-14px
 
 ### Mandatory Elements on EVERY Post
-1. SpecTa Education logo text 'SpecTa ❤ Education' in top-left corner (red 'SpecTa', white 'Education' on dark bg)
+1. SpecTa Education official logo in top-left corner on a white/light background patch — the logo has red 'SpecTa' script + red heart + blue 'Education' text
 2. Bold headline — MUST reference specific university/scholarship/country from the brief
 3. Subheadline — supporting benefit or call to action
 4. CTA button (rounded rectangle, red or gold, with action text + arrow '→')
 5. Footer: "© SpecTa Education | spectaeducation.com | @spectaeducation"
 6. At least one badge or graphic accent element
 
+### CRITICAL SPELLING RULES — NEVER MISSPELL THESE
+- CTA text: 'DAFTAR SEKARANG' (NOT 'Daftar Serrang', NOT 'Daftar Sekrang')
+- 'Dapatkan' (NOT 'Datpakan', NOT 'Datpakkan')
+- 'Melalui' (NOT 'Melaluis', NOT 'Melalaui')
+- 'Beasiswa' (NOT 'Beasiswaa', NOT 'Beasiswaa')
+- 'Universitas' (NOT 'Universtas')
+- 'Sekarang' (NOT 'Sekrang', NOT 'Serrang')
+- 'Konsultasi' (NOT 'Konsultasii')
+- Always double-check every Indonesian word before including it
+
 ### Design Quality Standards
 - 1080x1080px square format for Instagram feed
 - High contrast — text must be readable at thumbnail size
 - Photorealistic hero scene — NOT cartoon, NOT illustration
 - Layered: background photo + semi-transparent overlay + text layer + graphic elements
+- Premium agency quality — think top Indonesian digital agency like Narasi or IDN Creative
+- Bold, confident typography with clear visual hierarchy
 - Every post must make someone STOP SCROLLING and feel compelled to enrol
 
 Your output is a detailed image generation prompt (200-300 words) describing EVERY visual element with precision. The AI image generator will render exactly what you describe.` as string,
@@ -415,9 +427,41 @@ export const socialMediaRouter = router({
       tone: z.string().optional(),
     }))
     .mutation(async ({ input }) => {
-      const prompt = await buildImagePrompt(input.brief, input.postCategory, input.tone);
-      const { url } = await generateImage({ prompt });
-      return { url, prompt };
+      // Step 1: Build the detailed design prompt
+      const rawPrompt = await buildImagePrompt(input.brief, input.postCategory, input.tone);
+
+      // Step 2: Run a spelling & grammar correction pass on all Indonesian/English text in the prompt
+      const correctionResponse = await invokeLLM({
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert Indonesian and English proofreader. Your job is to correct ALL spelling and grammar errors in image generation prompts for SpecTa Education Instagram posts.
+
+Common errors to fix:
+- 'Datpakan' → 'Dapatkan'
+- 'Melaluis' → 'Melalui'
+- 'Daftar Serrang' → 'Daftar Sekarang'
+- 'Beasiswa' → 'Beasiswa'
+- 'Universtas' → 'Universitas'
+- Any doubled letters or missing letters in Indonesian words
+- Any misspelled English words
+
+Return ONLY the corrected prompt text, with no explanations or comments. Do not change the design instructions, only fix spelling/grammar errors in the text overlay content.`,
+          },
+          {
+            role: "user",
+            content: `Please proofread and correct all spelling errors in this image generation prompt:\n\n${rawPrompt}`,
+          },
+        ],
+      });
+      const correctedContent = correctionResponse.choices[0]?.message?.content;
+      const finalPrompt = (typeof correctedContent === 'string' && correctedContent.length > 50)
+        ? correctedContent
+        : rawPrompt;
+
+      // Step 3: Generate the image
+      const { url } = await generateImage({ prompt: finalPrompt });
+      return { url, prompt: finalPrompt };
     }),
 
   // Generate slideshow reel

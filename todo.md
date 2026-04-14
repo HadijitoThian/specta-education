@@ -1729,3 +1729,6 @@
 - [x] Add Ads Agent link to Admin Dashboard navigation
 - [x] Rebuild AI image generator as complete agency-level Instagram design package (logo, copy, CTA, copyright, brand system)
 - [x] Fix AI image generator: brief is primary driver, not template — specific university/scholarship/country must dominate the image
+- [x] Fetch real SpecTa Education logo from spectaeducation.com and upload to CDN
+- [x] Add Indonesian spelling correction layer to image prompt pipeline
+- [x] Improve design quality instructions in buildImagePrompt
