@@ -432,6 +432,41 @@ export const socialMediaRouter = router({
       failed: posts.filter((p: {status: string}) => p.status === "failed").length,
     };
   }),
+
+  // AI Content Strategy Chat
+  chat: protectedProcedure
+    .input(z.object({
+      messages: z.array(z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string(),
+      })),
+    }))
+    .mutation(async ({ input }) => {
+      const systemPrompt = `You are SpecTa Social AI, a creative social media strategist and content expert for SpecTa Education — an Indonesian study abroad consultancy. Your job is to help the marketing team create engaging, high-performing social media content.
+
+You specialise in:
+- Writing captions for Instagram, Facebook, and TikTok in Bahasa Indonesia (and English when asked)
+- Suggesting relevant hashtags (trending + niche) for study abroad content
+- Content strategy: what to post, when to post, content calendars
+- Visual content ideas: what kind of images or reels to create
+- Engagement tactics: polls, questions, CTAs that drive DMs and inquiries
+- Competitor analysis insights for study abroad consultancies in Indonesia
+- Trending topics in education, study abroad, and Indonesian student culture
+
+Brand voice: professional yet relatable, inspiring, warm, focused on student dreams and international opportunities. Brand colors: deep red (#E63946) and black.
+
+When writing captions, always offer 2-3 variations so the team can choose. When suggesting hashtags, group them by category (brand, niche, trending). Be proactive — if the team describes a topic, suggest angles they might not have considered. Keep responses concise and actionable.`;
+
+      const llmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        { role: "system", content: systemPrompt },
+        ...input.messages.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
+      ];
+
+      const response = await invokeLLM({ messages: llmMessages });
+      const rawContent = response.choices?.[0]?.message?.content;
+      const reply = typeof rawContent === "string" ? rawContent : "Maaf, ada masalah teknis. Silakan coba lagi.";
+      return { reply };
+    }),
 });
 
 // ─── Publish Post Helper ──────────────────────────────────────────────────────

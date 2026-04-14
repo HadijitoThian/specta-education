@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import {
   Loader2, Image, Wand2, Send, Clock, CheckCircle2, XCircle,
   Instagram, Facebook, Video, Sparkles, Calendar, RefreshCw,
   Trash2, Eye, Download, ChevronDown, ChevronUp, Settings,
-  PlusCircle, FileImage, Zap, BarChart3, Globe
+  PlusCircle, FileImage, Zap, BarChart3, Globe, MessageSquare, Bot, User2, CornerDownLeft
 } from "lucide-react";
 
 const PLATFORM_ICONS: Record<string, React.ReactNode> = {
@@ -43,7 +43,7 @@ const CONTENT_TYPES = [
 ];
 
 export default function SocialMediaManager() {
-  const [activeTab, setActiveTab] = useState<"create" | "scheduled" | "history" | "accounts">("create");
+  const [activeTab, setActiveTab] = useState<"create" | "scheduled" | "history" | "accounts" | "chat">("create");
 
   // Create post state
   const [brief, setBrief] = useState("");
@@ -60,9 +60,28 @@ export default function SocialMediaManager() {
   const [posting, setPosting] = useState(false);
   const [expandedPost, setExpandedPost] = useState<number | null>(null);
 
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
   // Queries
   const { data: postsData, refetch: refetchPosts } = trpc.socialMedia.getPosts.useQuery();
   const { data: accountsData, refetch: refetchAccounts } = trpc.socialMedia.getAccounts.useQuery();
+
+  // Chat mutation
+  const chatMutation = trpc.socialMedia.chat.useMutation({
+    onError: (e) => {
+      toast.error("Chat error: " + e.message);
+      setChatLoading(false);
+    },
+  });
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, chatLoading]);
 
   // Mutations
   const generateCaptionMutation = trpc.socialMedia.generateCaption.useMutation({
@@ -195,6 +214,7 @@ export default function SocialMediaManager() {
             { id: "scheduled", label: `Scheduled (${scheduledPosts.length})`, icon: <Clock className="w-4 h-4" /> },
             { id: "history", label: "History", icon: <BarChart3 className="w-4 h-4" /> },
             { id: "accounts", label: "Accounts", icon: <Settings className="w-4 h-4" /> },
+            { id: "chat", label: "AI Strategy Chat", icon: <MessageSquare className="w-4 h-4" /> },
           ].map(tab => (
             <button
               key={tab.id}
@@ -587,6 +607,159 @@ export default function SocialMediaManager() {
                 </div>
               </CardContent>
             </Card>
+          </div>
+        )}
+
+        {/* AI STRATEGY CHAT TAB */}
+        {activeTab === "chat" && (
+          <div className="max-w-3xl mx-auto">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col" style={{ height: "calc(100vh - 260px)", minHeight: "500px" }}>
+              {/* Chat Header */}
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-red-600 to-red-700 rounded-t-2xl">
+                <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-semibold text-white text-sm">SpecTa Social AI</p>
+                  <p className="text-xs text-red-100">Your social media strategist — captions, hashtags, content ideas &amp; more</p>
+                </div>
+                {chatMessages.length > 0 && (
+                  <button
+                    onClick={() => setChatMessages([])}
+                    className="ml-auto text-xs text-red-200 hover:text-white transition-colors"
+                  >
+                    Clear chat
+                  </button>
+                )}
+              </div>
+
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                {chatMessages.length === 0 && (
+                  <div className="flex flex-col items-center justify-center h-full text-center gap-4 py-8">
+                    <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
+                      <Sparkles className="w-8 h-8 text-red-500" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-800 text-base">Halo! Saya SpecTa Social AI 👋</p>
+                      <p className="text-sm text-gray-500 mt-1 max-w-sm">Saya siap bantu kamu bikin konten sosmed yang engaging. Tanya apa saja!</p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md mt-2">
+                      {[
+                        "Buatkan caption Instagram untuk promo beasiswa Australia 🇦🇺",
+                        "Apa hashtag terbaik untuk konten study abroad di Indonesia?",
+                        "Ide konten Reels untuk minggu ini dong",
+                        "Bantu saya buat content calendar untuk bulan ini",
+                      ].map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          onClick={() => setChatInput(suggestion)}
+                          className="text-left text-xs px-3 py-2.5 rounded-xl border border-gray-200 hover:border-red-300 hover:bg-red-50 text-gray-600 hover:text-red-700 transition-colors"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {chatMessages.map((msg, i) => (
+                  <div key={i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      msg.role === "user" ? "bg-red-100" : "bg-gray-100"
+                    }`}>
+                      {msg.role === "user"
+                        ? <User2 className="w-4 h-4 text-red-600" />
+                        : <Bot className="w-4 h-4 text-gray-600" />}
+                    </div>
+                    <div className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm ${
+                      msg.role === "user"
+                        ? "bg-red-600 text-white rounded-tr-sm"
+                        : "bg-gray-100 text-gray-800 rounded-tl-sm"
+                    }`}>
+                      <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                    </div>
+                  </div>
+                ))}
+
+                {chatLoading && (
+                  <div className="flex gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                      <Bot className="w-4 h-4 text-gray-600" />
+                    </div>
+                    <div className="bg-gray-100 rounded-2xl rounded-tl-sm px-4 py-3">
+                      <div className="flex gap-1 items-center h-5">
+                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Input */}
+              <div className="px-4 py-3 border-t border-gray-100">
+                <div className="flex gap-2 items-end">
+                  <Textarea
+                    value={chatInput}
+                    onChange={e => setChatInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        if (chatInput.trim() && !chatLoading) {
+                          const userMsg = chatInput.trim();
+                          const newMessages = [...chatMessages, { role: "user" as const, content: userMsg }];
+                          setChatMessages(newMessages);
+                          setChatInput("");
+                          setChatLoading(true);
+                          chatMutation.mutate(
+                            { messages: newMessages },
+                            {
+                              onSuccess: (data) => {
+                                setChatMessages(prev => [...prev, { role: "assistant" as const, content: data.reply }]);
+                                setChatLoading(false);
+                              },
+                              onSettled: () => setChatLoading(false),
+                            }
+                          );
+                        }
+                      }
+                    }}
+                    placeholder="Tanya apa saja tentang konten sosmed... (Enter untuk kirim, Shift+Enter untuk baris baru)"
+                    className="flex-1 resize-none text-sm min-h-[44px] max-h-[120px]"
+                    rows={1}
+                  />
+                  <Button
+                    onClick={() => {
+                      if (chatInput.trim() && !chatLoading) {
+                        const userMsg = chatInput.trim();
+                        const newMessages = [...chatMessages, { role: "user" as const, content: userMsg }];
+                        setChatMessages(newMessages);
+                        setChatInput("");
+                        setChatLoading(true);
+                        chatMutation.mutate(
+                          { messages: newMessages },
+                          {
+                            onSuccess: (data) => {
+                              setChatMessages(prev => [...prev, { role: "assistant" as const, content: data.reply }]);
+                              setChatLoading(false);
+                            },
+                            onSettled: () => setChatLoading(false),
+                          }
+                        );
+                      }
+                    }}
+                    disabled={!chatInput.trim() || chatLoading}
+                    className="bg-red-600 hover:bg-red-700 text-white h-11 px-4 flex-shrink-0"
+                  >
+                    {chatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CornerDownLeft className="w-4 h-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5 ml-1">Shift+Enter untuk baris baru · Enter untuk kirim</p>
+              </div>
+            </div>
           </div>
         )}
       </div>

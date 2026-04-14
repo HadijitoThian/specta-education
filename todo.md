@@ -1709,3 +1709,4 @@
 - [ ] Frontend: Connect accounts panel (Meta OAuth placeholder)
 - [ ] Route: Add /crm/social-media to App.tsx
 - [ ] Navigation: Add Social Media link to CRM sidebar
+- [x] Add AI Chat Assistant tab to Social Media Manager (staff can brainstorm captions, hashtags, posting strategies with AI)
