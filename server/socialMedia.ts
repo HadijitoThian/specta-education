@@ -16,6 +16,7 @@ import { protectedProcedure, router } from "./_core/trpc";
 import { invokeLLM } from "./_core/llm";
 import { generateImage } from "./_core/imageGeneration";
 import { storagePut } from "./storage";
+import { composeInstagramPost } from "./imageCompositor";
 import { TRPCError } from "@trpc/server";
 import { execSync } from "child_process";
 import * as fs from "fs";
@@ -427,41 +428,118 @@ export const socialMediaRouter = router({
       tone: z.string().optional(),
     }))
     .mutation(async ({ input }) => {
-      // Step 1: Build the detailed design prompt
-      const rawPrompt = await buildImagePrompt(input.brief, input.postCategory, input.tone);
-
-      // Step 2: Run a spelling & grammar correction pass on all Indonesian/English text in the prompt
-      const correctionResponse = await invokeLLM({
+      // ── STEP 1: Use LLM to extract text content from the brief ──
+      // The LLM generates the exact text overlays (headline, subheadline, CTA, badge)
+      // with 100% correct Indonesian/English spelling — no AI image generator involved for text
+      const textExtractionResponse = await invokeLLM({
         messages: [
           {
             role: "system",
-            content: `You are an expert Indonesian and English proofreader. Your job is to correct ALL spelling and grammar errors in image generation prompts for SpecTa Education Instagram posts.
+            content: `You are an expert Indonesian copywriter and digital marketing specialist for SpecTa Education, a study abroad consultancy.
 
-Common errors to fix:
-- 'Datpakan' → 'Dapatkan'
-- 'Melaluis' → 'Melalui'
-- 'Daftar Serrang' → 'Daftar Sekarang'
-- 'Beasiswa' → 'Beasiswa'
-- 'Universtas' → 'Universitas'
-- Any doubled letters or missing letters in Indonesian words
-- Any misspelled English words
+Your job is to extract and generate the EXACT text overlays for an Instagram marketing post based on the campaign brief.
 
-Return ONLY the corrected prompt text, with no explanations or comments. Do not change the design instructions, only fix spelling/grammar errors in the text overlay content.`,
+CRITICAL SPELLING RULES — these must be 100% correct:
+- 'Dapatkan' (NEVER 'Datpakan')
+- 'Melalui' (NEVER 'Melaluis' or 'Melauiu')
+- 'Sekarang' (NEVER 'Sekaran' or 'Serrang' or 'Serorang')
+- 'Beasiswa' (NEVER 'Beasiswaa')
+- 'Universitas' (NEVER 'Universtas')
+- 'Konsultasi' (NEVER 'Konsultasii')
+- CTA button text MUST be exactly: 'DAFTAR SEKARANG' or 'CEK SEKARANG' or 'HUBUNGI KAMI'
+
+Return a JSON object with these exact fields:
+{
+  "headline": "BOLD HEADLINE IN CAPS — max 6 words — must mention specific university/scholarship/country from brief",
+  "subheadline": "Supporting benefit statement — 1-2 sentences — correct Indonesian/English",
+  "ctaText": "CTA button text — e.g. DAFTAR SEKARANG",
+  "badge": "Short badge text — e.g. LPDP SCHOLARSHIP or BEASISWA TERSEDIA (or null if not applicable)",
+  "copyright": "© SpecTa Education | spectaeducation.com | @spectaeducation"
+}`,
           },
           {
             role: "user",
-            content: `Please proofread and correct all spelling errors in this image generation prompt:\n\n${rawPrompt}`,
+            content: `Campaign brief: ${input.brief}\nPost category: ${input.postCategory || 'general'}\nTone: ${input.tone || 'professional'}\n\nGenerate the text overlays JSON:`,
+          },
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "post_text_overlays",
+            strict: true,
+            schema: {
+              type: "object",
+              properties: {
+                headline: { type: "string" },
+                subheadline: { type: "string" },
+                ctaText: { type: "string" },
+                badge: { type: ["string", "null"] },
+                copyright: { type: "string" },
+              },
+              required: ["headline", "subheadline", "ctaText", "badge", "copyright"],
+              additionalProperties: false,
+            },
+          },
+        },
+      });
+
+      let textOverlays = {
+        headline: "WUJUDKAN MIMPI STUDIMU",
+        subheadline: "Dapatkan LOA dari universitas terbaik dunia melalui SpecTa Education",
+        ctaText: "DAFTAR SEKARANG",
+        badge: null as string | null,
+        copyright: "© SpecTa Education | spectaeducation.com | @spectaeducation",
+      };
+
+      try {
+        const rawContent = textExtractionResponse.choices[0]?.message?.content;
+        if (typeof rawContent === 'string') {
+          const parsed = JSON.parse(rawContent);
+          textOverlays = { ...textOverlays, ...parsed };
+        }
+      } catch {
+        // Use defaults if parsing fails
+      }
+
+      // ── STEP 2: Build background-only image prompt (NO text, NO logo) ──
+      const bgPromptResponse = await invokeLLM({
+        messages: [
+          {
+            role: "system",
+            content: `You are a professional photographer and art director. Generate a background image prompt for an Instagram post.
+
+IMPORTANT: The background image must have NO text, NO logos, NO watermarks, NO overlaid graphics.
+The image will have text and logos composited on top programmatically.
+
+Focus on: photorealistic scene, correct location/landmark, professional lighting, high quality, 1080x1080px square format.`,
+          },
+          {
+            role: "user",
+            content: `Campaign brief: ${input.brief}\nCategory: ${input.postCategory || 'general'}\n\nGenerate a background scene prompt (no text, no logos). Focus on the specific university campus, country landmark, or relevant scene from the brief. Keep it under 100 words.`,
           },
         ],
       });
-      const correctedContent = correctionResponse.choices[0]?.message?.content;
-      const finalPrompt = (typeof correctedContent === 'string' && correctedContent.length > 50)
-        ? correctedContent
-        : rawPrompt;
 
-      // Step 3: Generate the image
-      const { url } = await generateImage({ prompt: finalPrompt });
-      return { url, prompt: finalPrompt };
+      const bgPromptContent = bgPromptResponse.choices[0]?.message?.content;
+      const bgPrompt = (typeof bgPromptContent === 'string' && bgPromptContent.length > 10)
+        ? bgPromptContent + " No text overlays. No logos. No watermarks. Clean background scene only. Photorealistic. High quality. 1080x1080 square format."
+        : `Photorealistic ${input.brief} scene. No text. No logos. Professional photography. 1080x1080 square.`;
+
+      // ── STEP 3: Generate the background image ──
+      const { url: bgUrl } = await generateImage({ prompt: bgPrompt });
+      if (!bgUrl) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Image generation failed' });
+
+      // ── STEP 4: Composite logo + text overlays onto background using Sharp ──
+      const finalUrl = await composeInstagramPost({
+        backgroundImageUrl: bgUrl,
+        headline: textOverlays.headline,
+        subheadline: textOverlays.subheadline,
+        ctaText: textOverlays.ctaText,
+        badge: textOverlays.badge ?? undefined,
+        copyright: textOverlays.copyright,
+      });
+
+      return { url: finalUrl, prompt: bgPrompt };
     }),
 
   // Generate slideshow reel
