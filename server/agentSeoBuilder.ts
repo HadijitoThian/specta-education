@@ -23,27 +23,134 @@ import {
   updateAgentConfig,
 } from "./db";
 
-// Target keyword clusters for Indonesian study abroad market
+// Target keyword clusters for Indonesian study abroad market — 200+ keywords, never runs out
 const KEYWORD_CLUSTERS = [
-  // Australia
-  { category: "study_australia", keywords: ["kuliah di australia", "biaya kuliah australia 2026", "universitas terbaik australia", "beasiswa australia untuk indonesia", "visa pelajar australia", "syarat kuliah di australia", "jurusan terbaik di australia", "kehidupan mahasiswa di australia", "part time kerja australia mahasiswa"] },
-  // UK
-  { category: "study_uk", keywords: ["kuliah di inggris", "biaya kuliah di uk", "universitas terbaik inggris", "beasiswa chevening", "visa pelajar uk", "syarat kuliah di inggris"] },
-  // Canada
-  { category: "study_canada", keywords: ["kuliah di kanada", "biaya kuliah kanada", "universitas terbaik kanada", "beasiswa kanada", "visa pelajar kanada", "kerja setelah kuliah di kanada"] },
-  // New Zealand
-  { category: "study_nz", keywords: ["kuliah di selandia baru", "biaya kuliah new zealand", "universitas terbaik new zealand", "beasiswa new zealand"] },
-  // Ireland
-  { category: "study_ireland", keywords: ["kuliah di irlandia", "biaya kuliah irlandia", "universitas terbaik irlandia", "beasiswa irlandia"] },
-  // IELTS
-  { category: "ielts_tips", keywords: ["tips ielts band 7", "persiapan ielts", "cara belajar ielts sendiri", "ielts writing tips", "ielts speaking tips", "perbedaan ielts academic general", "kursus ielts jakarta", "ielts online preparation"] },
-  // Scholarships
-  { category: "scholarships", keywords: ["beasiswa luar negeri 2026", "beasiswa s1 luar negeri", "beasiswa s2 luar negeri", "beasiswa tanpa ielts", "beasiswa fully funded 2026", "cara mendapatkan beasiswa luar negeri", "daftar beasiswa luar negeri"] },
-  // General study abroad
-  { category: "study_abroad", keywords: ["cara kuliah di luar negeri", "persiapan kuliah luar negeri", "tes bakat untuk jurusan kuliah", "jurusan kuliah yang bagus di luar negeri", "biaya hidup mahasiswa luar negeri", "tips adaptasi kuliah luar negeri"] },
-  // Career
-  { category: "career", keywords: ["karir setelah kuliah luar negeri", "gaji lulusan luar negeri", "jurusan kuliah gaji tinggi", "prospek kerja lulusan australia"] },
+  // Australia — expanded
+  { category: "study_australia", keywords: [
+    "kuliah di australia", "biaya kuliah australia 2026", "universitas terbaik australia", "beasiswa australia untuk indonesia",
+    "visa pelajar australia", "syarat kuliah di australia", "jurusan terbaik di australia", "kehidupan mahasiswa di australia",
+    "part time kerja australia mahasiswa", "monash university indonesia", "university of melbourne pendaftaran",
+    "ANU australian national university", "university of sydney jurusan", "UNSW kuliah", "university of queensland beasiswa",
+    "biaya hidup sydney 2026", "biaya hidup melbourne 2026", "cara apply kuliah australia", "letter of offer australia",
+    "student visa australia subclass 500", "english requirement kuliah australia", "IELTS untuk kuliah australia",
+    "kuliah s2 australia beasiswa", "kuliah s1 australia dari indonesia", "tips lolos seleksi universitas australia",
+    "jurusan engineering australia", "jurusan business australia", "jurusan kedokteran australia", "jurusan IT australia",
+    "kerja setelah kuliah di australia", "permanent residency australia setelah kuliah"
+  ]},
+  // UK — expanded
+  { category: "study_uk", keywords: [
+    "kuliah di inggris", "biaya kuliah di uk", "universitas terbaik inggris", "beasiswa chevening",
+    "visa pelajar uk", "syarat kuliah di inggris", "university of oxford pendaftaran", "university of cambridge tips",
+    "imperial college london", "UCL university college london", "LSE london school of economics",
+    "biaya hidup london 2026", "biaya hidup manchester", "kuliah di edinburgh scotland",
+    "beasiswa british council", "beasiswa GREAT scholarship", "cara daftar kuliah uk dari indonesia",
+    "UCAS application tips", "personal statement kuliah uk", "IELTS untuk uk visa",
+    "kuliah s2 uk 1 tahun", "master degree uk duration", "post study work visa uk"
+  ]},
+  // Canada — expanded
+  { category: "study_canada", keywords: [
+    "kuliah di kanada", "biaya kuliah kanada", "universitas terbaik kanada", "beasiswa kanada",
+    "visa pelajar kanada", "kerja setelah kuliah di kanada", "university of toronto", "mcgill university",
+    "UBC university of british columbia", "biaya hidup toronto", "biaya hidup vancouver",
+    "co-op program kanada", "post graduation work permit kanada", "PR kanada setelah kuliah",
+    "kuliah di quebec kanada", "beasiswa vanier canada", "cara apply kuliah kanada"
+  ]},
+  // New Zealand — expanded
+  { category: "study_nz", keywords: [
+    "kuliah di selandia baru", "biaya kuliah new zealand", "universitas terbaik new zealand", "beasiswa new zealand",
+    "university of auckland", "victoria university wellington", "otago university", "biaya hidup auckland",
+    "visa pelajar new zealand", "kerja sambil kuliah new zealand", "beasiswa new zealand ASEAN"
+  ]},
+  // Ireland — expanded
+  { category: "study_ireland", keywords: [
+    "kuliah di irlandia", "biaya kuliah irlandia", "universitas terbaik irlandia", "beasiswa irlandia",
+    "trinity college dublin", "UCD university college dublin", "biaya hidup dublin",
+    "visa pelajar irlandia", "kerja setelah kuliah di irlandia", "beasiswa government of ireland"
+  ]},
+  // Germany
+  { category: "study_germany", keywords: [
+    "kuliah di jerman gratis", "biaya kuliah jerman", "universitas terbaik jerman", "beasiswa DAAD",
+    "TU Munich", "Heidelberg University", "kuliah bahasa inggris di jerman", "visa pelajar jerman",
+    "biaya hidup berlin", "biaya hidup munich", "kuliah s2 jerman", "cara daftar kuliah jerman"
+  ]},
+  // Japan
+  { category: "study_japan", keywords: [
+    "kuliah di jepang", "biaya kuliah jepang", "beasiswa monbukagakusho MEXT", "universitas terbaik jepang",
+    "university of tokyo", "kyoto university", "osaka university", "visa pelajar jepang",
+    "biaya hidup tokyo", "kuliah bahasa inggris di jepang", "beasiswa jepang untuk indonesia"
+  ]},
+  // USA
+  { category: "study_usa", keywords: [
+    "kuliah di amerika serikat", "biaya kuliah usa", "beasiswa fulbright indonesia", "universitas terbaik usa",
+    "ivy league university", "MIT massachusetts", "stanford university", "visa F1 pelajar usa",
+    "TOEFL untuk kuliah usa", "SAT untuk kuliah usa", "biaya hidup new york mahasiswa"
+  ]},
+  // Netherlands
+  { category: "study_netherlands", keywords: [
+    "kuliah di belanda", "biaya kuliah belanda", "universitas terbaik belanda", "beasiswa orange tulip",
+    "TU Delft", "leiden university", "university of amsterdam", "biaya hidup amsterdam",
+    "visa pelajar belanda", "kuliah bahasa inggris belanda"
+  ]},
+  // IELTS — expanded
+  { category: "ielts_tips", keywords: [
+    "tips ielts band 7", "persiapan ielts", "cara belajar ielts sendiri", "ielts writing tips",
+    "ielts speaking tips", "perbedaan ielts academic general", "kursus ielts jakarta", "ielts online preparation",
+    "ielts listening tips", "ielts reading tips", "cara meningkatkan skor ielts", "ielts band 6 ke 7",
+    "ielts writing task 2 tips", "ielts speaking part 3 tips", "ielts mock test", "ielts preparation 1 bulan",
+    "ielts preparation 3 bulan", "buku persiapan ielts terbaik", "aplikasi belajar ielts",
+    "ielts vs toefl perbedaan", "ielts computer based vs paper based", "biaya tes ielts indonesia",
+    "tempat tes ielts jakarta", "tempat tes ielts surabaya", "tempat tes ielts bandung"
+  ]},
+  // Scholarships — expanded
+  { category: "scholarships", keywords: [
+    "beasiswa luar negeri 2026", "beasiswa s1 luar negeri", "beasiswa s2 luar negeri", "beasiswa tanpa ielts",
+    "beasiswa fully funded 2026", "cara mendapatkan beasiswa luar negeri", "daftar beasiswa luar negeri",
+    "beasiswa LPDP 2026", "cara daftar beasiswa LPDP", "tips lolos beasiswa LPDP",
+    "beasiswa AAS australia awards", "beasiswa DIKTI", "beasiswa bank indonesia",
+    "beasiswa tanpa syarat usia", "beasiswa untuk ibu rumah tangga", "beasiswa untuk karyawan",
+    "beasiswa parsial luar negeri", "beasiswa s3 luar negeri", "beasiswa riset luar negeri",
+    "cara menulis motivation letter beasiswa", "tips interview beasiswa", "contoh esai beasiswa",
+    "beasiswa bilateral indonesia", "beasiswa pemerintah jepang", "beasiswa erasmus mundus"
+  ]},
+  // General study abroad — expanded
+  { category: "study_abroad", keywords: [
+    "cara kuliah di luar negeri", "persiapan kuliah luar negeri", "tes bakat untuk jurusan kuliah",
+    "jurusan kuliah yang bagus di luar negeri", "biaya hidup mahasiswa luar negeri", "tips adaptasi kuliah luar negeri",
+    "cara memilih universitas luar negeri", "ranking universitas dunia 2026", "QS world ranking 2026",
+    "tips apply kuliah luar negeri", "dokumen yang dibutuhkan kuliah luar negeri",
+    "cara membuat personal statement", "cara membuat CV untuk kuliah luar negeri",
+    "recommendation letter kuliah luar negeri", "tips wawancara universitas luar negeri",
+    "gap year sebelum kuliah luar negeri", "kuliah luar negeri usia 25 ke atas",
+    "kuliah luar negeri sambil kerja", "online degree luar negeri", "kuliah luar negeri murah",
+    "negara terbaik untuk kuliah dari indonesia", "kuliah luar negeri tanpa beasiswa"
+  ]},
+  // Career — expanded
+  { category: "career", keywords: [
+    "karir setelah kuliah luar negeri", "gaji lulusan luar negeri", "jurusan kuliah gaji tinggi",
+    "prospek kerja lulusan australia", "kerja di luar negeri setelah kuliah", "jurusan IT prospek kerja",
+    "jurusan data science luar negeri", "jurusan AI machine learning", "jurusan finance luar negeri",
+    "jurusan engineering terbaik", "jurusan kedokteran luar negeri", "jurusan hukum internasional",
+    "MBA luar negeri worth it", "kuliah s2 manfaat untuk karir", "networking kuliah luar negeri"
+  ]},
+  // Student life & practical tips
+  { category: "student_life", keywords: [
+    "tips hidup hemat sebagai mahasiswa luar negeri", "cara cari kerja part time luar negeri",
+    "akomodasi mahasiswa luar negeri", "tips masak sendiri di luar negeri", "komunitas indonesia di australia",
+    "komunitas indonesia di inggris", "tips mengatasi culture shock", "tips belajar efektif luar negeri",
+    "cara kirim uang ke luar negeri mahasiswa", "asuransi kesehatan mahasiswa luar negeri",
+    "tips cari teman di kampus luar negeri", "manfaat kuliah luar negeri untuk pribadi"
+  ]},
+  // SpecTa specific
+  { category: "specta_promo", keywords: [
+    "konsultasi kuliah luar negeri gratis", "education consultant indonesia terpercaya",
+    "cara daftar kuliah luar negeri dengan bantuan konsultan", "jasa apply kuliah luar negeri",
+    "agen pendidikan luar negeri terbaik", "konsultan beasiswa indonesia",
+    "persiapan kuliah luar negeri dari nol", "panduan lengkap kuliah luar negeri"
+  ]},
 ];
+
+// How many days before a keyword can be reused with a fresh angle
+const KEYWORD_RECYCLE_DAYS = 90;
 
 /**
  * Main agent execution function
@@ -135,20 +242,45 @@ async function planNewContent(): Promise<{ planned: number; errors: number }> {
       return { planned: 0, errors: 0 };
     }
 
-    // Pick keywords that haven't been used yet
-    const usedKeywords = new Set(existingEntries.map(e => e.targetKeyword.toLowerCase()));
+     // Pick keywords: fresh ones first, then recycle old ones (published 90+ days ago)
+    const now = Date.now();
+    const recycleCutoff = now - KEYWORD_RECYCLE_DAYS * 24 * 60 * 60 * 1000;
+    // Keywords used recently (within recycle window) — skip these
+    const recentlyUsed = new Set(
+      existingEntries
+        .filter(e => e.publishedAt ? new Date(e.publishedAt).getTime() > recycleCutoff : e.status !== 'published')
+        .map(e => e.targetKeyword.toLowerCase())
+    );
     const availableKeywords: Array<{ keyword: string; category: string }> = [];
-
     for (const cluster of KEYWORD_CLUSTERS) {
       for (const keyword of cluster.keywords) {
-        if (!usedKeywords.has(keyword.toLowerCase())) {
+        if (!recentlyUsed.has(keyword.toLowerCase())) {
           availableKeywords.push({ keyword, category: cluster.category });
         }
       }
     }
-
+    // If still no keywords available, use AI to generate fresh topic ideas
+    if (availableKeywords.length === 0) {
+      console.log('[SEO Agent] All keywords used recently — generating fresh AI topics...');
+      try {
+        const aiTopicsResp = await invokeLLM({
+          messages: [
+            { role: 'system', content: 'You are an SEO expert for an Indonesian study abroad education consultancy called SpecTa Education. Generate 10 fresh, high-search-volume blog topic ideas in Bahasa Indonesia targeting students who want to study in Australia, UK, Canada, or other countries. Return ONLY a JSON array of objects: [{"keyword": "...", "category": "study_australia|study_uk|scholarships|ielts_tips|study_abroad|career"}]. No explanation.' },
+            { role: 'user', content: 'Generate 10 fresh blog topics for SpecTa Education that are not generic — focus on specific universities, specific scholarships, specific cities, or specific programs. Current year is 2026.' }
+          ],
+          response_format: { type: 'json_schema', json_schema: { name: 'topics', strict: true, schema: { type: 'object', properties: { topics: { type: 'array', items: { type: 'object', properties: { keyword: { type: 'string' }, category: { type: 'string' } }, required: ['keyword', 'category'], additionalProperties: false } } }, required: ['topics'], additionalProperties: false } } }
+        });
+        const parsed = JSON.parse(aiTopicsResp.choices[0].message.content as string);
+        for (const t of parsed.topics || []) {
+          availableKeywords.push({ keyword: t.keyword, category: t.category });
+        }
+        console.log(`[SEO Agent] AI generated ${availableKeywords.length} fresh topics`);
+      } catch (aiErr) {
+        console.error('[SEO Agent] AI topic generation failed:', aiErr);
+      }
+    }
     // Plan up to 3 new articles
-    const toplan = Math.min(3, availableKeywords.length, 5 - plannedOrPending.length);
+    const toplan = Math.min(3, availableKeywords.length, 5 - plannedOrPending.length);;
     
     // Shuffle and pick
     const shuffled = availableKeywords.sort(() => Math.random() - 0.5);

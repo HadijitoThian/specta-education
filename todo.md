@@ -1732,3 +1732,9 @@
 - [x] Fetch real SpecTa Education logo from spectaeducation.com and upload to CDN
 - [x] Add Indonesian spelling correction layer to image prompt pipeline
 - [x] Improve design quality instructions in buildImagePrompt
+
+## Blog Agent Fix (Apr 14, 2026)
+- [x] Fix blog agent stopped publishing — keyword pool was exhausted (54 keywords used up)
+- [x] Expand keyword pool from 54 to 200+ keywords across 15 categories (Australia, UK, Canada, NZ, Ireland, Germany, Japan, USA, Netherlands, IELTS, Scholarships, Study Abroad, Career, Student Life, SpecTa Promo)
+- [x] Add keyword recycling mechanism — keywords reused after 90 days with fresh angle
+- [x] Add AI fallback keyword generator — when all keywords used, AI generates 10 fresh topics
