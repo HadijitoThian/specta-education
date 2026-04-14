@@ -123,7 +123,7 @@ function buildTextOverlaySVG(
     svg += `
   <!-- Badge -->
   <rect x="${badgeX}" y="24" width="${badgeWidth}" height="44" rx="6" fill="#D4AF37" />
-  <text x="${badgeX + badgeWidth / 2}" y="51" font-family="Arial Black, Arial" font-weight="900" font-size="15" fill="#1A1A1A" text-anchor="middle" dominant-baseline="middle">${escapeXml(badgeText)}</text>
+  <text x="${badgeX + badgeWidth / 2}" y="51" font-family="Noto Sans" font-weight="900" font-size="15" fill="#1A1A1A" text-anchor="middle" dominant-baseline="middle">${escapeXml(badgeText)}</text>
 `;
   }
 
@@ -131,22 +131,22 @@ function buildTextOverlaySVG(
   headlineLines.forEach((line, i) => {
     const y = headlineStartY + i * headlineLineHeight + headlineLineHeight * 0.75;
     // Shadow
-    svg += `  <text x="${width / 2 + 2}" y="${y + 2}" font-family="Arial Black, Arial" font-weight="900" font-size="58" fill="rgba(0,0,0,0.6)" text-anchor="middle">${escapeXml(line)}</text>\n`;
+    svg += `  <text x="${width / 2 + 2}" y="${y + 2}" font-family="Noto Sans" font-weight="900" font-size="58" fill="rgba(0,0,0,0.6)" text-anchor="middle">${escapeXml(line)}</text>\n`;
     // Main text
-    svg += `  <text x="${width / 2}" y="${y}" font-family="Arial Black, Arial" font-weight="900" font-size="58" fill="#FFFFFF" text-anchor="middle" stroke="#E63946" stroke-width="1">${escapeXml(line)}</text>\n`;
+    svg += `  <text x="${width / 2}" y="${y}" font-family="Noto Sans" font-weight="900" font-size="58" fill="#FFFFFF" text-anchor="middle" stroke="#E63946" stroke-width="1">${escapeXml(line)}</text>\n`;
   });
 
   // Subheadline lines
   subLines.forEach((line, i) => {
     const y = subStartY + i * subLineHeight + subLineHeight * 0.75;
-    svg += `  <text x="${width / 2}" y="${y}" font-family="Arial, sans-serif" font-weight="600" font-size="26" fill="#F0F0F0" text-anchor="middle">${escapeXml(line)}</text>\n`;
+    svg += `  <text x="${width / 2}" y="${y}" font-family="Noto Sans" font-weight="600" font-size="26" fill="#F0F0F0" text-anchor="middle">${escapeXml(line)}</text>\n`;
   });
 
   // CTA Button
   svg += `
   <!-- CTA Button -->
   <rect x="${ctaX}" y="${ctaY - ctaHeight / 2}" width="${ctaWidth}" height="${ctaHeight}" rx="28" fill="#E63946" />
-  <text x="${width / 2}" y="${ctaY + 8}" font-family="Arial Black, Arial" font-weight="900" font-size="22" fill="#FFFFFF" text-anchor="middle">${escapeXml(ctaText.toUpperCase())} →</text>
+  <text x="${width / 2}" y="${ctaY + 8}" font-family="Noto Sans" font-weight="900" font-size="22" fill="#FFFFFF" text-anchor="middle">${escapeXml(ctaText.toUpperCase())} →</text>
 `;
 
   // Copyright footer
@@ -154,7 +154,7 @@ function buildTextOverlaySVG(
   svg += `
   <!-- Copyright footer -->
   <rect x="0" y="${copyrightY - 20}" width="${width}" height="36" fill="rgba(0,0,0,0.5)" />
-  <text x="${width / 2}" y="${copyrightY}" font-family="Arial, sans-serif" font-size="14" fill="#CCCCCC" text-anchor="middle">${escapeXml(copyrightText)}</text>
+  <text x="${width / 2}" y="${copyrightY}" font-family="Noto Sans" font-size="14" fill="#CCCCCC" text-anchor="middle">${escapeXml(copyrightText)}</text>
 `;
 
   svg += `</svg>`;
