@@ -316,6 +316,13 @@
       "when": 1776171395370,
       "tag": "0044_rainy_silver_centurion",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "5",
+      "when": 1776176369648,
+      "tag": "0045_spotty_gravity",
+      "breakpoints": true
     }
   ]
 }

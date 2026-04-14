@@ -1710,3 +1710,20 @@
 - [ ] Route: Add /crm/social-media to App.tsx
 - [ ] Navigation: Add Social Media link to CRM sidebar
 - [x] Add AI Chat Assistant tab to Social Media Manager (staff can brainstorm captions, hashtags, posting strategies with AI)
+
+## AI Ads Agent (Google Ads + Meta Ads)
+- [x] DB schema: ads_campaigns, ads_adsets, ads_performance_snapshots, ads_agent_actions, ads_agent_config tables
+- [x] Backend: Google Ads API connector (read campaigns, adsets, metrics)
+- [x] Backend: Meta Ads API connector (read campaigns, adsets, metrics)
+- [x] Backend: AI scoring engine (score each ad Green/Yellow/Red with reasoning)
+- [x] Backend: Auto-action executor (pause, scale budget, duplicate+modify)
+- [x] Backend: Replacement ad copy generator using LLM
+- [x] Backend: Email notification on every agent action
+- [x] Backend: tRPC procedures for ads agent (getOverview, getActions, runAgent, updateConfig, manualOverride)
+- [x] Frontend: AI Ads Agent dashboard page at /admin/ads-agent
+- [x] Frontend: Live performance table with AI score badges
+- [x] Frontend: Agent action log with email confirmation status
+- [x] Frontend: Agent config panel (thresholds, auto-mode toggle, email recipients)
+- [x] Frontend: Manual override controls (pause/scale/resume any ad)
+- [x] Scheduled runner: agent runs every 6 hours automatically
+- [x] Add Ads Agent link to Admin Dashboard navigation

@@ -14,6 +14,7 @@ import { processDripEmails, checkCampaignPerformanceAlerts } from "../dripCampai
 import { seedDefaultCampaigns } from "../dripCampaignDefaults";
 import { runWeeklyPerformanceReport } from "../agentWeeklyReport";
 import { runAutoParentWeeklyEmail } from "../agentParentWeeklyEmail";
+import { runAdsAgent } from "../adsAgent";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -448,4 +449,14 @@ setInterval(async () => {
   }
 }, 60 * 60 * 1000);
 
+// AI Ads Agent — runs every 6 hours automatically
+setInterval(async () => {
+  try {
+    const result = await runAdsAgent();
+    if (result.actionsCount > 0) console.log(`[AdsAgent] Run complete: ${result.actionsCount} action(s) taken. ${result.errors.length} error(s).`);
+    else console.log("[AdsAgent] Run complete: no actions needed.");
+  } catch (e) {
+    console.error("[AdsAgent] Scheduled run failed:", e);
+  }
+}, 6 * 60 * 60 * 1000); // Every 6 hours
 startServer().catch(console.error);

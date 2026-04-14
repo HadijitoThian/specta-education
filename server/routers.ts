@@ -221,6 +221,7 @@ import {
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { socialMediaRouter } from "./socialMedia";
+import { adsAgentRouter } from "./adsAgent";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail, sendParentProgressEmail } from "./email";
 import crypto from "crypto";
 import { createProTestInvoice, verifyWebhookToken, generateExternalId, getProTestPrice, getProTestDiscountPrice } from "./xenditService";
@@ -7756,6 +7757,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
   }),
   // ─── AI Follow-up Assistantt ──────────────────────────────────────────────────
   socialMedia: socialMediaRouter,
+  adsAgent: adsAgentRouter,
 
   aiAssistant: router({
 

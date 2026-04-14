@@ -1858,3 +1858,136 @@ export const socialMediaTemplates = mysqlTable("social_media_templates", {
 });
 export type SocialMediaTemplate = typeof socialMediaTemplates.$inferSelect;
 export type InsertSocialMediaTemplate = typeof socialMediaTemplates.$inferInsert;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI Ads Agent (Google Ads + Meta Ads)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Ads Campaigns — mirrors campaigns from Google Ads & Meta Ads
+ */
+export const adsCampaigns = mysqlTable("ads_campaigns", {
+  id: int("id").autoincrement().primaryKey(),
+  platform: mysqlEnum("platform", ["google", "meta"]).notNull(),
+  externalId: varchar("externalId", { length: 255 }).notNull(),
+  name: varchar("name", { length: 500 }).notNull(),
+  status: mysqlEnum("status", ["active", "paused", "removed", "unknown"]).default("active").notNull(),
+  objective: varchar("objective", { length: 255 }),
+  dailyBudgetMicros: varchar("dailyBudgetMicros", { length: 50 }),
+  currency: varchar("currency", { length: 10 }).default("IDR"),
+  lastSyncedAt: timestamp("lastSyncedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type AdsCampaign = typeof adsCampaigns.$inferSelect;
+export type InsertAdsCampaign = typeof adsCampaigns.$inferInsert;
+
+/**
+ * Ads AdSets — individual ad sets / ad groups within campaigns
+ */
+export const adsAdsets = mysqlTable("ads_adsets", {
+  id: int("id").autoincrement().primaryKey(),
+  campaignId: int("campaignId").notNull(),
+  platform: mysqlEnum("platform", ["google", "meta"]).notNull(),
+  externalId: varchar("externalId", { length: 255 }).notNull(),
+  externalCampaignId: varchar("externalCampaignId", { length: 255 }).notNull(),
+  name: varchar("name", { length: 500 }).notNull(),
+  status: mysqlEnum("status", ["active", "paused", "removed", "unknown"]).default("active").notNull(),
+  targeting: text("targeting"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type AdsAdset = typeof adsAdsets.$inferSelect;
+export type InsertAdsAdset = typeof adsAdsets.$inferInsert;
+
+/**
+ * Ads Performance Snapshots — daily metrics per campaign/adset
+ */
+export const adsPerformanceSnapshots = mysqlTable("ads_performance_snapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  platform: mysqlEnum("platform", ["google", "meta"]).notNull(),
+  entityType: mysqlEnum("entityType", ["campaign", "adset"]).notNull(),
+  externalId: varchar("externalId", { length: 255 }).notNull(),
+  snapshotDate: varchar("snapshotDate", { length: 20 }).notNull(),
+  impressions: int("impressions").default(0),
+  clicks: int("clicks").default(0),
+  spend: varchar("spend", { length: 50 }).default("0"),
+  conversions: int("conversions").default(0),
+  leads: int("leads").default(0),
+  ctr: varchar("ctr", { length: 20 }).default("0"),
+  cpc: varchar("cpc", { length: 50 }).default("0"),
+  cpl: varchar("cpl", { length: 50 }).default("0"),
+  roas: varchar("roas", { length: 20 }).default("0"),
+  aiScore: mysqlEnum("aiScore", ["green", "yellow", "red"]),
+  aiReasoning: text("aiReasoning"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type AdsPerformanceSnapshot = typeof adsPerformanceSnapshots.$inferSelect;
+export type InsertAdsPerformanceSnapshot = typeof adsPerformanceSnapshots.$inferInsert;
+
+/**
+ * Ads Agent Actions — log of every action the AI agent has taken
+ */
+export const adsAgentActions = mysqlTable("ads_agent_actions", {
+  id: int("id").autoincrement().primaryKey(),
+  platform: mysqlEnum("platform", ["google", "meta"]).notNull(),
+  entityType: mysqlEnum("entityType", ["campaign", "adset"]).notNull(),
+  externalId: varchar("externalId", { length: 255 }).notNull(),
+  entityName: varchar("entityName", { length: 500 }),
+  action: mysqlEnum("action", ["pause", "resume", "scale_budget", "generate_copy", "alert_only"]).notNull(),
+  reason: text("reason").notNull(),
+  previousValue: varchar("previousValue", { length: 255 }),
+  newValue: varchar("newValue", { length: 255 }),
+  status: mysqlEnum("status", ["pending", "executed", "failed", "skipped"]).default("pending").notNull(),
+  emailSent: tinyint("emailSent").default(0),
+  errorMessage: text("errorMessage"),
+  executedAt: timestamp("executedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type AdsAgentAction = typeof adsAgentActions.$inferSelect;
+export type InsertAdsAgentAction = typeof adsAgentActions.$inferInsert;
+
+/**
+ * Ads Agent Config — settings for the autonomous agent
+ */
+export const adsAgentConfig = mysqlTable("ads_agent_config", {
+  id: int("id").autoincrement().primaryKey(),
+  autoMode: tinyint("autoMode").default(1).notNull(),
+  runIntervalHours: int("runIntervalHours").default(6).notNull(),
+  redCplThreshold: varchar("redCplThreshold", { length: 50 }).default("500000"),
+  yellowCplThreshold: varchar("yellowCplThreshold", { length: 50 }).default("250000"),
+  redCtrThreshold: varchar("redCtrThreshold", { length: 20 }).default("0.5"),
+  minSpendForAction: varchar("minSpendForAction", { length: 50 }).default("100000"),
+  scaleBudgetMultiplier: varchar("scaleBudgetMultiplier", { length: 10 }).default("1.3"),
+  maxDailyBudgetCapIdr: varchar("maxDailyBudgetCapIdr", { length: 50 }).default("5000000"),
+  notificationEmail: varchar("notificationEmail", { length: 320 }).default("hadi@spectaeducation.com"),
+  lastRunAt: timestamp("lastRunAt"),
+  nextRunAt: timestamp("nextRunAt"),
+  isEnabled: tinyint("isEnabled").default(1).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type AdsAgentConfig = typeof adsAgentConfig.$inferSelect;
+export type InsertAdsAgentConfig = typeof adsAgentConfig.$inferInsert;
+
+/**
+ * Ads Generated Copy — AI-generated replacement ad copy for underperformers
+ */
+export const adsGeneratedCopy = mysqlTable("ads_generated_copy", {
+  id: int("id").autoincrement().primaryKey(),
+  platform: mysqlEnum("platform", ["google", "meta"]).notNull(),
+  externalId: varchar("externalId", { length: 255 }).notNull(),
+  entityName: varchar("entityName", { length: 500 }),
+  headline1: varchar("headline1", { length: 255 }),
+  headline2: varchar("headline2", { length: 255 }),
+  headline3: varchar("headline3", { length: 255 }),
+  description1: text("description1"),
+  description2: text("description2"),
+  primaryText: text("primaryText"),
+  callToAction: varchar("callToAction", { length: 100 }),
+  targetAudience: text("targetAudience"),
+  aiReasoning: text("aiReasoning"),
+  isApplied: tinyint("isApplied").default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type AdsGeneratedCopy = typeof adsGeneratedCopy.$inferSelect;
+export type InsertAdsGeneratedCopy = typeof adsGeneratedCopy.$inferInsert;

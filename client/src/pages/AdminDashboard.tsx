@@ -512,6 +512,12 @@ export default function AdminDashboard() {
             </span>
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/admin/ads-agent">
+              <Button variant="outline" size="sm" className="bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100">
+                <Bot className="w-4 h-4 mr-2" />
+                AI Ads Agent
+              </Button>
+            </Link>
             <Link href="/admin/social-media">
               <Button variant="outline" size="sm" className="bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100">
                 <Sparkles className="w-4 h-4 mr-2" />
