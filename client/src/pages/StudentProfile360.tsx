@@ -1,6 +1,5 @@
-import { useState } from "react";
-import React from "react";
-import { useRoute, Link } from "wouter";
+import React, { useState } from "react";
+import { useRoute, Link, useLocation } from "wouter";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import AICounselorAssistant from "@/components/AICounselorAssistant";
 import { trpc } from "@/lib/trpc";
@@ -34,6 +33,20 @@ const PIPELINE_STAGES: { id: PipelineStage; label: string; color: string; bg: st
 export default function StudentProfile360() {
   const [, params] = useRoute("/crm/lead/:id");
   const leadId = parseInt(params?.id ?? "0");
+  const [, setLocation] = useLocation();
+
+  // ── Auth guard (same pattern as CounselorCRM) ──────────────────────────────
+  const { data: meData, isLoading: meLoading, isFetching: meFetching } = trpc.staffAuth.me.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  const staffUser = (meData as any)?.staff;
+
+  React.useEffect(() => {
+    if (!meLoading && !meFetching && !staffUser) {
+      setLocation("/staff-login");
+    }
+  }, [meLoading, meFetching, staffUser, setLocation]);
 
   const [noteOpen, setNoteOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
@@ -43,7 +56,7 @@ export default function StudentProfile360() {
   const [activeTab, setActiveTab] = useState<"overview" | "notes" | "tasks" | "documents" | "appointments" | "timeline" | "applications" | "visa" | "ai">("overview");
 
   // Queries
-  const { data: leadData, refetch: refetchLead } = trpc.crm.getLeadWithPipeline.useQuery({ leadId }, { enabled: leadId > 0 });
+  const { data: leadData, refetch: refetchLead } = trpc.crm.getLeadWithPipeline.useQuery({ leadId }, { enabled: leadId > 0 && !!staffUser });
   const { data: notesData, refetch: refetchNotes } = trpc.crm.getNotesByLead.useQuery({ leadId }, { enabled: leadId > 0 });
   const { data: tasksData, refetch: refetchTasks } = trpc.crm.getAllTasks.useQuery();
   const { data: appsData, refetch: refetchApps } = trpc.crm.getApplications.useQuery({ leadId }, { enabled: leadId > 0 });
