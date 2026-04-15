@@ -1741,3 +1741,4 @@
 - [x] Smart logo placement: detect background brightness, skip white box on light backgrounds, add subtle backdrop only on dark backgrounds
 - [x] Fix image compositor "spawn python3 ENOENT" on production — rewrite as pure Node.js with Sharp + embedded base64 Poppins fonts (no Python dependency)
 - [x] Fix image compositor garbled text on production — Sharp librsvg ignores @font-face data URIs, rewrote with opentype.js text-to-SVG-paths (completely font-independent)
+- [x] Fix "Poppins fonts not loaded" on production — embedded fonts as base64 in fontData.ts, parsed by opentype.js at runtime (zero file system dependency)

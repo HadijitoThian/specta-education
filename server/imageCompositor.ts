@@ -7,30 +7,29 @@
 
 import sharp from "sharp";
 import opentype from "opentype.js";
-import * as path from "path";
-import { fileURLToPath } from "url";
 import { storagePut } from "./storage";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { poppinsBoldB64, poppinsRegularB64, poppinsSemiBoldB64 } from "./fontData";
 
 const SPECTA_LOGO_URL =
   "https://d2xsxph8kpxj0f.cloudfront.net/310519663225686644/HYZQfmGzLP8hwhgd2UnqHZ/specta_logo_official_9fa82bda.jpeg";
 
-// ── Load Poppins fonts with opentype.js at startup ─────────────────────────
-const FONTS_DIR = path.join(__dirname, "fonts");
-
+// ── Load Poppins fonts from embedded base64 data (no file system needed) ───
 let fontBold: opentype.Font | null = null;
 let fontRegular: opentype.Font | null = null;
 let fontSemiBold: opentype.Font | null = null;
 
+function b64ToArrayBuffer(b64: string): ArrayBuffer {
+  const buf = Buffer.from(b64, "base64");
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+}
+
 try {
-  fontBold = opentype.loadSync(path.join(FONTS_DIR, "Poppins-Bold.ttf"));
-  fontRegular = opentype.loadSync(path.join(FONTS_DIR, "Poppins-Regular.ttf"));
-  fontSemiBold = opentype.loadSync(path.join(FONTS_DIR, "Poppins-SemiBold.ttf"));
-  console.log("[compositor] Poppins fonts loaded via opentype.js");
+  fontBold = opentype.parse(b64ToArrayBuffer(poppinsBoldB64));
+  fontRegular = opentype.parse(b64ToArrayBuffer(poppinsRegularB64));
+  fontSemiBold = opentype.parse(b64ToArrayBuffer(poppinsSemiBoldB64));
+  console.log("[compositor] Poppins fonts loaded from embedded base64 data");
 } catch (e: any) {
-  console.error("[compositor] Failed to load Poppins fonts:", e.message);
+  console.error("[compositor] Failed to parse embedded Poppins fonts:", e.message);
 }
 
 export interface CompositorInput {
