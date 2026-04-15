@@ -178,7 +178,7 @@ def compose(data):
     # ── Composite overlay onto canvas ────────────────────────────────────────
     canvas = Image.alpha_composite(canvas, overlay)
     
-    # ── Composite SpecTa logo ─────────────────────────────────────────────────
+    # ── Composite SpecTa logo (smart background detection) ─────────────────────
     logo_url = data.get("logo_url", "")
     if logo_url:
         try:
@@ -193,14 +193,45 @@ def compose(data):
                 target_w = int(logo_w * (target_h / logo_h))
             logo_img = logo_img.resize((target_w, target_h), Image.LANCZOS)
             
-            # Add subtle white background pad for visibility
-            pad = 10
-            bg_pad = Image.new("RGBA", (target_w + pad*2, target_h + pad*2), (255, 255, 255, 200))
-            bg_pad.paste(logo_img, (pad, pad), logo_img if logo_img.mode == "RGBA" else None)
+            logo_x, logo_y = 24, 24
+            pad = 12
             
-            # Round corners on logo bg
-            logo_x, logo_y = 20, 20
-            canvas.paste(bg_pad, (logo_x, logo_y), bg_pad)
+            # ── Detect brightness of the background area under the logo ──
+            logo_region = canvas.crop((
+                logo_x, logo_y,
+                min(logo_x + target_w + pad * 2, W),
+                min(logo_y + target_h + pad * 2, H)
+            ))
+            # Convert to grayscale and calculate average brightness (0=black, 255=white)
+            grayscale = logo_region.convert("L")
+            pixels = list(grayscale.getdata())
+            avg_brightness = sum(pixels) / len(pixels) if pixels else 128
+            
+            # Decision logic:
+            # - Bright background (avg > 160): place logo directly, no backdrop needed
+            # - Medium background (100-160): subtle semi-transparent backdrop
+            # - Dark background (avg < 100): white rounded backdrop for visibility
+            if avg_brightness > 160:
+                # Bright background — logo placed directly, no white box
+                canvas.paste(logo_img, (logo_x, logo_y), logo_img if logo_img.mode == "RGBA" else None)
+            elif avg_brightness > 100:
+                # Medium background — very subtle semi-transparent backdrop
+                bg_pad = Image.new("RGBA", (target_w + pad*2, target_h + pad*2), (255, 255, 255, 100))
+                bg_pad.paste(logo_img, (pad, pad), logo_img if logo_img.mode == "RGBA" else None)
+                canvas.paste(bg_pad, (logo_x, logo_y), bg_pad)
+            else:
+                # Dark background — white rounded backdrop for full visibility
+                bg_pad = Image.new("RGBA", (target_w + pad*2, target_h + pad*2), (255, 255, 255, 210))
+                # Round the corners of the backdrop
+                from PIL import ImageDraw as ID2
+                mask = Image.new("L", bg_pad.size, 0)
+                mask_draw = ID2.Draw(mask)
+                mask_draw.rounded_rectangle([(0, 0), bg_pad.size], radius=12, fill=255)
+                bg_pad.putalpha(mask)
+                bg_pad.paste(logo_img, (pad, pad), logo_img if logo_img.mode == "RGBA" else None)
+                canvas.paste(bg_pad, (logo_x, logo_y), bg_pad)
+            
+            print(f"[compositor] Logo placed. Background brightness: {avg_brightness:.0f} ({'bright - no box' if avg_brightness > 160 else 'medium - subtle' if avg_brightness > 100 else 'dark - white box'})", file=sys.stderr)
         except Exception as e:
             print(f"[compositor] Logo overlay failed: {e}", file=sys.stderr)
     

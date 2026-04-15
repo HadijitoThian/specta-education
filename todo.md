@@ -1738,3 +1738,4 @@
 - [x] Expand keyword pool from 54 to 200+ keywords across 15 categories (Australia, UK, Canada, NZ, Ireland, Germany, Japan, USA, Netherlands, IELTS, Scholarships, Study Abroad, Career, Student Life, SpecTa Promo)
 - [x] Add keyword recycling mechanism — keywords reused after 90 days with fresh angle
 - [x] Add AI fallback keyword generator — when all keywords used, AI generates 10 fresh topics
+- [x] Smart logo placement: detect background brightness, skip white box on light backgrounds, add subtle backdrop only on dark backgrounds
