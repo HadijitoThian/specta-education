@@ -1,13 +1,13 @@
 /**
  * SpecTa Education Instagram Image Compositor
- * Pure Node.js implementation using Sharp + SVG with embedded base64 fonts.
- * No Python dependency — works on production server.
+ * Pure Node.js: Sharp + opentype.js (text→SVG paths).
+ * Text is converted to vector shapes — NO font dependency on the server.
+ * Works on any production server regardless of installed fonts.
  */
 
 import sharp from "sharp";
+import opentype from "opentype.js";
 import * as path from "path";
-import * as fs from "fs";
-import * as os from "os";
 import { fileURLToPath } from "url";
 import { storagePut } from "./storage";
 
@@ -17,42 +17,21 @@ const __dirname = path.dirname(__filename);
 const SPECTA_LOGO_URL =
   "https://d2xsxph8kpxj0f.cloudfront.net/310519663225686644/HYZQfmGzLP8hwhgd2UnqHZ/specta_logo_official_9fa82bda.jpeg";
 
-// ── Load and embed Poppins fonts as base64 at startup ──────────────────────
+// ── Load Poppins fonts with opentype.js at startup ─────────────────────────
 const FONTS_DIR = path.join(__dirname, "fonts");
-let fontBoldB64 = "";
-let fontRegularB64 = "";
-let fontSemiBoldB64 = "";
+
+let fontBold: opentype.Font | null = null;
+let fontRegular: opentype.Font | null = null;
+let fontSemiBold: opentype.Font | null = null;
 
 try {
-  fontBoldB64 = fs.readFileSync(path.join(FONTS_DIR, "Poppins-Bold.ttf")).toString("base64");
-  fontRegularB64 = fs.readFileSync(path.join(FONTS_DIR, "Poppins-Regular.ttf")).toString("base64");
-  fontSemiBoldB64 = fs.readFileSync(path.join(FONTS_DIR, "Poppins-SemiBold.ttf")).toString("base64");
-} catch (e) {
-  console.warn("[compositor] Could not load Poppins fonts, will use system fallback");
+  fontBold = opentype.loadSync(path.join(FONTS_DIR, "Poppins-Bold.ttf"));
+  fontRegular = opentype.loadSync(path.join(FONTS_DIR, "Poppins-Regular.ttf"));
+  fontSemiBold = opentype.loadSync(path.join(FONTS_DIR, "Poppins-SemiBold.ttf"));
+  console.log("[compositor] Poppins fonts loaded via opentype.js");
+} catch (e: any) {
+  console.error("[compositor] Failed to load Poppins fonts:", e.message);
 }
-
-function getFontFaceCSS(): string {
-  if (!fontBoldB64) return "";
-  return `
-    @font-face {
-      font-family: 'Poppins';
-      font-weight: 700;
-      src: url('data:font/ttf;base64,${fontBoldB64}') format('truetype');
-    }
-    @font-face {
-      font-family: 'Poppins';
-      font-weight: 600;
-      src: url('data:font/ttf;base64,${fontSemiBoldB64}') format('truetype');
-    }
-    @font-face {
-      font-family: 'Poppins';
-      font-weight: 400;
-      src: url('data:font/ttf;base64,${fontRegularB64}') format('truetype');
-    }
-  `;
-}
-
-const FONT_FAMILY = fontBoldB64 ? "Poppins" : "sans-serif";
 
 export interface CompositorInput {
   backgroundUrl?: string;
@@ -65,24 +44,58 @@ export interface CompositorInput {
   copyright?: string;
 }
 
-// ── Helper: escape XML special characters ──────────────────────────────────
-function escXml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+// ── Helper: convert text to SVG <path> string using opentype.js ────────────
+function textToSvgPath(
+  font: opentype.Font,
+  text: string,
+  fontSize: number,
+  x: number,
+  y: number,
+  fill: string,
+  opacity?: number,
+  anchor?: "start" | "middle" | "end"
+): string {
+  const otPath = font.getPath(text, 0, 0, fontSize);
+  const bbox = otPath.getBoundingBox();
+  const textWidth = bbox.x2 - bbox.x1;
+
+  let offsetX = x;
+  if (anchor === "middle") {
+    offsetX = x - textWidth / 2 - bbox.x1;
+  } else if (anchor === "end") {
+    offsetX = x - textWidth - bbox.x1;
+  } else {
+    offsetX = x - bbox.x1;
+  }
+  const offsetY = y;
+
+  // Re-generate path at the correct position
+  const positioned = font.getPath(text, offsetX, offsetY, fontSize);
+  const pathData = positioned.toPathData(2);
+
+  if (!pathData || pathData.length < 5) return "";
+
+  const opacityAttr = opacity !== undefined && opacity < 1 ? ` fill-opacity="${opacity}"` : "";
+  return `<path d="${pathData}" fill="${fill}"${opacityAttr}/>`;
+}
+
+// ── Helper: measure text width ─────────────────────────────────────────────
+function measureTextWidth(font: opentype.Font, text: string, fontSize: number): number {
+  const otPath = font.getPath(text, 0, 0, fontSize);
+  const bbox = otPath.getBoundingBox();
+  return bbox.x2 - bbox.x1;
 }
 
 // ── Helper: wrap text into lines that fit within maxWidth ──────────────────
-function wrapText(text: string, fontSize: number, maxWidth: number): string[] {
-  // Approximate: each character is ~0.55 * fontSize pixels wide for Poppins Bold
-  const charWidth = fontSize * 0.55;
-  const maxChars = Math.floor(maxWidth / charWidth);
-  
+function wrapText(font: opentype.Font, text: string, fontSize: number, maxWidth: number): string[] {
   const words = text.split(" ");
   const lines: string[] = [];
   let current = "";
-  
+
   for (const word of words) {
     const test = current ? `${current} ${word}` : word;
-    if (test.length <= maxChars) {
+    const w = measureTextWidth(font, test, fontSize);
+    if (w <= maxWidth) {
       current = test;
     } else {
       if (current) lines.push(current);
@@ -114,7 +127,7 @@ async function measureBrightness(imgBuffer: Buffer, x: number, y: number, w: num
     const sum = region.reduce((acc, val) => acc + val, 0);
     return sum / region.length;
   } catch {
-    return 128; // default medium
+    return 128;
   }
 }
 
@@ -122,6 +135,10 @@ async function measureBrightness(imgBuffer: Buffer, x: number, y: number, w: num
 export async function composeInstagramImage(input: CompositorInput): Promise<{ success: boolean; imageBuffer?: Buffer; error?: string }> {
   const W = 1080;
   const H = 1080;
+
+  if (!fontBold || !fontRegular) {
+    return { success: false, error: "Poppins fonts not loaded" };
+  }
 
   try {
     // ── Step 1: Prepare background ─────────────────────────────────────────
@@ -151,39 +168,12 @@ export async function composeInstagramImage(input: CompositorInput): Promise<{ s
     const badge = input.badge || "";
     const copyright = input.copyright || "\u00A9 2026 SpecTa Education | spectaeducation.com | @spectaeducation";
 
-    // ── Step 3: Build SVG text overlay ─────────────────────────────────────
-    // Wrap headline
-    let headlineFontSize = 64;
-    let headlineLines = wrapText(headline, headlineFontSize, W - 100);
-    if (headlineLines.length > 3) {
-      headlineFontSize = 52;
-      headlineLines = wrapText(headline, headlineFontSize, W - 100);
-    }
-
-    const lineHeight = headlineFontSize + 16;
-    const totalHeadlineH = headlineLines.length * lineHeight;
-
-    // Subheadline lines
-    const subLines = subheadline ? wrapText(subheadline, 26, W - 140) : [];
-    const subLineH = 38;
-    const totalSubH = subLines.length * subLineH;
-
-    // Layout: stack from bottom up
-    const copyrightY = H - 18;
-    const ctaCenterY = H - 85;
-    const ctaH = 56;
-    const ctaW = Math.min(cta.length * 18 + 80, 520);
-    const subBottom = ctaCenterY - ctaH / 2 - 22;
-    const subTop = subBottom - totalSubH;
-    const headlineBottom = subTop - 18;
-    const headlineTop = headlineBottom - totalHeadlineH;
-
-    // Build SVG elements
-    let svgElements = "";
+    // ── Step 3: Build SVG overlay with text as PATHS (not font text) ───────
+    let svgPaths = "";
 
     // Dark gradient overlay (bottom 58%)
     const gradientId = "grad_" + Date.now();
-    svgElements += `
+    svgPaths += `
       <defs>
         <linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="black" stop-opacity="0"/>
@@ -195,50 +185,86 @@ export async function composeInstagramImage(input: CompositorInput): Promise<{ s
       <rect width="${W}" height="${H}" fill="url(#${gradientId})"/>
     `;
 
-    // Badge (top right)
-    if (badge) {
-      const badgeW = badge.length * 14 + 40;
+    // ── Badge (top right) ──────────────────────────────────────────────────
+    if (badge && fontBold) {
+      const badgeFontSize = 20;
+      const badgeTextW = measureTextWidth(fontBold, badge, badgeFontSize);
+      const badgePadX = 24;
+      const badgeW = badgeTextW + badgePadX * 2;
+      const badgeH = 44;
       const badgeX = W - badgeW - 28;
-      svgElements += `
-        <rect x="${badgeX}" y="24" width="${badgeW}" height="44" rx="8" fill="#d4af37" fill-opacity="0.94"/>
-        <text x="${badgeX + badgeW / 2}" y="52" text-anchor="middle" font-family="${FONT_FAMILY}" font-weight="700" font-size="20" fill="#1a1a1a">${escXml(badge)}</text>
-      `;
+      const badgeY = 24;
+
+      svgPaths += `<rect x="${badgeX}" y="${badgeY}" width="${badgeW}" height="${badgeH}" rx="8" fill="#d4af37" fill-opacity="0.94"/>`;
+      svgPaths += textToSvgPath(fontBold, badge, badgeFontSize, badgeX + badgeW / 2, badgeY + 30, "#1a1a1a", undefined, "middle");
     }
+
+    // ── Headline ───────────────────────────────────────────────────────────
+    let headlineFontSize = 64;
+    let headlineLines = headline ? wrapText(fontBold, headline, headlineFontSize, W - 100) : [];
+    if (headlineLines.length > 3) {
+      headlineFontSize = 52;
+      headlineLines = wrapText(fontBold, headline, headlineFontSize, W - 100);
+    }
+    if (headlineLines.length > 4) {
+      headlineFontSize = 44;
+      headlineLines = wrapText(fontBold, headline, headlineFontSize, W - 100);
+    }
+
+    const lineHeight = headlineFontSize + 16;
+    const totalHeadlineH = headlineLines.length * lineHeight;
+
+    // ── Subheadline ────────────────────────────────────────────────────────
+    const subFont = fontRegular;
+    const subFontSize = 26;
+    const subLines = subheadline ? wrapText(subFont, subheadline, subFontSize, W - 140) : [];
+    const subLineH = 38;
+    const totalSubH = subLines.length * subLineH;
+
+    // ── Layout: stack from bottom up ───────────────────────────────────────
+    const copyrightY = H - 14;
+    const ctaCenterY = H - 82;
+    const ctaH = 56;
+    // Don't include arrow in text — draw it as SVG chevron instead
+    const ctaTextW = measureTextWidth(fontBold, cta, 24);
+    const ctaW = Math.min(ctaTextW + 120, 520);
+    const subBottom = ctaCenterY - ctaH / 2 - 22;
+    const subTop = subBottom - totalSubH;
+    const headlineBottom = subTop - 18;
+    const headlineTop = headlineBottom - totalHeadlineH;
 
     // Headline with shadow
     for (let i = 0; i < headlineLines.length; i++) {
-      const y = headlineTop + i * lineHeight + lineHeight / 2 + headlineFontSize * 0.35;
-      const line = escXml(headlineLines[i]);
+      const y = headlineTop + i * lineHeight + lineHeight;
+      const line = headlineLines[i];
       // Shadow
-      svgElements += `<text x="${W / 2 + 2}" y="${y + 3}" text-anchor="middle" font-family="${FONT_FAMILY}" font-weight="700" font-size="${headlineFontSize}" fill="black" fill-opacity="0.5">${line}</text>`;
-      // Main
-      svgElements += `<text x="${W / 2}" y="${y}" text-anchor="middle" font-family="${FONT_FAMILY}" font-weight="700" font-size="${headlineFontSize}" fill="white">${line}</text>`;
+      svgPaths += textToSvgPath(fontBold, line, headlineFontSize, W / 2 + 2, y + 3, "black", 0.5, "middle");
+      // Main text
+      svgPaths += textToSvgPath(fontBold, line, headlineFontSize, W / 2, y, "white", undefined, "middle");
     }
 
     // Subheadline
     for (let i = 0; i < subLines.length; i++) {
-      const y = subTop + i * subLineH + subLineH / 2 + 9;
-      svgElements += `<text x="${W / 2}" y="${y}" text-anchor="middle" font-family="${FONT_FAMILY}" font-weight="400" font-size="26" fill="#f0f0f0" fill-opacity="0.92">${escXml(subLines[i])}</text>`;
+      const y = subTop + i * subLineH + subLineH;
+      svgPaths += textToSvgPath(subFont, subLines[i], subFontSize, W / 2, y, "#f0f0f0", 0.92, "middle");
     }
 
-    // CTA button
+    // ── CTA button ─────────────────────────────────────────────────────────
     const ctaX = W / 2 - ctaW / 2;
     const ctaY = ctaCenterY - ctaH / 2;
-    svgElements += `
-      <rect x="${ctaX}" y="${ctaY}" width="${ctaW}" height="${ctaH}" rx="28" fill="#e63946"/>
-      <text x="${W / 2}" y="${ctaCenterY + 9}" text-anchor="middle" font-family="${FONT_FAMILY}" font-weight="700" font-size="24" fill="white">${escXml(cta)}  \u2192</text>
-    `;
+    svgPaths += `<rect x="${ctaX}" y="${ctaY}" width="${ctaW}" height="${ctaH}" rx="28" fill="#e63946"/>`;
+    // Render CTA text slightly left of center to make room for arrow
+    svgPaths += textToSvgPath(fontBold, cta, 24, W / 2 - 16, ctaCenterY + 9, "white", undefined, "middle");
+    // Draw arrow chevron as SVG path (no font needed)
+    const arrowX = W / 2 + ctaTextW / 2 + 8;
+    const arrowY = ctaCenterY;
+    svgPaths += `<path d="M${arrowX} ${arrowY - 8} L${arrowX + 10} ${arrowY} L${arrowX} ${arrowY + 8}" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
 
-    // Copyright bar
-    svgElements += `
-      <rect x="0" y="${H - 40}" width="${W}" height="40" fill="black" fill-opacity="0.65"/>
-      <text x="${W / 2}" y="${copyrightY}" text-anchor="middle" font-family="${FONT_FAMILY}" font-weight="400" font-size="14" fill="#c8c8c8">${escXml(copyright)}</text>
-    `;
+    // ── Copyright bar ──────────────────────────────────────────────────────
+    svgPaths += `<rect x="0" y="${H - 40}" width="${W}" height="40" fill="black" fill-opacity="0.65"/>`;
+    svgPaths += textToSvgPath(fontRegular, copyright, 14, W / 2, copyrightY, "#c8c8c8", undefined, "middle");
 
-    const svgOverlay = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
-      <defs><style>${getFontFaceCSS()}</style></defs>
-      ${svgElements}
-    </svg>`;
+    const svgOverlay = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">${svgPaths}</svg>`;
 
     // ── Step 4: Composite overlay onto background ──────────────────────────
     const overlayBuffer = Buffer.from(svgOverlay);
@@ -250,7 +276,7 @@ export async function composeInstagramImage(input: CompositorInput): Promise<{ s
     // ── Step 5: Composite SpecTa logo with smart brightness detection ──────
     try {
       const logoRaw = await downloadImage(SPECTA_LOGO_URL);
-      let logoResized = await sharp(logoRaw)
+      const logoResized = await sharp(logoRaw)
         .resize({ width: 180, height: 90, fit: "inside" })
         .png()
         .toBuffer();

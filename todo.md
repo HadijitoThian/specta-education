@@ -1740,3 +1740,4 @@
 - [x] Add AI fallback keyword generator — when all keywords used, AI generates 10 fresh topics
 - [x] Smart logo placement: detect background brightness, skip white box on light backgrounds, add subtle backdrop only on dark backgrounds
 - [x] Fix image compositor "spawn python3 ENOENT" on production — rewrite as pure Node.js with Sharp + embedded base64 Poppins fonts (no Python dependency)
+- [x] Fix image compositor garbled text on production — Sharp librsvg ignores @font-face data URIs, rewrote with opentype.js text-to-SVG-paths (completely font-independent)
