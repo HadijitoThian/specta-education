@@ -86,17 +86,30 @@ export default function StaffDashboard() {
   const staffUser = meData?.staff;
   const applications = useMemo(() => appsData?.applications || [], [appsData]);
 
-  // Redirect to login if not authenticated (only when query is fully settled, not during background refetch)
-  if (!meLoading && !meFetching && !staffUser) {
-    setLocation("/staff-login");
-    return null;
+  // Redirect to login — MUST be inside useEffect, never in render phase
+  // Calling setLocation/navigate in render causes React infinite re-render loops
+  useEffect(() => {
+    if (!meLoading && !meFetching && !staffUser) {
+      setLocation("/staff-login");
+    }
+  }, [meLoading, meFetching, staffUser, setLocation]);
+
+  useEffect(() => {
+    if (staffUser?.mustChangePassword) {
+      setLocation("/staff-login");
+    }
+  }, [staffUser, setLocation]);
+
+  // Show loading while auth is being checked
+  if (meLoading || meFetching) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
   }
 
-  // Redirect to login if must change password
-  if (staffUser?.mustChangePassword) {
-    setLocation("/staff-login");
-    return null;
-  }
+  if (!staffUser) return null;
 
   const handleLogout = async () => {
     await logoutMutation.mutateAsync();

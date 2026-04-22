@@ -9,35 +9,46 @@ import App from "./App";
 import { getLoginUrl } from "./const";
 import "./index.css";
 
+// ─── QueryClient ─────────────────────────────────────────────────────────────
+// CRITICAL: staleTime=5min + refetchOnWindowFocus=false prevents the auth
+// redirect loop where staffAuth.me refetches on tab-switch and briefly returns
+// null, triggering the auth guard to redirect to /staff-login.
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Prevent background refetches from causing auth redirect loops.
-      // Each component that needs fresh data can override staleTime locally.
-      staleTime: 5 * 60 * 1000, // 5 minutes global default
-      refetchOnWindowFocus: false, // Don't refetch when user switches tabs — prevents redirect loops
-      retry: false, // Don't retry failed queries (avoids cascading redirects)
+      staleTime: 5 * 60 * 1000,       // 5 minutes — data is fresh, no background refetch
+      refetchOnWindowFocus: false,     // Never refetch when user switches tabs
+      refetchOnReconnect: false,       // Never refetch on network reconnect
+      retry: false,                    // Don't retry — avoids cascading error redirects
     },
   },
 });
 
+// ─── Global error handler ─────────────────────────────────────────────────────
+// ONLY redirect when the server explicitly throws UNAUTHED_ERR_MSG ("Please login (10001)").
+// Any other error (network, 500, timeout) must NOT redirect — it would log staff out.
+// CRM/staff routes use their own JWT cookie auth, NOT Manus OAuth.
 const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!(error instanceof TRPCClientError)) return;
   if (typeof window === "undefined") return;
 
+  // Only act on the explicit "Please login (10001)" message
   const isUnauthorized = error.message === UNAUTHED_ERR_MSG;
   if (!isUnauthorized) return;
 
   const path = window.location.pathname;
 
-  // Staff/CRM routes → redirect to staff login (email/password, NOT Manus OAuth)
+  // CRM/staff routes use staff_token JWT — redirect to staff login page, NOT Manus OAuth
   if (path.startsWith("/crm") || path.startsWith("/staff")) {
+    // Don't redirect if already on staff-login to prevent redirect loops
+    if (path === "/staff-login") return;
     window.location.href = "/staff-login";
     return;
   }
 
-  // Student portal routes → redirect to student login
+  // Student portal routes
   if (path.startsWith("/student") || path.startsWith("/my-journey")) {
+    if (path === "/student/login" || path === "/student/register") return;
     window.location.href = "/student/login";
     return;
   }

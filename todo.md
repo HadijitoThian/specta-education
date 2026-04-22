@@ -1742,4 +1742,5 @@
 - [x] Fix image compositor "spawn python3 ENOENT" on production — rewrite as pure Node.js with Sharp + embedded base64 Poppins fonts (no Python dependency)
 - [x] Fix image compositor garbled text on production — Sharp librsvg ignores @font-face data URIs, rewrote with opentype.js text-to-SVG-paths (completely font-independent)
 - [x] Fix "Poppins fonts not loaded" on production — embedded fonts as base64 in fontData.ts, parsed by opentype.js at runtime (zero file system dependency)
-- [x] Fix CRM dashboard redirect bug — root cause: QueryClient staleTime=0 caused staffAuth.me to refetch on window focus; StudentProfile360 had no auth guard. Fixed: set global staleTime=5min + refetchOnWindowFocus=false in QueryClient, added auth guard to StudentProfile360
+- [ ] Fix auto-logout when staff assigns tasks in CRM — task mutation throws UNAUTHORIZED error triggering global redirect (reported by Fitriana)
+- [x] Fix auto-logout when staff assigns tasks in CRM — 3 root causes fixed: (1) QueryClient had no staleTime so staffAuth.me refetched on every tab switch; (2) StaffDashboard called setLocation in render phase (React anti-pattern causing redirect loops); (3) StudentProfile360 had no auth guard at all. Fix: global staleTime=5min + refetchOnWindowFocus=false, moved all redirects to useEffect, added auth guard to StudentProfile360

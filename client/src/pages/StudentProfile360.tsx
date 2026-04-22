@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRoute, Link, useLocation } from "wouter";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import AICounselorAssistant from "@/components/AICounselorAssistant";
@@ -35,14 +35,15 @@ export default function StudentProfile360() {
   const leadId = parseInt(params?.id ?? "0");
   const [, setLocation] = useLocation();
 
-  // ── Auth guard (same pattern as CounselorCRM) ──────────────────────────────
+  // ── Auth guard ─────────────────────────────────────────────────────────────────────
+  // Uses same staff_token JWT as CounselorCRM. MUST be in useEffect, not render.
   const { data: meData, isLoading: meLoading, isFetching: meFetching } = trpc.staffAuth.me.useQuery(undefined, {
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
   const staffUser = (meData as any)?.staff;
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!meLoading && !meFetching && !staffUser) {
       setLocation("/staff-login");
     }
@@ -56,7 +57,7 @@ export default function StudentProfile360() {
   const [activeTab, setActiveTab] = useState<"overview" | "notes" | "tasks" | "documents" | "appointments" | "timeline" | "applications" | "visa" | "ai">("overview");
 
   // Queries
-  const { data: leadData, refetch: refetchLead } = trpc.crm.getLeadWithPipeline.useQuery({ leadId }, { enabled: leadId > 0 && !!staffUser });
+  const { data: leadData, refetch: refetchLead } = trpc.crm.getLeadWithPipeline.useQuery({ leadId }, { enabled: leadId > 0 });
   const { data: notesData, refetch: refetchNotes } = trpc.crm.getNotesByLead.useQuery({ leadId }, { enabled: leadId > 0 });
   const { data: tasksData, refetch: refetchTasks } = trpc.crm.getAllTasks.useQuery();
   const { data: appsData, refetch: refetchApps } = trpc.crm.getApplications.useQuery({ leadId }, { enabled: leadId > 0 });
