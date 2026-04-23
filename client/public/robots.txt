@@ -1,6 +1,6 @@
 # SpecTa Education - Robots.txt
 # https://spectaeducation.com
-# Last updated: March 2026
+# Last updated: April 2026
 
 # === ALLOW ALL STANDARD CRAWLERS ===
 User-agent: *
@@ -10,10 +10,8 @@ Allow: /
 # ChatGPT / OpenAI
 User-agent: GPTBot
 Allow: /
-
 User-agent: ChatGPT-User
 Allow: /
-
 User-agent: OAI-SearchBot
 Allow: /
 
@@ -24,10 +22,8 @@ Allow: /
 # Anthropic Claude
 User-agent: ClaudeBot
 Allow: /
-
 User-agent: Claude-SearchBot
 Allow: /
-
 User-agent: anthropic-ai
 Allow: /
 
@@ -47,32 +43,50 @@ Allow: /
 User-agent: Applebot-Extended
 Allow: /
 
-# Disallow admin and staff areas
+# === DISALLOW PRIVATE / STAFF AREAS ===
 Disallow: /admin
+Disallow: /admin/
 Disallow: /staff
+Disallow: /staff/
+Disallow: /staff-login
+Disallow: /crm
+Disallow: /crm/
 Disallow: /api/
+Disallow: /student/dashboard
+Disallow: /student/portal
 
-# Disallow test/development pages
+# === DISALLOW TEST / DEVELOPMENT PAGES ===
 Disallow: /showcase
+Disallow: /test/pro/payment-success
+Disallow: /unsubscribe
 
-# Disallow user-specific pages
+# === DISALLOW USER-SPECIFIC PAGES ===
 Disallow: /my-journey
 Disallow: /persona
+Disallow: /simulator/report
 
-# Allow important pages to be crawled
+# === EXPLICITLY ALLOW IMPORTANT PUBLIC PAGES ===
 Allow: /blog
 Allow: /articles
 Allow: /destinations
 Allow: /ielts
+Allow: /ielts/practice
 Allow: /scholarships
 Allow: /about
 Allow: /contact
 Allow: /test/pro
-Allow: /quiz
+Allow: /play/quiz
+Allow: /play/aptitude
+Allow: /play/persona
 Allow: /compare
 Allow: /simulator
+Allow: /simulator/experience
 Allow: /apply
+Allow: /book
 Allow: /book-consultation
+Allow: /malaysia
+Allow: /faq
+Allow: /student/register
 
 # Sitemap location
 Sitemap: https://spectaeducation.com/sitemap.xml

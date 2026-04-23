@@ -1755,3 +1755,7 @@
 - [x] Add LCP hero image preload in index.html (fetchpriority=high)
 - [x] Add loading="lazy" + decoding="async" to all below-the-fold images on homepage
 - [x] Lazy-load ChatBot and ChatBotButton on homepage (heavy below-the-fold components)
+
+## SEO Updates - April 2026
+- [x] Update sitemap.xml with all 39 current public routes (added ielts/practice, play/*, simulator/experience, faq, student/register pages)
+- [x] Update robots.txt to block /crm, /staff-login, /student/dashboard, /student/portal, /simulator/report from Google indexing
