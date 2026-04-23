@@ -1744,3 +1744,14 @@
 - [x] Fix "Poppins fonts not loaded" on production — embedded fonts as base64 in fontData.ts, parsed by opentype.js at runtime (zero file system dependency)
 - [ ] Fix auto-logout when staff assigns tasks in CRM — task mutation throws UNAUTHORIZED error triggering global redirect (reported by Fitriana)
 - [x] Fix auto-logout when staff assigns tasks in CRM — 3 root causes fixed: (1) QueryClient had no staleTime so staffAuth.me refetched on every tab switch; (2) StaffDashboard called setLocation in render phase (React anti-pattern causing redirect loops); (3) StudentProfile360 had no auth guard at all. Fix: global staleTime=5min + refetchOnWindowFocus=false, moved all redirects to useEffect, added auth guard to StudentProfile360
+- [ ] Fix SEO Performance score from F(0) to A — page load time 3.66s, optimize images/fonts/JS bundle/caching
+
+## SEO Performance Optimization - April 2026
+- [x] Fix SEO Performance score F(0) — implemented React.lazy() code splitting for all 40+ pages (each route is now a separate JS chunk)
+- [x] Add Vite manual chunk splitting for vendor libs (react, framer-motion, trpc, etc.) for better long-term caching
+- [x] Add 1-year immutable Cache-Control headers for hashed /assets/* files in production
+- [x] Add 7-day cache headers for static files (images, fonts, favicon)
+- [x] Add preconnect + dns-prefetch hints for manuscdn.com and unsplash.com in index.html
+- [x] Add LCP hero image preload in index.html (fetchpriority=high)
+- [x] Add loading="lazy" + decoding="async" to all below-the-fold images on homepage
+- [x] Lazy-load ChatBot and ChatBotButton on homepage (heavy below-the-fold components)

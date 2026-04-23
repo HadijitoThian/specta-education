@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { SEO } from '@/components/SEO';
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { GraduationCap, Globe, BookOpen, Phone, Mail, MapPin, ChevronRight, X, ChevronDown, Star, Quote, Bell, FileCheck, Calendar, MessageSquare, ShieldCheck, TrendingUp, Users, CheckCircle2, Heart } from "lucide-react";
-import ChatBot from "@/components/ChatBot";
-import ChatBotButton from "@/components/ChatBotButton";
+// Lazy-load heavy below-the-fold components to reduce initial bundle
+const ChatBot = lazy(() => import("@/components/ChatBot"));
+const ChatBotButton = lazy(() => import("@/components/ChatBotButton"));
 import { motion, AnimatePresence } from "framer-motion";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -244,6 +245,8 @@ export default function Home() {
                   src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/QxFYGzgmpzrKbZOs.jpg" 
                   alt="Excited students ready to study abroad" 
                   className="w-full max-w-lg mx-auto rounded-2xl shadow-2xl object-cover"
+                  fetchPriority="high"
+                  decoding="async"
                   animate={{ 
                     y: [0, -8, 0],
                   }}
@@ -336,6 +339,8 @@ export default function Home() {
                     src={country.image} 
                     alt={country.name}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    loading="lazy"
+                    decoding="async"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                   <div className="absolute bottom-4 left-4 text-white">
@@ -811,8 +816,10 @@ export default function Home() {
 
       <Footer />
 
-      {/* Wall-E Style Chatbot Button */}
-      <ChatBotButton onClick={handleOpenChat} />
+      {/* Wall-E Style Chatbot Button — lazy loaded, below the fold */}
+      <Suspense fallback={null}>
+        <ChatBotButton onClick={handleOpenChat} />
+      </Suspense>
 
       {/* Chat Modal */}
       <AnimatePresence>
@@ -851,7 +858,9 @@ export default function Home() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <ChatBot />
+              <Suspense fallback={<div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center'}}><div style={{width:32,height:32,border:'3px solid #e5e7eb',borderTopColor:'#e63946',borderRadius:'50%',animation:'spin 0.7s linear infinite'}} /></div>}>
+                <ChatBot />
+              </Suspense>
             </motion.div>
           </motion.div>
         )}
