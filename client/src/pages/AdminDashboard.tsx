@@ -17,6 +17,7 @@ import {
 import { Link } from "wouter";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
 import AptitudeReportDownload from "@/components/AptitudeReportPDF";
 import UniversityManager from "@/components/UniversityManager";
@@ -390,6 +391,22 @@ export default function AdminDashboard() {
 
   const deleteLinkMutation = trpc.aptitude.deleteLink.useMutation({
     onSuccess: () => utils.aptitude.listLinks.invalidate()
+  });
+
+  const resendProLinkMutation = trpc.aptitude.resendProAccessLink.useMutation({
+    onSuccess: (data) => {
+      toast.success(`✅ Access link resent to ${data.email}`);
+      utils.aptitude.listProOrders.invalidate();
+    },
+    onError: (err) => toast.error(`❌ ${err.message}`),
+  });
+
+  const markPaidMutation = trpc.aptitude.markOrderPaidAndSendLink.useMutation({
+    onSuccess: (data) => {
+      toast.success(`✅ Marked as paid. Access link sent to ${data.email}`);
+      utils.aptitude.listProOrders.invalidate();
+    },
+    onError: (err) => toast.error(`❌ ${err.message}`),
   });
 
   const copyToClipboard = (token: string) => {
@@ -2276,19 +2293,43 @@ export default function AdminDashboard() {
                             {order.createdAt ? new Date(order.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                           </td>
                           <td className="p-3">
-                            {order.xenditInvoiceUrl && order.status === 'pending' ? (
-                              <a href={order.xenditInvoiceUrl} target="_blank" rel="noopener noreferrer">
-                                <Button size="sm" variant="outline" className="text-xs">
-                                  <ExternalLink className="w-3 h-3 mr-1" /> Invoice
-                                </Button>
-                              </a>
-                            ) : order.paidAt ? (
-                              <span className="text-xs text-green-600">
-                                Paid {new Date(order.paidAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">-</span>
-                            )}
+                            <div className="flex flex-col gap-1">
+                              {order.status === 'paid' ? (
+                                <>
+                                  <span className="text-xs text-green-600 font-medium">
+                                    ✅ Paid {order.paidAt ? new Date(order.paidAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : ''}
+                                  </span>
+                                  <Button
+                                    size="sm" variant="outline" className="text-xs h-7"
+                                    disabled={resendProLinkMutation.isPending}
+                                    onClick={() => resendProLinkMutation.mutate({ externalId: order.externalId })}
+                                  >
+                                    📧 Resend Link
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  {order.xenditInvoiceUrl && (
+                                    <a href={order.xenditInvoiceUrl} target="_blank" rel="noopener noreferrer">
+                                      <Button size="sm" variant="outline" className="text-xs h-7">
+                                        <ExternalLink className="w-3 h-3 mr-1" /> Invoice
+                                      </Button>
+                                    </a>
+                                  )}
+                                  <Button
+                                    size="sm" className="text-xs h-7 bg-green-600 hover:bg-green-700 text-white"
+                                    disabled={markPaidMutation.isPending}
+                                    onClick={() => {
+                                      if (confirm(`Mark ${order.customerName} as paid and send access link to ${order.customerEmail}?`)) {
+                                        markPaidMutation.mutate({ externalId: order.externalId });
+                                      }
+                                    }}
+                                  >
+                                    ✅ Mark Paid & Send
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}

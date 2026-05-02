@@ -3256,6 +3256,38 @@ IMPORTANT:
     listProOrders: protectedProcedure.query(async () => {
       return await listAptitudeProOrders();
     }),
+    // ---- Admin: Manually resend Pro access link ----
+    resendProAccessLink: protectedProcedure
+      .input(z.object({ externalId: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
+        const order = await getAptitudeProOrderByExternalId(input.externalId);
+        if (!order) throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found' });
+        if (order.status !== 'paid') throw new TRPCError({ code: 'BAD_REQUEST', message: 'Order is not paid yet. Mark as paid first.' });
+        // Generate a fresh token valid for 7 days
+        const tokenValue = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        const [createdToken] = await createAccessTokens([{ token: tokenValue, status: 'unused', expiresAt }]);
+        await updateAptitudeProOrderStatus(input.externalId, 'paid', { accessTokenId: createdToken?.id });
+        const baseUrl = process.env.VITE_APP_URL || 'https://spectaeducation.com';
+        const sent = await sendProAccessLinkEmail({ to: order.customerEmail, customerName: order.customerName, token: tokenValue, baseUrl });
+        return { success: sent, email: order.customerEmail };
+      }),
+    // ---- Admin: Manually mark order as paid and send link ----
+    markOrderPaidAndSendLink: protectedProcedure
+      .input(z.object({ externalId: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
+        const order = await getAptitudeProOrderByExternalId(input.externalId);
+        if (!order) throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found' });
+        const tokenValue = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        const [createdToken] = await createAccessTokens([{ token: tokenValue, status: 'unused', expiresAt }]);
+        await updateAptitudeProOrderStatus(input.externalId, 'paid', { xenditInvoiceId: 'manual', paidAt: new Date(), accessTokenId: createdToken?.id });
+        const baseUrl = process.env.VITE_APP_URL || 'https://spectaeducation.com';
+        const sent = await sendProAccessLinkEmail({ to: order.customerEmail, customerName: order.customerName, token: tokenValue, baseUrl });
+        return { success: sent, email: order.customerEmail };
+      }),
   }),
 
   // ==========================================
