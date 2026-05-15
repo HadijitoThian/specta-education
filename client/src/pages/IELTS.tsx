@@ -697,13 +697,21 @@ export default function IELTS() {
                       </motion.li>
                     ))}
                   </ul>
-                  <a href={`https://wa.me/6281181208 20?text=Hi,%20I'm%20interested%20in%20the%20${encodeURIComponent(pkg.name)}`} target="_blank" rel="noopener noreferrer">
+                  <a
+                    href={
+                      pkg.highlight === "Mock Test"
+                        ? "https://mock-up.spectaeducation.com"
+                        : `https://wa.me/628118120820?text=Hi,%20I'm%20interested%20in%20the%20${encodeURIComponent(pkg.name)}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <Button className={`w-full rounded-xl py-5 font-semibold transition-all ${
                       pkg.popular 
                         ? 'bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white shadow-lg shadow-rose-200/50' 
                         : 'bg-gray-900 hover:bg-gray-800 text-white'
                     }`}>
-                      Get Started
+                      {pkg.highlight === "Mock Test" ? "Mulai Mock Test" : "Get Started"}
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   </a>

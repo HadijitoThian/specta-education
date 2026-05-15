@@ -346,7 +346,7 @@ export default function Home() {
                       </li>
                     ))}
                   </ul>
-                  <Link href="/aptitude-pro">
+                  <Link href="/test/pro">
                     <button className="w-full bg-gradient-to-r from-teal-600 to-emerald-500 hover:from-teal-700 hover:to-emerald-600 text-white font-bold py-2.5 rounded-xl transition-all duration-200 text-sm shadow-md hover:shadow-lg">
                       Beli Pro Sekarang →
                     </button>
