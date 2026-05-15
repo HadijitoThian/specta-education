@@ -286,7 +286,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Tes Bakat AI Promo Banner */}
+      {/* Tes Bakat AI Promo Banner — Free vs Pro */}
       <section className="py-12">
         <div className="container">
           <div className="bg-gradient-to-r from-teal-600 via-emerald-600 to-cyan-500 rounded-3xl p-8 md:p-12 relative overflow-hidden">
@@ -295,21 +295,64 @@ export default function Home() {
             <div className="absolute top-6 right-12 text-3xl opacity-20 animate-bounce" style={{ animationDelay: '0.5s' }}>🎯</div>
             <div className="absolute bottom-4 left-1/4 text-3xl opacity-20 animate-bounce" style={{ animationDelay: '1s' }}>🎓</div>
             <div className="absolute bottom-6 right-1/4 text-4xl opacity-20 animate-bounce" style={{ animationDelay: '1.5s' }}>✨</div>
-            
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="text-center md:text-left">
+
+            <div className="relative z-10">
+              {/* Header */}
+              <div className="text-center mb-8">
                 <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-4 py-1.5 mb-4">
                   <span className="text-yellow-300">🤖</span>
-                  <span className="text-white/90 text-sm font-medium">AI-Powered • RIASEC + Multiple Intelligence</span>
+                  <span className="text-white/90 text-sm font-medium">AI-Powered • RIASEC + Multiple Intelligence + Personality</span>
                 </div>
                 <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">Tes Bakat AI — Temukan Jurusan Terbaik Kamu!</h3>
-                <p className="text-white/80 text-lg max-w-md">Tes 10 menit dengan AI yang menganalisis minat, kepribadian & kecerdasan kamu. Hasil lengkap dikirim ke email!</p>
+                <p className="text-white/80 text-base max-w-xl mx-auto">Tes 10 menit dengan AI yang menganalisis minat, kepribadian & kecerdasan kamu secara mendalam.</p>
               </div>
-              <Link href="/play/aptitude">
-                <button className="bg-white text-teal-600 font-bold text-lg px-8 py-4 rounded-2xl hover:bg-yellow-300 hover:text-teal-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 whitespace-nowrap">
-                  Mulai Tes Gratis →
-                </button>
-              </Link>
+
+              {/* Free vs Pro Cards */}
+              <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+                {/* Free Card */}
+                <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                  <div className="text-white/70 text-xs font-semibold uppercase tracking-wider mb-2">Gratis</div>
+                  <div className="text-3xl font-bold text-white mb-1">Rp 0</div>
+                  <p className="text-white/70 text-sm mb-4">Hasil ringkas via email</p>
+                  <ul className="space-y-1.5 mb-5">
+                    {["Tes RIASEC", "Hasil ringkas", "Rekomendasi jurusan"].map(f => (
+                      <li key={f} className="flex items-center gap-2 text-white/80 text-sm">
+                        <span className="text-green-300">✓</span> {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href="/play/aptitude">
+                    <button className="w-full bg-white/20 hover:bg-white/30 text-white font-semibold py-2.5 rounded-xl transition-all duration-200 text-sm border border-white/30">
+                      Mulai Gratis →
+                    </button>
+                  </Link>
+                </div>
+
+                {/* Pro Card */}
+                <div className="bg-white rounded-2xl p-6 relative shadow-xl">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-full shadow">⭐ PALING POPULER</span>
+                  </div>
+                  <div className="text-teal-600 text-xs font-semibold uppercase tracking-wider mb-2">Pro — Laporan Lengkap</div>
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <span className="text-3xl font-bold text-gray-900">Rp 59.000</span>
+                    <span className="text-gray-400 line-through text-sm">Rp 79.000</span>
+                  </div>
+                  <p className="text-gray-500 text-sm mb-4">PDF 10+ halaman • Early Bird</p>
+                  <ul className="space-y-1.5 mb-5">
+                    {["7 Dimensi bakat lengkap", "Laporan PDF detail", "RIASEC Pro + Personality", "Analisis karir & universitas"].map(f => (
+                      <li key={f} className="flex items-center gap-2 text-gray-700 text-sm">
+                        <span className="text-teal-500">✓</span> {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href="/aptitude-pro">
+                    <button className="w-full bg-gradient-to-r from-teal-600 to-emerald-500 hover:from-teal-700 hover:to-emerald-600 text-white font-bold py-2.5 rounded-xl transition-all duration-200 text-sm shadow-md hover:shadow-lg">
+                      Beli Pro Sekarang →
+                    </button>
+                  </Link>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -407,6 +450,89 @@ export default function Home() {
               </motion.div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* IELTS Mock Test Banner */}
+      <section className="py-16">
+        <div className="container">
+          <motion.div
+            className="relative overflow-hidden rounded-3xl"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            {/* Background gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900" />
+            {/* Decorative circles */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/4" />
+            {/* Floating score badges */}
+            <div className="absolute top-6 right-8 bg-white/10 backdrop-blur-sm rounded-2xl px-4 py-2 border border-white/20 hidden md:block">
+              <div className="text-white/60 text-xs">Target Score</div>
+              <div className="text-white font-bold text-xl">7.0+</div>
+            </div>
+            <div className="absolute bottom-6 right-24 bg-yellow-400/20 backdrop-blur-sm rounded-2xl px-4 py-2 border border-yellow-400/30 hidden md:block">
+              <div className="text-yellow-300 text-xs">LPDP Ready</div>
+              <div className="text-white font-bold text-sm">✓ Certified</div>
+            </div>
+
+            <div className="relative z-10 p-8 md:p-12">
+              <div className="grid md:grid-cols-2 gap-10 items-center">
+                {/* Left: Content */}
+                <div>
+                  <div className="inline-flex items-center gap-2 bg-blue-500/30 rounded-full px-4 py-1.5 mb-5">
+                    <span className="text-blue-200 text-sm">🤖</span>
+                    <span className="text-blue-100 text-sm font-medium">AI-Powered • 4 Sections Lengkap</span>
+                  </div>
+                  <h2 className="text-3xl md:text-4xl font-bold text-white mb-3 leading-tight">
+                    Siap Raih <span className="text-yellow-400">IELTS 7.0+</span> untuk Beasiswa Impianmu?
+                  </h2>
+                  <p className="text-blue-100 text-base mb-6 max-w-md">
+                    Mock test IELTS lengkap dengan AI feedback sedetail examiner asli. Listening, Reading, Writing & Speaking — hasil instan!
+                  </p>
+                  {/* Feature pills */}
+                  <div className="flex flex-wrap gap-2 mb-8">
+                    {["✓ 4 Section Lengkap", "✓ AI Feedback Detail", "✓ Hasil Instan", "✓ LPDP Ready"].map(f => (
+                      <span key={f} className="bg-white/10 text-white/90 text-xs font-medium px-3 py-1.5 rounded-full border border-white/20">{f}</span>
+                    ))}
+                  </div>
+                  <a href="https://mock-up.spectaeducation.com" target="_blank" rel="noopener noreferrer">
+                    <button className="bg-yellow-400 hover:bg-yellow-300 text-blue-900 font-bold text-base px-8 py-4 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95">
+                      Mulai Mock Test Sekarang →
+                    </button>
+                  </a>
+                </div>
+
+                {/* Right: Comparison table */}
+                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                  <h4 className="text-white font-semibold text-sm mb-4 text-center">Bandingkan Sendiri</h4>
+                  <div className="space-y-3">
+                    {[
+                      { label: "Harga", real: "Rp 3.200.000", mock: "Rp 79.000" },
+                      { label: "Hasil Keluar", real: "13 hari", mock: "Langsung!" },
+                      { label: "AI Feedback", real: "✗ Tidak ada", mock: "✓ Lengkap" },
+                      { label: "500+ Students", real: "", mock: "Sudah berlatih" },
+                    ].map((row, i) => (
+                      <div key={i} className="grid grid-cols-3 gap-2 text-sm">
+                        <div className="text-blue-200 font-medium">{row.label}</div>
+                        {row.real ? (
+                          <div className="text-red-300 text-center">{row.real}</div>
+                        ) : <div />}
+                        <div className="text-green-300 font-semibold text-center">{row.mock}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-white/20 text-center">
+                    <div className="text-white/60 text-xs line-through mb-1">Rp 150.000</div>
+                    <div className="text-white font-bold text-2xl">Rp 79.000 <span className="text-yellow-400 text-sm font-semibold">HEMAT 47%</span></div>
+                    <div className="text-blue-200 text-xs mt-1">/test • One-time use</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
         </div>
       </section>
 
