@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE agent_configs SET isActive = 0 WHERE agentName = 'content_amplifier';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute UPDATE agent_configs SET isActive = 0 WHERE agentName = 'content_amplifier';",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1828
+}

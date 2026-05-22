@@ -19,7 +19,7 @@ export type FileContent = {
   type: "file_url";
   file_url: {
     url: string;
-    mime_type?: "audio/mpeg" | "audio/wav" | "application/pdf" | "audio/mp4" | "video/mp4" ;
+    mime_type?: "audio/mpeg" | "audio/wav" | "application/pdf" | "audio/mp4" | "video/mp4";
   };
 };
 
@@ -66,6 +66,8 @@ export type InvokeParams = {
   output_schema?: OutputSchema;
   responseFormat?: ResponseFormat;
   response_format?: ResponseFormat;
+  /** Override model: "deepseek-v4-pro" for heavy tasks, "deepseek-v4-flash" for fast/cheap */
+  model?: string;
 };
 
 export type ToolCall = {
@@ -110,6 +112,13 @@ export type ResponseFormat =
   | { type: "json_object" }
   | { type: "json_schema"; json_schema: JsonSchema };
 
+// DeepSeek API endpoint
+const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+
+// Default model: deepseek-v4-flash (fast + very cost-effective)
+// Use deepseek-v4-pro for heavy tasks by passing model param
+const DEFAULT_MODEL = "deepseek-v4-flash";
+
 const ensureArray = (
   value: MessageContent | MessageContent[]
 ): MessageContent[] => (Array.isArray(value) ? value : [value]);
@@ -120,19 +129,15 @@ const normalizeContentPart = (
   if (typeof part === "string") {
     return { type: "text", text: part };
   }
-
   if (part.type === "text") {
     return part;
   }
-
   if (part.type === "image_url") {
     return part;
   }
-
   if (part.type === "file_url") {
     return part;
   }
-
   throw new Error("Unsupported message content part");
 };
 
@@ -143,31 +148,20 @@ const normalizeMessage = (message: Message) => {
     const content = ensureArray(message.content)
       .map(part => (typeof part === "string" ? part : JSON.stringify(part)))
       .join("\n");
-
-    return {
-      role,
-      name,
-      tool_call_id,
-      content,
-    };
+    return { role, name, tool_call_id, content };
   }
 
   const contentParts = ensureArray(message.content).map(normalizeContentPart);
 
-  // If there's only text content, collapse to a single string for compatibility
-  if (contentParts.length === 1 && contentParts[0].type === "text") {
-    return {
-      role,
-      name,
-      content: contentParts[0].text,
-    };
+  // DeepSeek only supports text content in messages (no image/file in standard chat)
+  // Collapse all parts to text string for compatibility
+  if (contentParts.every(p => p.type === "text")) {
+    const text = (contentParts as TextContent[]).map(p => p.text).join("\n");
+    return { role, name, content: text };
   }
 
-  return {
-    role,
-    name,
-    content: contentParts,
-  };
+  // For mixed content (images), keep as array — DeepSeek V4 supports vision
+  return { role, name, content: contentParts };
 };
 
 const normalizeToolChoice = (
@@ -186,13 +180,11 @@ const normalizeToolChoice = (
         "tool_choice 'required' was provided but no tools were configured"
       );
     }
-
     if (tools.length > 1) {
       throw new Error(
         "tool_choice 'required' needs a single tool or specify the tool name explicitly"
       );
     }
-
     return {
       type: "function",
       function: { name: tools[0].function.name },
@@ -207,17 +199,6 @@ const normalizeToolChoice = (
   }
 
   return toolChoice;
-};
-
-const resolveApiUrl = () =>
-  ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
-    ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
-    : "https://forge.manus.im/v1/chat/completions";
-
-const assertApiKey = () => {
-  if (!ENV.forgeApiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
 };
 
 const normalizeResponseFormat = ({
@@ -237,13 +218,10 @@ const normalizeResponseFormat = ({
   | undefined => {
   const explicitFormat = responseFormat || response_format;
   if (explicitFormat) {
-    if (
-      explicitFormat.type === "json_schema" &&
-      !explicitFormat.json_schema?.schema
-    ) {
-      throw new Error(
-        "responseFormat json_schema requires a defined schema object"
-      );
+    // DeepSeek supports json_object but not json_schema with strict mode
+    // Convert json_schema to json_object for compatibility
+    if (explicitFormat.type === "json_schema") {
+      return { type: "json_object" };
     }
     return explicitFormat;
   }
@@ -255,18 +233,15 @@ const normalizeResponseFormat = ({
     throw new Error("outputSchema requires both name and schema");
   }
 
-  return {
-    type: "json_schema",
-    json_schema: {
-      name: schema.name,
-      schema: schema.schema,
-      ...(typeof schema.strict === "boolean" ? { strict: schema.strict } : {}),
-    },
-  };
+  // DeepSeek uses json_object mode (no strict json_schema support)
+  return { type: "json_object" };
 };
 
 export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
-  assertApiKey();
+  const apiKey = ENV.deepseekApiKey;
+  if (!apiKey) {
+    throw new Error("DEEPSEEK_API_KEY is not configured");
+  }
 
   const {
     messages,
@@ -277,11 +252,15 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     output_schema,
     responseFormat,
     response_format,
+    model,
   } = params;
 
+  const selectedModel = model || DEFAULT_MODEL;
+
   const payload: Record<string, unknown> = {
-    model: "gemini-2.5-flash",
+    model: selectedModel,
     messages: messages.map(normalizeMessage),
+    max_tokens: 8192,
   };
 
   if (tools && tools.length > 0) {
@@ -296,11 +275,6 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.tool_choice = normalizedToolChoice;
   }
 
-  payload.max_tokens = 32768
-  payload.thinking = {
-    "budget_tokens": 128
-  }
-
   const normalizedResponseFormat = normalizeResponseFormat({
     responseFormat,
     response_format,
@@ -312,11 +286,11 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
-  const response = await fetch(resolveApiUrl(), {
+  const response = await fetch(DEEPSEEK_API_URL, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
+      authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(payload),
   });
@@ -324,7 +298,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(
-      `LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
+      `DeepSeek LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
     );
   }
 

@@ -15,4 +15,5 @@ export const ENV = {
   xenditSecretKey: process.env.XENDIT_SECRET_KEY ?? "",
   xenditWebhookToken: process.env.XENDIT_WEBHOOK_TOKEN ?? "",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
+  deepseekApiKey: process.env.DEEPSEEK_API_KEY ?? "",
 };

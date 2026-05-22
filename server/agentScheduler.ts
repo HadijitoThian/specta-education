@@ -157,7 +157,7 @@ export async function initializeAgents(): Promise<void> {
       agentName: "content_amplifier",
       displayName: "Content Amplifier",
       description: "Converts published blog posts into Instagram captions, TikTok scripts, WhatsApp messages, Twitter threads, and LinkedIn posts",
-      isActive: true,
+      isActive: false, // Disabled — no output was being used
       runIntervalMinutes: 480,
     },
     {

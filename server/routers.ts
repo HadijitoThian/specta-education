@@ -2602,7 +2602,7 @@ IMPORTANT:
 - Cross-reference RIASEC with MI for unique insights
 - Be warm, encouraging, and supportive throughout`;
 
-        const aiResponse = await invokeLLM({
+        const aiResponse = await invokeLLM({ model: "deepseek-v4-pro",
           messages: [
             { role: "system", content: "You are a professional career psychologist. Always respond with valid JSON only, no markdown formatting." },
             { role: "user", content: aiPrompt },
@@ -2872,7 +2872,7 @@ IMPORTANT:
 - Be warm, encouraging, professional, and thorough throughout
 - This is a PREMIUM paid assessment — quality must exceed free online tests`;
 
-        const aiResponse = await invokeLLM({
+        const aiResponse = await invokeLLM({ model: "deepseek-v4-pro",
           messages: [
             { role: "system", content: "You are a world-class career psychologist providing premium aptitude assessments. Always respond with valid JSON only, no markdown formatting." },
             { role: "user", content: aiPrompt },

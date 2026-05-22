@@ -263,7 +263,7 @@ async function planNewContent(): Promise<{ planned: number; errors: number }> {
     if (availableKeywords.length === 0) {
       console.log('[SEO Agent] All keywords used recently — generating fresh AI topics...');
       try {
-        const aiTopicsResp = await invokeLLM({
+        const aiTopicsResp = await invokeLLM({ model: "deepseek-v4-pro",
           messages: [
             { role: 'system', content: 'You are an SEO expert for an Indonesian study abroad education consultancy called SpecTa Education. Generate 10 fresh, high-search-volume blog topic ideas in Bahasa Indonesia targeting students who want to study in Australia, UK, Canada, or other countries. Return ONLY a JSON array of objects: [{"keyword": "...", "category": "study_australia|study_uk|scholarships|ielts_tips|study_abroad|career"}]. No explanation.' },
             { role: 'user', content: 'Generate 10 fresh blog topics for SpecTa Education that are not generic — focus on specific universities, specific scholarships, specific cities, or specific programs. Current year is 2026.' }
@@ -339,7 +339,7 @@ async function generatePlannedContent(): Promise<{ generated: number; errors: nu
         const secondaryKws = JSON.parse(entry.secondaryKeywords || "[]");
         
         // Generate article using AI
-        const response = await invokeLLM({
+        const response = await invokeLLM({ model: "deepseek-v4-pro",
           messages: [
             {
               role: "system",

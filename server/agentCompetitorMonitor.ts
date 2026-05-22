@@ -237,7 +237,7 @@ export async function runCompetitorMonitorAgent(): Promise<{
 // ==========================================
 async function analyzeCompetitor(competitor: typeof COMPETITORS[0], db: any, realChanges: any[] = [], rankingData: any = null): Promise<any> {
   try {
-    const response = await invokeLLM({
+    const response = await invokeLLM({ model: "deepseek-v4-pro",
       messages: [
         {
           role: "system",
@@ -370,7 +370,7 @@ async function generateAndSendBlueprint(
 ): Promise<void> {
   try {
     // Use AI to create a strategic blueprint
-    const blueprintResponse = await invokeLLM({
+    const blueprintResponse = await invokeLLM({ model: "deepseek-v4-pro",
       messages: [
         {
           role: "system",
