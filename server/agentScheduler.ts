@@ -33,7 +33,8 @@ let gmInterval: NodeJS.Timeout | null = null;
 let lastGmRunAt: Date | null = null;
 
 /**
- * Run the GM 4-hour cycle and optionally send the executive report at 8 AM WIB
+ * Run the GM cycle ONCE DAILY at 8AM WIB only.
+ * Called every hour by the scheduler — skips silently outside the 8AM window.
  */
 async function runGmCycle(): Promise<void> {
   const now = new Date();
@@ -42,44 +43,34 @@ async function runGmCycle(): Promise<void> {
   const wibHour = nowWib.getUTCHours();
   const todayWib = nowWib.toISOString().split("T")[0];
 
-  // In-memory throttle: don't run more than once every 3.5 hours
-  if (lastGmRunAt && now.getTime() - lastGmRunAt.getTime() < 3.5 * 60 * 60 * 1000) return;
+  // Only run during 8AM WIB window (8:00–8:59 AM)
+  const is8amWindow = wibHour === 8;
+  if (!is8amWindow) return;
 
-  // Only run the executive report during 8 AM WIB window (7-9 AM)
-  const isReportWindow = wibHour >= 7 && wibHour < 9;
-
-  // DB-backed daily guard for the executive report: survives server restarts
-  // generateAndSendExecutiveReport() also has this guard, but we check here too
-  // to avoid running the expensive GM cycle unnecessarily
-  if (isReportWindow) {
-    try {
-      const db = await getDb();
-      if (db) {
-        const existing = await db.select()
-          .from(gmExecutiveReports)
-          .where(eq(gmExecutiveReports.reportDate, todayWib))
-          .limit(1)
-          .catch(() => []);
-        if (existing.length > 0 && existing[0].status === "sent") {
-          console.log(`[GM] Executive report already sent today (${todayWib}), skipping cycle`);
-          lastGmRunAt = now; // Update in-memory so we don't keep checking DB
-          return;
-        }
+  // DB-backed daily guard: ensures GM runs exactly once per day even if server restarts
+  try {
+    const db = await getDb();
+    if (db) {
+      const existing = await db.select()
+        .from(gmExecutiveReports)
+        .where(eq(gmExecutiveReports.reportDate, todayWib))
+        .limit(1)
+        .catch(() => []);
+      if (existing.length > 0 && existing[0].status === "sent") {
+        console.log(`[GM] Executive report already sent today (${todayWib}), skipping`);
+        return;
       }
-    } catch (e) {
-      // DB check failed — proceed with cycle anyway, generateAndSendExecutiveReport has its own guard
-      console.error("[GM] DB guard check failed (non-fatal):", e);
     }
+  } catch (e) {
+    console.error("[GM] DB guard check failed (non-fatal):", e);
   }
 
-  console.log(`[GM] Starting 4-hour oversight cycle at WIB hour ${wibHour}`);
+  console.log(`[GM] Running daily 8AM WIB cycle (${todayWib})`);
   lastGmRunAt = now;
 
   try {
     const result = await runGeneralManagerCycle();
-    if (isReportWindow) {
-      await generateAndSendExecutiveReport(result);
-    }
+    await generateAndSendExecutiveReport(result);
   } catch (err: unknown) {
     console.error("[GM] Cycle error:", err);
   }
@@ -342,7 +333,7 @@ export function startAgentScheduler(): void {
         await resetDbConnection().catch(() => {});
       }
     });
-  }, 5 * 60 * 1000);
+  }, 60 * 60 * 1000); // Every 60 minutes (was 5 min — reduced to cut compute cost)
 
   // Delay initial run by 5 minutes so any manual DB operations or deployments
   // can complete before agents start assigning leads and sending emails.
@@ -352,12 +343,13 @@ export function startAgentScheduler(): void {
     });
   }, 5 * 60 * 1000); // 5 minutes
 
-  // GM runs every 4 hours
+  // GM runs once daily at 8AM WIB only (checked every 60 min alongside the main scheduler)
+  // No separate gmInterval needed — the runGmCycle() 8AM window check handles it
   gmInterval = setInterval(() => {
     runGmCycle().catch((err: unknown) => console.error("[GM] Interval error:", err));
-  }, 4 * 60 * 60 * 1000);
+  }, 60 * 60 * 1000); // Check every hour — runGmCycle() only executes during 8AM WIB window
 
-  // First GM run after 10 minutes (let agents settle first)
+  // First GM check after 10 minutes (let agents settle first)
   setTimeout(() => {
     runGmCycle().catch((err: unknown) => console.error("[GM] Initial run error:", err));
   }, 10 * 60 * 1000); // 10 minutes
