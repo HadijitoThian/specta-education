@@ -194,12 +194,12 @@ export default function AIAnswers() {
               Book Konsultasi Gratis
             </Link>
             <a
-              href="https://wa.me/628118120820"
+              href="https://wa.me/62818218388"
               target="_blank"
               rel="noopener noreferrer"
               className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors"
             >
-              WhatsApp: 0811 8120 820
+              WhatsApp: 0818 218 388
             </a>
             <Link
               href="/play/aptitude"

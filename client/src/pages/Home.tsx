@@ -592,7 +592,7 @@ export default function Home() {
                   </motion.div>
                 ))}
               </div>
-              <a href="https://wa.me/628118120820?text=Hi,%20I'm%20interested%20in%20the%20weekly%20parent%20progress%20report%20feature" target="_blank" rel="noopener noreferrer">
+              <a href="https://wa.me/62818218388?text=Hi,%20I'm%20interested%20in%20the%20weekly%20parent%20progress%20report%20feature" target="_blank" rel="noopener noreferrer">
                 <Button size="lg" className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0">
                   <Heart className="w-5 h-5 mr-2" />
                   Learn More for Parents · Pelajari Lebih Lanjut
@@ -926,7 +926,7 @@ export default function Home() {
             <p className="text-white/90 max-w-2xl mx-auto mb-8">
               Chat with our AI assistant to get personalized guidance on studying abroad. We're here to help you every step of the way.
             </p>
-            <a href="https://wa.me/6281181208 20?text=Hi,%20I'm%20interested%20in%20studying%20abroad.%20Can%20you%20help%20me?" target="_blank" rel="noopener noreferrer">
+            <a href="https://wa.me/62818218388?text=Hi,%20I'm%20interested%20in%20studying%20abroad.%20Can%20you%20help%20me?" target="_blank" rel="noopener noreferrer">
               <Button 
                 size="lg" 
                 variant="secondary" 

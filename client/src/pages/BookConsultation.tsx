@@ -139,7 +139,7 @@ export default function BookConsultation() {
                 Back to Home
               </a>
               <a
-                href="https://wa.me/6281181208 20?text=Hi%20SpecTa!%20I%20just%20booked%20a%20consultation."
+                href="https://wa.me/62818218388?text=Hi%20SpecTa!%20I%20just%20booked%20a%20consultation."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-6 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-colors"

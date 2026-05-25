@@ -519,7 +519,7 @@ export default function AptitudeTest() {
               <h2 className="text-2xl font-bold text-gray-900 mb-3">{title}</h2>
               <p className="text-gray-600 mb-6 text-sm">{desc}</p>
               <a
-                href="https://wa.me/6281287878055?text=Hi%20SpecTa!%20Link%20tes%20bakat%20saya%20tidak%20bisa%20digunakan."
+                href="https://wa.me/62818218388?text=Hi%20SpecTa!%20Link%20tes%20bakat%20saya%20tidak%20bisa%20digunakan."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-semibold px-6 py-3 rounded-xl hover:shadow-lg transition-all text-sm"
@@ -997,7 +997,7 @@ export default function AptitudeTest() {
               <h3 className="font-bold mb-2">{lang === "id" ? "Mau konsultasi lebih lanjut?" : "Want further consultation?"}</h3>
               <p className="text-white/80 text-sm mb-4">{lang === "id" ? "Tim SpecTa siap bantu kamu memilih jurusan dan universitas yang tepat!" : "The SpecTa team is ready to help you choose the right major and university!"}</p>
               <a
-                href="https://wa.me/6281287878055?text=Hi%20SpecTa!%20Saya%20baru%20selesai%20Tes%20Bakat%20AI%20dan%20ingin%20konsultasi%20lebih%20lanjut!"
+                href="https://wa.me/62818218388?text=Hi%20SpecTa!%20Saya%20baru%20selesai%20Tes%20Bakat%20AI%20dan%20ingin%20konsultasi%20lebih%20lanjut!"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 bg-white text-red-600 font-semibold px-6 py-3 rounded-xl hover:shadow-lg transition-all text-sm"
@@ -1288,7 +1288,7 @@ export default function AptitudeTest() {
             <p className="text-white/80 text-sm mb-6">{uiLabels.ctaSubtitle[lang]}</p>
             <div className="flex flex-wrap justify-center gap-3">
               <a
-                href="https://wa.me/6281287878055?text=Hi%20SpecTa!%20Saya%20baru%20selesai%20Tes%20Bakat%20AI%20dan%20ingin%20konsultasi%20lebih%20lanjut!"
+                href="https://wa.me/62818218388?text=Hi%20SpecTa!%20Saya%20baru%20selesai%20Tes%20Bakat%20AI%20dan%20ingin%20konsultasi%20lebih%20lanjut!"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-white text-red-600 font-semibold px-6 py-3 rounded-xl hover:shadow-lg transition-all text-sm flex items-center gap-2"

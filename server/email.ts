@@ -712,7 +712,7 @@ export async function sendAptitudeResultsEmail({
     <div style="background: linear-gradient(135deg, #ef4444, #f43f5e); border-radius: 16px; padding: 24px; text-align: center; color: white; margin-bottom: 16px;">
       <h3 style="margin: 0 0 8px; color: white;">${isId ? "Mau konsultasi lebih lanjut?" : "Want further consultation?"}</h3>
       <p style="margin: 0 0 16px; color: rgba(255,255,255,0.8); font-size: 14px;">${isId ? "Tim SpecTa siap bantu kamu memilih jurusan dan universitas yang tepat!" : "The SpecTa team is ready to help you choose the right major and university!"}</p>
-      <a href="https://wa.me/6281287878055?text=Hi%20SpecTa!%20Saya%20baru%20selesai%20Tes%20Bakat%20AI%20dan%20ingin%20konsultasi%20lebih%20lanjut!" style="display: inline-block; background: white; color: #ef4444; text-decoration: none; padding: 12px 28px; border-radius: 12px; font-weight: 600; font-size: 14px;">💬 ${isId ? "Chat via WhatsApp" : "Chat via WhatsApp"}</a>
+      <a href="https://wa.me/62818218388?text=Hi%20SpecTa!%20Saya%20baru%20selesai%20Tes%20Bakat%20AI%20dan%20ingin%20konsultasi%20lebih%20lanjut!" style="display: inline-block; background: white; color: #ef4444; text-decoration: none; padding: 12px 28px; border-radius: 12px; font-weight: 600; font-size: 14px;">💬 ${isId ? "Chat via WhatsApp" : "Chat via WhatsApp"}</a>
     </div>
 
     <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 16px;">${isId ? "Email ini dikirim secara otomatis oleh SpecTa Education AI Aptitude Test." : "This email was sent automatically by SpecTa Education AI Aptitude Test."}</p>
@@ -1135,7 +1135,7 @@ export async function sendParentProgressEmail({
 
     <p style="color:#666;font-size:13px;margin-top:20px;">
       This is an automated weekly progress report from SpecTa Education.<br>
-      If you have any questions, please contact us at <a href="https://wa.me/628118120820" style="color:#e53e3e;">+62 811 8120 820</a>.
+      If you have any questions, please contact us at <a href="https://wa.me/62818218388" style="color:#e53e3e;">+62 818 218 388</a>.
     </p>
   `);
 

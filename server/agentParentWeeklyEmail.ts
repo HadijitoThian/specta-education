@@ -163,7 +163,7 @@ export async function runAutoParentWeeklyEmail(): Promise<{ sent: number; skippe
   <!-- Contact -->
   <div style="background:white;border-radius:10px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,0.06);text-align:center;">
     <p style="margin:0 0 8px;font-size:13px;color:#555;">Questions? Contact us anytime:</p>
-    <p style="margin:0;font-size:14px;font-weight:600;color:#e91e8c;">📱 +62 811 8120 820</p>
+    <p style="margin:0;font-size:14px;font-weight:600;color:#e91e8c;">📱 +62 818 218 388</p>
     <p style="margin:4px 0 0;font-size:13px;color:#555;">
       <a href="mailto:info@spectaeducation.com" style="color:#9c27b0;text-decoration:none;">info@spectaeducation.com</a>
     </p>

@@ -820,7 +820,7 @@ export default function Compare() {
                         Quick Apply
                       </button>
                       <a 
-                        href={`https://wa.me/6281181208 20?text=Hi,%20I%20just%20compared%20${encodeURIComponent(selectedUnis.map(u => u.name).join(', '))}%20on%20your%20website.%20Can%20you%20help%20me%20decide?`}
+                        href={`https://wa.me/62818218388?text=Hi,%20I%20just%20compared%20${encodeURIComponent(selectedUnis.map(u => u.name).join(', '))}%20on%20your%20website.%20Can%20you%20help%20me%20decide?`}
                         target="_blank"
                         rel="noopener noreferrer"
                       >

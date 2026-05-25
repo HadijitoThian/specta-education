@@ -236,13 +236,13 @@ export default function IELTS() {
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-4">
-                <a href="https://wa.me/6281181208 20?text=Hi,%20I'm%20interested%20in%20IELTS%20preparation" target="_blank" rel="noopener noreferrer">
+                <a href="https://wa.me/62818218388?text=Hi,%20I'm%20interested%20in%20IELTS%20preparation" target="_blank" rel="noopener noreferrer">
                   <Button size="lg" className="bg-white text-rose-600 hover:bg-white/90 shadow-xl shadow-black/10 font-bold px-8 py-6 text-base rounded-xl">
                     <MessageCircle className="w-5 h-5 mr-2" />
                     Register for IELTS Class
                   </Button>
                 </a>
-                <a href="https://wa.me/6281181208 20?text=Hi,%20I'd%20like%20a%20free%20IELTS%20consultation" target="_blank" rel="noopener noreferrer">
+                <a href="https://wa.me/62818218388?text=Hi,%20I'd%20like%20a%20free%20IELTS%20consultation" target="_blank" rel="noopener noreferrer">
                   <Button size="lg" variant="outline" className="border-2 border-white/40 text-white hover:bg-white/10 px-8 py-6 text-base rounded-xl">
                     Free Consultation
                   </Button>
@@ -701,7 +701,7 @@ export default function IELTS() {
                     href={
                       pkg.highlight === "Mock Test"
                         ? "https://mock-up.spectaeducation.com"
-                        : `https://wa.me/628118120820?text=Hi,%20I'm%20interested%20in%20the%20${encodeURIComponent(pkg.name)}`
+                        : `https://wa.me/62818218388?text=Hi,%20I'm%20interested%20in%20the%20${encodeURIComponent(pkg.name)}`
                     }
                     target="_blank"
                     rel="noopener noreferrer"
@@ -841,13 +841,13 @@ export default function IELTS() {
                 Join more than 6,000 successful students who achieved their target scores with SpecTa Education since 2005. Score guaranteed with money-back guarantee!
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="https://wa.me/6281181208 20?text=Hi,%20I%20want%20to%20register%20for%20IELTS%20class" target="_blank" rel="noopener noreferrer">
+                <a href="https://wa.me/62818218388?text=Hi,%20I%20want%20to%20register%20for%20IELTS%20class" target="_blank" rel="noopener noreferrer">
                   <Button size="lg" className="bg-white text-rose-600 hover:bg-white/90 shadow-xl font-bold px-8 py-6 text-base rounded-xl">
                     <MessageCircle className="w-5 h-5 mr-2" />
                     Register Now
                   </Button>
                 </a>
-                <a href="https://wa.me/6281181208 20?text=Hi,%20I'd%20like%20a%20free%20IELTS%20consultation" target="_blank" rel="noopener noreferrer">
+                <a href="https://wa.me/62818218388?text=Hi,%20I'd%20like%20a%20free%20IELTS%20consultation" target="_blank" rel="noopener noreferrer">
                   <Button size="lg" variant="outline" className="border-2 border-white/40 text-white hover:bg-white/10 px-8 py-6 text-base rounded-xl">
                     Free Consultation
                   </Button>

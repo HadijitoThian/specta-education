@@ -179,7 +179,7 @@ function buildNurtureEmail(params: {
           <a href="https://www.spectaeducation.com/contact" style="display:inline-block;background:#e53e3e;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:16px;">📞 Konsultasi Gratis Sekarang</a>
         </div>
         <div style="text-align:center;margin:20px 0;">
-          <a href="https://wa.me/6281181208200?text=Halo%20SpecTa%2C%20saya%20${encodeURIComponent(studentName)}%20ingin%20konsultasi%20tentang%20hasil%20tes%20bakat%20saya%20(${hollandCode})" style="display:inline-block;background:#25d366;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;">💬 Chat via WhatsApp</a>
+          <a href="https://wa.me/628182183880?text=Halo%20SpecTa%2C%20saya%20${encodeURIComponent(studentName)}%20ingin%20konsultasi%20tentang%20hasil%20tes%20bakat%20saya%20(${hollandCode})" style="display:inline-block;background:#25d366;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;">💬 Chat via WhatsApp</a>
         </div>
       </div>
       <div style="background:#f7fafc;padding:20px;text-align:center;border-radius:0 0 12px 12px;">

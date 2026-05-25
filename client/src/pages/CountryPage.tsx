@@ -698,7 +698,7 @@ export default function CountryPage() {
                         Quick Apply
                       </button>
                       <a 
-                        href={`https://wa.me/6281181208 20?text=Hi,%20I'm%20interested%20in%20${encodeURIComponent(uni.name)}%20in%20${encodeURIComponent(country.name)}`}
+                        href={`https://wa.me/62818218388?text=Hi,%20I'm%20interested%20in%20${encodeURIComponent(uni.name)}%20in%20${encodeURIComponent(country.name)}`}
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="flex items-center justify-center gap-2 w-full py-2.5 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition-colors"
@@ -908,13 +908,13 @@ export default function CountryPage() {
             Our education counselors are ready to help you with university selection, application, visa, and more. Get your FREE consultation today!
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href={`https://wa.me/6281181208 20?text=Hi,%20I'm%20interested%20in%20studying%20in%20${encodeURIComponent(country.name)}`} target="_blank" rel="noopener noreferrer">
+            <a href={`https://wa.me/62818218388?text=Hi,%20I'm%20interested%20in%20studying%20in%20${encodeURIComponent(country.name)}`} target="_blank" rel="noopener noreferrer">
               <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90">
                 WhatsApp Consultation
                 <ChevronRight className="w-5 h-5 ml-2" />
               </Button>
             </a>
-            <a href="https://wa.me/6281181208 20?text=Hi,%20I'm%20interested%20in%20studying%20abroad.%20Can%20you%20help%20me?" target="_blank" rel="noopener noreferrer">
+            <a href="https://wa.me/62818218388?text=Hi,%20I'm%20interested%20in%20studying%20abroad.%20Can%20you%20help%20me?" target="_blank" rel="noopener noreferrer">
               <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
                 Chat on WhatsApp
               </Button>

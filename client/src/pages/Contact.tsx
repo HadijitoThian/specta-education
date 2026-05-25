@@ -13,7 +13,7 @@ const offices = [
   {
     name: "Head Office - Kelapa Gading",
     address: "Jl. Kelapa Nias Raya QE1 No. 14, Kelapa Gading, Jakarta Utara 14240",
-    phone: "+62 811 8120 820",
+    phone: "+62 818 218 388",
     hours: "Mon - Fri: 10:00 AM - 6:00 PM, Sat: 10:00 AM - 2:00 PM",
     image: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=250&fit=crop"
   },
@@ -64,7 +64,7 @@ export default function Contact() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const message = `Hi, I'm ${formData.firstName} ${formData.lastName}.\n\nEmail: ${formData.email}\nPhone: ${formData.phone}\nInterested in: ${formData.destinations.join(", ")}\n\nMessage: ${formData.message}`;
-    window.open(`https://wa.me/6281181208 20?text=${encodeURIComponent(message)}`, '_blank');
+    window.open(`https://wa.me/62818218388?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   return (
@@ -220,7 +220,7 @@ export default function Contact() {
                     </div>
                   </a>
                   <a 
-                    href="https://wa.me/6281181208 20" 
+                    href="https://wa.me/62818218388" 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border hover:border-primary transition-colors"
@@ -230,7 +230,7 @@ export default function Contact() {
                     </div>
                     <div>
                       <div className="font-medium">WhatsApp</div>
-                      <div className="text-muted-foreground">+62 811 8120 820</div>
+                      <div className="text-muted-foreground">+62 818 218 388</div>
                     </div>
                   </a>
                   <button 

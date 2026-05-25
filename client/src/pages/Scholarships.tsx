@@ -428,7 +428,7 @@ export default function Scholarships() {
                 <Sparkles className="w-5 h-5 mr-2" />
                 Check My Eligibility
               </Button>
-              <a href="https://wa.me/6281181208 20?text=Hi,%20I'm%20interested%20in%20scholarship%20opportunities.%20Can%20you%20help%20me?" target="_blank" rel="noopener noreferrer">
+              <a href="https://wa.me/62818218388?text=Hi,%20I'm%20interested%20in%20scholarship%20opportunities.%20Can%20you%20help%20me?" target="_blank" rel="noopener noreferrer">
                 <Button size="lg" variant="outline" className="font-semibold text-lg px-8">
                   <Phone className="w-5 h-5 mr-2" />
                   Book Free Consultation
@@ -742,7 +742,7 @@ export default function Scholarships() {
                       Our scholarship counselor will reach out to you within 24 hours. In the meantime, explore more about our scholarship programs below!
                     </p>
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                      <a href="https://wa.me/6281181208 20?text=Hi,%20I%20just%20completed%20the%20scholarship%20eligibility%20checker%20on%20your%20website.%20I'd%20like%20to%20know%20more!" target="_blank" rel="noopener noreferrer">
+                      <a href="https://wa.me/62818218388?text=Hi,%20I%20just%20completed%20the%20scholarship%20eligibility%20checker%20on%20your%20website.%20I'd%20like%20to%20know%20more!" target="_blank" rel="noopener noreferrer">
                         <Button size="lg" className="bg-white text-emerald-600 hover:bg-emerald-50 font-bold">
                           <Phone className="w-5 h-5 mr-2" />
                           Chat Now on WhatsApp
@@ -961,7 +961,7 @@ export default function Scholarships() {
                 Every semester, only a limited number of full scholarships are available. Don't miss your chance — talk to our counselors today.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="https://wa.me/6281181208 20?text=Hi,%20I'm%20interested%20in%20scholarship%20opportunities!" target="_blank" rel="noopener noreferrer">
+                <a href="https://wa.me/62818218388?text=Hi,%20I'm%20interested%20in%20scholarship%20opportunities!" target="_blank" rel="noopener noreferrer">
                   <Button size="lg" className="bg-white text-amber-600 hover:bg-amber-50 font-bold text-lg px-8 shadow-lg">
                     <Phone className="w-5 h-5 mr-2" />
                     WhatsApp Us

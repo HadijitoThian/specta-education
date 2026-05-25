@@ -733,7 +733,7 @@ export default function Quiz() {
                 Book Free Consultation
               </Link>
               <a
-                href="https://wa.me/6281287878055?text=Hi%20SpecTa!%20I%20just%20took%20the%20Country%20Quiz%20and%20I'd%20like%20to%20know%20more!"
+                href="https://wa.me/62818218388?text=Hi%20SpecTa!%20I%20just%20took%20the%20Country%20Quiz%20and%20I'd%20like%20to%20know%20more!"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-emerald-500 text-white font-semibold px-6 py-3 rounded-xl hover:bg-emerald-600 transition-all"

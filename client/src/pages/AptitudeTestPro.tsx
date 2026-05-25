@@ -332,7 +332,7 @@ export default function AptitudeTestPro() {
                 ? (lang === "id" ? "Link tes ini sudah pernah digunakan. Setiap link hanya bisa digunakan satu kali." : "This test link has already been used. Each link can only be used once.")
                 : (lang === "id" ? "Link tes ini tidak valid. Pastikan Anda menggunakan link yang benar." : "This test link is invalid. Please make sure you are using the correct link.")}
             </p>
-            <a href="https://wa.me/6281287878055" target="_blank" rel="noopener noreferrer"
+            <a href="https://wa.me/62818218388" target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-green-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-green-600 transition-colors">
               {lang === "id" ? "Hubungi Admin via WhatsApp" : "Contact Admin via WhatsApp"}
             </a>
@@ -1342,7 +1342,7 @@ export default function AptitudeTestPro() {
             )}
 
             <a
-              href="https://wa.me/6281287878055?text=Halo%20SpecTa%2C%20saya%20baru%20saja%20menyelesaikan%20Tes%20Bakat%20AI%20Pro"
+              href="https://wa.me/62818218388?text=Halo%20SpecTa%2C%20saya%20baru%20saja%20menyelesaikan%20Tes%20Bakat%20AI%20Pro"
               target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-green-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-green-600 transition-colors"
             >

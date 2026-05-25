@@ -125,7 +125,7 @@ export async function seedDefaultCampaigns(): Promise<void> {
             <p style="margin: 8px 0;"><strong>4. 💰 Cari beasiswa</strong> — Lihat daftar <a href="https://spectaeducation.com/scholarships" style="color: #7c3aed;">beasiswa</a> yang tersedia</p>
           </div>
           <div style="text-align: center; margin: 24px 0;">
-            <a href="https://wa.me/6281181208 20?text=Hi%20SpecTa!%20Saya%20ingin%20konsultasi%20tentang%20kuliah%20di%20luar%20negeri" style="display: inline-block; background: #25D366; color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">💬 Chat via WhatsApp</a>
+            <a href="https://wa.me/62818218388?text=Hi%20SpecTa!%20Saya%20ingin%20konsultasi%20tentang%20kuliah%20di%20luar%20negeri" style="display: inline-block; background: #25D366; color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">💬 Chat via WhatsApp</a>
           </div>
         `),
       });
@@ -177,7 +177,7 @@ export async function seedDefaultCampaigns(): Promise<void> {
           </ul>
           <p><strong>Konsultasi pertama GRATIS!</strong> Tidak ada kewajiban apapun.</p>
           <div style="text-align: center; margin: 24px 0;">
-            <a href="https://wa.me/6281181208 20?text=Hi%20SpecTa!%20Saya%20ingin%20jadwalkan%20konsultasi%20gratis" style="display: inline-block; background: #e53e3e; color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">📅 Jadwalkan Konsultasi Gratis</a>
+            <a href="https://wa.me/62818218388?text=Hi%20SpecTa!%20Saya%20ingin%20jadwalkan%20konsultasi%20gratis" style="display: inline-block; background: #e53e3e; color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">📅 Jadwalkan Konsultasi Gratis</a>
           </div>
           <p style="color: #94a3b8; font-size: 13px;">Ini adalah email terakhir dari seri ini. Jika kamu butuh bantuan di masa depan, jangan ragu untuk menghubungi kami!</p>
         `),
@@ -214,7 +214,7 @@ export async function seedDefaultCampaigns(): Promise<void> {
           </div>
           <p>Tim SpecTa bisa membantu kamu mempersiapkan dokumen aplikasi beasiswa. <strong>Konsultasi GRATIS!</strong></p>
           <div style="text-align: center; margin: 24px 0;">
-            <a href="https://wa.me/6281181208 20?text=Hi%20SpecTa!%20Saya%20tertarik%20dengan%20beasiswa%20dan%20ingin%20konsultasi" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">💬 Konsultasi Beasiswa</a>
+            <a href="https://wa.me/62818218388?text=Hi%20SpecTa!%20Saya%20tertarik%20dengan%20beasiswa%20dan%20ingin%20konsultasi" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">💬 Konsultasi Beasiswa</a>
           </div>
         `),
       });

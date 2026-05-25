@@ -326,7 +326,7 @@ Don't ask for all info at once. Collect naturally during conversation.
 - Encourage booking a consultation or trying Quick Apply when the time feels right.
 - NEVER be pushy. Be their friend first, counselor second.
 
-Contact: Jl. Kelapa Nias Raya QE1 No. 14, Kelapa Gading, Jakarta Utara | +62 811 8120 820 | info@spectaeducation.com`;
+Contact: Jl. Kelapa Nias Raya QE1 No. 14, Kelapa Gading, Jakarta Utara | +62 818 218 388 | info@spectaeducation.com`;
 
 export const appRouter = router({
   system: systemRouter,
@@ -449,7 +449,7 @@ export const appRouter = router({
           console.error("LLM error:", error);
           return { 
             success: false, 
-            message: "I apologize, but I'm having trouble connecting right now. Please try again or contact us directly at +62 811 8120 820." 
+            message: "I apologize, but I'm having trouble connecting right now. Please try again or contact us directly at +62 818 218 388." 
           };
         }
       }),
@@ -6987,7 +6987,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
                   <a href="https://spectaeducation.com/student/dashboard" style="background:linear-gradient(135deg,#7c3aed,#3b82f6);color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Upload Documents Now →</a>
                 </div>
                 <hr style="border:none;border-top:1px solid #1e293b;margin:20px 0;" />
-                <p style="color:#475569;font-size:12px;text-align:center;">SpecTa Education | Your Study Abroad Partner<br/>Need help? WhatsApp us at +62 811 8120 820</p>
+                <p style="color:#475569;font-size:12px;text-align:center;">SpecTa Education | Your Study Abroad Partner<br/>Need help? WhatsApp us at +62 818 218 388</p>
               </div>
             `,
           });
@@ -7215,7 +7215,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
       <div style="text-align: center; margin: 30px 0;">
         <a href="${portalUrl}" style="background: linear-gradient(135deg, #7c3aed, #2563eb); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">Access My Portal →</a>
       </div>
-      <p style="color: #94a3b8; font-size: 13px; text-align: center;">If you have any questions, WhatsApp us at <strong>+62 811 8120 820</strong></p>
+      <p style="color: #94a3b8; font-size: 13px; text-align: center;">If you have any questions, WhatsApp us at <strong>+62 818 218 388</strong></p>
     </div>
     <div style="background: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
       <p style="color: #94a3b8; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} SpecTa Education. All rights reserved.</p>
