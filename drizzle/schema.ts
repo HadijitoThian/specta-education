@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, tinyint } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, tinyint, decimal, json } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -2010,3 +2010,227 @@ export const adsGeneratedCopy = mysqlTable("ads_generated_copy", {
 });
 export type AdsGeneratedCopy = typeof adsGeneratedCopy.$inferSelect;
 export type InsertAdsGeneratedCopy = typeof adsGeneratedCopy.$inferInsert;
+
+// ============================================================================
+// IELTS MOCK TEST
+// ============================================================================
+// Full IELTS Academic + General Training mock test platform. Auto-graded
+// Listening + Reading. LLM-graded Writing + Speaking. Live AI examiner agent
+// for Speaking using ElevenLabs TTS + Whisper STT + DeepSeek decisions.
+//
+// Flow: student buys (Xendit) → attempt row created → 4 skills in sequence
+// → grading runs background → report PDF generated → email + in-app result.
+// ============================================================================
+
+/**
+ * One mock test = the static content (4 listening sections, 3 reading
+ * passages, 2 writing tasks, 3 speaking parts). Authored by admin, shared
+ * by all students who buy attempts.
+ */
+export const ieltsMockTests = mysqlTable("ieltsMockTests", {
+  id: int("id").autoincrement().primaryKey(),
+  code: varchar("code", { length: 32 }).notNull().unique(),
+  title: varchar("title", { length: 200 }).notNull(),
+  testType: mysqlEnum("testType", ["academic", "general"]).notNull(),
+  isPublished: boolean("isPublished").default(false).notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type IeltsMockTest = typeof ieltsMockTests.$inferSelect;
+export type InsertIeltsMockTest = typeof ieltsMockTests.$inferInsert;
+
+export const ieltsListeningSections = mysqlTable("ieltsListeningSections", {
+  id: int("id").autoincrement().primaryKey(),
+  testId: int("testId").notNull(),
+  sectionNumber: tinyint("sectionNumber").notNull(),
+  audioKey: varchar("audioKey", { length: 512 }).notNull(),
+  durationSec: int("durationSec"),
+  transcript: text("transcript"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type IeltsListeningSection = typeof ieltsListeningSections.$inferSelect;
+export type InsertIeltsListeningSection = typeof ieltsListeningSections.$inferInsert;
+
+export const ieltsListeningQuestions = mysqlTable("ieltsListeningQuestions", {
+  id: int("id").autoincrement().primaryKey(),
+  sectionId: int("sectionId").notNull(),
+  questionNumber: tinyint("questionNumber").notNull(),
+  questionType: mysqlEnum("questionType", [
+    "mcq", "multi_select", "matching", "map_labelling",
+    "form_completion", "note_completion", "sentence_completion",
+    "summary_completion", "short_answer",
+  ]).notNull(),
+  prompt: text("prompt").notNull(),
+  options: json("options"),
+  correctAnswers: json("correctAnswers").notNull(),
+  maxScore: tinyint("maxScore").default(1).notNull(),
+});
+export type IeltsListeningQuestion = typeof ieltsListeningQuestions.$inferSelect;
+export type InsertIeltsListeningQuestion = typeof ieltsListeningQuestions.$inferInsert;
+
+export const ieltsReadingPassages = mysqlTable("ieltsReadingPassages", {
+  id: int("id").autoincrement().primaryKey(),
+  testId: int("testId").notNull(),
+  passageNumber: tinyint("passageNumber").notNull(),
+  title: varchar("title", { length: 300 }).notNull(),
+  body: text("body").notNull(),
+  wordCount: int("wordCount"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type IeltsReadingPassage = typeof ieltsReadingPassages.$inferSelect;
+export type InsertIeltsReadingPassage = typeof ieltsReadingPassages.$inferInsert;
+
+export const ieltsReadingQuestions = mysqlTable("ieltsReadingQuestions", {
+  id: int("id").autoincrement().primaryKey(),
+  passageId: int("passageId").notNull(),
+  questionNumber: tinyint("questionNumber").notNull(),
+  questionType: mysqlEnum("questionType", [
+    "tfng", "ynng", "mcq", "matching_headings", "matching_information",
+    "matching_features", "matching_sentence_endings",
+    "sentence_completion", "summary_completion", "note_completion",
+    "table_completion", "flowchart_completion", "diagram_labelling",
+    "short_answer",
+  ]).notNull(),
+  prompt: text("prompt").notNull(),
+  options: json("options"),
+  correctAnswers: json("correctAnswers").notNull(),
+  maxScore: tinyint("maxScore").default(1).notNull(),
+});
+export type IeltsReadingQuestion = typeof ieltsReadingQuestions.$inferSelect;
+export type InsertIeltsReadingQuestion = typeof ieltsReadingQuestions.$inferInsert;
+
+export const ieltsWritingTasks = mysqlTable("ieltsWritingTasks", {
+  id: int("id").autoincrement().primaryKey(),
+  testId: int("testId").notNull(),
+  taskNumber: tinyint("taskNumber").notNull(),
+  taskFormat: mysqlEnum("taskFormat", ["chart", "letter", "essay"]).notNull(),
+  prompt: text("prompt").notNull(),
+  imageKey: varchar("imageKey", { length: 512 }),
+  minWords: int("minWords").notNull(),
+  timeLimitSec: int("timeLimitSec").notNull(),
+});
+export type IeltsWritingTask = typeof ieltsWritingTasks.$inferSelect;
+export type InsertIeltsWritingTask = typeof ieltsWritingTasks.$inferInsert;
+
+export const ieltsSpeakingPrompts = mysqlTable("ieltsSpeakingPrompts", {
+  id: int("id").autoincrement().primaryKey(),
+  testId: int("testId").notNull(),
+  partNumber: tinyint("partNumber").notNull(),
+  promptOrder: tinyint("promptOrder").notNull(),
+  prompt: text("prompt").notNull(),
+  cueCardText: text("cueCardText"),
+  followUpHint: text("followUpHint"),
+});
+export type IeltsSpeakingPrompt = typeof ieltsSpeakingPrompts.$inferSelect;
+export type InsertIeltsSpeakingPrompt = typeof ieltsSpeakingPrompts.$inferInsert;
+
+// ---- Student attempts ----
+
+export const ieltsMockAttempts = mysqlTable("ieltsMockAttempts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  testId: int("testId").notNull(),
+  attemptToken: varchar("attemptToken", { length: 32 }).notNull().unique(),
+  paymentRef: varchar("paymentRef", { length: 128 }),
+  paidAt: timestamp("paidAt"),
+  status: mysqlEnum("status", [
+    "awaiting_payment", "ready", "listening", "reading", "writing",
+    "speaking", "grading", "completed", "abandoned",
+  ]).default("awaiting_payment").notNull(),
+  startedAt: timestamp("startedAt"),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type IeltsMockAttempt = typeof ieltsMockAttempts.$inferSelect;
+export type InsertIeltsMockAttempt = typeof ieltsMockAttempts.$inferInsert;
+
+export const ieltsListeningAnswers = mysqlTable("ieltsListeningAnswers", {
+  id: int("id").autoincrement().primaryKey(),
+  attemptId: int("attemptId").notNull(),
+  questionId: int("questionId").notNull(),
+  studentAnswer: text("studentAnswer"),
+  isCorrect: boolean("isCorrect"),
+  answeredAt: timestamp("answeredAt").defaultNow().notNull(),
+});
+export type IeltsListeningAnswer = typeof ieltsListeningAnswers.$inferSelect;
+export type InsertIeltsListeningAnswer = typeof ieltsListeningAnswers.$inferInsert;
+
+export const ieltsReadingAnswers = mysqlTable("ieltsReadingAnswers", {
+  id: int("id").autoincrement().primaryKey(),
+  attemptId: int("attemptId").notNull(),
+  questionId: int("questionId").notNull(),
+  studentAnswer: text("studentAnswer"),
+  isCorrect: boolean("isCorrect"),
+  answeredAt: timestamp("answeredAt").defaultNow().notNull(),
+});
+export type IeltsReadingAnswer = typeof ieltsReadingAnswers.$inferSelect;
+export type InsertIeltsReadingAnswer = typeof ieltsReadingAnswers.$inferInsert;
+
+export const ieltsWritingResponses = mysqlTable("ieltsWritingResponses", {
+  id: int("id").autoincrement().primaryKey(),
+  attemptId: int("attemptId").notNull(),
+  taskId: int("taskId").notNull(),
+  studentText: text("studentText").notNull(),
+  wordCount: int("wordCount").notNull(),
+  scoreTA: decimal("scoreTA", { precision: 2, scale: 1 }),
+  scoreCC: decimal("scoreCC", { precision: 2, scale: 1 }),
+  scoreLR: decimal("scoreLR", { precision: 2, scale: 1 }),
+  scoreGRA: decimal("scoreGRA", { precision: 2, scale: 1 }),
+  taskBand: decimal("taskBand", { precision: 2, scale: 1 }),
+  feedback: json("feedback"),
+  gradedAt: timestamp("gradedAt"),
+  submittedAt: timestamp("submittedAt").defaultNow().notNull(),
+});
+export type IeltsWritingResponse = typeof ieltsWritingResponses.$inferSelect;
+export type InsertIeltsWritingResponse = typeof ieltsWritingResponses.$inferInsert;
+
+export const ieltsSpeakingResponses = mysqlTable("ieltsSpeakingResponses", {
+  id: int("id").autoincrement().primaryKey(),
+  attemptId: int("attemptId").notNull(),
+  partNumber: tinyint("partNumber").notNull(),
+  audioKey: varchar("audioKey", { length: 512 }),
+  transcript: text("transcript"),
+  scoreFC: decimal("scoreFC", { precision: 2, scale: 1 }),
+  scoreLR: decimal("scoreLR", { precision: 2, scale: 1 }),
+  scoreGRA: decimal("scoreGRA", { precision: 2, scale: 1 }),
+  scoreP: decimal("scoreP", { precision: 2, scale: 1 }),
+  partBand: decimal("partBand", { precision: 2, scale: 1 }),
+  feedback: json("feedback"),
+  gradedAt: timestamp("gradedAt"),
+  startedAt: timestamp("startedAt"),
+  completedAt: timestamp("completedAt"),
+});
+export type IeltsSpeakingResponse = typeof ieltsSpeakingResponses.$inferSelect;
+export type InsertIeltsSpeakingResponse = typeof ieltsSpeakingResponses.$inferInsert;
+
+export const ieltsSpeakingConversations = mysqlTable("ieltsSpeakingConversations", {
+  id: int("id").autoincrement().primaryKey(),
+  attemptId: int("attemptId").notNull(),
+  partNumber: tinyint("partNumber").notNull(),
+  turnOrder: int("turnOrder").notNull(),
+  role: mysqlEnum("role", ["examiner", "student"]).notNull(),
+  text: text("text").notNull(),
+  audioKey: varchar("audioKey", { length: 512 }),
+  spokenAt: timestamp("spokenAt").defaultNow().notNull(),
+});
+export type IeltsSpeakingConversation = typeof ieltsSpeakingConversations.$inferSelect;
+export type InsertIeltsSpeakingConversation = typeof ieltsSpeakingConversations.$inferInsert;
+
+export const ieltsMockScores = mysqlTable("ieltsMockScores", {
+  id: int("id").autoincrement().primaryKey(),
+  attemptId: int("attemptId").notNull().unique(),
+  listeningBand: decimal("listeningBand", { precision: 2, scale: 1 }),
+  listeningRawScore: int("listeningRawScore"),
+  readingBand: decimal("readingBand", { precision: 2, scale: 1 }),
+  readingRawScore: int("readingRawScore"),
+  writingBand: decimal("writingBand", { precision: 2, scale: 1 }),
+  speakingBand: decimal("speakingBand", { precision: 2, scale: 1 }),
+  overallBand: decimal("overallBand", { precision: 2, scale: 1 }),
+  reportPdfKey: varchar("reportPdfKey", { length: 512 }),
+  reportSentAt: timestamp("reportSentAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type IeltsMockScore = typeof ieltsMockScores.$inferSelect;
+export type InsertIeltsMockScore = typeof ieltsMockScores.$inferInsert;
