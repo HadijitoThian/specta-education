@@ -37,8 +37,11 @@ export const ENV = {
 
   // ----- Image generation: DeepInfra FLUX --------------------------------
   deepinfraApiKey: process.env.DEEPINFRA_API_KEY ?? "",
+  // FLUX-1.1-pro = highest quality, ~$0.04/img (best for landing pages).
+  // FLUX-1-dev   = ~$0.005/img.
+  // FLUX-1-schnell = ~$0.0005/img, fastest but lower quality.
   deepinfraImageModel:
-    process.env.DEEPINFRA_IMAGE_MODEL ?? "black-forest-labs/FLUX-1-schnell",
+    process.env.DEEPINFRA_IMAGE_MODEL ?? "black-forest-labs/FLUX-1.1-pro",
 
   // ----- Object storage: Cloudflare R2 (S3-compatible) -------------------
   // Falls back to AWS S3 if R2_* are blank and AWS_* are set.
