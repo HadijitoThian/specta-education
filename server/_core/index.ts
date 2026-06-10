@@ -114,8 +114,7 @@ async function startServer() {
   // Loads the 4 voice samples from R2 in inline HTML5 players so they can
   // be reviewed without hitting browser warnings on the raw R2 URL.
   app.get("/admin/ielts-samples", (_req, res) => {
-    const { ENV } = require("./env");
-    const base = (ENV.r2PublicUrl || "").replace(/\/+$/, "");
+    const base = (process.env.R2_PUBLIC_URL || "").replace(/\/+$/, "");
     const samples = [
       { label: "Section 1 — Customer booking (British female)", file: "section1-customer-booking.mp3" },
       { label: "Section 2 — Sanctuary welcome (Australian male)", file: "section2-sanctuary-welcome.mp3" },
