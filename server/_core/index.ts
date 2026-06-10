@@ -110,11 +110,68 @@ async function startServer() {
   registerPasswordAuthRoutes(app);
   // Xendit payment webhook
   registerXenditWebhook(app);
+  // R2 file streaming proxy. Lets us serve audio + other private files
+  // from the same origin as the app (no CORS, no browser warnings on the
+  // raw pub-*.r2.dev URL). Path: /files/<key/with/slashes.ext>
+  app.get("/files/*", async (req, res) => {
+    try {
+      const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
+      const key = (req.params as any)[0] as string;
+      if (!key) return res.status(400).send("missing key");
+
+      const usingR2 =
+        !!process.env.R2_ACCOUNT_ID &&
+        !!process.env.R2_ACCESS_KEY_ID &&
+        !!process.env.R2_SECRET_ACCESS_KEY;
+
+      const client = new S3Client(
+        usingR2
+          ? {
+              region: "auto",
+              endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+              credentials: {
+                accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+                secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+              },
+            }
+          : {
+              region: process.env.AWS_REGION ?? "ap-southeast-1",
+              credentials: {
+                accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+                secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+              },
+            }
+      );
+
+      const bucket = usingR2 ? process.env.R2_BUCKET! : process.env.AWS_S3_BUCKET!;
+      const obj = await client.send(
+        new GetObjectCommand({ Bucket: bucket, Key: key })
+      );
+
+      if (obj.ContentType) res.set("Content-Type", obj.ContentType);
+      if (obj.ContentLength) res.set("Content-Length", String(obj.ContentLength));
+      res.set("Accept-Ranges", "bytes");
+      res.set("Cache-Control", "public, max-age=3600");
+
+      const body = obj.Body as any;
+      if (body && typeof body.pipe === "function") {
+        body.pipe(res);
+      } else if (body) {
+        const buf = Buffer.from(await body.transformToByteArray());
+        res.send(buf);
+      } else {
+        res.status(500).send("empty body");
+      }
+    } catch (err: any) {
+      console.error("[/files] error", err?.message ?? err);
+      res.status(404).send("not found");
+    }
+  });
+
   // IELTS sample listening audio review page (admin/internal).
   // Loads the 4 voice samples from R2 in inline HTML5 players so they can
   // be reviewed without hitting browser warnings on the raw R2 URL.
   app.get("/admin/ielts-samples", (_req, res) => {
-    const base = (process.env.R2_PUBLIC_URL || "").replace(/\/+$/, "");
     const samples = [
       { label: "Section 1 — Customer booking (British female)", file: "section1-customer-booking.mp3" },
       { label: "Section 2 — Sanctuary welcome (Australian male)", file: "section2-sanctuary-welcome.mp3" },
@@ -126,8 +183,8 @@ async function startServer() {
         s => `
         <div style="margin:0 0 20px 0;">
           <div style="font-weight:600;margin-bottom:6px;">${s.label}</div>
-          <audio controls preload="none" style="width:100%;max-width:560px;">
-            <source src="${base}/ielts/samples/${s.file}" type="audio/mpeg" />
+          <audio controls preload="metadata" style="width:100%;max-width:560px;">
+            <source src="/files/ielts/samples/${s.file}" type="audio/mpeg" />
           </audio>
         </div>`
       )
@@ -143,9 +200,8 @@ async function startServer() {
 </style>
 </head><body>
 <h1>IELTS Listening — Voice Samples</h1>
-<p class="lede">Generated with ElevenLabs (eleven_multilingual_v2). Listen and judge realism vs real IELTS audio.</p>
+<p class="lede">Generated with ElevenLabs (eleven_multilingual_v2). Streamed from your storage bucket via the app server.</p>
 ${rows}
-<p style="margin-top:40px;color:#666;font-size:13px;">Source: R2 bucket <code>${base ? new URL(base).host : "(R2_PUBLIC_URL not set)"}</code></p>
 </body></html>`);
   });
 
