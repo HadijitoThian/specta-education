@@ -17,6 +17,24 @@ export const ENV = {
   // ----- Speech-to-text: OpenAI Whisper ----------------------------------
   openAiApiKey: process.env.OPENAI_API_KEY ?? "",
 
+  // ----- Text-to-speech: ElevenLabs --------------------------------------
+  // Used for IELTS mock test:
+  //   - Listening sections: generate audio once, store in R2, serve forever
+  //   - Speaking live agent: examiner voice (streamed during test)
+  elevenLabsApiKey: process.env.ELEVENLABS_API_KEY ?? "",
+  // Default examiner voice (overridable per test/section).
+  // Pre-picked voices for IELTS authenticity:
+  //   - British female: "EXAVITQu4vr4xnSDxMaL" (Bella)
+  //   - British male:   "ErXwobaYiN019PkySvjV" (Antoni)
+  //   - Australian male: "VR6AewLTigWG4xSOukaG" (Arnold)
+  //   - American academic: "21m00Tcm4TlvDq8ikWAM" (Rachel)
+  elevenLabsDefaultVoiceId:
+    process.env.ELEVENLABS_DEFAULT_VOICE_ID ?? "EXAVITQu4vr4xnSDxMaL",
+  // eleven_turbo_v2_5 is the lowest-latency model (good for live speaking).
+  // eleven_multilingual_v2 is higher quality (good for listening sections).
+  elevenLabsModelId:
+    process.env.ELEVENLABS_MODEL_ID ?? "eleven_turbo_v2_5",
+
   // ----- Image generation: DeepInfra FLUX --------------------------------
   deepinfraApiKey: process.env.DEEPINFRA_API_KEY ?? "",
   deepinfraImageModel:
