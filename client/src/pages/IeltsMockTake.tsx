@@ -141,19 +141,10 @@ export default function IeltsMockTake() {
   if (status === "speaking") {
     return (
       <Shell>
-        <Card>
-          <h1 className="text-xl font-semibold mb-2">
-            Speaking module is coming next
-          </h1>
-          <p className="text-sm text-slate-600 mb-4">
-            You've finished Listening, Reading, and Writing 🎉 — the live
-            AI Speaking module is the last piece. We'll email you the moment
-            it's ready, and your attempt won't expire.
-          </p>
-          <Link href="/" className="text-blue-600 hover:underline text-sm">
-            Back to homepage
-          </Link>
-        </Card>
+        <SpeakingRunner
+          token={token}
+          onFinished={() => setLocation(`/ielts/mock-test/take/${token}`)}
+        />
       </Shell>
     );
   }
@@ -983,6 +974,378 @@ function WritingRunner({
       </div>
     </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Speaking Runner (live AI examiner, turn-based)
+// ---------------------------------------------------------------------------
+
+type ConversationTurn = {
+  id: number;
+  partNumber: number;
+  turnOrder: number;
+  role: "examiner" | "student";
+  text: string;
+  audioUrl: string | null;
+};
+
+function SpeakingRunner({
+  token,
+  onFinished,
+}: {
+  token: string;
+  onFinished: () => void;
+}) {
+  const utils = trpc.useUtils();
+  const stateQuery = trpc.ielts.getSpeakingState.useQuery(
+    { token },
+    { refetchOnWindowFocus: false }
+  );
+  const nextTurnMut = trpc.ielts.nextExaminerTurn.useMutation({
+    onSuccess: () => utils.ielts.getSpeakingState.invalidate({ token }),
+  });
+  const submitMut = trpc.ielts.submitStudentTurn.useMutation({
+    onSuccess: () => utils.ielts.getSpeakingState.invalidate({ token }),
+  });
+  const finishMut = trpc.ielts.finishSpeaking.useMutation({
+    onSuccess: onFinished,
+  });
+
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
+  const [micError, setMicError] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+  const [examinerPlayedFor, setExaminerPlayedFor] = useState<number | null>(null);
+
+  if (stateQuery.isLoading) {
+    return <Card>Loading Speaking session…</Card>;
+  }
+  if (stateQuery.isError) {
+    return (
+      <Card>
+        <h1 className="text-xl font-semibold mb-2">Could not start Speaking</h1>
+        <p className="text-sm text-slate-600">{stateQuery.error.message}</p>
+      </Card>
+    );
+  }
+
+  const conversation: ConversationTurn[] =
+    (stateQuery.data?.conversation as any) ?? [];
+  const allPromptsDone = !!stateQuery.data?.allPromptsDone;
+  const nextPrompt = stateQuery.data?.nextPrompt ?? null;
+  const lastExaminerTurn = [...conversation]
+    .reverse()
+    .find(t => t.role === "examiner");
+  const examinerCount = conversation.filter(t => t.role === "examiner").length;
+  const studentCount = conversation.filter(t => t.role === "student").length;
+  // The student should respond if examiner has more turns than student.
+  const awaitingStudent = examinerCount > studentCount;
+
+  const partLabel = lastExaminerTurn
+    ? `Part ${lastExaminerTurn.partNumber}`
+    : nextPrompt
+      ? `Part ${nextPrompt.partNumber}`
+      : "";
+
+  async function startRecording() {
+    setMicError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream, {
+        mimeType: pickMimeType(),
+      });
+      chunksRef.current = [];
+      mr.ondataavailable = e => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      mr.onstop = () => {
+        const blob = new Blob(chunksRef.current, {
+          type: mr.mimeType || "audio/webm",
+        });
+        setRecordedAudio(blob);
+        stream.getTracks().forEach(t => t.stop());
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setIsRecording(true);
+    } catch (err: any) {
+      setMicError(
+        err?.message ??
+          "Couldn't access your microphone. Please allow mic access and reload."
+      );
+    }
+  }
+
+  function stopRecording() {
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+  }
+
+  async function submitRecording() {
+    if (!recordedAudio || !lastExaminerTurn) return;
+    const base64 = await blobToBase64(recordedAudio);
+    await submitMut.mutateAsync({
+      token,
+      partNumber: lastExaminerTurn.partNumber,
+      base64,
+      contentType: recordedAudio.type || "audio/webm",
+    });
+    setRecordedAudio(null);
+  }
+
+  async function playNextExaminerTurn() {
+    setExaminerPlayedFor(null);
+    await nextTurnMut.mutateAsync({ token });
+  }
+
+  async function finish() {
+    finishMut.mutate({ token });
+  }
+
+  // Auto-play examiner audio once it arrives.
+  useEffect(() => {
+    if (!lastExaminerTurn) return;
+    if (examinerPlayedFor === lastExaminerTurn.id) return;
+    if (!awaitingStudent) return;
+    if (lastExaminerTurn.audioUrl && audioPlayerRef.current) {
+      audioPlayerRef.current.src = lastExaminerTurn.audioUrl;
+      void audioPlayerRef.current.play().catch(() => {});
+      setExaminerPlayedFor(lastExaminerTurn.id);
+    } else if (!lastExaminerTurn.audioUrl) {
+      // No audio (TTS failed) — mark as played so UI moves on.
+      setExaminerPlayedFor(lastExaminerTurn.id);
+    }
+  }, [lastExaminerTurn, awaitingStudent, examinerPlayedFor]);
+
+  // Lobby — no turns yet.
+  if (conversation.length === 0 && !allPromptsDone) {
+    return (
+      <Card>
+        <h1 className="text-xl font-semibold mb-2">
+          Speaking — live AI examiner
+        </h1>
+        <p className="text-sm text-slate-600 mb-4">
+          You'll have a real conversation with an AI IELTS examiner ("Emma")
+          across 3 parts:
+        </p>
+        <ul className="list-disc list-inside text-sm text-slate-600 mb-6 space-y-1">
+          <li>
+            <strong>Part 1</strong> — short questions about familiar topics
+          </li>
+          <li>
+            <strong>Part 2</strong> — a 1-2 minute long-turn cue-card
+          </li>
+          <li>
+            <strong>Part 3</strong> — abstract discussion related to Part 2
+          </li>
+        </ul>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900 mb-6">
+          <strong>Before you start:</strong>
+          <ul className="list-disc list-inside mt-1 space-y-0.5 text-amber-900/80">
+            <li>Allow microphone access when prompted.</li>
+            <li>Speak naturally — Emma will respond like a real examiner.</li>
+            <li>Each answer is recorded, transcribed, and graded.</li>
+          </ul>
+        </div>
+        <button
+          onClick={() => playNextExaminerTurn()}
+          disabled={nextTurnMut.isPending}
+          className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 disabled:from-slate-400 disabled:to-slate-500 text-white font-semibold py-3 rounded-lg transition shadow flex items-center justify-center gap-2"
+        >
+          {nextTurnMut.isPending ? "Starting Emma…" : "Start Speaking"}
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </Card>
+    );
+  }
+
+  // All prompts done — finish button.
+  if (allPromptsDone && examinerCount === studentCount) {
+    return (
+      <Card>
+        <h1 className="text-xl font-semibold mb-2">All parts complete 🎉</h1>
+        <p className="text-sm text-slate-600 mb-4">
+          Emma has finished her questions. Click below to submit Speaking —
+          our AI grader will score your responses against the IELTS rubric
+          (this takes up to a minute).
+        </p>
+        <button
+          onClick={finish}
+          disabled={finishMut.isPending}
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-semibold py-3 rounded-lg transition"
+        >
+          {finishMut.isPending
+            ? "Grading Speaking…"
+            : "Submit Speaking & Finish Test"}
+        </button>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <div className="text-xs uppercase tracking-wider text-blue-700 font-semibold mb-1">
+        {partLabel} · Speaking
+      </div>
+      <h1 className="text-xl font-semibold mb-4">Live AI examiner: Emma</h1>
+
+      {/* Conversation log */}
+      <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-2">
+        {conversation.map(t =>
+          t.role === "examiner" ? (
+            <div key={t.id} className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold shrink-0">
+                E
+              </div>
+              <div className="flex-1 bg-blue-50 border border-blue-200 rounded-2xl rounded-tl-sm px-4 py-2">
+                <div className="text-sm text-slate-800 whitespace-pre-wrap">{t.text}</div>
+                {t.audioUrl ? (
+                  <audio
+                    src={t.audioUrl}
+                    controls
+                    className="mt-2 w-full max-w-sm"
+                  />
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <div key={t.id} className="flex items-start gap-3 flex-row-reverse">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold shrink-0">
+                You
+              </div>
+              <div className="flex-1 bg-emerald-50 border border-emerald-200 rounded-2xl rounded-tr-sm px-4 py-2">
+                <div className="text-sm text-slate-800 whitespace-pre-wrap italic">
+                  {t.text || "(transcribing…)"}
+                </div>
+                {t.audioUrl ? (
+                  <audio
+                    src={t.audioUrl}
+                    controls
+                    className="mt-2 w-full max-w-sm"
+                  />
+                ) : null}
+              </div>
+            </div>
+          )
+        )}
+      </div>
+
+      <audio ref={audioPlayerRef} hidden />
+
+      {/* Cue card display (Part 2 only) */}
+      {lastExaminerTurn?.partNumber === 2 &&
+      stateQuery.data?.prompts.find(
+        p =>
+          p.partNumber === 2 &&
+          p.promptOrder === conversation.filter(c => c.role === "examiner" && c.partNumber === 2).length
+      )?.cueCardText ? (
+        <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 mb-4">
+          <div className="text-xs uppercase tracking-wider text-amber-800 font-semibold mb-2">
+            Your cue card
+          </div>
+          <div className="text-sm text-slate-800 whitespace-pre-wrap">
+            {
+              stateQuery.data!.prompts.find(
+                p =>
+                  p.partNumber === 2 &&
+                  p.promptOrder ===
+                    conversation.filter(
+                      c => c.role === "examiner" && c.partNumber === 2
+                    ).length
+              )?.cueCardText
+            }
+          </div>
+          <div className="text-xs text-amber-700 mt-2">
+            You'll have ~1 minute to prepare, then speak for 1-2 minutes.
+          </div>
+        </div>
+      ) : null}
+
+      {micError ? (
+        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+          {micError}
+        </div>
+      ) : null}
+
+      {/* Control row */}
+      {awaitingStudent ? (
+        recordedAudio ? (
+          <div className="flex items-center gap-3">
+            <audio
+              src={URL.createObjectURL(recordedAudio)}
+              controls
+              className="flex-1 max-w-xs"
+            />
+            <button
+              onClick={() => setRecordedAudio(null)}
+              className="text-sm text-slate-600 hover:text-slate-900 underline"
+            >
+              Re-record
+            </button>
+            <button
+              onClick={submitRecording}
+              disabled={submitMut.isPending}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-semibold px-5 py-2 rounded-lg transition flex items-center gap-2"
+            >
+              {submitMut.isPending ? "Sending…" : "Send response"}
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        ) : isRecording ? (
+          <button
+            onClick={stopRecording}
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2"
+          >
+            ⏺ Stop recording
+          </button>
+        ) : (
+          <button
+            onClick={startRecording}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2"
+          >
+            🎤 Start recording your answer
+          </button>
+        )
+      ) : (
+        <button
+          onClick={() => playNextExaminerTurn()}
+          disabled={nextTurnMut.isPending}
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2"
+        >
+          {nextTurnMut.isPending ? "Emma is thinking…" : "Next question"}
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      )}
+    </Card>
+  );
+}
+
+function pickMimeType(): string {
+  const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"];
+  if (typeof MediaRecorder === "undefined") return "audio/webm";
+  for (const c of candidates) {
+    try {
+      if ((MediaRecorder as any).isTypeSupported?.(c)) return c;
+    } catch {}
+  }
+  return "audio/webm";
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  const buf = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let binary = "";
+  // Chunk to avoid call-stack issues with very large arrays.
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(
+      null,
+      Array.from(bytes.subarray(i, i + CHUNK))
+    );
+  }
+  return btoa(binary);
 }
 
 // ---------------------------------------------------------------------------

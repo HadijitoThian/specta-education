@@ -20,8 +20,15 @@ import {
   ieltsReadingAnswers,
   ieltsWritingTasks,
   ieltsWritingResponses,
+  ieltsSpeakingPrompts,
+  ieltsSpeakingConversations,
+  ieltsSpeakingResponses,
 } from "../drizzle/schema";
 import { invokeLLM } from "./_core/llm";
+import { synthesize as ttsSynthesize } from "./_core/elevenlabs";
+import { transcribeAudio } from "./_core/voiceTranscription";
+import { storagePut } from "./storage";
+import { nanoid } from "nanoid";
 import {
   IELTS_MOCK_PRICE,
   createIeltsMockInvoice,
@@ -819,6 +826,339 @@ export const ieltsRouter = router({
       return { ok: true };
     }),
 
+  // -------------------- SPEAKING --------------------
+
+  /**
+   * Returns the full Speaking state: prompts catalog + conversation so far +
+   * computed position (currentPart, currentPromptIdx). Conversation rows
+   * include audioUrl built from audioKey via the /files/ proxy.
+   */
+  getSpeakingState: protectedProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .query(async ({ input, ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [attempt] = await db
+        .select()
+        .from(ieltsMockAttempts)
+        .where(eq(ieltsMockAttempts.attemptToken, input.token))
+        .limit(1);
+      if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
+      if (attempt.userId !== ctx.user.id && ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      const prompts = await db
+        .select()
+        .from(ieltsSpeakingPrompts)
+        .where(eq(ieltsSpeakingPrompts.testId, attempt.testId))
+        .orderBy(
+          ieltsSpeakingPrompts.partNumber,
+          ieltsSpeakingPrompts.promptOrder
+        );
+
+      const conversation = await db
+        .select()
+        .from(ieltsSpeakingConversations)
+        .where(eq(ieltsSpeakingConversations.attemptId, attempt.id))
+        .orderBy(ieltsSpeakingConversations.turnOrder);
+
+      const examinerTurns = conversation.filter(c => c.role === "examiner");
+      const allPromptsDone = examinerTurns.length >= prompts.length;
+
+      const nextPrompt = allPromptsDone ? null : prompts[examinerTurns.length];
+
+      return {
+        attempt: {
+          token: attempt.attemptToken,
+          status: attempt.status,
+        },
+        prompts: prompts.map(p => ({
+          id: p.id,
+          partNumber: p.partNumber,
+          promptOrder: p.promptOrder,
+          prompt: p.prompt,
+          cueCardText: p.cueCardText,
+        })),
+        conversation: conversation.map(c => ({
+          id: c.id,
+          partNumber: c.partNumber,
+          turnOrder: c.turnOrder,
+          role: c.role,
+          text: c.text,
+          audioUrl: c.audioKey ? `/files/${c.audioKey}` : null,
+        })),
+        nextPrompt: nextPrompt
+          ? {
+              id: nextPrompt.id,
+              partNumber: nextPrompt.partNumber,
+              promptOrder: nextPrompt.promptOrder,
+              prompt: nextPrompt.prompt,
+              cueCardText: nextPrompt.cueCardText,
+            }
+          : null,
+        allPromptsDone,
+      };
+    }),
+
+  /**
+   * Generate the next examiner audio + persist as a conversation turn.
+   * Idempotent-ish: if a row for that prompt already exists, returns it.
+   * Uses ElevenLabs to synthesize the prompt text into MP3, uploads to R2.
+   */
+  nextExaminerTurn: protectedProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [attempt] = await db
+        .select()
+        .from(ieltsMockAttempts)
+        .where(eq(ieltsMockAttempts.attemptToken, input.token))
+        .limit(1);
+      if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
+      if (attempt.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      const prompts = await db
+        .select()
+        .from(ieltsSpeakingPrompts)
+        .where(eq(ieltsSpeakingPrompts.testId, attempt.testId))
+        .orderBy(
+          ieltsSpeakingPrompts.partNumber,
+          ieltsSpeakingPrompts.promptOrder
+        );
+
+      const conversation = await db
+        .select()
+        .from(ieltsSpeakingConversations)
+        .where(eq(ieltsSpeakingConversations.attemptId, attempt.id))
+        .orderBy(ieltsSpeakingConversations.turnOrder);
+
+      const examinerCount = conversation.filter(c => c.role === "examiner").length;
+      if (examinerCount >= prompts.length) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "All Speaking prompts already played",
+        });
+      }
+
+      const next = prompts[examinerCount];
+
+      // TTS the prompt text. For Part 2 cue card, we also speak the lead-in
+      // (the `prompt` field) but the cue card body itself is shown visually
+      // and the student gets prep time.
+      let audioKey: string | null = null;
+      try {
+        const audioBuf = await ttsSynthesize({
+          text: next.prompt,
+          // higher-quality model for examiner audio
+          modelId: "eleven_multilingual_v2",
+          outputFormat: "mp3_44100_128",
+        });
+        const key = `ielts/speaking/${attempt.attemptToken}/examiner-${next.partNumber}-${next.promptOrder}-${nanoid(6)}.mp3`;
+        await storagePut(key, audioBuf, "audio/mpeg");
+        audioKey = key;
+      } catch (err) {
+        console.error("[IELTS Speaking] TTS failed:", err);
+        // Continue without audio — UI can fall back to text-only.
+      }
+
+      const turnOrder = conversation.length + 1;
+      const inserted = await db.insert(ieltsSpeakingConversations).values({
+        attemptId: attempt.id,
+        partNumber: next.partNumber,
+        turnOrder,
+        role: "examiner",
+        text: next.prompt,
+        audioKey,
+      });
+      const turnId = (inserted as any)[0]?.insertId as number;
+
+      return {
+        turn: {
+          id: turnId,
+          partNumber: next.partNumber,
+          promptOrder: next.promptOrder,
+          turnOrder,
+          text: next.prompt,
+          audioUrl: audioKey ? `/files/${audioKey}` : null,
+          cueCardText: next.cueCardText,
+        },
+      };
+    }),
+
+  /**
+   * Student submits an audio recording. We persist it to R2, call Whisper,
+   * append the transcript as a conversation turn.
+   */
+  submitStudentTurn: protectedProcedure
+    .input(
+      z.object({
+        token: z.string().min(1),
+        partNumber: z.number().int().min(1).max(3),
+        base64: z.string().min(1),
+        contentType: z.string().default("audio/webm"),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [attempt] = await db
+        .select()
+        .from(ieltsMockAttempts)
+        .where(eq(ieltsMockAttempts.attemptToken, input.token))
+        .limit(1);
+      if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
+      if (attempt.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      const cleanB64 = input.base64.replace(/^data:[^;]+;base64,/, "");
+      const buffer = Buffer.from(cleanB64, "base64");
+
+      const ext = input.contentType.includes("webm")
+        ? "webm"
+        : input.contentType.includes("mp4")
+          ? "mp4"
+          : input.contentType.includes("wav")
+            ? "wav"
+            : "mp3";
+      const key = `ielts/speaking/${attempt.attemptToken}/student-p${input.partNumber}-${nanoid(8)}.${ext}`;
+      const { url } = await storagePut(key, buffer, input.contentType);
+
+      let transcript = "";
+      try {
+        const result = await transcribeAudio({ audioUrl: url });
+        if ("error" in result) {
+          console.warn(
+            "[IELTS Speaking] Whisper failed:",
+            result.error,
+            result.details
+          );
+        } else {
+          transcript = result.text ?? "";
+        }
+      } catch (err) {
+        console.error("[IELTS Speaking] transcribe error:", err);
+      }
+
+      const existing = await db
+        .select()
+        .from(ieltsSpeakingConversations)
+        .where(eq(ieltsSpeakingConversations.attemptId, attempt.id));
+      const turnOrder = existing.length + 1;
+
+      await db.insert(ieltsSpeakingConversations).values({
+        attemptId: attempt.id,
+        partNumber: input.partNumber,
+        turnOrder,
+        role: "student",
+        text: transcript,
+        audioKey: key,
+      });
+
+      return { transcript, audioUrl: `/files/${key}` };
+    }),
+
+  /**
+   * Finalise Speaking: for each Part (1, 2, 3), concatenate the student's
+   * transcripts and LLM-grade against the IELTS Speaking rubric. Persist
+   * per-part FC/LR/GRA/P + band + feedback. Then transition to "grading"
+   * (which P1h/P4 will pick up to compute overall band + generate PDF).
+   */
+  finishSpeaking: protectedProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [attempt] = await db
+        .select()
+        .from(ieltsMockAttempts)
+        .where(eq(ieltsMockAttempts.attemptToken, input.token))
+        .limit(1);
+      if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
+      if (attempt.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      const conversation = await db
+        .select()
+        .from(ieltsSpeakingConversations)
+        .where(eq(ieltsSpeakingConversations.attemptId, attempt.id))
+        .orderBy(ieltsSpeakingConversations.turnOrder);
+
+      for (const partNumber of [1, 2, 3] as const) {
+        const examinerTurns = conversation.filter(
+          c => c.role === "examiner" && c.partNumber === partNumber
+        );
+        const studentTurns = conversation.filter(
+          c => c.role === "student" && c.partNumber === partNumber
+        );
+        if (studentTurns.length === 0) continue;
+
+        const studentText = studentTurns
+          .map(t => t.text)
+          .filter(t => t && t.length > 0)
+          .join("\n\n");
+        if (!studentText.trim()) continue;
+
+        const transcriptForLLM = conversation
+          .filter(c => c.partNumber === partNumber)
+          .map(c => `${c.role.toUpperCase()}: ${c.text}`)
+          .join("\n");
+
+        try {
+          const grading = await gradeSpeakingPart({
+            partNumber,
+            transcript: transcriptForLLM,
+            studentText,
+          });
+          const partBand = roundToHalfBand(
+            (grading.scoreFC +
+              grading.scoreLR +
+              grading.scoreGRA +
+              grading.scoreP) /
+              4
+          );
+          await db.insert(ieltsSpeakingResponses).values({
+            attemptId: attempt.id,
+            partNumber,
+            transcript: studentText,
+            scoreFC: String(grading.scoreFC),
+            scoreLR: String(grading.scoreLR),
+            scoreGRA: String(grading.scoreGRA),
+            scoreP: String(grading.scoreP),
+            partBand: String(partBand),
+            feedback: grading.feedback,
+            gradedAt: new Date(),
+            completedAt: new Date(),
+          });
+        } catch (err) {
+          console.error(
+            `[IELTS Speaking grade] part ${partNumber} failed:`,
+            err
+          );
+        }
+      }
+
+      await db
+        .update(ieltsMockAttempts)
+        .set({ status: "grading" })
+        .where(eq(ieltsMockAttempts.id, attempt.id));
+
+      return { ok: true };
+    }),
+
   /** Student's purchase history. Useful for "My tests" pages later. */
   myAttempts: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
@@ -960,6 +1300,94 @@ Grade against the official IELTS Writing band descriptors. Return JSON only.`;
       lr: typeof parsed.feedback?.lr === "string" ? parsed.feedback.lr : "",
       gra:
         typeof parsed.feedback?.gra === "string" ? parsed.feedback.gra : "",
+    },
+  };
+}
+
+type SpeakingGradeResult = {
+  scoreFC: number;
+  scoreLR: number;
+  scoreGRA: number;
+  scoreP: number;
+  feedback: { fc: string; lr: string; gra: string; p: string };
+};
+
+async function gradeSpeakingPart(args: {
+  partNumber: 1 | 2 | 3;
+  transcript: string;
+  studentText: string;
+}): Promise<SpeakingGradeResult> {
+  const system = `You are an experienced IELTS Speaking examiner. You grade the student strictly against the official IELTS Speaking public band descriptors.
+
+Return JSON ONLY (no prose). Schema:
+{
+  "scoreFC":  number,  // 0.0 - 9.0, half-band steps. Fluency & Coherence.
+  "scoreLR":  number,  // 0.0 - 9.0, half-band steps. Lexical Resource.
+  "scoreGRA": number,  // 0.0 - 9.0, half-band steps. Grammatical Range & Accuracy.
+  "scoreP":   number,  // 0.0 - 9.0, half-band steps. Pronunciation (estimate from transcript fluency, hesitation markers, filler words, sentence rhythm).
+  "feedback": {
+    "fc":  "1-2 sentences on Fluency & Coherence.",
+    "lr":  "1-2 sentences on Lexical Resource.",
+    "gra": "1-2 sentences on Grammatical Range & Accuracy.",
+    "p":   "1-2 sentences on Pronunciation (caveat: estimated from text only)."
+  }
+}
+
+Be accurate, not generous. Most candidates score 5.5-7.0. Use 0.5 steps only.
+Note: Pronunciation is estimated from transcript characteristics (filler
+words, false starts, hesitation markers transcribed as "uh", "um"); the
+official IELTS examiner hears audio. Make this caveat clear in feedback.p.`;
+
+  const partLabel =
+    args.partNumber === 1
+      ? "Part 1 (4-5 min interview about familiar topics)"
+      : args.partNumber === 2
+        ? "Part 2 (long-turn cue card monologue, 1-2 min)"
+        : "Part 3 (4-5 min discussion of abstract questions)";
+
+  const user = `Speaking ${partLabel}
+
+Full conversation transcript for this part:
+"""
+${args.transcript}
+"""
+
+Student response excerpt (concatenated):
+"""
+${args.studentText}
+"""
+
+Grade against the IELTS Speaking band descriptors. Return JSON only.`;
+
+  const response = await invokeLLM({
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+    response_format: { type: "json_object" },
+    max_tokens: 1500,
+  });
+
+  const raw = response.choices?.[0]?.message?.content;
+  if (typeof raw !== "string") throw new Error("LLM returned no content");
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`LLM returned invalid JSON: ${raw.slice(0, 200)}`);
+  }
+
+  return {
+    scoreFC: clampBand(Number(parsed.scoreFC)),
+    scoreLR: clampBand(Number(parsed.scoreLR)),
+    scoreGRA: clampBand(Number(parsed.scoreGRA)),
+    scoreP: clampBand(Number(parsed.scoreP)),
+    feedback: {
+      fc: typeof parsed.feedback?.fc === "string" ? parsed.feedback.fc : "",
+      lr: typeof parsed.feedback?.lr === "string" ? parsed.feedback.lr : "",
+      gra:
+        typeof parsed.feedback?.gra === "string" ? parsed.feedback.gra : "",
+      p: typeof parsed.feedback?.p === "string" ? parsed.feedback.p : "",
     },
   };
 }
