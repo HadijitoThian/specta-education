@@ -110,6 +110,45 @@ async function startServer() {
   registerPasswordAuthRoutes(app);
   // Xendit payment webhook
   registerXenditWebhook(app);
+  // Self-serve admin promotion. The currently-authenticated user gets the
+  // "admin" role IF and only if their email matches ENV.ownerEmail. Use
+  // this when OWNER_EMAIL was set after signup and the auto-grant didn't
+  // fire.
+  app.post("/api/auth/claim-owner-admin", async (req, res) => {
+    try {
+      const { sdk } = await import("./sdk");
+      const { ENV } = await import("./env");
+      const { getDb } = await import("../db");
+      const { users } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+
+      const user = await sdk.authenticateRequest(req);
+      if (!ENV.ownerEmail) {
+        return res.status(409).json({ error: "OWNER_EMAIL is not configured on the server" });
+      }
+      if (!user.email || user.email.toLowerCase() !== ENV.ownerEmail.toLowerCase()) {
+        return res
+          .status(403)
+          .json({ error: "Your account's email does not match OWNER_EMAIL" });
+      }
+      const db = await getDb();
+      if (!db) return res.status(500).json({ error: "DB unavailable" });
+      await db.update(users).set({ role: "admin" }).where(eq(users.id, user.id));
+      return res.status(200).json({
+        ok: true,
+        role: "admin",
+        message: "You are now admin. Refresh /admin/ielts-tests to use the tool.",
+      });
+    } catch (e: any) {
+      console.error("[claim-owner-admin]", e);
+      return res
+        .status(e?.code === "FORBIDDEN" || e?.message?.includes("Invalid session")
+          ? 401
+          : 500)
+        .json({ error: e?.message ?? "failed" });
+    }
+  });
+
   // Idempotent one-shot: builds one full IELTS Academic test in the DB.
   // POST body (optional): { code, title }
   // Defaults: { code: "ACAD-001", title: "Academic Test 1 — Sample" }
