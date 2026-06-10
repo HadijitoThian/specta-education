@@ -1,66 +1,42 @@
 /**
- * Image generation helper using internal ImageService
- *
- * Example usage:
- *   const { url: imageUrl } = await generateImage({
- *     prompt: "A serene landscape with mountains"
- *   });
- *
- * For editing:
- *   const { url: imageUrl } = await generateImage({
- *     prompt: "Add a rainbow to this landscape",
- *     originalImages: [{
- *       url: "https://example.com/original.jpg",
- *       mimeType: "image/jpeg"
- *     }]
- *   });
+ * Image generation backed by DeepInfra (FLUX).
  */
 import { storagePut } from "server/storage";
 import { ENV } from "./env";
 
 export type GenerateImageOptions = {
   prompt: string;
-  originalImages?: Array<{
-    url?: string;
-    b64Json?: string;
-    mimeType?: string;
-  }>;
+  width?: number;
+  height?: number;
+  /** @deprecated FLUX schnell is text-to-image only; kept for compatibility. */
+  originalImages?: Array<{ url?: string; b64Json?: string; mimeType?: string }>;
 };
 
-export type GenerateImageResponse = {
-  url?: string;
-};
+export type GenerateImageResponse = { url?: string };
+
+const DEEPINFRA_IMAGE_URL =
+  "https://api.deepinfra.com/v1/openai/images/generations";
 
 export async function generateImage(
   options: GenerateImageOptions
 ): Promise<GenerateImageResponse> {
-  if (!ENV.forgeApiUrl) {
-    throw new Error("BUILT_IN_FORGE_API_URL is not configured");
-  }
-  if (!ENV.forgeApiKey) {
-    throw new Error("BUILT_IN_FORGE_API_KEY is not configured");
+  if (!ENV.deepinfraApiKey) {
+    throw new Error("DEEPINFRA_API_KEY is not configured");
   }
 
-  // Build the full URL by appending the service path to the base URL
-  const baseUrl = ENV.forgeApiUrl.endsWith("/")
-    ? ENV.forgeApiUrl
-    : `${ENV.forgeApiUrl}/`;
-  const fullUrl = new URL(
-    "images.v1.ImageService/GenerateImage",
-    baseUrl
-  ).toString();
-
-  const response = await fetch(fullUrl, {
+  const response = await fetch(DEEPINFRA_IMAGE_URL, {
     method: "POST",
     headers: {
       accept: "application/json",
       "content-type": "application/json",
-      "connect-protocol-version": "1",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
+      authorization: `Bearer ${ENV.deepinfraApiKey}`,
     },
     body: JSON.stringify({
+      model: ENV.deepinfraImageModel,
       prompt: options.prompt,
-      original_images: options.originalImages || [],
+      n: 1,
+      size: `${options.width ?? 1024}x${options.height ?? 1024}`,
+      response_format: "b64_json",
     }),
   });
 
@@ -72,21 +48,29 @@ export async function generateImage(
   }
 
   const result = (await response.json()) as {
-    image: {
-      b64Json: string;
-      mimeType: string;
-    };
+    data: Array<{ b64_json?: string; url?: string }>;
   };
-  const base64Data = result.image.b64Json;
-  const buffer = Buffer.from(base64Data, "base64");
 
-  // Save to S3
+  const first = result.data?.[0];
+  if (!first) throw new Error("Image generation returned no data");
+
+  let buffer: Buffer;
+  if (first.b64_json) {
+    buffer = Buffer.from(first.b64_json, "base64");
+  } else if (first.url) {
+    const imgRes = await fetch(first.url);
+    if (!imgRes.ok) {
+      throw new Error(`Failed to download generated image: ${imgRes.status}`);
+    }
+    buffer = Buffer.from(await imgRes.arrayBuffer());
+  } else {
+    throw new Error("Image generation returned no b64_json or url");
+  }
+
   const { url } = await storagePut(
     `generated/${Date.now()}.png`,
     buffer,
-    result.image.mimeType
+    "image/png"
   );
-  return {
-    url,
-  };
+  return { url };
 }
