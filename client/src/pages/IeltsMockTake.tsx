@@ -283,8 +283,32 @@ function ListeningRunner({
   });
 
   const [sectionIdx, setSectionIdx] = useState(0);
+  // Show the one-time pre-test intro card with the example question.
+  const [showIntro, setShowIntro] = useState(true);
+  // Per-section preview period — student reads questions before audio plays.
+  // Real IELTS gives ~30 seconds; we mirror that.
+  const PREVIEW_SECONDS = 30;
+  const [previewLeft, setPreviewLeft] = useState(PREVIEW_SECONDS);
+  const [previewing, setPreviewing] = useState(true);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [audioFinished, setAudioFinished] = useState(false);
+
+  // Countdown ticker for preview period.
+  useEffect(() => {
+    if (!previewing) return;
+    if (previewLeft <= 0) {
+      setPreviewing(false);
+      return;
+    }
+    const t = setInterval(() => setPreviewLeft(n => n - 1), 1000);
+    return () => clearInterval(t);
+  }, [previewing, previewLeft]);
+
+  // Reset preview when changing sections.
+  useEffect(() => {
+    setPreviewing(true);
+    setPreviewLeft(PREVIEW_SECONDS);
+  }, [sectionIdx]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastPositionRef = useRef(0);
 
@@ -395,6 +419,76 @@ function ListeningRunner({
 
   const isLastSection = sectionIdx + 1 >= sections.length;
 
+  // One-time intro before the entire Listening test.
+  if (showIntro) {
+    return (
+      <Card>
+        <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full mb-2">
+          Listening — how it works
+        </span>
+        <h1 className="text-2xl font-bold text-slate-900 mb-3">
+          Welcome to Section 1
+        </h1>
+        <p className="text-sm text-slate-700 leading-relaxed mb-4">
+          You'll hear <strong>4 audio sections</strong>. Each plays{" "}
+          <strong>once only</strong> — you cannot pause, rewind, or replay.
+          Before each section starts, you get <strong>30 seconds</strong> to
+          read through the questions.
+        </p>
+
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-4">
+          <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">
+            Example
+          </div>
+          <p className="text-xs text-slate-600 mb-2">
+            <em>You'll hear:</em> "Could I take your full name, please?" &nbsp;
+            "Yes, it's Jennifer Lawson."
+          </p>
+          <p className="text-xs text-slate-600 mb-3">
+            <em>The form on your screen looks like this:</em>
+          </p>
+          <div className="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center">
+                E
+              </div>
+              <div className="flex-1">
+                <div className="text-sm text-slate-800">
+                  Name: ...........................
+                </div>
+                <div className="text-xs text-slate-500 mt-1">
+                  → Type the answer:{" "}
+                  <span className="inline-block bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-mono text-xs">
+                    Jennifer Lawson
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 mb-5">
+          <strong>Tips:</strong>
+          <ul className="list-disc list-inside mt-1 space-y-0.5">
+            <li>Headphones on, volume tested.</li>
+            <li>
+              Use the preview seconds to read every question — you'll catch
+              answers faster.
+            </li>
+            <li>Answers are case-insensitive and auto-saved as you type.</li>
+          </ul>
+        </div>
+
+        <button
+          onClick={() => setShowIntro(false)}
+          className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2"
+        >
+          OK, I'm ready — go to Section 1
+        </button>
+      </Card>
+    );
+  }
+
   return (
     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
       {/* Top bar */}
@@ -437,17 +531,37 @@ function ListeningRunner({
                 Plays once. No rewind. No pause.
               </div>
             </div>
-            {audioFinished ? (
+            {previewing ? (
+              <span className="inline-flex items-center gap-1 text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1 text-xs font-mono">
+                Audio plays in {previewLeft}s
+              </span>
+            ) : audioFinished ? (
               <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1 text-xs">
                 <CheckCircle2 className="w-3 h-3" /> Audio done
               </span>
             ) : null}
           </div>
+          {previewing ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-3 text-xs text-amber-900">
+              <strong>Preview time.</strong> Read the questions below before
+              the audio starts. You'll have {PREVIEW_SECONDS} seconds. You can
+              start typing answers now — they'll auto-save.
+              <button
+                onClick={() => {
+                  setPreviewLeft(0);
+                  setPreviewing(false);
+                }}
+                className="ml-2 underline font-semibold hover:text-amber-700"
+              >
+                Skip preview & start audio now →
+              </button>
+            </div>
+          ) : null}
           {section.audioUrl ? (
             <audio
               ref={audioRef}
-              src={section.audioUrl}
-              autoPlay
+              src={previewing ? undefined : section.audioUrl}
+              autoPlay={!previewing}
               controls
               controlsList="nodownload noplaybackrate"
               className="w-full"

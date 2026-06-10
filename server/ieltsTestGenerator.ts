@@ -77,7 +77,7 @@ const SECTION_BLUEPRINTS = [
     sectionNumber: 2,
     theme:
       "A monologue: welcome talk by a guide at a wildlife sanctuary. Single speaker (male, Australian). Cover: history (founded 1992), number of animals and species, safety rules (no feeding, no photography in nursery, stay on path), tour schedule, facilities (cafe, gift shop, picnic area, first-aid station), where to meet at end.",
-    questionTypes: "Mix of multiple choice (3-4) and map_labelling (5-6). The map labels are for sanctuary locations like 'entrance', 'koala enclosure', 'gift shop', 'cafe', 'first-aid station', 'picnic area', 'viewing platform'.",
+    questionTypes: "Mix of multiple choice (3-4) and note_completion (6-7). Notes are structured under headers like 'History', 'Facilities', 'Tour schedule', 'Safety rules' with missing words to fill in (1-3 words each). Do NOT use map_labelling.",
   },
   {
     sectionNumber: 3,
