@@ -459,4 +459,32 @@ export const ieltsAdminRouter = router({
 
       return { imageKey: key };
     }),
+
+  /**
+   * Admin-only: create a free pre-paid attempt for the currently-logged-in
+   * admin so they can walk through the test without paying. Returns the
+   * attemptToken to redirect to /ielts/mock-test/take/<token>.
+   */
+  createTestAttempt: protectedProcedure
+    .input(z.object({ testId: z.number().int() }))
+    .mutation(async ({ input, ctx }) => {
+      assertAdmin(ctx);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const { ieltsMockAttempts } = await import("../drizzle/schema");
+
+      const attemptToken = nanoid(24);
+      const now = new Date();
+      const inserted = await db.insert(ieltsMockAttempts).values({
+        userId: ctx.user!.id,
+        testId: input.testId,
+        attemptToken,
+        paymentRef: `ADMIN-FREE-${nanoid(8)}`,
+        paidAt: now,
+        status: "ready",
+      });
+      const attemptId = (inserted as any)[0]?.insertId as number;
+      return { attemptToken, attemptId };
+    }),
 });

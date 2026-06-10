@@ -102,6 +102,12 @@ export default function AdminIeltsTests() {
 
   const uploadAudioMut = trpc.admin.ielts.uploadListeningAudio.useMutation();
 
+  const createTestAttemptMut = trpc.admin.ielts.createTestAttempt.useMutation({
+    onSuccess: data => {
+      window.location.href = `/ielts/mock-test/take/${data.attemptToken}`;
+    },
+  });
+
   const [showImport, setShowImport] = useState(false);
   const [jsonText, setJsonText] = useState(SAMPLE_JSON);
   const [uploadingFor, setUploadingFor] = useState<{
@@ -280,6 +286,19 @@ export default function AdminIeltsTests() {
                             </span>
                           ) : null}
                         </div>
+
+                        <button
+                          onClick={() =>
+                            createTestAttemptMut.mutate({ testId: t.id })
+                          }
+                          disabled={createTestAttemptMut.isPending}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline font-semibold"
+                          title="Create a free attempt and take the test as a student"
+                        >
+                          {createTestAttemptMut.isPending
+                            ? "Starting…"
+                            : "Test as student"}
+                        </button>
 
                         <button
                           onClick={() =>
