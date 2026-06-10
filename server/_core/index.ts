@@ -110,6 +110,32 @@ async function startServer() {
   registerPasswordAuthRoutes(app);
   // Xendit payment webhook
   registerXenditWebhook(app);
+  // Idempotent one-shot: builds one full IELTS Academic test in the DB.
+  // POST body (optional): { code, title }
+  // Defaults: { code: "ACAD-001", title: "Academic Test 1 — Sample" }
+  // Returns a status report. If a test with that code already exists,
+  // does nothing and returns alreadyExists: true.
+  app.post("/api/internal/generate-ielts-test", async (req, res) => {
+    try {
+      const { generateAcademicTest } = await import("../ieltsTestGenerator");
+      const code =
+        typeof req.body?.code === "string" && req.body.code.length > 0
+          ? req.body.code
+          : "ACAD-001";
+      const title =
+        typeof req.body?.title === "string" && req.body.title.length > 0
+          ? req.body.title
+          : "Academic Test 1";
+      console.log(`[generate-ielts-test] starting ${code}: ${title}`);
+      const result = await generateAcademicTest({ code, title });
+      console.log(`[generate-ielts-test] done`, result);
+      return res.status(200).json(result);
+    } catch (err: any) {
+      console.error("[generate-ielts-test] error", err);
+      return res.status(500).json({ error: err?.message ?? "failed" });
+    }
+  });
+
   // Idempotent one-shot: generates the IELTS landing-page images via
   // DeepInfra FLUX-1.1-pro and uploads them to R2. Skips images that
   // already exist (HEAD check). Returns a status report. Safe to call
