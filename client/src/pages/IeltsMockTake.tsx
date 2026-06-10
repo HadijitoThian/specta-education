@@ -127,17 +127,28 @@ export default function IeltsMockTake() {
     );
   }
 
-  if (status === "writing" || status === "speaking") {
+  if (status === "writing") {
+    return (
+      <Shell wide>
+        <WritingRunner
+          token={token}
+          onFinished={() => setLocation(`/ielts/mock-test/take/${token}`)}
+        />
+      </Shell>
+    );
+  }
+
+  if (status === "speaking") {
     return (
       <Shell>
         <Card>
           <h1 className="text-xl font-semibold mb-2">
-            {capitalize(status)} module is coming next
+            Speaking module is coming next
           </h1>
           <p className="text-sm text-slate-600 mb-4">
-            You've finished the auto-graded sections 🎉 — the {status}{" "}
-            module isn't built yet. We'll email you the moment it's ready,
-            and your attempt won't expire in the meantime.
+            You've finished Listening, Reading, and Writing 🎉 — the live
+            AI Speaking module is the last piece. We'll email you the moment
+            it's ready, and your attempt won't expire.
           </p>
           <Link href="/" className="text-blue-600 hover:underline text-sm">
             Back to homepage
@@ -741,6 +752,232 @@ function ReadingRunner({
               ? "Finishing…"
               : "Submit Reading"
             : "Next passage"}
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Writing Runner
+// ---------------------------------------------------------------------------
+
+type WritingTask = {
+  id: number;
+  taskNumber: number;
+  taskFormat: "chart" | "letter" | "essay";
+  prompt: string;
+  imageUrl: string | null;
+  minWords: number;
+  timeLimitSec: number;
+};
+
+function WritingRunner({
+  token,
+  onFinished,
+}: {
+  token: string;
+  onFinished: () => void;
+}) {
+  const contentQuery = trpc.ielts.getWritingContent.useQuery(
+    { token },
+    { refetchOnWindowFocus: false }
+  );
+
+  const saveMut = trpc.ielts.saveWritingDraft.useMutation();
+  const finishMut = trpc.ielts.finishWriting.useMutation({
+    onSuccess: onFinished,
+  });
+
+  const [taskIdx, setTaskIdx] = useState(0);
+  const [texts, setTexts] = useState<Record<number, string>>({});
+  const [taskStartedAt, setTaskStartedAt] = useState<number>(Date.now());
+
+  useEffect(() => {
+    if (contentQuery.data?.existingResponses) {
+      setTexts(prev => {
+        const next = { ...prev };
+        for (const r of contentQuery.data!.existingResponses) {
+          next[r.taskId] = r.studentText;
+        }
+        return next;
+      });
+    }
+  }, [contentQuery.data]);
+
+  // Reset task timer when switching tasks.
+  useEffect(() => {
+    setTaskStartedAt(Date.now());
+  }, [taskIdx]);
+
+  const tasks: WritingTask[] = (contentQuery.data?.tasks as any) ?? [];
+  const task = tasks[taskIdx];
+
+  const text = (task && texts[task.id]) ?? "";
+  const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+
+  // Debounced autosave every ~6s.
+  useEffect(() => {
+    if (!task) return;
+    if (text.length === 0) return;
+    const t = setTimeout(() => {
+      saveMut.mutate({ token, taskId: task.id, text });
+    }, 6000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, task]);
+
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const secondsLeft = task
+    ? Math.max(
+        0,
+        task.timeLimitSec - Math.floor((now - taskStartedAt) / 1000)
+      )
+    : 0;
+  const mm = Math.floor(secondsLeft / 60).toString().padStart(2, "0");
+  const ss = (secondsLeft % 60).toString().padStart(2, "0");
+
+  // Auto-advance if time runs out.
+  useEffect(() => {
+    if (!task) return;
+    if (secondsLeft === 0 && !finishMut.isPending && contentQuery.data) {
+      void handleAdvance();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secondsLeft]);
+
+  if (contentQuery.isLoading) {
+    return <Card>Loading Writing tasks…</Card>;
+  }
+  if (contentQuery.isError) {
+    return (
+      <Card>
+        <h1 className="text-xl font-semibold mb-2">Could not load Writing</h1>
+        <p className="text-sm text-slate-600">{contentQuery.error.message}</p>
+      </Card>
+    );
+  }
+  if (!task) return <Card>No Writing tasks for this test.</Card>;
+
+  const wordsHit = wordCount >= task.minWords;
+  const isLastTask = taskIdx + 1 >= tasks.length;
+
+  async function handleAdvance() {
+    // Save final state for this task.
+    if (task && text.length > 0) {
+      await saveMut.mutateAsync({ token, taskId: task.id, text });
+    }
+    if (isLastTask) {
+      finishMut.mutate({ token });
+    } else {
+      setTaskIdx(taskIdx + 1);
+      window.scrollTo(0, 0);
+    }
+  }
+
+  const finishing = finishMut.isPending;
+
+  return (
+    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
+        <div className="text-sm text-slate-600 font-medium">
+          Writing · Task{" "}
+          <span className="text-slate-900 font-bold">{task.taskNumber}</span> of {tasks.length}
+        </div>
+        <div className="flex items-center gap-3">
+          <div
+            className={`text-xs px-2 py-1 rounded-full font-medium ${
+              wordsHit
+                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                : "bg-slate-100 text-slate-600 border border-slate-200"
+            }`}
+          >
+            {wordCount} / {task.minWords} words
+          </div>
+          <div
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-mono ${
+              secondsLeft < 60
+                ? "bg-red-100 text-red-700"
+                : secondsLeft < 5 * 60
+                  ? "bg-amber-100 text-amber-800"
+                  : "bg-slate-200 text-slate-700"
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            {mm}:{ss}
+          </div>
+        </div>
+      </div>
+
+      {/* Split: prompt + image (left) / textarea (right) */}
+      <div className="grid lg:grid-cols-2 gap-6 p-6">
+        <div className="lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto pr-2">
+          <div className="text-xs uppercase tracking-wider text-slate-500 mb-2">
+            Task {task.taskNumber} prompt
+          </div>
+          {task.imageUrl ? (
+            <div className="mb-4 rounded-xl overflow-hidden border border-slate-200">
+              <img
+                src={task.imageUrl}
+                alt={`Task ${task.taskNumber} visual`}
+                className="w-full h-auto object-contain bg-white"
+                onError={e => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
+              />
+            </div>
+          ) : null}
+          <article className="prose prose-sm max-w-none text-slate-800 leading-relaxed whitespace-pre-wrap">
+            {task.prompt}
+          </article>
+          <div className="mt-4 text-xs text-slate-500">
+            Minimum {task.minWords} words · Recommended time{" "}
+            {Math.round(task.timeLimitSec / 60)} min
+          </div>
+        </div>
+
+        <div className="lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto pl-2">
+          <textarea
+            value={text}
+            onChange={e =>
+              setTexts(prev => ({ ...prev, [task.id]: e.target.value }))
+            }
+            placeholder={`Write your response to Task ${task.taskNumber} here…`}
+            className="w-full h-[60vh] p-4 border border-slate-300 rounded-xl text-sm text-slate-800 font-serif leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+          />
+          <div className="text-xs text-slate-400 mt-2 flex justify-between">
+            <span>Auto-saves every few seconds.</span>
+            <span>{saveMut.isPending ? "Saving…" : "Saved."}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom bar */}
+      <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50">
+        <div className="text-xs text-slate-500">
+          {finishing
+            ? "AI is grading your responses against the IELTS rubric — this can take up to a minute…"
+            : wordsHit
+              ? "You've hit the word target. You can polish or submit."
+              : `${task.minWords - wordCount} more words to hit the minimum.`}
+        </div>
+        <button
+          onClick={() => void handleAdvance()}
+          disabled={finishing}
+          className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-semibold px-5 py-2 rounded-lg transition flex items-center gap-2"
+        >
+          {isLastTask
+            ? finishing
+              ? "Grading…"
+              : "Submit Writing"
+            : "Next task"}
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>

@@ -18,7 +18,10 @@ import {
   ieltsReadingPassages,
   ieltsReadingQuestions,
   ieltsReadingAnswers,
+  ieltsWritingTasks,
+  ieltsWritingResponses,
 } from "../drizzle/schema";
+import { invokeLLM } from "./_core/llm";
 import {
   IELTS_MOCK_PRICE,
   createIeltsMockInvoice,
@@ -577,8 +580,7 @@ export const ieltsRouter = router({
     }),
 
   /**
-   * Mark Reading as finished and advance to Writing. Writing isn't built
-   * yet (P2), so the wrapper page will show its "coming next" placeholder.
+   * Mark Reading as finished and advance to Writing.
    */
   finishReading: protectedProcedure
     .input(z.object({ token: z.string().min(1) }))
@@ -600,6 +602,218 @@ export const ieltsRouter = router({
       await db
         .update(ieltsMockAttempts)
         .set({ status: "writing" })
+        .where(eq(ieltsMockAttempts.id, attempt.id));
+
+      return { ok: true };
+    }),
+
+  // -------------------- WRITING --------------------
+
+  /** Returns the 2 writing tasks for an attempt + any saved drafts. */
+  getWritingContent: protectedProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .query(async ({ input, ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [attempt] = await db
+        .select()
+        .from(ieltsMockAttempts)
+        .where(eq(ieltsMockAttempts.attemptToken, input.token))
+        .limit(1);
+      if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
+      if (attempt.userId !== ctx.user.id && ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      if (!attempt.paidAt) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Attempt has not been paid for yet",
+        });
+      }
+
+      const tasks = await db
+        .select({
+          id: ieltsWritingTasks.id,
+          taskNumber: ieltsWritingTasks.taskNumber,
+          taskFormat: ieltsWritingTasks.taskFormat,
+          prompt: ieltsWritingTasks.prompt,
+          imageKey: ieltsWritingTasks.imageKey,
+          minWords: ieltsWritingTasks.minWords,
+          timeLimitSec: ieltsWritingTasks.timeLimitSec,
+        })
+        .from(ieltsWritingTasks)
+        .where(eq(ieltsWritingTasks.testId, attempt.testId))
+        .orderBy(ieltsWritingTasks.taskNumber);
+
+      if (tasks.length === 0) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "No Writing tasks found for this test",
+        });
+      }
+
+      const existingResponses = await db
+        .select({
+          taskId: ieltsWritingResponses.taskId,
+          studentText: ieltsWritingResponses.studentText,
+          wordCount: ieltsWritingResponses.wordCount,
+        })
+        .from(ieltsWritingResponses)
+        .where(eq(ieltsWritingResponses.attemptId, attempt.id));
+
+      return {
+        attempt: {
+          token: attempt.attemptToken,
+          status: attempt.status,
+          startedAt: attempt.startedAt,
+        },
+        tasks: tasks.map(t => ({
+          ...t,
+          imageUrl: t.imageKey ? `/files/${t.imageKey}` : null,
+        })),
+        existingResponses,
+      };
+    }),
+
+  /** Autosave a writing draft. Upserts on (attemptId, taskId). */
+  saveWritingDraft: protectedProcedure
+    .input(
+      z.object({
+        token: z.string().min(1),
+        taskId: z.number().int(),
+        text: z.string().max(20000),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [attempt] = await db
+        .select()
+        .from(ieltsMockAttempts)
+        .where(eq(ieltsMockAttempts.attemptToken, input.token))
+        .limit(1);
+      if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
+      if (attempt.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      if (attempt.status === "completed") {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Attempt is already completed",
+        });
+      }
+
+      const wordCount = input.text.trim().split(/\s+/).filter(Boolean).length;
+
+      const [existing] = await db
+        .select({ id: ieltsWritingResponses.id })
+        .from(ieltsWritingResponses)
+        .where(
+          and(
+            eq(ieltsWritingResponses.attemptId, attempt.id),
+            eq(ieltsWritingResponses.taskId, input.taskId)
+          )
+        )
+        .limit(1);
+
+      if (existing) {
+        await db
+          .update(ieltsWritingResponses)
+          .set({ studentText: input.text, wordCount })
+          .where(eq(ieltsWritingResponses.id, existing.id));
+      } else {
+        await db.insert(ieltsWritingResponses).values({
+          attemptId: attempt.id,
+          taskId: input.taskId,
+          studentText: input.text,
+          wordCount,
+        });
+      }
+
+      return { wordCount };
+    }),
+
+  /**
+   * Finalise Writing: LLM-grade each task against the IELTS rubric, persist
+   * sub-scores + feedback per task, then transition to "speaking". This
+   * mutation can take 30-90s because it makes one LLM call per task.
+   */
+  finishWriting: protectedProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [attempt] = await db
+        .select()
+        .from(ieltsMockAttempts)
+        .where(eq(ieltsMockAttempts.attemptToken, input.token))
+        .limit(1);
+      if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
+      if (attempt.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      const tasks = await db
+        .select()
+        .from(ieltsWritingTasks)
+        .where(eq(ieltsWritingTasks.testId, attempt.testId))
+        .orderBy(ieltsWritingTasks.taskNumber);
+
+      const responses = await db
+        .select()
+        .from(ieltsWritingResponses)
+        .where(eq(ieltsWritingResponses.attemptId, attempt.id));
+
+      for (const task of tasks) {
+        const response = responses.find(r => r.taskId === task.id);
+        if (!response || !response.studentText) continue;
+        if (response.gradedAt) continue; // skip if already graded
+
+        try {
+          const grading = await gradeWritingTask({
+            taskNumber: task.taskNumber,
+            taskFormat: task.taskFormat,
+            prompt: task.prompt,
+            minWords: task.minWords,
+            text: response.studentText,
+            wordCount: response.wordCount,
+          });
+
+          // Task band = mean of 4 sub-scores, rounded to nearest 0.5.
+          const taskBand = roundToHalfBand(
+            (grading.scoreTA + grading.scoreCC + grading.scoreLR + grading.scoreGRA) / 4
+          );
+
+          await db
+            .update(ieltsWritingResponses)
+            .set({
+              scoreTA: String(grading.scoreTA),
+              scoreCC: String(grading.scoreCC),
+              scoreLR: String(grading.scoreLR),
+              scoreGRA: String(grading.scoreGRA),
+              taskBand: String(taskBand),
+              feedback: grading.feedback,
+              gradedAt: new Date(),
+            })
+            .where(eq(ieltsWritingResponses.id, response.id));
+        } catch (err) {
+          console.error(
+            `[IELTS Writing grade] task ${task.id} failed:`,
+            err
+          );
+          // Continue with the other task — don't break the whole finish.
+        }
+      }
+
+      await db
+        .update(ieltsMockAttempts)
+        .set({ status: "speaking" })
         .where(eq(ieltsMockAttempts.id, attempt.id));
 
       return { ok: true };
@@ -629,3 +843,123 @@ export const ieltsRouter = router({
     return { attempts: rows };
   }),
 });
+
+// ===========================================================================
+// LLM grading helpers
+// ===========================================================================
+
+/** Round to nearest half-band (0, 0.5, 1, 1.5, ..., 9). */
+function roundToHalfBand(n: number): number {
+  const rounded = Math.round(n * 2) / 2;
+  return Math.max(0, Math.min(9, rounded));
+}
+
+function clampBand(n: number): number {
+  if (Number.isNaN(n) || !Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(9, Math.round(n * 2) / 2));
+}
+
+type WritingGradeResult = {
+  scoreTA: number;
+  scoreCC: number;
+  scoreLR: number;
+  scoreGRA: number;
+  feedback: {
+    ta: string;
+    cc: string;
+    lr: string;
+    gra: string;
+  };
+};
+
+async function gradeWritingTask(args: {
+  taskNumber: number;
+  taskFormat: "chart" | "letter" | "essay";
+  prompt: string;
+  minWords: number;
+  text: string;
+  wordCount: number;
+}): Promise<WritingGradeResult> {
+  const isTask1 = args.taskNumber === 1;
+  const firstCriterion = isTask1 ? "Task Achievement" : "Task Response";
+
+  const system = `You are an experienced IELTS Writing examiner. You grade student responses strictly against the official IELTS public band descriptors for Writing.
+
+You must return JSON ONLY (no prose). Schema:
+{
+  "scoreTA": number,    // 0.0 - 9.0, half-band steps. ${firstCriterion}.
+  "scoreCC": number,    // 0.0 - 9.0, half-band steps. Coherence & Cohesion.
+  "scoreLR": number,    // 0.0 - 9.0, half-band steps. Lexical Resource.
+  "scoreGRA": number,   // 0.0 - 9.0, half-band steps. Grammatical Range & Accuracy.
+  "feedback": {
+    "ta":  "1-2 sentences explaining ${firstCriterion} score.",
+    "cc":  "1-2 sentences explaining Coherence & Cohesion score.",
+    "lr":  "1-2 sentences explaining Lexical Resource score.",
+    "gra": "1-2 sentences explaining Grammatical Range & Accuracy score."
+  }
+}
+
+Grading rules:
+- Be accurate, not generous. Most students score between 5.5 and 7.0.
+- Penalise under-length responses (under the minimum word count) for ${firstCriterion}: drop the ${firstCriterion} score by at least 1 band.
+- Penalise copying from the prompt for Lexical Resource.
+- Use the official IELTS band descriptors as your reference. Score in 0.5 increments only.`;
+
+  const taskTypeLabel =
+    args.taskFormat === "chart"
+      ? "Academic Task 1 (describe a chart/graph/diagram)"
+      : args.taskFormat === "letter"
+        ? "General Training Task 1 (letter)"
+        : "Task 2 (essay)";
+
+  const user = `Task type: ${taskTypeLabel}
+Minimum words: ${args.minWords}
+Student wrote: ${args.wordCount} words
+
+PROMPT THE STUDENT WAS GIVEN:
+"""
+${args.prompt}
+"""
+
+STUDENT RESPONSE:
+"""
+${args.text}
+"""
+
+Grade against the official IELTS Writing band descriptors. Return JSON only.`;
+
+  const response = await invokeLLM({
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+    response_format: { type: "json_object" },
+    max_tokens: 2000,
+  });
+
+  const raw = response.choices?.[0]?.message?.content;
+  if (typeof raw !== "string") {
+    throw new Error("LLM returned no content");
+  }
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    throw new Error(`LLM returned invalid JSON: ${raw.slice(0, 200)}`);
+  }
+
+  return {
+    scoreTA: clampBand(Number(parsed.scoreTA)),
+    scoreCC: clampBand(Number(parsed.scoreCC)),
+    scoreLR: clampBand(Number(parsed.scoreLR)),
+    scoreGRA: clampBand(Number(parsed.scoreGRA)),
+    feedback: {
+      ta: typeof parsed.feedback?.ta === "string" ? parsed.feedback.ta : "",
+      cc: typeof parsed.feedback?.cc === "string" ? parsed.feedback.cc : "",
+      lr: typeof parsed.feedback?.lr === "string" ? parsed.feedback.lr : "",
+      gra:
+        typeof parsed.feedback?.gra === "string" ? parsed.feedback.gra : "",
+    },
+  };
+}
