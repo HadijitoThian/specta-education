@@ -59,6 +59,8 @@ const AgentCommandCenter = lazy(() => import("./pages/AgentCommandCenter"));
 const SocialMediaManager = lazy(() => import("./pages/SocialMediaManager"));
 const AdsAgent = lazy(() => import("./pages/AdsAgent"));
 const AdminIeltsTests = lazy(() => import("./pages/AdminIeltsTests"));
+const IeltsMockTest = lazy(() => import("./pages/IeltsMockTest"));
+const IeltsMockSuccess = lazy(() => import("./pages/IeltsMockSuccess"));
 // Student portal
 const StudentPortalLogin = lazy(() => import("./pages/StudentPortalLogin"));
 const StudentPortalRegister = lazy(() => import("./pages/StudentPortalRegister"));
@@ -140,6 +142,8 @@ function Router() {
         <Route path={"/admin/social-media"} component={SocialMediaManager} />
         <Route path={"/admin/ads-agent"} component={AdsAgent} />
         <Route path={"/admin/ielts-tests"} component={AdminIeltsTests} />
+        <Route path={"/ielts/mock-test"} component={IeltsMockTest} />
+        <Route path={"/ielts/mock-test/success"} component={IeltsMockSuccess} />
         {/* ── Fallbacks ── */}
         <Route path={"/404"} component={NotFound} />
         <Route component={NotFound} />

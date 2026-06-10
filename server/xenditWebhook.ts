@@ -3,6 +3,11 @@ import { verifyWebhookToken } from "./xenditService";
 import { getAccessTokenByToken, createAccessTokens, getAptitudeProOrderByExternalId, updateAptitudeProOrderStatus } from "./db";
 import { sendProAccessLinkEmail, sendPaymentConfirmationEmail } from "./resendService";
 import { notifyOwner } from "./_core/notification";
+import {
+  isIeltsMockExternalId,
+  markIeltsAttemptPaid,
+  markIeltsAttemptFailed,
+} from "./ieltsMockService";
 import crypto from "crypto";
 
 /**
@@ -22,11 +27,36 @@ export function registerXenditWebhook(app: Express) {
       const body = req.body;
       console.log("[Xendit Webhook] Received:", JSON.stringify(body, null, 2));
 
+      const externalId = body.external_id;
+
+      // Branch: IELTS Mock Test purchases are handled separately from
+      // Tes Bakat AI Pro purchases. They use the IELTS-MOCK- prefix on
+      // external_id.
+      if (isIeltsMockExternalId(externalId)) {
+        if (body.status === "PAID" || body.status === "SETTLED") {
+          const result = await markIeltsAttemptPaid(externalId, body.id);
+          if (!result) {
+            console.error(`[Xendit Webhook][IELTS] Attempt not found: ${externalId}`);
+            return res.status(404).json({ error: "Attempt not found" });
+          }
+          return res.status(200).json({
+            received: true,
+            ielts: true,
+            already_processed: result.alreadyProcessed,
+          });
+        }
+        if (body.status === "EXPIRED" || body.status === "FAILED") {
+          await markIeltsAttemptFailed(externalId);
+        }
+        return res.status(200).json({ received: true, ielts: true });
+      }
+
+      // ----- Tes Bakat AI Pro purchases (existing path) -----
+
       // We only care about invoice paid events
       if (body.status !== "PAID" && body.status !== "SETTLED") {
         // Handle expired/failed
         if (body.status === "EXPIRED" || body.status === "FAILED") {
-          const externalId = body.external_id;
           if (externalId) {
             await updateAptitudeProOrderStatus(externalId, body.status === "EXPIRED" ? "expired" : "failed");
           }
@@ -34,7 +64,6 @@ export function registerXenditWebhook(app: Express) {
         return res.status(200).json({ received: true });
       }
 
-      const externalId = body.external_id;
       if (!externalId) {
         console.error("[Xendit Webhook] No external_id in payload");
         return res.status(400).json({ error: "Missing external_id" });
