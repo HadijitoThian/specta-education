@@ -222,6 +222,7 @@ import {
 import { notifyOwner } from "./_core/notification";
 import { socialMediaRouter } from "./socialMedia";
 import { adsAgentRouter } from "./adsAgent";
+import { ieltsAdminRouter } from "./ieltsAdminRouter";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail, sendParentProgressEmail } from "./email";
 import crypto from "crypto";
 import { createProTestInvoice, verifyWebhookToken, generateExternalId, getProTestPrice, getProTestDiscountPrice } from "./xenditService";
@@ -1169,6 +1170,8 @@ Return as JSON:
   }),
 
   admin: router({
+    ielts: ieltsAdminRouter,
+
     getLeads: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') {
         return { leads: [] };
