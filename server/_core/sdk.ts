@@ -1,11 +1,9 @@
 /**
- * Identity + session SDK.
+ * Session SDK — JWT cookies. Used by both:
+ *   - Email+password auth (server/_core/passwordAuth.ts)
+ *   - tRPC procedures that need the current user
  *
- * - OAuth flow: Google (Authorization Code).
- * - Sessions: HS256 JWT in an httpOnly cookie.
- *
- * `users.openId` is populated as `google:<sub>` so a single column can
- * accommodate other providers in the future without a schema change.
+ * The actual login/signup endpoints live in passwordAuth.ts.
  */
 
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
@@ -26,29 +24,6 @@ export type SessionPayload = {
   email?: string | null;
 };
 
-export type GoogleTokenResponse = {
-  access_token: string;
-  expires_in: number;
-  id_token: string;
-  scope: string;
-  token_type: string;
-  refresh_token?: string;
-};
-
-export type GoogleUserInfo = {
-  sub: string;
-  email?: string;
-  email_verified?: boolean;
-  name?: string;
-  given_name?: string;
-  family_name?: string;
-  picture?: string;
-};
-
-const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
-const GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo";
-const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
-
 class SDKServer {
   private getSessionSecret() {
     if (!ENV.cookieSecret) {
@@ -60,63 +35,6 @@ class SDKServer {
   private parseCookies(cookieHeader: string | undefined) {
     if (!cookieHeader) return new Map<string, string>();
     return new Map(Object.entries(parseCookieHeader(cookieHeader)));
-  }
-
-  buildAuthorizeUrl(params: {
-    redirectUri: string;
-    state: string;
-  }): string {
-    if (!ENV.googleClientId) {
-      throw new Error("GOOGLE_CLIENT_ID is not configured");
-    }
-    const url = new URL(GOOGLE_AUTH_URL);
-    url.searchParams.set("client_id", ENV.googleClientId);
-    url.searchParams.set("redirect_uri", params.redirectUri);
-    url.searchParams.set("response_type", "code");
-    url.searchParams.set("scope", "openid email profile");
-    url.searchParams.set("state", params.state);
-    url.searchParams.set("access_type", "online");
-    url.searchParams.set("prompt", "select_account");
-    return url.toString();
-  }
-
-  async exchangeCodeForToken(
-    code: string,
-    redirectUri: string
-  ): Promise<GoogleTokenResponse> {
-    if (!ENV.googleClientId || !ENV.googleClientSecret) {
-      throw new Error("GOOGLE_CLIENT_ID/SECRET not configured");
-    }
-    const body = new URLSearchParams({
-      code,
-      client_id: ENV.googleClientId,
-      client_secret: ENV.googleClientSecret,
-      redirect_uri: redirectUri,
-      grant_type: "authorization_code",
-    });
-
-    const res = await fetch(GOOGLE_TOKEN_URL, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body,
-    });
-
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      throw new Error(`Google token exchange failed (${res.status}): ${detail}`);
-    }
-    return (await res.json()) as GoogleTokenResponse;
-  }
-
-  async getUserInfo(accessToken: string): Promise<GoogleUserInfo> {
-    const res = await fetch(GOOGLE_USERINFO_URL, {
-      headers: { authorization: `Bearer ${accessToken}` },
-    });
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      throw new Error(`Google userinfo failed (${res.status}): ${detail}`);
-    }
-    return (await res.json()) as GoogleUserInfo;
   }
 
   async createSessionToken(
@@ -190,18 +108,7 @@ class SDKServer {
     }
 
     const signedInAt = new Date();
-    let user = await db.getUserByOpenId(session.openId);
-
-    if (!user) {
-      await db.upsertUser({
-        openId: session.openId,
-        name: session.name || null,
-        email: session.email ?? null,
-        loginMethod: "google",
-        lastSignedIn: signedInAt,
-      });
-      user = await db.getUserByOpenId(session.openId);
-    }
+    const user = await db.getUserByOpenId(session.openId);
 
     if (!user) {
       throw ForbiddenError("User not found");

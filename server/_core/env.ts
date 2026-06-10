@@ -7,10 +7,8 @@ export const ENV = {
   // absolute links in emails. Local: http://localhost:5173.
   appUrl: process.env.APP_URL ?? "http://localhost:5173",
 
-  // ----- Auth: Google OAuth ----------------------------------------------
-  googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
-  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-  // Email of the user automatically granted admin role on first login.
+  // ----- Auth: Email + password ------------------------------------------
+  // Email of the user automatically granted admin role on signup.
   ownerEmail: process.env.OWNER_EMAIL ?? "",
 
   // ----- LLM: DeepSeek ---------------------------------------------------
