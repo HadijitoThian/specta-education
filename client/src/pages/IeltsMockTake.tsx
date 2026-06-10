@@ -116,7 +116,18 @@ export default function IeltsMockTake() {
     );
   }
 
-  if (status === "reading" || status === "writing" || status === "speaking") {
+  if (status === "reading") {
+    return (
+      <Shell wide>
+        <ReadingRunner
+          token={token}
+          onFinished={() => setLocation(`/ielts/mock-test/take/${token}`)}
+        />
+      </Shell>
+    );
+  }
+
+  if (status === "writing" || status === "speaking") {
     return (
       <Shell>
         <Card>
@@ -124,9 +135,9 @@ export default function IeltsMockTake() {
             {capitalize(status)} module is coming next
           </h1>
           <p className="text-sm text-slate-600 mb-4">
-            You've finished Listening 🎉 — the {status} module isn't built
-            yet. We'll email you the moment it's ready, and your attempt
-            won't expire in the meantime.
+            You've finished the auto-graded sections 🎉 — the {status}{" "}
+            module isn't built yet. We'll email you the moment it's ready,
+            and your attempt won't expire in the meantime.
           </p>
           <Link href="/" className="text-blue-600 hover:underline text-sm">
             Back to homepage
@@ -521,6 +532,223 @@ function ListeningRunner({
 }
 
 // ---------------------------------------------------------------------------
+// Reading Runner
+// ---------------------------------------------------------------------------
+
+type Passage = {
+  id: number;
+  passageNumber: number;
+  title: string;
+  body: string;
+  questions: Question[];
+};
+
+function ReadingRunner({
+  token,
+  onFinished,
+}: {
+  token: string;
+  onFinished: () => void;
+}) {
+  const contentQuery = trpc.ielts.getReadingContent.useQuery(
+    { token },
+    { refetchOnWindowFocus: false }
+  );
+
+  const saveMut = trpc.ielts.saveReadingAnswers.useMutation();
+  const finishMut = trpc.ielts.finishReading.useMutation({
+    onSuccess: onFinished,
+  });
+
+  const [passageIdx, setPassageIdx] = useState(0);
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    if (contentQuery.data?.existingAnswers) {
+      setAnswers(prev => {
+        const next = { ...prev };
+        for (const a of contentQuery.data!.existingAnswers) {
+          next[a.questionId] = a.answer;
+        }
+        return next;
+      });
+    }
+  }, [contentQuery.data]);
+
+  // Debounced auto-save every ~4s.
+  useEffect(() => {
+    if (Object.keys(answers).length === 0) return;
+    const t = setTimeout(() => {
+      const payload = Object.entries(answers).map(([qid, val]) => ({
+        questionId: Number(qid),
+        answer: val,
+      }));
+      saveMut.mutate({ token, answers: payload });
+    }, 4000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answers]);
+
+  const passages: Passage[] = (contentQuery.data?.passages as any) ?? [];
+  const totalQuestions = useMemo(
+    () => passages.reduce((sum, p) => sum + p.questions.length, 0),
+    [passages]
+  );
+  const answeredCount = Object.values(answers).filter(v => v.trim().length > 0).length;
+
+  const timeLimitSec = contentQuery.data?.timeLimitSec ?? 60 * 60;
+  const startedAt = contentQuery.data?.attempt.startedAt
+    ? new Date(contentQuery.data.attempt.startedAt).getTime()
+    : Date.now();
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  // Reading uses its own 60-min budget — but startedAt is shared across the
+  // whole attempt, so we cap to the time since *Reading* began heuristically
+  // (best-effort): subtract any time already spent on Listening assumed at
+  // most 35 min. For now we just use a simple 60-min countdown from now.
+  // (Refined later when we add explicit per-skill start timestamps.)
+  const [readingStarted] = useState(() => Date.now());
+  const secondsLeft = Math.max(
+    0,
+    timeLimitSec - Math.floor((now - readingStarted) / 1000)
+  );
+  const mm = Math.floor(secondsLeft / 60)
+    .toString()
+    .padStart(2, "0");
+  const ss = (secondsLeft % 60).toString().padStart(2, "0");
+
+  useEffect(() => {
+    if (secondsLeft === 0 && !finishMut.isPending && contentQuery.data) {
+      const payload = Object.entries(answers).map(([qid, val]) => ({
+        questionId: Number(qid),
+        answer: val,
+      }));
+      if (payload.length > 0) saveMut.mutate({ token, answers: payload });
+      finishMut.mutate({ token });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secondsLeft]);
+
+  if (contentQuery.isLoading) {
+    return <Card>Loading Reading section…</Card>;
+  }
+  if (contentQuery.isError) {
+    return (
+      <Card>
+        <h1 className="text-xl font-semibold mb-2">Could not load Reading</h1>
+        <p className="text-sm text-slate-600">{contentQuery.error.message}</p>
+      </Card>
+    );
+  }
+
+  const passage = passages[passageIdx];
+  if (!passage) {
+    return (
+      <Card>
+        <h1 className="text-xl font-semibold mb-2">No passage data</h1>
+      </Card>
+    );
+  }
+
+  const handleAdvance = () => {
+    const payload = Object.entries(answers).map(([qid, val]) => ({
+      questionId: Number(qid),
+      answer: val,
+    }));
+    if (payload.length > 0) saveMut.mutate({ token, answers: payload });
+    if (passageIdx + 1 < passages.length) {
+      setPassageIdx(passageIdx + 1);
+      window.scrollTo(0, 0);
+    } else {
+      finishMut.mutate({ token });
+    }
+  };
+
+  const isLastPassage = passageIdx + 1 >= passages.length;
+
+  return (
+    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
+        <div className="text-sm text-slate-600 font-medium">
+          Reading · Passage{" "}
+          <span className="text-slate-900 font-bold">{passage.passageNumber}</span> of {passages.length}
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="text-xs text-slate-500">
+            {answeredCount}/{totalQuestions} answered
+          </div>
+          <div
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-mono ${
+              secondsLeft < 60
+                ? "bg-red-100 text-red-700"
+                : secondsLeft < 5 * 60
+                  ? "bg-amber-100 text-amber-800"
+                  : "bg-slate-200 text-slate-700"
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            {mm}:{ss}
+          </div>
+        </div>
+      </div>
+
+      {/* Split pane */}
+      <div className="grid lg:grid-cols-2 gap-6 p-6">
+        {/* Passage */}
+        <div className="lg:max-h-[calc(100vh-200px)] lg:overflow-y-auto pr-2">
+          <h2 className="text-lg font-bold text-slate-900 mb-3 sticky top-0 bg-white py-2">
+            Passage {passage.passageNumber}: {passage.title}
+          </h2>
+          <article className="prose prose-sm max-w-none text-slate-800 leading-relaxed whitespace-pre-wrap">
+            {passage.body}
+          </article>
+        </div>
+
+        {/* Questions */}
+        <div className="lg:max-h-[calc(100vh-200px)] lg:overflow-y-auto pl-2">
+          <h2 className="text-lg font-bold text-slate-900 mb-3 sticky top-0 bg-white py-2">
+            Questions
+          </h2>
+          <div className="space-y-4">
+            {passage.questions.map(q => (
+              <QuestionRow
+                key={q.id}
+                q={q}
+                value={answers[q.id] ?? ""}
+                onChange={val => setAnswers(prev => ({ ...prev, [q.id]: val }))}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom bar */}
+      <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50">
+        <div className="text-xs text-slate-500">
+          You can revisit any answer within this passage before advancing.
+        </div>
+        <button
+          onClick={handleAdvance}
+          disabled={finishMut.isPending}
+          className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-semibold px-5 py-2 rounded-lg transition flex items-center gap-2"
+        >
+          {isLastPassage
+            ? finishMut.isPending
+              ? "Finishing…"
+              : "Submit Reading"
+            : "Next passage"}
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Question renderer
 // ---------------------------------------------------------------------------
 
@@ -535,6 +763,23 @@ function QuestionRow({
 }) {
   const options = Array.isArray(q.options) ? (q.options as string[]) : null;
 
+  // Fixed-option Reading types that don't carry their own options array.
+  const fixedOptions: string[] | null =
+    q.questionType === "tfng"
+      ? ["TRUE", "FALSE", "NOT GIVEN"]
+      : q.questionType === "ynng"
+        ? ["YES", "NO", "NOT GIVEN"]
+        : null;
+
+  // Reading "matching" variants — all rendered as a dropdown of options.
+  const isMatching =
+    q.questionType === "matching" ||
+    q.questionType === "map_labelling" ||
+    q.questionType === "matching_headings" ||
+    q.questionType === "matching_information" ||
+    q.questionType === "matching_features" ||
+    q.questionType === "matching_sentence_endings";
+
   return (
     <div className="border border-slate-200 rounded-xl p-4">
       <div className="flex items-start gap-3">
@@ -547,7 +792,24 @@ function QuestionRow({
           </div>
 
           <div className="mt-3">
-            {q.questionType === "mcq" && options ? (
+            {fixedOptions ? (
+              <div className="flex flex-wrap gap-2">
+                {fixedOptions.map(opt => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => onChange(opt)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition ${
+                      value === opt
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-slate-700 border-slate-300 hover:border-slate-400"
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            ) : q.questionType === "mcq" && options ? (
               <div className="space-y-1">
                 {options.map((opt, i) => (
                   <label
@@ -592,9 +854,7 @@ function QuestionRow({
                   );
                 })}
               </div>
-            ) : (q.questionType === "matching" ||
-                q.questionType === "map_labelling") &&
-              options ? (
+            ) : isMatching && options ? (
               <select
                 value={value}
                 onChange={e => onChange(e.target.value)}
@@ -628,12 +888,14 @@ function QuestionRow({
 // Shell + helpers
 // ---------------------------------------------------------------------------
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
   return (
     <div className="min-h-screen bg-slate-50">
       <Navigation currentPage="ielts" />
       <div className="pt-24 pb-12 px-4">
-        <div className="max-w-3xl mx-auto">{children}</div>
+        <div className={wide ? "max-w-6xl mx-auto" : "max-w-3xl mx-auto"}>
+          {children}
+        </div>
       </div>
     </div>
   );

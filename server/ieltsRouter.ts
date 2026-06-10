@@ -15,6 +15,9 @@ import {
   ieltsListeningSections,
   ieltsListeningQuestions,
   ieltsListeningAnswers,
+  ieltsReadingPassages,
+  ieltsReadingQuestions,
+  ieltsReadingAnswers,
 } from "../drizzle/schema";
 import {
   IELTS_MOCK_PRICE,
@@ -368,7 +371,6 @@ export const ieltsRouter = router({
   /**
    * Mark Listening as finished and advance to Reading. Doesn't grade —
    * grading is already happening on each saveListeningAnswers call.
-   * Future P1g will read this status to allow Reading to start.
    */
   finishListening: protectedProcedure
     .input(z.object({ token: z.string().min(1) }))
@@ -390,6 +392,214 @@ export const ieltsRouter = router({
       await db
         .update(ieltsMockAttempts)
         .set({ status: "reading" })
+        .where(eq(ieltsMockAttempts.id, attempt.id));
+
+      return { ok: true };
+    }),
+
+  // -------------------- READING --------------------
+
+  /**
+   * Returns the 3 reading passages + their questions for an attempt.
+   * Strips correctAnswers. Also returns any saved answers for resume.
+   */
+  getReadingContent: protectedProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .query(async ({ input, ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [attempt] = await db
+        .select()
+        .from(ieltsMockAttempts)
+        .where(eq(ieltsMockAttempts.attemptToken, input.token))
+        .limit(1);
+      if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
+      if (attempt.userId !== ctx.user.id && ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      if (!attempt.paidAt) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Attempt has not been paid for yet",
+        });
+      }
+
+      const passages = await db
+        .select({
+          id: ieltsReadingPassages.id,
+          passageNumber: ieltsReadingPassages.passageNumber,
+          title: ieltsReadingPassages.title,
+          body: ieltsReadingPassages.body,
+        })
+        .from(ieltsReadingPassages)
+        .where(eq(ieltsReadingPassages.testId, attempt.testId))
+        .orderBy(ieltsReadingPassages.passageNumber);
+
+      if (passages.length === 0) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "No Reading passages found for this test",
+        });
+      }
+
+      const passageIds = passages.map(p => p.id);
+      const questionRows = await db
+        .select({
+          id: ieltsReadingQuestions.id,
+          passageId: ieltsReadingQuestions.passageId,
+          questionNumber: ieltsReadingQuestions.questionNumber,
+          questionType: ieltsReadingQuestions.questionType,
+          prompt: ieltsReadingQuestions.prompt,
+          options: ieltsReadingQuestions.options,
+        })
+        .from(ieltsReadingQuestions)
+        .where(inArray(ieltsReadingQuestions.passageId, passageIds))
+        .orderBy(ieltsReadingQuestions.questionNumber);
+
+      const grouped = passages.map(p => ({
+        id: p.id,
+        passageNumber: p.passageNumber,
+        title: p.title,
+        body: p.body,
+        questions: questionRows.filter(q => q.passageId === p.id),
+      }));
+
+      const existingAnswers = await db
+        .select()
+        .from(ieltsReadingAnswers)
+        .where(eq(ieltsReadingAnswers.attemptId, attempt.id));
+
+      return {
+        attempt: {
+          token: attempt.attemptToken,
+          status: attempt.status,
+          startedAt: attempt.startedAt,
+        },
+        passages: grouped,
+        existingAnswers: existingAnswers.map(a => ({
+          questionId: a.questionId,
+          answer: a.studentAnswer ?? "",
+        })),
+        // 60-minute hard cap matches real IELTS.
+        timeLimitSec: 60 * 60,
+      };
+    }),
+
+  /** Save (or update) the student's Reading answers. Auto-grades inline. */
+  saveReadingAnswers: protectedProcedure
+    .input(
+      z.object({
+        token: z.string().min(1),
+        answers: z
+          .array(
+            z.object({
+              questionId: z.number().int(),
+              answer: z.string().max(2000),
+            })
+          )
+          .max(60),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [attempt] = await db
+        .select()
+        .from(ieltsMockAttempts)
+        .where(eq(ieltsMockAttempts.attemptToken, input.token))
+        .limit(1);
+      if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
+      if (attempt.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      if (attempt.status === "completed") {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Attempt is already completed",
+        });
+      }
+
+      const ids = input.answers.map(a => a.questionId);
+      if (ids.length === 0) return { saved: 0 };
+
+      const qs = await db
+        .select({
+          id: ieltsReadingQuestions.id,
+          correctAnswers: ieltsReadingQuestions.correctAnswers,
+        })
+        .from(ieltsReadingQuestions)
+        .where(inArray(ieltsReadingQuestions.id, ids));
+      const qMap = new Map(qs.map(q => [q.id, q.correctAnswers as string[]]));
+
+      const normalize = (s: string) => s.trim().toLowerCase();
+
+      const existing = await db
+        .select({
+          id: ieltsReadingAnswers.id,
+          questionId: ieltsReadingAnswers.questionId,
+        })
+        .from(ieltsReadingAnswers)
+        .where(
+          and(
+            eq(ieltsReadingAnswers.attemptId, attempt.id),
+            inArray(ieltsReadingAnswers.questionId, ids)
+          )
+        );
+      const existingMap = new Map(existing.map(e => [e.questionId, e.id]));
+
+      let saved = 0;
+      for (const a of input.answers) {
+        const correctSet = qMap.get(a.questionId) ?? [];
+        const isCorrect =
+          a.answer.trim().length > 0 &&
+          correctSet.some(c => normalize(c) === normalize(a.answer));
+        const existingId = existingMap.get(a.questionId);
+        if (existingId) {
+          await db
+            .update(ieltsReadingAnswers)
+            .set({ studentAnswer: a.answer, isCorrect })
+            .where(eq(ieltsReadingAnswers.id, existingId));
+        } else {
+          await db.insert(ieltsReadingAnswers).values({
+            attemptId: attempt.id,
+            questionId: a.questionId,
+            studentAnswer: a.answer,
+            isCorrect,
+          });
+        }
+        saved++;
+      }
+      return { saved };
+    }),
+
+  /**
+   * Mark Reading as finished and advance to Writing. Writing isn't built
+   * yet (P2), so the wrapper page will show its "coming next" placeholder.
+   */
+  finishReading: protectedProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [attempt] = await db
+        .select()
+        .from(ieltsMockAttempts)
+        .where(eq(ieltsMockAttempts.attemptToken, input.token))
+        .limit(1);
+      if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
+      if (attempt.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      await db
+        .update(ieltsMockAttempts)
+        .set({ status: "writing" })
         .where(eq(ieltsMockAttempts.id, attempt.id));
 
       return { ok: true };
