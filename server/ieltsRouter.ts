@@ -29,6 +29,8 @@ import { synthesize as ttsSynthesize } from "./_core/elevenlabs";
 import { transcribeAudio } from "./_core/voiceTranscription";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
+import { finalizeAttempt } from "./ieltsFinalize";
+import { ieltsMockScores } from "../drizzle/schema";
 import {
   IELTS_MOCK_PRICE,
   createIeltsMockInvoice,
@@ -1156,7 +1158,118 @@ export const ieltsRouter = router({
         .set({ status: "grading" })
         .where(eq(ieltsMockAttempts.id, attempt.id));
 
+      // Kick off final scoring + PDF + email immediately (synchronous, ~10s).
+      // If finalize fails, we leave status at "grading" and a manual retry
+      // is possible via finalizeAttemptManual below.
+      try {
+        await finalizeAttempt(attempt.id);
+      } catch (err) {
+        console.error(
+          "[IELTS Speaking] finalize after finishSpeaking failed:",
+          err
+        );
+      }
+
       return { ok: true };
+    }),
+
+  /**
+   * Returns the final report data + PDF URL for a completed attempt.
+   * The client report page uses this. Falls back to "still grading" if
+   * the score row doesn't exist yet.
+   */
+  getReport: protectedProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .query(async ({ input, ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [attempt] = await db
+        .select()
+        .from(ieltsMockAttempts)
+        .where(eq(ieltsMockAttempts.attemptToken, input.token))
+        .limit(1);
+      if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
+      if (attempt.userId !== ctx.user.id && ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      const [test] = await db
+        .select()
+        .from(ieltsMockTests)
+        .where(eq(ieltsMockTests.id, attempt.testId))
+        .limit(1);
+
+      const [scores] = await db
+        .select()
+        .from(ieltsMockScores)
+        .where(eq(ieltsMockScores.attemptId, attempt.id))
+        .limit(1);
+
+      if (!scores) {
+        return {
+          ready: false as const,
+          status: attempt.status,
+        };
+      }
+
+      const writingResponses = await db
+        .select()
+        .from(ieltsWritingResponses)
+        .where(eq(ieltsWritingResponses.attemptId, attempt.id));
+      const writingTasks = await db
+        .select()
+        .from(ieltsWritingTasks)
+        .where(eq(ieltsWritingTasks.testId, attempt.testId));
+      const speakingResponses = await db
+        .select()
+        .from(ieltsSpeakingResponses)
+        .where(eq(ieltsSpeakingResponses.attemptId, attempt.id));
+
+      return {
+        ready: true as const,
+        status: attempt.status,
+        test: test ? { code: test.code, title: test.title, testType: test.testType } : null,
+        completedAt: attempt.completedAt,
+        bands: {
+          listening: scores.listeningBand ? Number(scores.listeningBand) : 0,
+          listeningRaw: scores.listeningRawScore ?? 0,
+          reading: scores.readingBand ? Number(scores.readingBand) : 0,
+          readingRaw: scores.readingRawScore ?? 0,
+          writing: scores.writingBand ? Number(scores.writingBand) : 0,
+          speaking: scores.speakingBand ? Number(scores.speakingBand) : 0,
+          overall: scores.overallBand ? Number(scores.overallBand) : 0,
+        },
+        writing: writingResponses
+          .map(r => {
+            const task = writingTasks.find(t => t.id === r.taskId);
+            return {
+              taskNumber: task?.taskNumber ?? 0,
+              taskBand: r.taskBand ? Number(r.taskBand) : null,
+              scoreTA: r.scoreTA ? Number(r.scoreTA) : null,
+              scoreCC: r.scoreCC ? Number(r.scoreCC) : null,
+              scoreLR: r.scoreLR ? Number(r.scoreLR) : null,
+              scoreGRA: r.scoreGRA ? Number(r.scoreGRA) : null,
+              feedback: (r.feedback as any) ?? null,
+              wordCount: r.wordCount,
+            };
+          })
+          .sort((a, b) => a.taskNumber - b.taskNumber),
+        speaking: speakingResponses
+          .map(p => ({
+            partNumber: p.partNumber,
+            partBand: p.partBand ? Number(p.partBand) : null,
+            scoreFC: p.scoreFC ? Number(p.scoreFC) : null,
+            scoreLR: p.scoreLR ? Number(p.scoreLR) : null,
+            scoreGRA: p.scoreGRA ? Number(p.scoreGRA) : null,
+            scoreP: p.scoreP ? Number(p.scoreP) : null,
+            feedback: (p.feedback as any) ?? null,
+          }))
+          .sort((a, b) => a.partNumber - b.partNumber),
+        reportPdfUrl: scores.reportPdfKey ? `/files/${scores.reportPdfKey}` : null,
+        emailSentAt: scores.reportSentAt,
+      };
     }),
 
   /** Student's purchase history. Useful for "My tests" pages later. */

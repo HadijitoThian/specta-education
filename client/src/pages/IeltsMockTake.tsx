@@ -149,32 +149,11 @@ export default function IeltsMockTake() {
     );
   }
 
-  if (status === "grading") {
+  if (status === "grading" || status === "completed") {
+    setLocation(`/ielts/mock-test/report/${token}`);
     return (
       <Shell>
-        <Card>
-          <h1 className="text-xl font-semibold mb-2">Grading…</h1>
-          <p className="text-sm text-slate-600">
-            AI is scoring your test. Your report will appear here in a minute.
-          </p>
-        </Card>
-      </Shell>
-    );
-  }
-
-  if (status === "completed") {
-    return (
-      <Shell>
-        <Card>
-          <h1 className="text-xl font-semibold mb-2">Test complete 🎉</h1>
-          <p className="text-sm text-slate-600 mb-4">
-            Your band-score report has been emailed to you. (Report viewer
-            page launching with P4.)
-          </p>
-          <Link href="/" className="text-blue-600 hover:underline text-sm">
-            Back to homepage
-          </Link>
-        </Card>
+        <Card>Loading your report…</Card>
       </Shell>
     );
   }
