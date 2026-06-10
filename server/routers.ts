@@ -352,13 +352,14 @@ export const appRouter = router({
       .input(z.object({
         sessionId: z.string(),
         message: z.string(),
+        language: z.enum(["en", "id"]).optional(),
         conversationHistory: z.array(z.object({
           role: z.enum(["system", "user", "assistant"]),
           content: z.string()
         }))
       }))
       .mutation(async ({ input }) => {
-        const { sessionId, message, conversationHistory } = input;
+        const { sessionId, message, conversationHistory, language } = input;
 
         let conversation = await getConversationBySessionId(sessionId);
         if (!conversation) {
@@ -375,8 +376,18 @@ export const appRouter = router({
           content: message
         });
 
+        // Append a strict language directive to the system prompt when the
+        // student has chosen a language. Defaults to "respond in the same
+        // language the student writes in" when unset (backward-compatible).
+        const languageDirective =
+          language === "id"
+            ? "\n\n=== LANGUAGE ===\nThe student has chosen BAHASA INDONESIA. Respond ENTIRELY in casual, warm Bahasa Indonesia. Do not switch to English unless the student does first. Use natural Indonesian student lingo (kamu, aku, sip, banget, dll)."
+            : language === "en"
+              ? "\n\n=== LANGUAGE ===\nThe student has chosen ENGLISH. Respond ENTIRELY in friendly, warm English. Do not switch to Bahasa Indonesia unless the student does first."
+              : "\n\n=== LANGUAGE ===\nMatch the language the student writes in. If they write Bahasa Indonesia, respond in Bahasa Indonesia. If they write English, respond in English.";
+
         const llmMessages = [
-          { role: "system" as const, content: SYSTEM_PROMPT },
+          { role: "system" as const, content: SYSTEM_PROMPT + languageDirective },
           ...conversationHistory.filter(m => m.role !== "system").map(m => ({
             role: m.role as "user" | "assistant",
             content: m.content

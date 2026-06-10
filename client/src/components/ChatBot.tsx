@@ -20,13 +20,55 @@ type UploadedFile = {
   url: string;
 };
 
-type LeadCaptureState = "idle" | "ask_name" | "ask_phone" | "captured";
+type LeadCaptureState =
+  | "idle"
+  | "ask_language"
+  | "ask_name"
+  | "ask_phone"
+  | "captured";
+
+type LeadLanguage = "en" | "id";
 
 const STORAGE_KEY = "specta-chat-session-id";
 const STORAGE_TIMESTAMP_KEY = "specta-chat-last-active";
 const LEAD_NAME_KEY = "specta-lead-name";
 const LEAD_PHONE_KEY = "specta-lead-phone";
+const LEAD_LANGUAGE_KEY = "specta-lead-language";
 const SESSION_EXPIRY_DAYS = 30;
+
+// All bot copy lives here so it can switch language cleanly.
+const COPY = {
+  en: {
+    intro:
+      "Hello, my name is Emma, SpecTa's AI Counselor. 👋 Before we begin — would you like to chat in English or Bahasa Indonesia?",
+    askName: "Great! What's your name?",
+    reAskName: "I'd love to know your name — what should I call you?",
+    askPhone: (name: string) =>
+      `Nice to meet you, ${name}! 😊 Could you share your phone or WhatsApp number? This way, one of our counselors can reach out to help you personally.`,
+    welcomeAfterCapture: (name: string) =>
+      `Awesome, thanks ${name}! 🎉 What can we plan together for your studies abroad? Tell me what you're thinking — any country, subject, or budget in mind?`,
+    welcomeBack: (name: string) =>
+      `Welcome back, ${name}! 👋 Great to see you again. What would you like to explore today?`,
+    placeholderName: "Enter your name...",
+    placeholderPhone: "Enter your phone/WhatsApp number...",
+    placeholderChat: "Type your message...",
+  },
+  id: {
+    intro:
+      "Halo, nama saya Emma, AI Counselor dari SpecTa. 👋 Sebelum kita mulai — kamu mau ngobrol pakai bahasa apa, English atau Bahasa Indonesia?",
+    askName: "Sip! Kenalan dulu yuk — siapa nama kamu?",
+    reAskName: "Aku pengen tahu nama kamu — boleh kasih tahu? 😊",
+    askPhone: (name: string) =>
+      `Salam kenal, ${name}! 😊 Boleh share nomor WhatsApp atau telepon kamu? Nanti tim konselor kami bisa reach out langsung buat bantu kamu.`,
+    welcomeAfterCapture: (name: string) =>
+      `Makasih, ${name}! 🎉 Apa yang bisa kita planning bareng buat study kamu? Cerita aja — mau ke negara mana, jurusan apa, atau ada budget khusus?`,
+    welcomeBack: (name: string) =>
+      `Selamat datang kembali, ${name}! 👋 Senang ketemu lagi. Mau eksplor apa hari ini?`,
+    placeholderName: "Ketik nama kamu...",
+    placeholderPhone: "Ketik nomor WhatsApp / telepon...",
+    placeholderChat: "Ketik pesan kamu...",
+  },
+} as const;
 
 function getOrCreateSessionId(): { id: string; isExisting: boolean } {
   if (typeof window === "undefined") return { id: nanoid(), isExisting: false };
@@ -41,6 +83,7 @@ function getOrCreateSessionId(): { id: string; isExisting: boolean } {
       localStorage.removeItem(STORAGE_TIMESTAMP_KEY);
       localStorage.removeItem(LEAD_NAME_KEY);
       localStorage.removeItem(LEAD_PHONE_KEY);
+      localStorage.removeItem(LEAD_LANGUAGE_KEY);
     } else {
       localStorage.setItem(STORAGE_TIMESTAMP_KEY, Date.now().toString());
       return { id: stored, isExisting: true };
@@ -53,15 +96,20 @@ function getOrCreateSessionId(): { id: string; isExisting: boolean } {
   return { id: newId, isExisting: false };
 }
 
-function getSavedLeadState(): { name: string | null; phone: string | null } {
-  if (typeof window === "undefined") return { name: null, phone: null };
+function getSavedLeadState(): {
+  name: string | null;
+  phone: string | null;
+  language: LeadLanguage | null;
+} {
+  if (typeof window === "undefined")
+    return { name: null, phone: null, language: null };
+  const lang = localStorage.getItem(LEAD_LANGUAGE_KEY);
   return {
     name: localStorage.getItem(LEAD_NAME_KEY),
     phone: localStorage.getItem(LEAD_PHONE_KEY),
+    language: lang === "en" || lang === "id" ? lang : null,
   };
 }
-
-const GREETING_MESSAGE = "Hi there! 👋 I'm SpecTa, your friendly study abroad assistant. Before we start, could you tell me your name so I can help you better?";
 
 const SYSTEM_PROMPT = `You are SpecTa, a friendly and professional AI education consultant for SpecTa Education, an Indonesian study abroad consultancy. Your personality is warm, helpful, and knowledgeable - like a caring mentor who genuinely wants to help students achieve their dreams of studying abroad.
 
@@ -104,6 +152,10 @@ export default function ChatBot() {
   );
   const [leadName, setLeadName] = useState(savedLead.name || "");
   const [leadPhone, setLeadPhone] = useState(savedLead.phone || "");
+  const [leadLanguage, setLeadLanguage] = useState<LeadLanguage>(
+    savedLead.language ?? "en"
+  );
+  const copy = COPY[leadLanguage];
   const [userMessageCount, setUserMessageCount] = useState(0);
   const [intentSummarized, setIntentSummarized] = useState(false);
 
@@ -192,14 +244,15 @@ export default function ChatBot() {
         if (leadCaptureState === "captured" && leadName) {
           return [...prev, {
             role: "assistant" as const,
-            content: `Welcome back, ${leadName}! 👋 Great to see you again. What would you like to explore about studying abroad today?`
+            content: COPY[leadLanguage].welcomeBack(leadName),
           }];
         } else {
-          // New user — start lead capture
-          setLeadCaptureState("ask_name");
+          // New user — start with the bilingual intro and ask for language.
+          setLeadCaptureState("ask_language");
           return [...prev, {
             role: "assistant" as const,
-            content: GREETING_MESSAGE
+            // Bilingual intro lives in COPY but is identical for both langs at this stage.
+            content: COPY.en.intro,
           }];
         }
       });
@@ -268,19 +321,21 @@ export default function ChatBot() {
     localStorage.setItem(STORAGE_TIMESTAMP_KEY, Date.now().toString());
     localStorage.removeItem(LEAD_NAME_KEY);
     localStorage.removeItem(LEAD_PHONE_KEY);
+    localStorage.removeItem(LEAD_LANGUAGE_KEY);
     setSessionId(newId);
     setLeadName("");
     setLeadPhone("");
+    setLeadLanguage("en");
     setLeadCaptureState("idle");
     setUserMessageCount(0);
     setIntentSummarized(false);
     setMessages([
       { role: "system", content: SYSTEM_PROMPT },
-      { role: "assistant", content: GREETING_MESSAGE }
+      { role: "assistant", content: COPY.en.intro },
     ]);
     setUploadedFiles([]);
     setHistoryStatus("loaded");
-    setTimeout(() => setLeadCaptureState("ask_name"), 100);
+    setTimeout(() => setLeadCaptureState("ask_language"), 100);
   }, []);
 
   const displayMessages = messages.filter((msg) => msg.role !== "system");
@@ -305,6 +360,44 @@ export default function ChatBot() {
   }, [messages]);
 
   // Handle lead capture flow
+
+  const pickLanguage = (lang: LeadLanguage) => {
+    setLeadLanguage(lang);
+    localStorage.setItem(LEAD_LANGUAGE_KEY, lang);
+    const next = COPY[lang];
+    setMessages(prev => [
+      ...prev,
+      { role: "user", content: lang === "id" ? "Bahasa Indonesia" : "English" },
+      { role: "assistant", content: next.askName },
+    ]);
+    setLeadCaptureState("ask_name");
+  };
+
+  // Allow the user to TYPE their language too (e.g. "english", "bahasa").
+  const handleLeadLanguageSubmit = () => {
+    const raw = input.trim().toLowerCase();
+    if (!raw) return;
+    setInput("");
+    if (/(english|en|inggris)/.test(raw)) {
+      pickLanguage("en");
+      return;
+    }
+    if (/(bahasa|indonesia|indo|id)/.test(raw)) {
+      pickLanguage("id");
+      return;
+    }
+    // Unrecognized — echo and re-prompt (in English, since we don't know yet).
+    setMessages(prev => [
+      ...prev,
+      { role: "user", content: input.trim() },
+      {
+        role: "assistant",
+        content:
+          "Please pick a language so I can help in the right one — English or Bahasa Indonesia? 🙂",
+      },
+    ]);
+  };
+
   const handleLeadNameSubmit = () => {
     const name = input.trim();
     if (!name) return;
@@ -322,14 +415,14 @@ export default function ChatBot() {
     const noLetters = !/[A-Za-zĀ-žÀ-ɏ]/.test(name);
 
     if (looksLikeGreeting || tooShort || noLetters) {
-      // Echo their message, then re-ask for name.
+      // Echo their message, then re-ask for name in the chosen language.
       setInput("");
       setMessages(prev => [
         ...prev,
         { role: "user", content: name },
         {
           role: "assistant",
-          content: `Hi there! 👋 I'd love to know your name — what should I call you?`,
+          content: copy.reAskName,
         },
       ]);
       return; // Stay in "ask_name" state.
@@ -342,11 +435,11 @@ export default function ChatBot() {
     // Show user message
     setMessages(prev => [...prev, { role: "user", content: name }]);
 
-    // Ask for phone
+    // Ask for phone (in chosen language)
     setTimeout(() => {
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: `Nice to meet you, ${name}! 😊 Could you share your phone or WhatsApp number? This way, one of our counselors can reach out to help you personally.`
+        content: copy.askPhone(name),
       }]);
       setLeadCaptureState("ask_phone");
     }, 500);
@@ -384,7 +477,7 @@ export default function ChatBot() {
       setTimeout(() => {
         setMessages(prev => [...prev, {
           role: "assistant",
-          content: `Awesome, thanks ${leadName}! Our team will be in touch. Now let's explore your study abroad options! What country or field of study are you interested in? 🎓`
+          content: copy.welcomeAfterCapture(leadName),
         }]);
       }, 500);
     } else {
@@ -405,6 +498,7 @@ export default function ChatBot() {
       chatMutation.mutate({
         sessionId,
         message: phone,
+        language: leadLanguage,
         conversationHistory: newMessages.map(m => ({ role: m.role, content: m.content }))
       });
     }
@@ -416,6 +510,10 @@ export default function ChatBot() {
     if (!trimmedInput) return;
 
     // Handle lead capture flow
+    if (leadCaptureState === "ask_language") {
+      handleLeadLanguageSubmit();
+      return;
+    }
     if (leadCaptureState === "ask_name") {
       handleLeadNameSubmit();
       return;
@@ -442,6 +540,7 @@ export default function ChatBot() {
     chatMutation.mutate({
       sessionId,
       message: trimmedInput,
+      language: leadLanguage,
       conversationHistory: newMessages.map(m => ({ role: m.role, content: m.content }))
     });
 
@@ -485,12 +584,13 @@ export default function ChatBot() {
 
   const isLoading = historyStatus === "loading";
 
-  // Determine placeholder text based on lead capture state
+  // Determine placeholder text based on lead capture state.
   const getPlaceholder = () => {
     switch (leadCaptureState) {
-      case "ask_name": return "Enter your name...";
-      case "ask_phone": return "Enter your phone/WhatsApp number...";
-      default: return "Type your message...";
+      case "ask_language": return "English or Bahasa Indonesia?";
+      case "ask_name": return copy.placeholderName;
+      case "ask_phone": return copy.placeholderPhone;
+      default: return copy.placeholderChat;
     }
   };
 
@@ -602,6 +702,27 @@ export default function ChatBot() {
           </div>
         </ScrollArea>
       </div>
+
+      {/* Language picker — only shown while we're waiting for the user
+          to choose English or Bahasa Indonesia. Users can also type it. */}
+      {leadCaptureState === "ask_language" && (
+        <div className="flex gap-2 px-4 pt-3">
+          <button
+            type="button"
+            onClick={() => pickLanguage("en")}
+            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-accent transition"
+          >
+            🇬🇧 English
+          </button>
+          <button
+            type="button"
+            onClick={() => pickLanguage("id")}
+            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-accent transition"
+          >
+            🇮🇩 Bahasa Indonesia
+          </button>
+        </div>
+      )}
 
       {/* Uploaded Files Preview */}
       {uploadedFiles.length > 0 && (
