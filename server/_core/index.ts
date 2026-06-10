@@ -110,6 +110,46 @@ async function startServer() {
   registerPasswordAuthRoutes(app);
   // Xendit payment webhook
   registerXenditWebhook(app);
+  // IELTS sample listening audio review page (admin/internal).
+  // Loads the 4 voice samples from R2 in inline HTML5 players so they can
+  // be reviewed without hitting browser warnings on the raw R2 URL.
+  app.get("/admin/ielts-samples", (_req, res) => {
+    const { ENV } = require("./env");
+    const base = (ENV.r2PublicUrl || "").replace(/\/+$/, "");
+    const samples = [
+      { label: "Section 1 — Customer booking (British female)", file: "section1-customer-booking.mp3" },
+      { label: "Section 2 — Sanctuary welcome (Australian male)", file: "section2-sanctuary-welcome.mp3" },
+      { label: "Section 3 — Tutor discussion (British female)", file: "section3-tutor-discussion.mp3" },
+      { label: "Section 4 — Economics lecture (British academic male)", file: "section4-economics-lecture.mp3" },
+    ];
+    const rows = samples
+      .map(
+        s => `
+        <div style="margin:0 0 20px 0;">
+          <div style="font-weight:600;margin-bottom:6px;">${s.label}</div>
+          <audio controls preload="none" style="width:100%;max-width:560px;">
+            <source src="${base}/ielts/samples/${s.file}" type="audio/mpeg" />
+          </audio>
+        </div>`
+      )
+      .join("");
+    res.set("Content-Type", "text/html; charset=utf-8");
+    res.send(`<!DOCTYPE html><html><head><meta charset="utf-8" />
+<title>IELTS Listening — Voice Samples</title>
+<style>
+  body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; max-width:680px; margin:40px auto; padding:0 20px; color:#111; line-height:1.5; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  p.lede { color:#666; margin:0 0 28px; }
+  audio { background:#f5f5f5; border-radius:8px; }
+</style>
+</head><body>
+<h1>IELTS Listening — Voice Samples</h1>
+<p class="lede">Generated with ElevenLabs (eleven_multilingual_v2). Listen and judge realism vs real IELTS audio.</p>
+${rows}
+<p style="margin-top:40px;color:#666;font-size:13px;">Source: R2 bucket <code>${base ? new URL(base).host : "(R2_PUBLIC_URL not set)"}</code></p>
+</body></html>`);
+  });
+
   // Email open tracking pixel
   app.get("/api/track/open/:logId", async (req, res) => {
     try {
