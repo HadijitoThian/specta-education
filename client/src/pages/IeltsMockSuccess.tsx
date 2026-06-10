@@ -83,16 +83,15 @@ export default function IeltsMockSuccess() {
             </div>
           ) : null}
           <div className="space-y-3">
-            <button
-              disabled
-              className="w-full bg-amber-400 disabled:bg-slate-300 text-slate-900 font-semibold py-3 rounded-lg"
-              title="Coming soon"
+            <Link
+              href={`/ielts/mock-test/take/${token}`}
+              className="block w-full bg-amber-400 hover:bg-amber-300 text-slate-900 text-center font-semibold py-3 rounded-lg transition"
             >
-              Start test (UI in development)
-            </button>
+              Start test
+            </Link>
             <p className="text-xs text-slate-500">
-              The test-taking UI is being built. We'll email you the moment
-              it's ready — your purchase doesn't expire.
+              You can come back to this link any time — your attempt
+              auto-saves and doesn't expire.
             </p>
             <Link
               href="/"
