@@ -110,6 +110,21 @@ async function startServer() {
   registerPasswordAuthRoutes(app);
   // Xendit payment webhook
   registerXenditWebhook(app);
+  // Idempotent one-shot: generates the IELTS landing-page images via
+  // DeepInfra FLUX-1.1-pro and uploads them to R2. Skips images that
+  // already exist (HEAD check). Returns a status report. Safe to call
+  // multiple times — only generates what's missing.
+  app.post("/api/internal/init-landing-images", async (_req, res) => {
+    try {
+      const { runLandingImageGeneration } = await import("../ieltsLandingImages");
+      const result = await runLandingImageGeneration();
+      return res.status(200).json(result);
+    } catch (err: any) {
+      console.error("[init-landing-images] error", err);
+      return res.status(500).json({ error: err?.message ?? "failed" });
+    }
+  });
+
   // R2 file streaming proxy. Lets us serve audio + other private files
   // from the same origin as the app (no CORS, no browser warnings on the
   // raw pub-*.r2.dev URL). Path: /files/<key/with/slashes.ext>
