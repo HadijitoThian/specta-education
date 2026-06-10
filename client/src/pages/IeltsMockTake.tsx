@@ -1064,8 +1064,9 @@ function SpeakingRunner({
         const blob = new Blob(chunksRef.current, {
           type: mr.mimeType || "audio/webm",
         });
-        setRecordedAudio(blob);
         stream.getTracks().forEach(t => t.stop());
+        // Real IELTS rules: no re-record, no preview. Auto-submit immediately.
+        void autoSubmitBlob(blob);
       };
       mr.start();
       mediaRecorderRef.current = mr;
@@ -1083,16 +1084,15 @@ function SpeakingRunner({
     setIsRecording(false);
   }
 
-  async function submitRecording() {
-    if (!recordedAudio || !lastExaminerTurn) return;
-    const base64 = await blobToBase64(recordedAudio);
+  async function autoSubmitBlob(blob: Blob) {
+    if (!lastExaminerTurn) return;
+    const base64 = await blobToBase64(blob);
     await submitMut.mutateAsync({
       token,
       partNumber: lastExaminerTurn.partNumber,
       base64,
-      contentType: recordedAudio.type || "audio/webm",
+      contentType: blob.type || "audio/webm",
     });
-    setRecordedAudio(null);
   }
 
   async function playNextExaminerTurn() {
@@ -1269,36 +1269,21 @@ function SpeakingRunner({
         </div>
       ) : null}
 
-      {/* Control row */}
+      {/* Control row — real-IELTS rules: no preview, no re-record. */}
       {awaitingStudent ? (
-        recordedAudio ? (
-          <div className="flex items-center gap-3">
-            <audio
-              src={URL.createObjectURL(recordedAudio)}
-              controls
-              className="flex-1 max-w-xs"
-            />
-            <button
-              onClick={() => setRecordedAudio(null)}
-              className="text-sm text-slate-600 hover:text-slate-900 underline"
-            >
-              Re-record
-            </button>
-            <button
-              onClick={submitRecording}
-              disabled={submitMut.isPending}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-semibold px-5 py-2 rounded-lg transition flex items-center gap-2"
-            >
-              {submitMut.isPending ? "Sending…" : "Send response"}
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
+        submitMut.isPending ? (
+          <button
+            disabled
+            className="w-full bg-slate-300 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2"
+          >
+            Sending your response…
+          </button>
         ) : isRecording ? (
           <button
             onClick={stopRecording}
             className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2"
           >
-            ⏺ Stop recording
+            ⏺ Stop recording &amp; submit
           </button>
         ) : (
           <button
