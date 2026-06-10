@@ -1,0 +1,8 @@
+{
+  "query": "\nSELECT \n  o.id, o.customerName, o.customerEmail, o.customerPhone,\n  o.status, o.amount, o.paidAt, o.createdAt,\n  o.accessTokenId, o.xenditInvoiceId,\n  t.token, t.used, t.expiresAt\nFROM aptitudeProOrders o\nLEFT JOIN aptitudeAccessTokens t ON o.accessTokenId = t.id\nORDER BY o.createdAt DESC\nLIMIT 10;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute \nSELECT \n  o.id, o.customerName, o.customerEmail, o.customerPhone,\n  o.status, o.amount, o.paidAt, o.createdAt,\n  o.accessTokenId, o.xenditInvoiceId,\n  t.token, t.used, t.expiresAt\nFROM aptitudeProOrders o\nLEFT JOIN aptitudeAccessTokens t ON o.accessTokenId = t.id\nORDER BY o.createdAt DESC\nLIMIT 10;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 2: Unknown column 't.used' in 'field list'"
+  ]
+}

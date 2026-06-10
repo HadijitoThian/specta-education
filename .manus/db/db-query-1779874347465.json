@@ -1,0 +1,82 @@
+{
+  "query": "\nSELECT \n  CASE \n    WHEN createdAt >= DATE_SUB(NOW(), INTERVAL 1 WEEK) THEN 'Week 1 (This week)'\n    WHEN createdAt >= DATE_SUB(NOW(), INTERVAL 2 WEEK) THEN 'Week 2 (Last week)'\n    WHEN createdAt >= DATE_SUB(NOW(), INTERVAL 3 WEEK) THEN 'Week 3'\n    WHEN createdAt >= DATE_SUB(NOW(), INTERVAL 4 WEEK) THEN 'Week 4'\n    WHEN createdAt >= DATE_SUB(NOW(), INTERVAL 5 WEEK) THEN 'Week 5'\n    WHEN createdAt >= DATE_SUB(NOW(), INTERVAL 6 WEEK) THEN 'Week 6'\n  END as week_label,\n  MIN(DATE(createdAt)) as week_start,\n  MAX(DATE(createdAt)) as week_end,\n  COUNT(*) as total_sessions,\n  COUNT(DISTINCT visitorFingerprint) as unique_visitors,\n  SUM(totalPageViews) as total_pageviews,\n  SUM(CASE WHEN chatbotEngaged = 1 THEN 1 ELSE 0 END) as chatbot_engagements,\n  SUM(CASE WHEN convertedToLead = 1 THEN 1 ELSE 0 END) as leads_converted,\n  SUM(CASE WHEN isHighIntent = 1 THEN 1 ELSE 0 END) as high_intent_visitors,\n  ROUND(AVG(timeOnSite)/60, 1) as avg_time_on_site_mins\nFROM visitor_tracking\nWHERE createdAt >= DATE_SUB(NOW(), INTERVAL 6 WEEK)\nGROUP BY week_label\nORDER BY week_start DESC;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute \nSELECT \n  CASE \n    WHEN createdAt >= DATE_SUB(NOW(), INTERVAL 1 WEEK) THEN 'Week 1 (This week)'\n    WHEN createdAt >= DATE_SUB(NOW(), INTERVAL 2 WEEK) THEN 'Week 2 (Last week)'\n    WHEN createdAt >= DATE_SUB(NOW(), INTERVAL 3 WEEK) THEN 'Week 3'\n    WHEN createdAt >= DATE_SUB(NOW(), INTERVAL 4 WEEK) THEN 'Week 4'\n    WHEN createdAt >= DATE_SUB(NOW(), INTERVAL 5 WEEK) THEN 'Week 5'\n    WHEN createdAt >= DATE_SUB(NOW(), INTERVAL 6 WEEK) THEN 'Week 6'\n  END as week_label,\n  MIN(DATE(createdAt)) as week_start,\n  MAX(DATE(createdAt)) as week_end,\n  COUNT(*) as total_sessions,\n  COUNT(DISTINCT visitorFingerprint) as unique_visitors,\n  SUM(totalPageViews) as total_pageviews,\n  SUM(CASE WHEN chatbotEngaged = 1 THEN 1 ELSE 0 END) as chatbot_engagements,\n  SUM(CASE WHEN convertedToLead = 1 THEN 1 ELSE 0 END) as leads_converted,\n  SUM(CASE WHEN isHighIntent = 1 THEN 1 ELSE 0 END) as high_intent_visitors,\n  ROUND(AVG(timeOnSite)/60, 1) as avg_time_on_site_mins\nFROM visitor_tracking\nWHERE createdAt >= DATE_SUB(NOW(), INTERVAL 6 WEEK)\nGROUP BY week_label\nORDER BY week_start DESC;\n",
+  "rows": [
+    {
+      "week_label": "Week 1 (This week)",
+      "week_start": "2026-05-20",
+      "week_end": "2026-05-27",
+      "total_sessions": "353",
+      "unique_visitors": "98",
+      "total_pageviews": "5579",
+      "chatbot_engagements": "3",
+      "leads_converted": "3",
+      "high_intent_visitors": "16",
+      "avg_time_on_site_mins": "5812.8"
+    },
+    {
+      "week_label": "Week 2 (Last week)",
+      "week_start": "2026-05-13",
+      "week_end": "2026-05-20",
+      "total_sessions": "662",
+      "unique_visitors": "67",
+      "total_pageviews": "4993",
+      "chatbot_engagements": "1",
+      "leads_converted": "0",
+      "high_intent_visitors": "15",
+      "avg_time_on_site_mins": "1268.7"
+    },
+    {
+      "week_label": "Week 3",
+      "week_start": "2026-05-06",
+      "week_end": "2026-05-13",
+      "total_sessions": "704",
+      "unique_visitors": "65",
+      "total_pageviews": "2724",
+      "chatbot_engagements": "2",
+      "leads_converted": "2",
+      "high_intent_visitors": "13",
+      "avg_time_on_site_mins": "200.4"
+    },
+    {
+      "week_label": "Week 4",
+      "week_start": "2026-04-29",
+      "week_end": "2026-05-06",
+      "total_sessions": "512",
+      "unique_visitors": "58",
+      "total_pageviews": "3201",
+      "chatbot_engagements": "1",
+      "leads_converted": "1",
+      "high_intent_visitors": "17",
+      "avg_time_on_site_mins": "675.1"
+    },
+    {
+      "week_label": "Week 5",
+      "week_start": "2026-04-22",
+      "week_end": "2026-04-29",
+      "total_sessions": "500",
+      "unique_visitors": "72",
+      "total_pageviews": "2402",
+      "chatbot_engagements": "0",
+      "leads_converted": "0",
+      "high_intent_visitors": "9",
+      "avg_time_on_site_mins": "969.8"
+    },
+    {
+      "week_label": "Week 6",
+      "week_start": "2026-04-15",
+      "week_end": "2026-04-22",
+      "total_sessions": "222",
+      "unique_visitors": "119",
+      "total_pageviews": "4633",
+      "chatbot_engagements": "2",
+      "leads_converted": "2",
+      "high_intent_visitors": "12",
+      "avg_time_on_site_mins": "4155.8"
+    }
+  ],
+  "messages": [],
+  "stdout": "week_label\tweek_start\tweek_end\ttotal_sessions\tunique_visitors\ttotal_pageviews\tchatbot_engagements\tleads_converted\thigh_intent_visitors\tavg_time_on_site_mins\nWeek 1 (This week)\t2026-05-20\t2026-05-27\t353\t98\t5579\t3\t3\t16\t5812.8\nWeek 2 (Last week)\t2026-05-13\t2026-05-20\t662\t67\t4993\t1\t0\t15\t1268.7\nWeek 3\t2026-05-06\t2026-05-13\t704\t65\t2724\t2\t2\t13\t200.4\nWeek 4\t2026-04-29\t2026-05-06\t512\t58\t3201\t1\t1\t17\t675.1\nWeek 5\t2026-04-22\t2026-04-29\t500\t72\t2402\t0\t0\t9\t969.8\nWeek 6\t2026-04-15\t2026-04-22\t222\t119\t4633\t2\t2\t12\t4155.8\n",
+  "stderr": "",
+  "execution_time_ms": 1803
+}

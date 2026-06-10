@@ -1,0 +1,13 @@
+{
+  "query": "\nSELECT table_name FROM information_schema.tables \nWHERE table_schema = DATABASE() \nAND table_name LIKE '%visit%' OR table_name LIKE '%analytic%' OR table_name LIKE '%pageview%' OR table_name LIKE '%traffic%' OR table_name LIKE '%session%'\nORDER BY table_name;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute \nSELECT table_name FROM information_schema.tables \nWHERE table_schema = DATABASE() \nAND table_name LIKE '%visit%' OR table_name LIKE '%analytic%' OR table_name LIKE '%pageview%' OR table_name LIKE '%traffic%' OR table_name LIKE '%session%'\nORDER BY table_name;\n",
+  "rows": [
+    {
+      "table_name": "visitor_tracking"
+    }
+  ],
+  "messages": [],
+  "stdout": "table_name\nvisitor_tracking\n",
+  "stderr": "",
+  "execution_time_ms": 1838
+}

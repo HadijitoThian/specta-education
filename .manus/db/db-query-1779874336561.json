@@ -1,0 +1,34 @@
+{
+  "query": "\nSELECT column_name, data_type FROM information_schema.columns \nWHERE table_schema = DATABASE() AND table_name = 'visitor_tracking'\nAND ordinal_position > 20\nORDER BY ordinal_position;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute \nSELECT column_name, data_type FROM information_schema.columns \nWHERE table_schema = DATABASE() AND table_name = 'visitor_tracking'\nAND ordinal_position > 20\nORDER BY ordinal_position;\n",
+  "rows": [
+    {
+      "column_name": "isHighIntent",
+      "data_type": "tinyint"
+    },
+    {
+      "column_name": "convertedToLead",
+      "data_type": "tinyint"
+    },
+    {
+      "column_name": "leadId",
+      "data_type": "int"
+    },
+    {
+      "column_name": "firstVisitAt",
+      "data_type": "timestamp"
+    },
+    {
+      "column_name": "lastActivityAt",
+      "data_type": "timestamp"
+    },
+    {
+      "column_name": "createdAt",
+      "data_type": "timestamp"
+    }
+  ],
+  "messages": [],
+  "stdout": "column_name\tdata_type\nisHighIntent\ttinyint\nconvertedToLead\ttinyint\nleadId\tint\nfirstVisitAt\ttimestamp\nlastActivityAt\ttimestamp\ncreatedAt\ttimestamp\n",
+  "stderr": "",
+  "execution_time_ms": 4813
+}

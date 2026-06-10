@@ -1,0 +1,274 @@
+{
+  "query": "\n-- Check what tables exist that might have visitor/analytics data\nSELECT table_name FROM information_schema.tables \nWHERE table_schema = DATABASE() \nORDER BY table_name;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute \n-- Check what tables exist that might have visitor/analytics data\nSELECT table_name FROM information_schema.tables \nWHERE table_schema = DATABASE() \nORDER BY table_name;\n",
+  "rows": [
+    {
+      "table_name": "__drizzle_migrations"
+    },
+    {
+      "table_name": "ads_adsets"
+    },
+    {
+      "table_name": "ads_agent_actions"
+    },
+    {
+      "table_name": "ads_agent_config"
+    },
+    {
+      "table_name": "ads_campaigns"
+    },
+    {
+      "table_name": "ads_generated_copy"
+    },
+    {
+      "table_name": "ads_performance_snapshots"
+    },
+    {
+      "table_name": "agent_configs"
+    },
+    {
+      "table_name": "agent_run_logs"
+    },
+    {
+      "table_name": "ai_followup_suggestions"
+    },
+    {
+      "table_name": "applicationDocuments"
+    },
+    {
+      "table_name": "applicationNotes"
+    },
+    {
+      "table_name": "applications"
+    },
+    {
+      "table_name": "appointments"
+    },
+    {
+      "table_name": "aptitudeAccessTokens"
+    },
+    {
+      "table_name": "aptitudeProOrders"
+    },
+    {
+      "table_name": "aptitudeResults"
+    },
+    {
+      "table_name": "blog_categories"
+    },
+    {
+      "table_name": "blog_comments"
+    },
+    {
+      "table_name": "blog_post_tags"
+    },
+    {
+      "table_name": "blog_posts"
+    },
+    {
+      "table_name": "blog_tags"
+    },
+    {
+      "table_name": "checklistItems"
+    },
+    {
+      "table_name": "competitor_intelligence"
+    },
+    {
+      "table_name": "competitor_profiles"
+    },
+    {
+      "table_name": "consultation_notes"
+    },
+    {
+      "table_name": "conversations"
+    },
+    {
+      "table_name": "costOfLivingData"
+    },
+    {
+      "table_name": "counselor_performance"
+    },
+    {
+      "table_name": "counselors"
+    },
+    {
+      "table_name": "crm_activity_timeline"
+    },
+    {
+      "table_name": "crm_appointments"
+    },
+    {
+      "table_name": "crm_chat_history"
+    },
+    {
+      "table_name": "crm_notifications"
+    },
+    {
+      "table_name": "crm_student_documents"
+    },
+    {
+      "table_name": "crm_tasks"
+    },
+    {
+      "table_name": "daily_reports"
+    },
+    {
+      "table_name": "documents"
+    },
+    {
+      "table_name": "dripCampaigns"
+    },
+    {
+      "table_name": "dripEmailLogs"
+    },
+    {
+      "table_name": "dripEmailSteps"
+    },
+    {
+      "table_name": "dripEnrollments"
+    },
+    {
+      "table_name": "follow_up_actions"
+    },
+    {
+      "table_name": "gm_executive_reports"
+    },
+    {
+      "table_name": "gm_health_checks"
+    },
+    {
+      "table_name": "gm_recommendations"
+    },
+    {
+      "table_name": "ieltsPracticeResults"
+    },
+    {
+      "table_name": "lead_assignments"
+    },
+    {
+      "table_name": "lead_pipeline_stages"
+    },
+    {
+      "table_name": "leads"
+    },
+    {
+      "table_name": "matchPrograms"
+    },
+    {
+      "table_name": "matchUniversities"
+    },
+    {
+      "table_name": "messages"
+    },
+    {
+      "table_name": "personaResults"
+    },
+    {
+      "table_name": "quizResults"
+    },
+    {
+      "table_name": "scholarshipLeads"
+    },
+    {
+      "table_name": "seo_content_calendar"
+    },
+    {
+      "table_name": "seo_page_audits"
+    },
+    {
+      "table_name": "seo_recommendations"
+    },
+    {
+      "table_name": "seo_score_history"
+    },
+    {
+      "table_name": "simulatorChoices"
+    },
+    {
+      "table_name": "simulatorResults"
+    },
+    {
+      "table_name": "simulatorSessions"
+    },
+    {
+      "table_name": "social_media_accounts"
+    },
+    {
+      "table_name": "social_media_posts"
+    },
+    {
+      "table_name": "social_media_templates"
+    },
+    {
+      "table_name": "social_mentions"
+    },
+    {
+      "table_name": "staffAccounts"
+    },
+    {
+      "table_name": "staff_team_chat"
+    },
+    {
+      "table_name": "student_ai_chat_history"
+    },
+    {
+      "table_name": "student_applications"
+    },
+    {
+      "table_name": "student_notifications"
+    },
+    {
+      "table_name": "student_portal_accounts"
+    },
+    {
+      "table_name": "student_portal_appointments"
+    },
+    {
+      "table_name": "student_portal_profiles"
+    },
+    {
+      "table_name": "student_referral_codes"
+    },
+    {
+      "table_name": "student_referrals"
+    },
+    {
+      "table_name": "student_rewards"
+    },
+    {
+      "table_name": "student_university_wishlist"
+    },
+    {
+      "table_name": "student_visa_tracking"
+    },
+    {
+      "table_name": "trackingTokens"
+    },
+    {
+      "table_name": "universities"
+    },
+    {
+      "table_name": "university_partnerships"
+    },
+    {
+      "table_name": "university_reply_queue"
+    },
+    {
+      "table_name": "userChecklistProgress"
+    },
+    {
+      "table_name": "users"
+    },
+    {
+      "table_name": "visitor_tracking"
+    },
+    {
+      "table_name": "whatsappMessages"
+    }
+  ],
+  "messages": [],
+  "stdout": "table_name\n__drizzle_migrations\nads_adsets\nads_agent_actions\nads_agent_config\nads_campaigns\nads_generated_copy\nads_performance_snapshots\nagent_configs\nagent_run_logs\nai_followup_suggestions\napplicationDocuments\napplicationNotes\napplications\nappointments\naptitudeAccessTokens\naptitudeProOrders\naptitudeResults\nblog_categories\nblog_comments\nblog_post_tags\nblog_posts\nblog_tags\nchecklistItems\ncompetitor_intelligence\ncompetitor_profiles\nconsultation_notes\nconversations\ncostOfLivingData\ncounselor_performance\ncounselors\ncrm_activity_timeline\ncrm_appointments\ncrm_chat_history\ncrm_notifications\ncrm_student_documents\ncrm_tasks\ndaily_reports\ndocuments\ndripCampaigns\ndripEmailLogs\ndripEmailSteps\ndripEnrollments\nfollow_up_actions\ngm_executive_reports\ngm_health_checks\ngm_recommendations\nieltsPracticeResults\nlead_assignments\nlead_pipeline_stages\nleads\nmatchPrograms\nmatchUniversities\nmessages\npersonaResults\nquizResults\nscholarshipLeads\nseo_content_calendar\nseo_page_audits\nseo_recommendations\nseo_score_history\nsimulatorChoices\nsimulatorResults\nsimulatorSessions\nsocial_media_accounts\nsocial_media_posts\nsocial_media_templates\nsocial_mentions\nstaffAccounts\nstaff_team_chat\nstudent_ai_chat_history\nstudent_applications\nstudent_notifications\nstudent_portal_accounts\nstudent_portal_appointments\nstudent_portal_profiles\nstudent_referral_codes\nstudent_referrals\nstudent_rewards\nstudent_university_wishlist\nstudent_visa_tracking\ntrackingTokens\nuniversities\nuniversity_partnerships\nuniversity_reply_queue\nuserChecklistProgress\nusers\nvisitor_tracking\nwhatsappMessages\n",
+  "stderr": "",
+  "execution_time_ms": 2431
+}

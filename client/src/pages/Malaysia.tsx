@@ -141,51 +141,6 @@ const universities: University[] = [
     color: "from-blue-600 to-blue-800"
   },
   {
-    id: "inti",
-    name: "INTI International University",
-    shortName: "INTI",
-    logo: "/inti-logo.png",
-    campusImage: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/tKJIowLUONIjAcMQ.jpg",
-    ranking: "#509",
-    rankingDetail: "QS World University Rankings 2026",
-    location: "Nilai, Negeri Sembilan",
-    established: "1986",
-    description: "INTI International University is one of Malaysia's most established private institutions, known for its American Degree Transfer Program and strong partnerships with global universities. With 40+ years of excellence, INTI prepares students for international careers.",
-    highlights: [
-      "#122 in QS Asia Rankings",
-      "40+ Years of Excellence",
-      "6 Partner Universities Worldwide",
-      "American Degree Transfer Program"
-    ],
-    programs: [
-      {
-        category: "American Degree Program",
-        items: ["Business", "Computer Science", "Engineering", "Mass Communication"]
-      },
-      {
-        category: "Business & Accounting",
-        items: ["Accounting", "Business Administration", "Marketing", "Finance"]
-      },
-      {
-        category: "Computing & IT",
-        items: ["Software Engineering", "Data Science", "Cybersecurity", "Mobile Computing"]
-      },
-      {
-        category: "Engineering",
-        items: ["Civil Engineering", "Mechanical Engineering", "Electrical Engineering", "Quantity Surveying"]
-      }
-    ],
-    strengths: ["American Degree Transfer", "Business", "Engineering", "Hospitality"],
-    facilities: ["82-acre Nilai Campus", "Multiple Campuses (Subang, Penang, Sabah)", "Industry Labs", "Student Housing"],
-    scholarships: true,
-    contact: {
-      phone: "+606-798 2000",
-      email: "enquiry@newinti.edu.my",
-      address: "Persiaran Perdana BBN, Putra Nilai, 71800 Nilai, Negeri Sembilan"
-    },
-    color: "from-red-600 to-red-800"
-  },
-  {
     id: "toa",
     name: "The One Academy",
     shortName: "TOA",

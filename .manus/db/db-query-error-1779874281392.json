@@ -1,0 +1,8 @@
+{
+  "query": "\n-- Weekly visitor breakdown for past 6 weeks\nSELECT \n  WEEK(created_at, 1) as week_num,\n  MIN(DATE(created_at)) as week_start,\n  MAX(DATE(created_at)) as week_end,\n  COUNT(*) as total_visits,\n  COUNT(DISTINCT visitor_id) as unique_visitors,\n  COUNT(DISTINCT session_id) as sessions\nFROM visitor_tracking\nWHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 WEEK)\nGROUP BY WEEK(created_at, 1)\nORDER BY week_num DESC;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2fthz5dKiDU9AkR.998abd330ef4 --database HYZQfmGzLP8hwhgd2UnqHZ --execute \n-- Weekly visitor breakdown for past 6 weeks\nSELECT \n  WEEK(created_at, 1) as week_num,\n  MIN(DATE(created_at)) as week_start,\n  MAX(DATE(created_at)) as week_end,\n  COUNT(*) as total_visits,\n  COUNT(DISTINCT visitor_id) as unique_visitors,\n  COUNT(DISTINCT session_id) as sessions\nFROM visitor_tracking\nWHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 WEEK)\nGROUP BY WEEK(created_at, 1)\nORDER BY week_num DESC;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 3: Unknown column 'created_at' in 'group statement'"
+  ]
+}
