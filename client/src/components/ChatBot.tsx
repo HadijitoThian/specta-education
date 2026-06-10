@@ -309,6 +309,32 @@ export default function ChatBot() {
     const name = input.trim();
     if (!name) return;
 
+    // Reject obvious non-names: greetings, single letters, pure numbers,
+    // very short strings. Re-ask instead of mistaking "halo" for a name.
+    const lower = name.toLowerCase();
+    const greetings = new Set([
+      "halo", "hai", "hi", "hello", "helo", "hey", "yo", "hola",
+      "salam", "assalamualaikum", "p", "test", "ok", "okay",
+      "ya", "yes", "no", "thx", "thanks",
+    ]);
+    const looksLikeGreeting = greetings.has(lower);
+    const tooShort = name.length < 2;
+    const noLetters = !/[A-Za-zĀ-žÀ-ɏ]/.test(name);
+
+    if (looksLikeGreeting || tooShort || noLetters) {
+      // Echo their message, then re-ask for name.
+      setInput("");
+      setMessages(prev => [
+        ...prev,
+        { role: "user", content: name },
+        {
+          role: "assistant",
+          content: `Hi there! 👋 I'd love to know your name — what should I call you?`,
+        },
+      ]);
+      return; // Stay in "ask_name" state.
+    }
+
     setLeadName(name);
     setInput("");
     localStorage.setItem(LEAD_NAME_KEY, name);
