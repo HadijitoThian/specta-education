@@ -169,10 +169,14 @@ export async function transcribeAudioBuffer(
 
     // Step 3: Create FormData for multipart upload to Whisper API
     const formData = new FormData();
-    
-    // Create a Blob from the buffer and append to form
-    const filename = `audio.${getFileExtension(mimeType)}`;
-    const audioBlob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType });
+
+    // Whisper detects the audio format from the FILENAME EXTENSION, so the
+    // extension must be correct. Browser MediaRecorder reports MIME types like
+    // "audio/webm;codecs=opus" — strip codec params before mapping, and send
+    // the bare MIME type on the Blob too.
+    const baseMime = mimeType.split(";")[0].trim().toLowerCase();
+    const filename = `audio.${getFileExtension(baseMime)}`;
+    const audioBlob = new Blob([new Uint8Array(audioBuffer)], { type: baseMime });
     formData.append("file", audioBlob, filename);
     
     formData.append("model", "whisper-1");
@@ -235,18 +239,30 @@ export async function transcribeAudioBuffer(
  * Helper function to get file extension from MIME type
  */
 function getFileExtension(mimeType: string): string {
+  // Strip any codec parameters, e.g. "audio/webm;codecs=opus" -> "audio/webm".
+  const base = mimeType.split(";")[0].trim().toLowerCase();
   const mimeToExt: Record<string, string> = {
     'audio/webm': 'webm',
     'audio/mp3': 'mp3',
     'audio/mpeg': 'mp3',
     'audio/wav': 'wav',
     'audio/wave': 'wav',
+    'audio/x-wav': 'wav',
     'audio/ogg': 'ogg',
+    'audio/oga': 'ogg',
     'audio/m4a': 'm4a',
-    'audio/mp4': 'm4a',
+    'audio/x-m4a': 'm4a',
+    'audio/mp4': 'mp4',
+    'video/webm': 'webm',
   };
-  
-  return mimeToExt[mimeType] || 'audio';
+  if (mimeToExt[base]) return mimeToExt[base];
+  // Last-resort: Whisper rejects unknown extensions, so guess from substring.
+  if (base.includes("webm")) return "webm";
+  if (base.includes("mp4") || base.includes("m4a")) return "mp4";
+  if (base.includes("ogg")) return "ogg";
+  if (base.includes("wav")) return "wav";
+  if (base.includes("mpeg") || base.includes("mp3")) return "mp3";
+  return "webm"; // sensible default for browser MediaRecorder output
 }
 
 /**
