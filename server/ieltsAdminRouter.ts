@@ -461,6 +461,77 @@ export const ieltsAdminRouter = router({
     }),
 
   /**
+   * Admin-only: delete + regenerate a test by code. Useful when iterating
+   * the test generator's blueprints. Returns the new test id.
+   */
+  regenerateTest: protectedProcedure
+    .input(
+      z.object({
+        code: z.string().min(1).max(32),
+        title: z.string().min(1).max(200),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      assertAdmin(ctx);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      // 1) Delete existing by code (with all child rows). Re-uses logic
+      // similar to the delete mutation above.
+      const [existing] = await db
+        .select({ id: ieltsMockTests.id })
+        .from(ieltsMockTests)
+        .where(eq(ieltsMockTests.code, input.code))
+        .limit(1);
+
+      if (existing) {
+        const sections = await db
+          .select({ id: ieltsListeningSections.id })
+          .from(ieltsListeningSections)
+          .where(eq(ieltsListeningSections.testId, existing.id));
+        for (const s of sections) {
+          await db
+            .delete(ieltsListeningQuestions)
+            .where(eq(ieltsListeningQuestions.sectionId, s.id));
+        }
+        await db
+          .delete(ieltsListeningSections)
+          .where(eq(ieltsListeningSections.testId, existing.id));
+
+        const passages = await db
+          .select({ id: ieltsReadingPassages.id })
+          .from(ieltsReadingPassages)
+          .where(eq(ieltsReadingPassages.testId, existing.id));
+        for (const p of passages) {
+          await db
+            .delete(ieltsReadingQuestions)
+            .where(eq(ieltsReadingQuestions.passageId, p.id));
+        }
+        await db
+          .delete(ieltsReadingPassages)
+          .where(eq(ieltsReadingPassages.testId, existing.id));
+
+        await db
+          .delete(ieltsWritingTasks)
+          .where(eq(ieltsWritingTasks.testId, existing.id));
+        await db
+          .delete(ieltsSpeakingPrompts)
+          .where(eq(ieltsSpeakingPrompts.testId, existing.id));
+        await db
+          .delete(ieltsMockTests)
+          .where(eq(ieltsMockTests.id, existing.id));
+      }
+
+      // 2) Generate fresh.
+      const { generateAcademicTest } = await import("./ieltsTestGenerator");
+      const result = await generateAcademicTest({
+        code: input.code,
+        title: input.title,
+      });
+      return result;
+    }),
+
+  /**
    * Admin-only: create a free pre-paid attempt for the currently-logged-in
    * admin so they can walk through the test without paying. Returns the
    * attemptToken to redirect to /ielts/mock-test/take/<token>.

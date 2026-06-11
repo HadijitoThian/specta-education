@@ -108,6 +108,10 @@ export default function AdminIeltsTests() {
     },
   });
 
+  const regenerateMut = trpc.admin.ielts.regenerateTest.useMutation({
+    onSuccess: () => utils.admin.ielts.list.invalidate(),
+  });
+
   const [showImport, setShowImport] = useState(false);
   const [jsonText, setJsonText] = useState(SAMPLE_JSON);
   const [uploadingFor, setUploadingFor] = useState<{
@@ -298,6 +302,26 @@ export default function AdminIeltsTests() {
                           {createTestAttemptMut.isPending
                             ? "Starting…"
                             : "Test as student"}
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (
+                              confirm(
+                                `Regenerate "${t.code}"? This DELETES the current test content and generates a fresh one with the latest blueprint. Takes ~3-5 min.`
+                              )
+                            ) {
+                              regenerateMut.mutate({
+                                code: t.code,
+                                title: t.title,
+                              });
+                            }
+                          }}
+                          disabled={regenerateMut.isPending}
+                          className="text-xs text-purple-700 hover:text-purple-900 underline font-semibold"
+                          title="Delete and regenerate with the latest content blueprint"
+                        >
+                          {regenerateMut.isPending ? "Regenerating…" : "Regenerate"}
                         </button>
 
                         <button
