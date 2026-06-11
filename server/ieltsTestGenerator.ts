@@ -163,14 +163,14 @@ const READING_BLUEPRINTS = [
     topic:
       "Social science / education / psychology feature. Choose a topic like why we forget what we read, the economics of remote work, the history of public libraries, or the cognitive science of bilingualism. ~950-1100 words. More dense, with researchers' names and named studies.",
     questionMix:
-      "Question types: matching_headings (5 questions — provide 7 candidate headings, match to 5 paragraphs A-E), yes/no/not_given (4 questions about the writer's views), short_answer (4 questions).",
+      "Question types: matching_headings (5 questions — provide 7 candidate headings i, ii, iii, iv, v, vi, vii, then match them to 5 paragraphs A-E. CRITICAL: the correct headings MUST NOT be in sequential order (i, ii, iii, iv, v) — shuffle them randomly so the correct answer pattern looks something like iv, ii, vi, i, v or similar. Repeat: NEVER use sequential ordering for correct answers.), yes/no/not_given (4 questions about the writer's views — mix YES, NO, and NOT GIVEN; don't make them all the same), short_answer (4 questions).",
   },
   {
     passageNumber: 3,
     topic:
       "Development economics / policy / public health analysis. Choose a topic like clean cookstoves in rural India, vaccine cold chains in sub-Saharan Africa, climate adaptation in coastal Bangladesh, or microfinance impact studies. ~1000-1100 words. More argumentative, multiple researcher positions.",
     questionMix:
-      "Question types: matching_features (5 questions — match researchers A-F to findings 27-31), summary_completion (5 questions, complete the summary using words from a word list of 10 candidates), mcq (3 questions about author's main argument).",
+      "Question types: matching_features (5 questions — match researchers A-F to findings 27-31. CRITICAL: shuffle the correct answer letters — DO NOT make the answers go A, B, C, D, E in order. A real example pattern would be C, E, A, F, B.), summary_completion (5 questions, complete the summary using words from a word list of 10 candidates), mcq (3 questions about author's main argument).",
   },
 ];
 
@@ -205,7 +205,9 @@ Rules:
 - For matching: correctAnswer is a single letter like ["A"].
 - For completion: keep answers to 1-3 words and ensure they appear verbatim in the passage.
 - Body must support every correct answer — be precise.
-- Avoid copyright issues — write original prose, do not paraphrase a specific published work.`;
+- Avoid copyright issues — write original prose, do not paraphrase a specific published work.
+- CRITICAL — Anti-pattern detection: for ANY matching-style question (matching_headings, matching_features, matching_information, matching_sentence_endings), the correct answer letters/roman numerals MUST be in random order. A student must NOT be able to guess by clicking i, ii, iii, iv, v or A, B, C, D, E sequentially. Shuffle deliberately. Failure to shuffle is a test-killer.
+- For T/F/NG and Y/N/NG questions: mix the answers — don't make them all TRUE or all NOT GIVEN. A natural mix is roughly 1/3, 1/3, 1/3.`;
 
   const user = `Passage ${passageNumber} topic:
 ${blueprint.topic}
