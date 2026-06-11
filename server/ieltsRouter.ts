@@ -1365,6 +1365,66 @@ export const ieltsRouter = router({
 
     return { attempts: rows };
   }),
+
+  /**
+   * Per-question Listening review for a completed attempt: the student's
+   * submitted answer alongside the correct answer(s) and whether it was
+   * marked correct. Ordered by section + question number. Used on the
+   * report page so students can see exactly where they went wrong.
+   */
+  listeningReview: protectedProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .query(async ({ input, ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [attempt] = await db
+        .select()
+        .from(ieltsMockAttempts)
+        .where(eq(ieltsMockAttempts.attemptToken, input.token))
+        .limit(1);
+      if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
+      if (attempt.userId !== ctx.user.id && ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      const sections = await db
+        .select()
+        .from(ieltsListeningSections)
+        .where(eq(ieltsListeningSections.testId, attempt.testId))
+        .orderBy(ieltsListeningSections.sectionNumber);
+
+      const answers = await db
+        .select()
+        .from(ieltsListeningAnswers)
+        .where(eq(ieltsListeningAnswers.attemptId, attempt.id));
+      const answerByQ = new Map(answers.map(a => [a.questionId, a]));
+
+      const result = [];
+      for (const s of sections) {
+        const questions = await db
+          .select()
+          .from(ieltsListeningQuestions)
+          .where(eq(ieltsListeningQuestions.sectionId, s.id))
+          .orderBy(ieltsListeningQuestions.questionNumber);
+        result.push({
+          sectionNumber: s.sectionNumber,
+          questions: questions.map(q => {
+            const a = answerByQ.get(q.id);
+            return {
+              questionNumber: q.questionNumber,
+              prompt: q.prompt,
+              yourAnswer: a?.studentAnswer ?? "",
+              correctAnswers: (q.correctAnswers ?? []) as string[],
+              isCorrect: a?.isCorrect ?? false,
+            };
+          }),
+        });
+      }
+
+      return result;
+    }),
 });
 
 // ===========================================================================

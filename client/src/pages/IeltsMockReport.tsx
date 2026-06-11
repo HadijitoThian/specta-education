@@ -9,6 +9,8 @@ import {
   Download,
   Clock,
   ArrowLeft,
+  Check,
+  X,
 } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import Navigation from "@/components/Navigation";
@@ -263,6 +265,9 @@ export default function IeltsMockReport() {
             </p>
           </Section>
 
+          {/* Listening answer review */}
+          <ListeningReview token={token} />
+
           {/* Disclaimer */}
           <div className="text-xs text-slate-500 text-center leading-relaxed mt-8 mb-6 px-4">
             This is a SpecTa Education practice mock test. It is not an
@@ -410,6 +415,78 @@ function SubScoreBlock({
         ))}
       </div>
     </div>
+  );
+}
+
+function ListeningReview({ token }: { token: string }) {
+  const reviewQuery = trpc.ielts.listeningReview.useQuery(
+    { token },
+    { enabled: !!token, refetchOnWindowFocus: false }
+  );
+
+  return (
+    <Section title="Listening — answer review" icon={Headphones}>
+      {reviewQuery.isLoading ? (
+        <Empty>Loading your answers…</Empty>
+      ) : reviewQuery.isError ? (
+        <Empty>Could not load your answers.</Empty>
+      ) : !reviewQuery.data || reviewQuery.data.length === 0 ? (
+        <Empty>No Listening answers recorded.</Empty>
+      ) : (
+        <div className="space-y-5">
+          {reviewQuery.data.map(s => (
+            <div key={s.sectionNumber}>
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                Section {s.sectionNumber}
+              </div>
+              <div className="overflow-hidden rounded-2xl border border-slate-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
+                    <tr>
+                      <th className="px-3 py-2 w-10">#</th>
+                      <th className="px-3 py-2">Your answer</th>
+                      <th className="px-3 py-2">Correct answer</th>
+                      <th className="px-3 py-2 w-12 text-center">✓</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {s.questions.map(q => (
+                      <tr
+                        key={q.questionNumber}
+                        className={q.isCorrect ? "bg-white" : "bg-rose-50/40"}
+                      >
+                        <td className="px-3 py-2 font-mono text-slate-400 align-top">
+                          {q.questionNumber}
+                        </td>
+                        <td
+                          className={`px-3 py-2 align-top ${
+                            q.isCorrect
+                              ? "text-slate-900"
+                              : "text-rose-700 font-medium"
+                          }`}
+                        >
+                          {q.yourAnswer ? q.yourAnswer : <span className="text-slate-400 italic">—</span>}
+                        </td>
+                        <td className="px-3 py-2 align-top text-slate-700">
+                          {q.correctAnswers.join("  /  ")}
+                        </td>
+                        <td className="px-3 py-2 text-center align-top">
+                          {q.isCorrect ? (
+                            <Check className="w-4 h-4 text-emerald-600 inline" />
+                          ) : (
+                            <X className="w-4 h-4 text-rose-500 inline" />
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Section>
   );
 }
 
