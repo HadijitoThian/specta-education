@@ -77,14 +77,14 @@ const SECTION_BLUEPRINTS = [
   {
     sectionNumber: 2,
     theme:
-      "A monologue. Single speaker labelled 'GUIDE:' (or 'PRESENTER:', 'HOST:'). Single coherent topic: a welcome talk at a wildlife sanctuary, a radio show about a local event, a tour intro at a museum. CRITICAL: end with one complete sentence (e.g., 'I hope you enjoy your visit.'). Never trail off mid-sentence.",
+      "A monologue by a MALE speaker. Use a male first name from this set: DAVID, MARK, JAMES, TOM, MIKE, PAUL, GEORGE, OLIVER, HENRY, WILLIAM. Speaker label format MUST be like 'DAVID:' or 'GUIDE:' (and the speaker introduces himself naturally — 'Hello everyone, I'm David and I'll be your guide today'). Single coherent topic: a welcome talk at a wildlife sanctuary, a radio show about a local event, a tour intro at a museum. CRITICAL: end with one complete sentence (e.g., 'I hope you enjoy your visit.'). Never trail off mid-sentence. CRITICAL: the speaker is MALE, so any self-introduction or name reference must be a male name.",
     questionTypes:
       "Mix of multiple_choice (3-4 questions) and note_completion (6-7 questions). The note_completion questions MUST be organised under 2-3 DISTINCT section headers (e.g., 'History', 'Safety rules', 'Tour schedule'). Each question's prompt should include the relevant header OR be clearly part of a group. NEVER use map_labelling. Each question must test a UNIQUE fact — no two questions may test the same detail or share an opening phrase.",
   },
   {
     sectionNumber: 3,
     theme:
-      "An academic discussion between 3 named participants: 2 students and 1 tutor. CHOOSE specific names — e.g., 'MAYA:' (student), 'TOM:' (student), 'DR.WATSON:' (tutor) — and use them consistently as speaker labels. They discuss a research project, essay, or assignment with disagreement and viewpoints. Each student has a distinct opinion and the tutor mediates.",
+      "An academic discussion between 3 named participants: ONE MALE student, ONE FEMALE student, and ONE tutor (any gender). MUST USE these specific labels: 'TOM:' for the MALE student, 'MAYA:' for the FEMALE student, and 'DR.WATSON:' for the tutor. Do not deviate from these names or labels. They discuss a research project, essay, or assignment with disagreement and viewpoints. Each student has a distinct opinion and the tutor mediates.",
     questionTypes:
       "5 multiple_choice questions (about specific things said in the discussion) + 5 matching questions where each statement is matched to one of the 3 named speakers. For matching, the options MUST be the speakers' names (e.g., 'A. Maya', 'B. Tom', 'C. Dr. Watson'). CRITICAL: correct answers for the matching questions MUST be shuffled and varied — DO NOT make the pattern A, B, C, A, B (which would be sequential per row). Use a randomised mix like B, A, C, A, C or C, B, A, B, A. Different speakers should be matched to different questions in unpredictable order. No two questions may share the same opening phrase.",
   },
@@ -524,6 +524,44 @@ function parseTranscript(transcript: string): Segment[] {
   return segments.filter(s => s.text.trim().length > 0);
 }
 
+// Common English first names by gender — used to pick the right voice
+// when a section's speaker is labelled by personal name.
+const MALE_FIRST_NAMES = new Set([
+  "TOM", "TOMMY", "JAMES", "JIM", "JAMIE", "MARK", "LIAM", "DAVID", "DAVE",
+  "JOHN", "MIKE", "MICHAEL", "ALEX", "ALEXANDER", "BEN", "BENJAMIN", "CHRIS",
+  "CHRISTOPHER", "DAN", "DANIEL", "ETHAN", "GEORGE", "HENRY", "HARRY",
+  "JACK", "JACOB", "JOE", "JOSEPH", "KEVIN", "LUKE", "MATTHEW", "MATT",
+  "NICK", "NICHOLAS", "OLIVER", "OLLIE", "PAUL", "PETER", "PETE", "PHILIP",
+  "PHIL", "RICHARD", "RICK", "ROBERT", "ROB", "RYAN", "SAM", "SAMUEL",
+  "SIMON", "STEVE", "STEVEN", "STEPHEN", "THOMAS", "WILLIAM", "WILL",
+  "WATSON", "EDWARD", "ED", "ANDREW", "ANDY", "TIM", "TIMOTHY",
+]);
+const FEMALE_FIRST_NAMES = new Set([
+  "MAYA", "SARAH", "SARA", "LISA", "EMMA", "EMILY", "EM", "ANNA", "ANNE",
+  "CHLOE", "JESSICA", "JESS", "OLIVIA", "SOPHIA", "SOPHIE", "AVA", "MIA",
+  "ISABELLA", "BELLA", "CHARLOTTE", "AMELIA", "ELLA", "GRACE", "LILY",
+  "HANNAH", "RACHEL", "REBECCA", "BECKY", "JENNIFER", "JENNY", "MICHELLE",
+  "AMANDA", "LAURA", "KATHERINE", "KATE", "KATIE", "LUCY", "ZOE", "ZOEY",
+  "PRIYA", "AMIRA", "FATIMA", "AISHA", "LILA", "NORA", "RUBY", "MOLLY",
+  "POPPY", "FREYA", "EVIE", "FLORENCE", "MIRA", "AANYA", "DIYA",
+]);
+
+/** Extract the speaker's first name from a label like "DR. WATSON" or "MAYA". */
+function speakerFirstName(speaker: string): string {
+  const stripped = speaker
+    .replace(/^DR\.?|^MR\.?|^MRS\.?|^MS\.?|^PROF\.?|^PROFESSOR/i, "")
+    .trim();
+  const first = stripped.split(/\s+/)[0] ?? "";
+  return first.toUpperCase();
+}
+
+function detectGender(speaker: string): "male" | "female" | "unknown" {
+  const first = speakerFirstName(speaker);
+  if (MALE_FIRST_NAMES.has(first)) return "male";
+  if (FEMALE_FIRST_NAMES.has(first)) return "female";
+  return "unknown";
+}
+
 /** Decide which ElevenLabs voice each detected speaker should use. */
 function buildSpeakerVoiceMap(
   sectionNumber: 1 | 2 | 3 | 4,
@@ -545,15 +583,64 @@ function buildSpeakerVoiceMap(
     if (femaleSpeaker)
       map.set(femaleSpeaker, LISTENING_VOICE_MAP.section1.primary); // British female
   } else if (sectionNumber === 3) {
-    // 3 speakers: tutor + 2 students. Tutor is male British, students are
-    // American female + British female.
-    const tutorPatterns = /TUTOR|PROFESSOR|TEACHER|DR\b|MR\b|MS\b|MRS\b|LECTURER/i;
+    // 3 speakers: tutor + 2 students. Assign voices by detected gender of
+    // each speaker's name. Default tutor is British male.
+    const tutorPatterns = /TUTOR|PROFESSOR|TEACHER|DR\.?\b|MR\.?\b|MS\.?\b|MRS\.?\b|PROF\.?|LECTURER/i;
     let tutor = uniqueSpeakers.find(s => tutorPatterns.test(s));
     if (!tutor && uniqueSpeakers.length >= 1) tutor = uniqueSpeakers[uniqueSpeakers.length - 1];
+
+    // Tutor voice depends on detected gender.
+    if (tutor) {
+      const tutorGender = detectGender(tutor);
+      if (tutorGender === "female") {
+        map.set(tutor, LISTENING_VOICE_MAP.section3.primary); // American female
+      } else {
+        map.set(tutor, LISTENING_VOICE_MAP.section4.primary); // British male
+      }
+    }
+
     const students = uniqueSpeakers.filter(s => s !== tutor);
-    if (tutor) map.set(tutor, LISTENING_VOICE_MAP.section4.primary); // British male
-    if (students[0]) map.set(students[0], LISTENING_VOICE_MAP.section3.primary); // American female
-    if (students[1]) map.set(students[1], LISTENING_VOICE_MAP.section3.secondary); // British female
+    // Voice pool — tracks which female voice we've used so far.
+    let femaleVoicesUsed = 0;
+    for (const student of students) {
+      const gender = detectGender(student);
+      if (gender === "male") {
+        map.set(student, LISTENING_VOICE_MAP.section1.secondary); // British male
+      } else if (gender === "female") {
+        const voice =
+          femaleVoicesUsed === 0
+            ? LISTENING_VOICE_MAP.section3.primary // American female
+            : LISTENING_VOICE_MAP.section3.secondary; // British female
+        femaleVoicesUsed++;
+        map.set(student, voice);
+      } else {
+        // Unknown — default to one of the female voices for variety.
+        const voice =
+          femaleVoicesUsed === 0
+            ? LISTENING_VOICE_MAP.section3.primary
+            : LISTENING_VOICE_MAP.section3.secondary;
+        femaleVoicesUsed++;
+        map.set(student, voice);
+      }
+    }
+  } else if (sectionNumber === 2) {
+    // Section 2 default is Australian male. If the speaker is labelled
+    // with a clearly-female name, swap to British female.
+    for (const speaker of uniqueSpeakers) {
+      const gender = detectGender(speaker);
+      if (gender === "female") {
+        map.set(speaker, LISTENING_VOICE_MAP.section1.primary); // British female
+      }
+      // else: fallthrough to section default (Australian male) below.
+    }
+  } else if (sectionNumber === 4) {
+    // Section 4 default is British male. Same fallback for female labels.
+    for (const speaker of uniqueSpeakers) {
+      const gender = detectGender(speaker);
+      if (gender === "female") {
+        map.set(speaker, LISTENING_VOICE_MAP.section1.primary); // British female
+      }
+    }
   }
 
   // Anyone left unmapped gets the fallback (section default voice).

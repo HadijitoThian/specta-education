@@ -369,9 +369,16 @@ function ListeningRunner({
     { refetchOnWindowFocus: false }
   );
 
+  const utils = trpc.useUtils();
   const saveMut = trpc.ielts.saveListeningAnswers.useMutation();
   const finishMut = trpc.ielts.finishListening.useMutation({
-    onSuccess: onFinished,
+    onSuccess: async () => {
+      // Bust the cached attempt status so the wrapper re-fetches and
+      // routes to Reading. Without this, the wrapper keeps showing
+      // ListeningRunner because the cached query still says "listening".
+      await utils.ielts.getAttempt.invalidate({ token });
+      onFinished();
+    },
   });
 
   const [sectionIdx, setSectionIdx] = useState(0);
@@ -767,9 +774,13 @@ function ReadingRunner({
     { refetchOnWindowFocus: false }
   );
 
+  const utils = trpc.useUtils();
   const saveMut = trpc.ielts.saveReadingAnswers.useMutation();
   const finishMut = trpc.ielts.finishReading.useMutation({
-    onSuccess: onFinished,
+    onSuccess: async () => {
+      await utils.ielts.getAttempt.invalidate({ token });
+      onFinished();
+    },
   });
 
   const [passageIdx, setPassageIdx] = useState(0);
@@ -986,9 +997,13 @@ function WritingRunner({
     { refetchOnWindowFocus: false }
   );
 
+  const utils = trpc.useUtils();
   const saveMut = trpc.ielts.saveWritingDraft.useMutation();
   const finishMut = trpc.ielts.finishWriting.useMutation({
-    onSuccess: onFinished,
+    onSuccess: async () => {
+      await utils.ielts.getAttempt.invalidate({ token });
+      onFinished();
+    },
   });
 
   const [taskIdx, setTaskIdx] = useState(0);
@@ -1218,7 +1233,10 @@ function SpeakingRunner({
     onSuccess: () => utils.ielts.getSpeakingState.invalidate({ token }),
   });
   const finishMut = trpc.ielts.finishSpeaking.useMutation({
-    onSuccess: onFinished,
+    onSuccess: async () => {
+      await utils.ielts.getAttempt.invalidate({ token });
+      onFinished();
+    },
   });
 
   const [isRecording, setIsRecording] = useState(false);
