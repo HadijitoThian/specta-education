@@ -168,6 +168,77 @@ export const ieltsAdminRouter = router({
     }),
 
   /**
+   * Returns the full answer key (correct answers) for a test's Listening and
+   * Reading sections, ordered by question number. Used by the admin
+   * "Answer key" view so staff can mark / sanity-check the test.
+   */
+  answerKey: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .query(async ({ input, ctx }) => {
+      assertAdmin(ctx);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [test] = await db
+        .select()
+        .from(ieltsMockTests)
+        .where(eq(ieltsMockTests.id, input.id))
+        .limit(1);
+      if (!test) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const sections = await db
+        .select()
+        .from(ieltsListeningSections)
+        .where(eq(ieltsListeningSections.testId, input.id))
+        .orderBy(ieltsListeningSections.sectionNumber);
+
+      const listening = [];
+      for (const s of sections) {
+        const questions = await db
+          .select()
+          .from(ieltsListeningQuestions)
+          .where(eq(ieltsListeningQuestions.sectionId, s.id))
+          .orderBy(ieltsListeningQuestions.questionNumber);
+        listening.push({
+          sectionNumber: s.sectionNumber,
+          questions: questions.map(q => ({
+            questionNumber: q.questionNumber,
+            questionType: q.questionType,
+            prompt: q.prompt,
+            correctAnswers: (q.correctAnswers ?? []) as string[],
+          })),
+        });
+      }
+
+      const passages = await db
+        .select()
+        .from(ieltsReadingPassages)
+        .where(eq(ieltsReadingPassages.testId, input.id))
+        .orderBy(ieltsReadingPassages.passageNumber);
+
+      const reading = [];
+      for (const p of passages) {
+        const questions = await db
+          .select()
+          .from(ieltsReadingQuestions)
+          .where(eq(ieltsReadingQuestions.passageId, p.id))
+          .orderBy(ieltsReadingQuestions.questionNumber);
+        reading.push({
+          passageNumber: p.passageNumber,
+          title: p.title,
+          questions: questions.map(q => ({
+            questionNumber: q.questionNumber,
+            questionType: q.questionType,
+            prompt: q.prompt,
+            correctAnswers: (q.correctAnswers ?? []) as string[],
+          })),
+        });
+      }
+
+      return { test: { code: test.code, title: test.title }, listening, reading };
+    }),
+
+  /**
    * Import a complete test from a single JSON blob. Bulk-creates the test
    * + all nested sections / passages / tasks / prompts / questions in one
    * shot. Reimporting with the same `code` is rejected — duplicates blocked.

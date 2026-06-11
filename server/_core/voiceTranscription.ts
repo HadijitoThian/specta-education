@@ -95,24 +95,75 @@ export async function transcribeAudio(
           details: `HTTP ${response.status}: ${response.statusText}`
         };
       }
-      
+
       audioBuffer = Buffer.from(await response.arrayBuffer());
       mimeType = response.headers.get('content-type') || 'audio/mpeg';
-      
-      // Check file size (16MB limit)
-      const sizeMB = audioBuffer.length / (1024 * 1024);
-      if (sizeMB > 16) {
-        return {
-          error: "Audio file exceeds maximum size limit",
-          code: "FILE_TOO_LARGE",
-          details: `File size is ${sizeMB.toFixed(2)}MB, maximum allowed is 16MB`
-        };
-      }
     } catch (error) {
       return {
         error: "Failed to fetch audio file",
         code: "SERVICE_ERROR",
         details: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
+
+    return transcribeAudioBuffer({
+      buffer: audioBuffer,
+      mimeType,
+      language: options.language,
+      prompt: options.prompt,
+    });
+  } catch (error) {
+    return {
+      error: "Voice transcription failed",
+      code: "SERVICE_ERROR",
+      details: error instanceof Error ? error.message : "An unexpected error occurred"
+    };
+  }
+}
+
+export type TranscribeBufferOptions = {
+  buffer: Buffer;
+  mimeType: string;
+  language?: string;
+  prompt?: string;
+};
+
+/**
+ * Transcribe audio that is already in memory (no URL round-trip). This is the
+ * preferred path for the IELTS Speaking flow: we already hold the uploaded
+ * audio buffer, so re-downloading it from the R2 public URL (which can fail or
+ * be delayed) is an unnecessary, failure-prone hop.
+ */
+export async function transcribeAudioBuffer(
+  options: TranscribeBufferOptions
+): Promise<TranscriptionResponse | TranscriptionError> {
+  try {
+    if (!ENV.openAiApiKey) {
+      return {
+        error: "Voice transcription service is not configured",
+        code: "SERVICE_ERROR",
+        details: "OPENAI_API_KEY is not set",
+      };
+    }
+
+    const audioBuffer = options.buffer;
+    const mimeType = options.mimeType || "audio/webm";
+
+    if (!audioBuffer || audioBuffer.length === 0) {
+      return {
+        error: "Empty audio file",
+        code: "INVALID_FORMAT",
+        details: "Audio buffer was empty (0 bytes)",
+      };
+    }
+
+    // Check file size (16MB limit)
+    const sizeMB = audioBuffer.length / (1024 * 1024);
+    if (sizeMB > 16) {
+      return {
+        error: "Audio file exceeds maximum size limit",
+        code: "FILE_TOO_LARGE",
+        details: `File size is ${sizeMB.toFixed(2)}MB, maximum allowed is 16MB`,
       };
     }
 

@@ -294,78 +294,113 @@ function ListeningQuestionsArea({
   answers: Record<number, string>;
   onChange: (qid: number, val: string) => void;
 }) {
-  const qs = section.questions;
-  const noteCompCount = qs.filter(q => q.questionType === "note_completion")
-    .length;
-  const matchingCount = qs.filter(
-    q =>
-      q.questionType === "matching" ||
-      q.questionType === "matching_headings" ||
-      q.questionType === "matching_features"
-  ).length;
+  // Render questions strictly in question-number order so the on-screen
+  // sequence always matches the audio (e.g. Section 2 had Q11–16 below
+  // Q17–20 before this fix). We classify each question into a "kind"
+  // (notes / matching / other), then walk the ordered list and group only
+  // CONTIGUOUS runs of the same kind. Each run is rendered with the layout
+  // that best fits it: a unified NotesView for note_completion runs, a
+  // compact MatchingTable for matching runs, and a per-question card list
+  // for everything else. This keeps the nice grouped layouts while never
+  // reordering questions across the screen.
+  const sorted = [...section.questions].sort(
+    (a, b) => a.questionNumber - b.questionNumber
+  );
 
-  const notesQuestions = qs.filter(q => q.questionType === "note_completion");
-  const matchingQuestions = qs.filter(
-    q =>
+  type Kind = "notes" | "matching" | "other";
+  const kindOf = (q: Question): Kind => {
+    if (q.questionType === "note_completion") return "notes";
+    if (
       q.questionType === "matching" ||
       q.questionType === "matching_headings" ||
       q.questionType === "matching_features"
-  );
-  const otherQuestions = qs.filter(
-    q =>
-      q.questionType !== "note_completion" &&
-      !(
-        q.questionType === "matching" ||
-        q.questionType === "matching_headings" ||
-        q.questionType === "matching_features"
-      )
-  );
+    )
+      return "matching";
+    return "other";
+  };
+
+  // Build contiguous blocks of the same kind.
+  const blocks: { kind: Kind; questions: Question[] }[] = [];
+  for (const q of sorted) {
+    const kind = kindOf(q);
+    const last = blocks[blocks.length - 1];
+    if (last && last.kind === kind) {
+      last.questions.push(q);
+    } else {
+      blocks.push({ kind, questions: [q] });
+    }
+  }
 
   return (
     <div className="space-y-5">
-      {/* Default questions first (e.g., the MCQ batch in Section 2/3). */}
-      {otherQuestions.length > 0 ? (
-        <div className="grid sm:grid-cols-1 gap-2">
-          {otherQuestions.map(q => (
+      {blocks.map((block, i) => {
+        if (block.kind === "notes") {
+          // A run of 2+ notes gets the unified outline layout; a lone
+          // note_completion falls back to a normal card.
+          if (block.questions.length >= 2) {
+            return (
+              <NotesView
+                key={`notes-${i}`}
+                questions={block.questions}
+                answers={answers}
+                onChange={onChange}
+              />
+            );
+          }
+          return (
             <QuestionRow
-              key={q.id}
-              q={q}
-              value={answers[q.id] ?? ""}
-              onChange={val => onChange(q.id, val)}
+              key={`note-${block.questions[0].id}`}
+              q={block.questions[0]}
+              value={answers[block.questions[0].id] ?? ""}
+              onChange={val => onChange(block.questions[0].id, val)}
               compact
             />
-          ))}
-        </div>
-      ) : null}
+          );
+        }
 
-      {/* Matching block (Section 3 pattern). */}
-      {matchingCount >= 3 ? (
-        <MatchingTable
-          questions={matchingQuestions}
-          answers={answers}
-          onChange={onChange}
-        />
-      ) : null}
+        if (block.kind === "matching") {
+          // A run of 3+ matching questions gets the compact table; fewer
+          // fall back to normal cards.
+          if (block.questions.length >= 3) {
+            return (
+              <MatchingTable
+                key={`matching-${i}`}
+                questions={block.questions}
+                answers={answers}
+                onChange={onChange}
+              />
+            );
+          }
+          return (
+            <div key={`matching-${i}`} className="grid sm:grid-cols-1 gap-2">
+              {block.questions.map(q => (
+                <QuestionRow
+                  key={q.id}
+                  q={q}
+                  value={answers[q.id] ?? ""}
+                  onChange={val => onChange(q.id, val)}
+                  compact
+                />
+              ))}
+            </div>
+          );
+        }
 
-      {/* Notes view (Section 4 + Section 2 note batch). */}
-      {noteCompCount >= 5 ? (
-        <NotesView
-          questions={notesQuestions}
-          answers={answers}
-          onChange={onChange}
-        />
-      ) : noteCompCount > 0 ? (
-        // Few note_completion questions — render them in the default list.
-        notesQuestions.map(q => (
-          <QuestionRow
-            key={q.id}
-            q={q}
-            value={answers[q.id] ?? ""}
-            onChange={val => onChange(q.id, val)}
-            compact
-          />
-        ))
-      ) : null}
+        // Default: a run of MCQ / short-answer / etc.
+        return (
+          <div key={`other-${i}`} className="grid sm:grid-cols-1 gap-2">
+            {block.questions.map(q => (
+              <QuestionRow
+                key={q.id}
+                q={q}
+                value={answers[q.id] ?? ""}
+                onChange={val => onChange(q.id, val)}
+                compact
+              />
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -114,6 +114,7 @@ export default function AdminIeltsTests() {
 
   const [showImport, setShowImport] = useState(false);
   const [jsonText, setJsonText] = useState(SAMPLE_JSON);
+  const [answerKeyFor, setAnswerKeyFor] = useState<number | null>(null);
   const [uploadingFor, setUploadingFor] = useState<{
     testId: number;
     sectionNumber: number;
@@ -292,6 +293,14 @@ export default function AdminIeltsTests() {
                         </div>
 
                         <button
+                          onClick={() => setAnswerKeyFor(t.id)}
+                          className="text-xs text-emerald-700 hover:text-emerald-900 underline font-semibold"
+                          title="View the Listening + Reading answer key"
+                        >
+                          Answer key
+                        </button>
+
+                        <button
                           onClick={() =>
                             createTestAttemptMut.mutate({ testId: t.id })
                           }
@@ -363,6 +372,116 @@ export default function AdminIeltsTests() {
           Built P1c of the IELTS Mock Test platform. Next: marketing page +
           Xendit purchase flow, then student test-taking UI.
         </p>
+      </div>
+
+      {answerKeyFor !== null ? (
+        <AnswerKeyModal
+          testId={answerKeyFor}
+          onClose={() => setAnswerKeyFor(null)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function AnswerKeyModal({
+  testId,
+  onClose,
+}: {
+  testId: number;
+  onClose: () => void;
+}) {
+  const keyQuery = trpc.admin.ielts.answerKey.useQuery({ id: testId });
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-xl max-w-3xl w-full my-8 max-h-[90vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Answer key</h2>
+            {keyQuery.data ? (
+              <p className="text-xs text-gray-500">
+                {keyQuery.data.test.code} — {keyQuery.data.test.title}
+              </p>
+            ) : null}
+          </div>
+          <button
+            onClick={onClose}
+            className="text-sm text-gray-500 hover:text-gray-900 px-3 py-1.5 rounded-lg border border-gray-200"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="px-6 py-5">
+          {keyQuery.isLoading ? (
+            <p className="text-sm text-gray-500">Loading…</p>
+          ) : keyQuery.isError ? (
+            <p className="text-sm text-red-600">{keyQuery.error.message}</p>
+          ) : keyQuery.data ? (
+            <div className="space-y-8">
+              <section>
+                <h3 className="font-semibold text-sm uppercase tracking-wide text-gray-700 mb-3">
+                  Listening
+                </h3>
+                {keyQuery.data.listening.map(s => (
+                  <div key={s.sectionNumber} className="mb-5">
+                    <div className="text-xs font-semibold text-gray-500 mb-2">
+                      Section {s.sectionNumber}
+                    </div>
+                    <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+                      <tbody className="divide-y divide-gray-100">
+                        {s.questions.map(q => (
+                          <tr key={q.questionNumber}>
+                            <td className="px-3 py-1.5 w-10 font-mono text-gray-500 align-top">
+                              {q.questionNumber}
+                            </td>
+                            <td className="px-3 py-1.5 font-medium text-gray-900">
+                              {q.correctAnswers.join("  /  ")}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </section>
+
+              <section>
+                <h3 className="font-semibold text-sm uppercase tracking-wide text-gray-700 mb-3">
+                  Reading
+                </h3>
+                {keyQuery.data.reading.map(p => (
+                  <div key={p.passageNumber} className="mb-5">
+                    <div className="text-xs font-semibold text-gray-500 mb-2">
+                      Passage {p.passageNumber} — {p.title}
+                    </div>
+                    <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+                      <tbody className="divide-y divide-gray-100">
+                        {p.questions.map(q => (
+                          <tr key={q.questionNumber}>
+                            <td className="px-3 py-1.5 w-10 font-mono text-gray-500 align-top">
+                              {q.questionNumber}
+                            </td>
+                            <td className="px-3 py-1.5 font-medium text-gray-900">
+                              {q.correctAnswers.join("  /  ")}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </section>
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );

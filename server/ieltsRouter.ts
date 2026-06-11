@@ -26,7 +26,7 @@ import {
 } from "../drizzle/schema";
 import { invokeLLM } from "./_core/llm";
 import { synthesize as ttsSynthesize } from "./_core/elevenlabs";
-import { transcribeAudio } from "./_core/voiceTranscription";
+import { transcribeAudioBuffer } from "./_core/voiceTranscription";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
 import { finalizeAttempt } from "./ieltsFinalize";
@@ -1096,15 +1096,27 @@ export const ieltsRouter = router({
 
       let transcript = "";
       try {
-        const result = await transcribeAudio({ audioUrl: url });
+        // Transcribe directly from the in-memory buffer rather than
+        // re-downloading from the R2 public URL (that extra hop can fail or
+        // lag, which previously caused empty transcripts → ungraded Speaking).
+        const result = await transcribeAudioBuffer({
+          buffer,
+          mimeType: input.contentType,
+          language: "en",
+        });
         if ("error" in result) {
           console.warn(
             "[IELTS Speaking] Whisper failed:",
             result.error,
-            result.details
+            result.details,
+            `(part ${input.partNumber}, ${buffer.length} bytes)`
           );
         } else {
           transcript = result.text ?? "";
+          console.log(
+            `[IELTS Speaking] transcribed part ${input.partNumber}: ` +
+              `${transcript.length} chars from ${buffer.length} bytes`
+          );
         }
       } catch (err) {
         console.error("[IELTS Speaking] transcribe error:", err);
