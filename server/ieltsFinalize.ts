@@ -27,6 +27,7 @@ import { getDb } from "./db";
 import { storagePut } from "./storage";
 import { ENV } from "./_core/env";
 import { renderIeltsReportPdf, type IeltsReportData } from "./ieltsReportPdf";
+import { isAnswerCorrect } from "./ieltsGrading";
 
 // ---------------------------------------------------------------------------
 // Band conversion tables (official IELTS public conversions)
@@ -154,29 +155,32 @@ export async function finalizeAttempt(
   let listeningTotal = 0;
   let listeningRaw = 0;
   if (lSectionIds.length > 0) {
-    const lQs = await db
-      .select({ id: ieltsListeningQuestions.id })
+    const lQRows = await db
+      .select({
+        id: ieltsListeningQuestions.id,
+        sectionId: ieltsListeningQuestions.sectionId,
+        questionType: ieltsListeningQuestions.questionType,
+        correctAnswers: ieltsListeningQuestions.correctAnswers,
+      })
       .from(ieltsListeningQuestions);
-    const ourQIds = new Set(
-      (
-        await db
-          .select({
-            id: ieltsListeningQuestions.id,
-            sectionId: ieltsListeningQuestions.sectionId,
-          })
-          .from(ieltsListeningQuestions)
-      )
-        .filter(q => lSectionIds.includes(q.sectionId))
-        .map(q => q.id)
-    );
-    listeningTotal = ourQIds.size;
+    const ourQs = lQRows.filter(q => lSectionIds.includes(q.sectionId));
+    const ourQMap = new Map(ourQs.map(q => [q.id, q]));
+    listeningTotal = ourQs.length;
     const lAns = await db
       .select()
       .from(ieltsListeningAnswers)
       .where(eq(ieltsListeningAnswers.attemptId, attempt.id));
-    listeningRaw = lAns.filter(
-      a => ourQIds.has(a.questionId) && a.isCorrect === true
-    ).length;
+    // Recompute correctness from the stored answer + key (don't trust the
+    // historical isCorrect flag, which may predate grading-logic fixes).
+    listeningRaw = lAns.filter(a => {
+      const q = ourQMap.get(a.questionId);
+      if (!q) return false;
+      return isAnswerCorrect(
+        a.studentAnswer,
+        (q.correctAnswers ?? []) as string[],
+        q.questionType
+      );
+    }).length;
   }
   const listeningBand = listeningRawToBand(listeningRaw);
 
@@ -194,19 +198,26 @@ export async function finalizeAttempt(
       .select({
         id: ieltsReadingQuestions.id,
         passageId: ieltsReadingQuestions.passageId,
+        questionType: ieltsReadingQuestions.questionType,
+        correctAnswers: ieltsReadingQuestions.correctAnswers,
       })
       .from(ieltsReadingQuestions);
-    const ourRQIds = new Set(
-      rQRows.filter(q => rPassageIds.includes(q.passageId)).map(q => q.id)
-    );
-    readingTotal = ourRQIds.size;
+    const ourRQs = rQRows.filter(q => rPassageIds.includes(q.passageId));
+    const ourRQMap = new Map(ourRQs.map(q => [q.id, q]));
+    readingTotal = ourRQs.length;
     const rAns = await db
       .select()
       .from(ieltsReadingAnswers)
       .where(eq(ieltsReadingAnswers.attemptId, attempt.id));
-    readingRaw = rAns.filter(
-      a => ourRQIds.has(a.questionId) && a.isCorrect === true
-    ).length;
+    readingRaw = rAns.filter(a => {
+      const q = ourRQMap.get(a.questionId);
+      if (!q) return false;
+      return isAnswerCorrect(
+        a.studentAnswer,
+        (q.correctAnswers ?? []) as string[],
+        q.questionType
+      );
+    }).length;
   }
   const readingBand = readingRawToBand(readingRaw, test.testType);
 

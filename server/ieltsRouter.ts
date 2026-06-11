@@ -30,6 +30,7 @@ import { transcribeAudioBuffer } from "./_core/voiceTranscription";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
 import { finalizeAttempt } from "./ieltsFinalize";
+import { isAnswerCorrect } from "./ieltsGrading";
 import { ieltsMockScores } from "../drizzle/schema";
 import {
   IELTS_MOCK_PRICE,
@@ -391,13 +392,17 @@ export const ieltsRouter = router({
       const qs = await db
         .select({
           id: ieltsListeningQuestions.id,
+          questionType: ieltsListeningQuestions.questionType,
           correctAnswers: ieltsListeningQuestions.correctAnswers,
         })
         .from(ieltsListeningQuestions)
         .where(inArray(ieltsListeningQuestions.id, ids));
-      const qMap = new Map(qs.map(q => [q.id, q.correctAnswers as string[]]));
-
-      const normalize = (s: string) => s.trim().toLowerCase();
+      const qMap = new Map(
+        qs.map(q => [
+          q.id,
+          { type: q.questionType, correct: q.correctAnswers as string[] },
+        ])
+      );
 
       const existing = await db
         .select({
@@ -415,10 +420,12 @@ export const ieltsRouter = router({
 
       let saved = 0;
       for (const a of input.answers) {
-        const correctSet = qMap.get(a.questionId) ?? [];
-        const isCorrect =
-          a.answer.trim().length > 0 &&
-          correctSet.some(c => normalize(c) === normalize(a.answer));
+        const q = qMap.get(a.questionId);
+        const isCorrect = isAnswerCorrect(
+          a.answer,
+          q?.correct ?? [],
+          q?.type ?? ""
+        );
         const existingId = existingMap.get(a.questionId);
         if (existingId) {
           await db
@@ -599,13 +606,17 @@ export const ieltsRouter = router({
       const qs = await db
         .select({
           id: ieltsReadingQuestions.id,
+          questionType: ieltsReadingQuestions.questionType,
           correctAnswers: ieltsReadingQuestions.correctAnswers,
         })
         .from(ieltsReadingQuestions)
         .where(inArray(ieltsReadingQuestions.id, ids));
-      const qMap = new Map(qs.map(q => [q.id, q.correctAnswers as string[]]));
-
-      const normalize = (s: string) => s.trim().toLowerCase();
+      const qMap = new Map(
+        qs.map(q => [
+          q.id,
+          { type: q.questionType, correct: q.correctAnswers as string[] },
+        ])
+      );
 
       const existing = await db
         .select({
@@ -623,10 +634,12 @@ export const ieltsRouter = router({
 
       let saved = 0;
       for (const a of input.answers) {
-        const correctSet = qMap.get(a.questionId) ?? [];
-        const isCorrect =
-          a.answer.trim().length > 0 &&
-          correctSet.some(c => normalize(c) === normalize(a.answer));
+        const q = qMap.get(a.questionId);
+        const isCorrect = isAnswerCorrect(
+          a.answer,
+          q?.correct ?? [],
+          q?.type ?? ""
+        );
         const existingId = existingMap.get(a.questionId);
         if (existingId) {
           await db
@@ -1412,12 +1425,20 @@ export const ieltsRouter = router({
           sectionNumber: s.sectionNumber,
           questions: questions.map(q => {
             const a = answerByQ.get(q.id);
+            const correct = (q.correctAnswers ?? []) as string[];
+            // Recompute live with the latest grading rules so older attempts
+            // (graded before the MCQ-letter / hyphen fixes) display correctly.
+            const isCorrect = isAnswerCorrect(
+              a?.studentAnswer,
+              correct,
+              q.questionType
+            );
             return {
               questionNumber: q.questionNumber,
               prompt: q.prompt,
               yourAnswer: a?.studentAnswer ?? "",
-              correctAnswers: (q.correctAnswers ?? []) as string[],
-              isCorrect: a?.isCorrect ?? false,
+              correctAnswers: correct,
+              isCorrect,
             };
           }),
         });
