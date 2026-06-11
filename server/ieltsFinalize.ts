@@ -384,6 +384,10 @@ export async function finalizeAttempt(
         toName: user.name ?? "Student",
         reportData,
         pdfBuffer,
+        pdfUrl: pdfKey
+          ? `${ENV.appUrl.replace(/\/+$/, "")}/files/${pdfKey}`
+          : null,
+        reportUrl: `${ENV.appUrl.replace(/\/+$/, "")}/ielts/mock-test/report/${attempt.attemptToken}`,
       });
       if (emailSent) {
         await db
@@ -427,10 +431,18 @@ async function sendReportEmail(opts: {
   toName: string;
   reportData: IeltsReportData;
   pdfBuffer: Buffer | null;
+  pdfUrl?: string | null;
+  reportUrl?: string | null;
 }): Promise<boolean> {
   if (!ENV.resendApiKey) return false;
 
   const { reportData } = opts;
+  // A hosted download link guarantees the student can get the PDF even if a
+  // mail provider strips the attachment.
+  const downloadButton =
+    opts.pdfUrl || opts.reportUrl
+      ? `<div style="margin:4px 0 18px 0;"><a href="${opts.pdfUrl ?? opts.reportUrl}" style="display:inline-block;background:#4338ca;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 20px;border-radius:8px;">Download your PDF report</a></div>`
+      : "";
   const bandRow = (label: string, value: number) =>
     `<tr><td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;color:#475569;">${label}</td><td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;color:#0f172a;">${value.toFixed(1)}</td></tr>`;
 
@@ -442,7 +454,7 @@ async function sendReportEmail(opts: {
   </div>
   <div style="padding:24px;color:#0f172a;">
     <p style="margin:0 0 12px 0;">Hi ${escape(opts.toName)},</p>
-    <p style="margin:0 0 16px 0;color:#475569;line-height:1.6;">You finished <strong>${escape(reportData.testTitle)}</strong> (${reportData.testType === "academic" ? "Academic" : "General Training"}). Your full report is attached as a PDF, and here's a quick summary:</p>
+    <p style="margin:0 0 16px 0;color:#475569;line-height:1.6;">You finished <strong>${escape(reportData.testTitle)}</strong> (${reportData.testType === "academic" ? "Academic" : "General Training"}). Your full report is attached as a PDF (and downloadable below), and here's a quick summary:</p>
     <table style="width:100%;border-collapse:collapse;margin:8px 0 20px 0;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
       ${bandRow("Listening", reportData.listening.band)}
       ${bandRow("Reading", reportData.reading.band)}
@@ -450,7 +462,8 @@ async function sendReportEmail(opts: {
       ${bandRow("Speaking", reportData.speaking.band)}
       <tr><td style="padding:10px 12px;background:#0f172a;color:#facc15;font-weight:700;">Overall Band</td><td style="padding:10px 12px;background:#0f172a;color:#facc15;font-weight:700;text-align:right;font-size:18px;">${reportData.overallBand.toFixed(1)}</td></tr>
     </table>
-    <p style="margin:0 0 8px 0;color:#475569;line-height:1.6;">Open the attached PDF to see per-criterion sub-scores and feedback for Writing and Speaking.</p>
+    ${downloadButton}
+    <p style="margin:0 0 8px 0;color:#475569;line-height:1.6;">Open the PDF (attached, or via the button above) to see per-criterion sub-scores and feedback for Writing and Speaking.</p>
     <p style="margin:16px 0 0 0;font-size:13px;color:#94a3b8;">Practice again or buy another attempt at <a href="${ENV.appUrl}/ielts/mock-test" style="color:#4338ca;">${ENV.appUrl}/ielts/mock-test</a>.</p>
   </div>
   <div style="padding:14px 24px;background:#f1f5f9;color:#64748b;font-size:11px;line-height:1.5;">
@@ -469,7 +482,13 @@ Writing:   ${reportData.writing.band.toFixed(1)}
 Speaking:  ${reportData.speaking.band.toFixed(1)}
 OVERALL:   ${reportData.overallBand.toFixed(1)}
 
-The full PDF report is attached. Take another mock test any time at ${ENV.appUrl}/ielts/mock-test.
+The full PDF report is attached.${
+    opts.pdfUrl || opts.reportUrl
+      ? ` You can also download it here: ${opts.pdfUrl ?? opts.reportUrl}`
+      : ""
+  }
+
+Take another mock test any time at ${ENV.appUrl}/ielts/mock-test.
 
 — SpecTa Education
 `;
@@ -479,6 +498,7 @@ The full PDF report is attached. Take another mock test any time at ${ENV.appUrl
         {
           filename: `SpecTa-IELTS-Mock-Report-${reportData.testCode}.pdf`,
           content: opts.pdfBuffer.toString("base64"),
+          content_type: "application/pdf",
         },
       ]
     : undefined;
