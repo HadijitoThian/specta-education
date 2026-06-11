@@ -79,6 +79,8 @@ export default function IeltsMockReport() {
     );
   }
 
+  const isAdmin = user.role === "admin";
+
   const data = reportQuery.data!;
   if ("ready" in data && !data.ready) {
     return (
@@ -265,6 +267,9 @@ export default function IeltsMockReport() {
             </p>
           </Section>
 
+          {/* Admin: re-grade this attempt with the latest grading logic */}
+          {isAdmin ? <AdminRegrade token={token} /> : null}
+
           {/* Listening answer review */}
           <ListeningReview token={token} />
 
@@ -414,6 +419,47 @@ function SubScoreBlock({
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function AdminRegrade({ token }: { token: string }) {
+  const utils = trpc.useUtils();
+  const regradeMut = trpc.admin.ielts.regradeAttempt.useMutation({
+    onSuccess: () => {
+      utils.ielts.getReport.invalidate({ token });
+      utils.ielts.listeningReview.invalidate({ token });
+    },
+  });
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-5">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <div className="font-semibold text-amber-900">Admin · Re-grade attempt</div>
+          <div className="text-xs text-amber-800 mt-0.5">
+            Re-transcribes any speaking audio with no transcript, re-grades
+            Speaking, and recomputes all bands + PDF with the latest logic.
+          </div>
+        </div>
+        <button
+          onClick={() => regradeMut.mutate({ token })}
+          disabled={regradeMut.isPending}
+          className="bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300 text-white text-sm font-semibold px-4 py-2 rounded-lg shrink-0"
+        >
+          {regradeMut.isPending ? "Re-grading…" : "Re-grade now"}
+        </button>
+      </div>
+      {regradeMut.isSuccess ? (
+        <div className="text-xs text-amber-900 mt-3">
+          Done — Speaking parts graded: {regradeMut.data.speakingPartsGraded},
+          re-transcribed turns: {regradeMut.data.speakingReTranscribed}. Refresh
+          to see updated bands.
+        </div>
+      ) : null}
+      {regradeMut.isError ? (
+        <div className="text-xs text-red-600 mt-3">{regradeMut.error.message}</div>
+      ) : null}
     </div>
   );
 }

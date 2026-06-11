@@ -27,7 +27,7 @@ import {
 import { invokeLLM } from "./_core/llm";
 import { synthesize as ttsSynthesize } from "./_core/elevenlabs";
 import { transcribeAudioBuffer } from "./_core/voiceTranscription";
-import { storagePut } from "./storage";
+import { storagePut, storageGetBytes } from "./storage";
 import { nanoid } from "nanoid";
 import { finalizeAttempt } from "./ieltsFinalize";
 import { isAnswerCorrect } from "./ieltsGrading";
@@ -1176,65 +1176,7 @@ export const ieltsRouter = router({
         throw new TRPCError({ code: "FORBIDDEN" });
       }
 
-      const conversation = await db
-        .select()
-        .from(ieltsSpeakingConversations)
-        .where(eq(ieltsSpeakingConversations.attemptId, attempt.id))
-        .orderBy(ieltsSpeakingConversations.turnOrder);
-
-      for (const partNumber of [1, 2, 3] as const) {
-        const examinerTurns = conversation.filter(
-          c => c.role === "examiner" && c.partNumber === partNumber
-        );
-        const studentTurns = conversation.filter(
-          c => c.role === "student" && c.partNumber === partNumber
-        );
-        if (studentTurns.length === 0) continue;
-
-        const studentText = studentTurns
-          .map(t => t.text)
-          .filter(t => t && t.length > 0)
-          .join("\n\n");
-        if (!studentText.trim()) continue;
-
-        const transcriptForLLM = conversation
-          .filter(c => c.partNumber === partNumber)
-          .map(c => `${c.role.toUpperCase()}: ${c.text}`)
-          .join("\n");
-
-        try {
-          const grading = await gradeSpeakingPart({
-            partNumber,
-            transcript: transcriptForLLM,
-            studentText,
-          });
-          const partBand = roundToHalfBand(
-            (grading.scoreFC +
-              grading.scoreLR +
-              grading.scoreGRA +
-              grading.scoreP) /
-              4
-          );
-          await db.insert(ieltsSpeakingResponses).values({
-            attemptId: attempt.id,
-            partNumber,
-            transcript: studentText,
-            scoreFC: String(grading.scoreFC),
-            scoreLR: String(grading.scoreLR),
-            scoreGRA: String(grading.scoreGRA),
-            scoreP: String(grading.scoreP),
-            partBand: String(partBand),
-            feedback: grading.feedback,
-            gradedAt: new Date(),
-            completedAt: new Date(),
-          });
-        } catch (err) {
-          console.error(
-            `[IELTS Speaking grade] part ${partNumber} failed:`,
-            err
-          );
-        }
-      }
+      await regradeSpeakingForAttempt(attempt.id, { reTranscribe: true });
 
       await db
         .update(ieltsMockAttempts)
@@ -1575,6 +1517,123 @@ type SpeakingGradeResult = {
   scoreP: number;
   feedback: { fc: string; lr: string; gra: string; p: string };
 };
+
+/**
+ * Grade (or re-grade) all Speaking parts for an attempt. Idempotent: it
+ * deletes any existing speaking-score rows first, then re-grades.
+ *
+ * When `reTranscribe` is true, any student turn that has audio stored but no
+ * (or blank) transcript is re-transcribed by reading the audio bytes straight
+ * from R2 via the S3 API — this recovers attempts whose original
+ * transcription failed because it tried to re-download from the public URL.
+ */
+export async function regradeSpeakingForAttempt(
+  attemptId: number,
+  opts: { reTranscribe?: boolean } = {}
+): Promise<{ gradedParts: number; reTranscribed: number }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+
+  let conversation = await db
+    .select()
+    .from(ieltsSpeakingConversations)
+    .where(eq(ieltsSpeakingConversations.attemptId, attemptId))
+    .orderBy(ieltsSpeakingConversations.turnOrder);
+
+  // Re-transcribe student turns that have audio but empty text.
+  let reTranscribed = 0;
+  if (opts.reTranscribe) {
+    for (const turn of conversation) {
+      if (
+        turn.role === "student" &&
+        turn.audioKey &&
+        (!turn.text || !turn.text.trim())
+      ) {
+        try {
+          const { buffer, contentType } = await storageGetBytes(turn.audioKey);
+          const result = await transcribeAudioBuffer({
+            buffer,
+            mimeType: contentType,
+            language: "en",
+          });
+          if (!("error" in result) && result.text && result.text.trim()) {
+            await db
+              .update(ieltsSpeakingConversations)
+              .set({ text: result.text })
+              .where(eq(ieltsSpeakingConversations.id, turn.id));
+            turn.text = result.text;
+            reTranscribed++;
+          } else if ("error" in result) {
+            console.warn(
+              `[IELTS Speaking re-transcribe] turn ${turn.id} failed:`,
+              result.error,
+              result.details
+            );
+          }
+        } catch (err) {
+          console.error(
+            `[IELTS Speaking re-transcribe] turn ${turn.id} error:`,
+            err
+          );
+        }
+      }
+    }
+  }
+
+  // Clear existing scores so this is safe to re-run.
+  await db
+    .delete(ieltsSpeakingResponses)
+    .where(eq(ieltsSpeakingResponses.attemptId, attemptId));
+
+  let gradedParts = 0;
+  for (const partNumber of [1, 2, 3] as const) {
+    const studentTurns = conversation.filter(
+      c => c.role === "student" && c.partNumber === partNumber
+    );
+    if (studentTurns.length === 0) continue;
+
+    const studentText = studentTurns
+      .map(t => t.text)
+      .filter(t => t && t.length > 0)
+      .join("\n\n");
+    if (!studentText.trim()) continue;
+
+    const transcriptForLLM = conversation
+      .filter(c => c.partNumber === partNumber)
+      .map(c => `${c.role.toUpperCase()}: ${c.text}`)
+      .join("\n");
+
+    try {
+      const grading = await gradeSpeakingPart({
+        partNumber,
+        transcript: transcriptForLLM,
+        studentText,
+      });
+      const partBand = roundToHalfBand(
+        (grading.scoreFC + grading.scoreLR + grading.scoreGRA + grading.scoreP) /
+          4
+      );
+      await db.insert(ieltsSpeakingResponses).values({
+        attemptId,
+        partNumber,
+        transcript: studentText,
+        scoreFC: String(grading.scoreFC),
+        scoreLR: String(grading.scoreLR),
+        scoreGRA: String(grading.scoreGRA),
+        scoreP: String(grading.scoreP),
+        partBand: String(partBand),
+        feedback: grading.feedback,
+        gradedAt: new Date(),
+        completedAt: new Date(),
+      });
+      gradedParts++;
+    } catch (err) {
+      console.error(`[IELTS Speaking grade] part ${partNumber} failed:`, err);
+    }
+  }
+
+  return { gradedParts, reTranscribed };
+}
 
 async function gradeSpeakingPart(args: {
   partNumber: 1 | 2 | 3;

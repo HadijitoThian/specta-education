@@ -101,6 +101,26 @@ export async function storagePut(
   return { key, url: `${provider.publicUrlBase}/${key}` };
 }
 
+/**
+ * Read an object's raw bytes directly from storage (server-side, using the
+ * S3 API). Unlike the public URL, this always works regardless of bucket
+ * public-access settings — used for re-transcribing stored speaking audio.
+ */
+export async function storageGetBytes(
+  relKey: string
+): Promise<{ buffer: Buffer; contentType: string }> {
+  const provider = getProvider();
+  const key = normalizeKey(relKey);
+  const res = await provider.client.send(
+    new GetObjectCommand({ Bucket: provider.bucket, Key: key })
+  );
+  const bytes = await res.Body!.transformToByteArray();
+  return {
+    buffer: Buffer.from(bytes),
+    contentType: res.ContentType ?? "application/octet-stream",
+  };
+}
+
 export async function storageGet(
   relKey: string
 ): Promise<{ key: string; url: string }> {

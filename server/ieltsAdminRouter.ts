@@ -643,4 +643,41 @@ export const ieltsAdminRouter = router({
       const attemptId = (inserted as any)[0]?.insertId as number;
       return { attemptToken, attemptId };
     }),
+
+  /**
+   * Re-grade a completed attempt with the latest grading logic. Re-transcribes
+   * any speaking audio that has no transcript (recovers attempts whose
+   * original Whisper call failed), re-grades Speaking, then re-runs the full
+   * finalize (which recomputes Listening/Reading raw scores + bands, regenerates
+   * the PDF, and re-emails the report). Use after grading-logic fixes.
+   */
+  regradeAttempt: protectedProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .mutation(async ({ input, ctx }) => {
+      assertAdmin(ctx);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const { ieltsMockAttempts } = await import("../drizzle/schema");
+      const [attempt] = await db
+        .select()
+        .from(ieltsMockAttempts)
+        .where(eq(ieltsMockAttempts.attemptToken, input.token))
+        .limit(1);
+      if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const { regradeSpeakingForAttempt } = await import("./ieltsRouter");
+      const { finalizeAttempt } = await import("./ieltsFinalize");
+
+      const speaking = await regradeSpeakingForAttempt(attempt.id, {
+        reTranscribe: true,
+      });
+      await finalizeAttempt(attempt.id);
+
+      return {
+        ok: true,
+        speakingPartsGraded: speaking.gradedParts,
+        speakingReTranscribed: speaking.reTranscribed,
+      };
+    }),
 });
