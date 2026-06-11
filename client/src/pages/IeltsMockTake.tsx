@@ -265,6 +265,66 @@ type Section = {
   questions: Question[];
 };
 
+/**
+ * Custom audio status indicator for Listening. No pause, no seek, no
+ * controls — just an animated "playing" pill + elapsed time. Reads from
+ * the hidden <audio> element via the shared ref.
+ */
+function ListeningAudioStatus({
+  playing,
+  finished,
+  audioRef,
+}: {
+  playing: boolean;
+  finished: boolean;
+  audioRef: React.RefObject<HTMLAudioElement | null>;
+}) {
+  const [elapsed, setElapsed] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      const el = audioRef.current;
+      if (!el) return;
+      setElapsed(el.currentTime || 0);
+      setDuration(el.duration || 0);
+    }, 500);
+    return () => clearInterval(t);
+  }, [audioRef]);
+
+  const mm = (n: number) =>
+    `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).padStart(2, "0")}`;
+
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 rounded-xl border bg-white border-slate-200">
+      <div
+        className={`relative w-3 h-3 rounded-full ${
+          finished
+            ? "bg-emerald-500"
+            : playing
+              ? "bg-red-500"
+              : "bg-slate-300"
+        }`}
+      >
+        {playing && !finished ? (
+          <span className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-60" />
+        ) : null}
+      </div>
+      <div className="text-sm font-medium text-slate-800 flex-1">
+        {finished
+          ? "Audio finished"
+          : playing
+            ? "Audio is playing — no pause"
+            : "Audio paused (waiting for preview)"}
+      </div>
+      <div className="text-xs text-slate-500 font-mono">
+        {mm(elapsed)}
+        {duration > 0 ? ` / ${mm(duration)}` : ""}
+      </div>
+    </div>
+  );
+}
+
 function ListeningRunner({
   token,
   onFinished,
@@ -558,26 +618,42 @@ function ListeningRunner({
             </div>
           ) : null}
           {section.audioUrl ? (
-            <audio
-              ref={audioRef}
-              src={previewing ? undefined : section.audioUrl}
-              autoPlay={!previewing}
-              controls
-              controlsList="nodownload noplaybackrate"
-              className="w-full"
-              onTimeUpdate={() => {
-                if (audioRef.current) {
-                  lastPositionRef.current = audioRef.current.currentTime;
-                }
-              }}
-              onSeeking={() => {
-                // Block seek backward; allow it to land where it was.
-                if (audioRef.current) {
-                  audioRef.current.currentTime = lastPositionRef.current;
-                }
-              }}
-              onEnded={() => setAudioFinished(true)}
-            />
+            <>
+              {/* Hidden audio element — no native controls (no pause). */}
+              <audio
+                ref={audioRef}
+                src={previewing ? undefined : section.audioUrl}
+                autoPlay={!previewing}
+                onTimeUpdate={() => {
+                  if (audioRef.current) {
+                    lastPositionRef.current = audioRef.current.currentTime;
+                    // Hard-block any pause attempt: if the user fires a
+                    // pause shortcut (spacebar, media keys), this snaps
+                    // back to playing on the next tick.
+                    if (audioRef.current.paused && !audioFinished) {
+                      void audioRef.current.play().catch(() => {});
+                    }
+                  }
+                }}
+                onPause={() => {
+                  if (audioRef.current && !audioFinished) {
+                    void audioRef.current.play().catch(() => {});
+                  }
+                }}
+                onSeeking={() => {
+                  if (audioRef.current) {
+                    audioRef.current.currentTime = lastPositionRef.current;
+                  }
+                }}
+                onEnded={() => setAudioFinished(true)}
+              />
+              {/* Custom UI: no pause button, no seek bar. */}
+              <ListeningAudioStatus
+                playing={!previewing && !audioFinished}
+                finished={audioFinished}
+                audioRef={audioRef}
+              />
+            </>
           ) : (
             <div className="text-sm text-red-600">
               No audio available for this section. Tell admin to upload it.

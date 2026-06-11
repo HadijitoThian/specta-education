@@ -329,30 +329,152 @@ function voiceForSection(section: 1 | 2 | 3 | 4): string {
   }
 }
 
+type Segment = { speaker: string; text: string };
+
+/** Parse a transcript with SPEAKER: lines into ordered segments, grouping
+ *  consecutive lines from the same speaker so we minimise TTS calls. */
+function parseTranscript(transcript: string): Segment[] {
+  const lines = transcript.split(/\r?\n/);
+  const segments: Segment[] = [];
+  let current: Segment | null = null;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    const m = line.match(/^([A-Z][A-Z0-9 .'_-]{0,30}):\s*(.*)$/);
+    if (m) {
+      const speaker = m[1].trim();
+      const text = m[2].trim();
+      if (current && current.speaker === speaker) {
+        current.text += " " + text;
+      } else {
+        if (current && current.text.trim()) segments.push(current);
+        current = { speaker, text };
+      }
+    } else if (current) {
+      // Continuation of previous speaker's line.
+      current.text += " " + line;
+    } else {
+      // Pre-label narration — treat as unlabeled segment.
+      segments.push({ speaker: "_NARRATOR", text: line });
+    }
+  }
+  if (current && current.text.trim()) segments.push(current);
+  return segments.filter(s => s.text.trim().length > 0);
+}
+
+/** Decide which ElevenLabs voice each detected speaker should use. */
+function buildSpeakerVoiceMap(
+  sectionNumber: 1 | 2 | 3 | 4,
+  uniqueSpeakers: string[]
+): Map<string, string> {
+  const map = new Map<string, string>();
+  const fallback = voiceForSection(sectionNumber);
+
+  if (sectionNumber === 1) {
+    // 2 speakers: the service-side speaker (agent/operator/receptionist) is
+    // male; the caller/customer is female. Heuristic by label keyword.
+    const malePatterns = /AGENT|OPERATOR|RECEPTIONIST|HOTEL|STAFF|MANAGER|CLERK/i;
+    let maleSpeaker = uniqueSpeakers.find(s => malePatterns.test(s));
+    if (!maleSpeaker && uniqueSpeakers.length >= 2) maleSpeaker = uniqueSpeakers[1];
+    if (!maleSpeaker && uniqueSpeakers.length === 1) maleSpeaker = uniqueSpeakers[0];
+    const femaleSpeaker = uniqueSpeakers.find(s => s !== maleSpeaker) ?? uniqueSpeakers[0];
+    if (maleSpeaker)
+      map.set(maleSpeaker, LISTENING_VOICE_MAP.section1.secondary); // British male
+    if (femaleSpeaker)
+      map.set(femaleSpeaker, LISTENING_VOICE_MAP.section1.primary); // British female
+  } else if (sectionNumber === 3) {
+    // 3 speakers: tutor + 2 students. Tutor is male British, students are
+    // American female + British female.
+    const tutorPatterns = /TUTOR|PROFESSOR|TEACHER|DR\b|MR\b|MS\b|MRS\b|LECTURER/i;
+    let tutor = uniqueSpeakers.find(s => tutorPatterns.test(s));
+    if (!tutor && uniqueSpeakers.length >= 1) tutor = uniqueSpeakers[uniqueSpeakers.length - 1];
+    const students = uniqueSpeakers.filter(s => s !== tutor);
+    if (tutor) map.set(tutor, LISTENING_VOICE_MAP.section4.primary); // British male
+    if (students[0]) map.set(students[0], LISTENING_VOICE_MAP.section3.primary); // American female
+    if (students[1]) map.set(students[1], LISTENING_VOICE_MAP.section3.secondary); // British female
+  }
+
+  // Anyone left unmapped gets the fallback (section default voice).
+  for (const s of uniqueSpeakers) {
+    if (!map.has(s)) map.set(s, fallback);
+  }
+  return map;
+}
+
 async function ttsListeningSection(
   testCode: string,
   sectionNumber: 1 | 2 | 3 | 4,
   transcript: string
 ): Promise<string> {
-  // Strip speaker labels for cleaner audio playback. The label informs voice
-  // choice (future), but for v1 we use a single voice per section.
-  const cleaned = transcript
-    .split("\n")
-    .map(line => line.replace(/^[A-Z][A-Z0-9 ]{1,20}:\s*/, ""))
-    .filter(l => l.trim().length > 0)
-    .join(" ");
+  const segments = parseTranscript(transcript);
 
-  const audio = await ttsSynthesize({
-    text: cleaned,
-    voiceId: voiceForSection(sectionNumber),
-    modelId: "eleven_multilingual_v2",
-    outputFormat: "mp3_44100_128",
-    stability: 0.5,
-    similarityBoost: 0.75,
-  });
+  // No speaker labels detected — fall back to single voice.
+  if (segments.length === 0) {
+    const cleaned = transcript.replace(/\s+/g, " ").trim();
+    const audio = await ttsSynthesize({
+      text: cleaned,
+      voiceId: voiceForSection(sectionNumber),
+      modelId: "eleven_multilingual_v2",
+      outputFormat: "mp3_44100_128",
+      stability: 0.5,
+      similarityBoost: 0.75,
+    });
+    const key = `ielts/audio/${testCode}/section-${sectionNumber}-${nanoid(6)}.mp3`;
+    await storagePut(key, audio, "audio/mpeg");
+    return key;
+  }
 
+  const uniqueSpeakers = Array.from(new Set(segments.map(s => s.speaker)));
+  const voiceMap = buildSpeakerVoiceMap(sectionNumber, uniqueSpeakers);
+
+  // For sections 2 and 4 (single-speaker monologue), or when only one
+  // speaker is detected, just synthesize the whole thing as one call.
+  if (
+    (sectionNumber === 2 || sectionNumber === 4) ||
+    uniqueSpeakers.length === 1
+  ) {
+    const cleaned = segments.map(s => s.text).join(" ");
+    const voiceId = voiceMap.get(uniqueSpeakers[0]) ?? voiceForSection(sectionNumber);
+    const audio = await ttsSynthesize({
+      text: cleaned,
+      voiceId,
+      modelId: "eleven_multilingual_v2",
+      outputFormat: "mp3_44100_128",
+      stability: 0.5,
+      similarityBoost: 0.75,
+    });
+    const key = `ielts/audio/${testCode}/section-${sectionNumber}-${nanoid(6)}.mp3`;
+    await storagePut(key, audio, "audio/mpeg");
+    return key;
+  }
+
+  // Multi-speaker: synth each segment with its speaker's voice, then
+  // concatenate the MP3 byte streams. MP3 frames are independent so naive
+  // binary concat plays correctly.
+  const buffers: Buffer[] = [];
+  for (const seg of segments) {
+    const voiceId = voiceMap.get(seg.speaker) ?? voiceForSection(sectionNumber);
+    try {
+      const audio = await ttsSynthesize({
+        text: seg.text,
+        voiceId,
+        modelId: "eleven_multilingual_v2",
+        outputFormat: "mp3_44100_128",
+        stability: 0.5,
+        similarityBoost: 0.75,
+      });
+      buffers.push(audio);
+    } catch (err) {
+      console.warn(
+        `[IELTS Gen] TTS segment failed in section ${sectionNumber} (speaker ${seg.speaker}):`,
+        err
+      );
+    }
+  }
+
+  const combined = Buffer.concat(buffers);
   const key = `ielts/audio/${testCode}/section-${sectionNumber}-${nanoid(6)}.mp3`;
-  await storagePut(key, audio, "audio/mpeg");
+  await storagePut(key, combined, "audio/mpeg");
   return key;
 }
 
