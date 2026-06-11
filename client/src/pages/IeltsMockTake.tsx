@@ -266,6 +266,268 @@ type Section = {
 };
 
 /**
+ * Smart questions area for Listening. Renders different layouts depending
+ * on what's in the section:
+ *   - If most questions are note_completion with [GROUP: ...] headers,
+ *     render a unified "notes" view (one structured outline with input
+ *     fields inline at each blank).
+ *   - If multiple questions are matching (Section 3 pattern), render a
+ *     compact table with a single shared legend.
+ *   - Otherwise, fall back to the default per-question card list.
+ */
+function ListeningQuestionsArea({
+  section,
+  answers,
+  onChange,
+}: {
+  section: Section;
+  answers: Record<number, string>;
+  onChange: (qid: number, val: string) => void;
+}) {
+  const qs = section.questions;
+  const noteCompCount = qs.filter(q => q.questionType === "note_completion")
+    .length;
+  const matchingCount = qs.filter(
+    q =>
+      q.questionType === "matching" ||
+      q.questionType === "matching_headings" ||
+      q.questionType === "matching_features"
+  ).length;
+
+  const notesQuestions = qs.filter(q => q.questionType === "note_completion");
+  const matchingQuestions = qs.filter(
+    q =>
+      q.questionType === "matching" ||
+      q.questionType === "matching_headings" ||
+      q.questionType === "matching_features"
+  );
+  const otherQuestions = qs.filter(
+    q =>
+      q.questionType !== "note_completion" &&
+      !(
+        q.questionType === "matching" ||
+        q.questionType === "matching_headings" ||
+        q.questionType === "matching_features"
+      )
+  );
+
+  return (
+    <div className="space-y-5">
+      {/* Default questions first (e.g., the MCQ batch in Section 2/3). */}
+      {otherQuestions.length > 0 ? (
+        <div className="grid sm:grid-cols-1 gap-2">
+          {otherQuestions.map(q => (
+            <QuestionRow
+              key={q.id}
+              q={q}
+              value={answers[q.id] ?? ""}
+              onChange={val => onChange(q.id, val)}
+              compact
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {/* Matching block (Section 3 pattern). */}
+      {matchingCount >= 3 ? (
+        <MatchingTable
+          questions={matchingQuestions}
+          answers={answers}
+          onChange={onChange}
+        />
+      ) : null}
+
+      {/* Notes view (Section 4 + Section 2 note batch). */}
+      {noteCompCount >= 5 ? (
+        <NotesView
+          questions={notesQuestions}
+          answers={answers}
+          onChange={onChange}
+        />
+      ) : noteCompCount > 0 ? (
+        // Few note_completion questions — render them in the default list.
+        notesQuestions.map(q => (
+          <QuestionRow
+            key={q.id}
+            q={q}
+            value={answers[q.id] ?? ""}
+            onChange={val => onChange(q.id, val)}
+            compact
+          />
+        ))
+      ) : null}
+    </div>
+  );
+}
+
+/** Parses "[GROUP: header]\n- bullet line" out of a question prompt. */
+function parseNotePrompt(prompt: string): { group: string | null; line: string } {
+  const trimmed = prompt.trim();
+  const groupMatch = trimmed.match(/^\[GROUP:\s*([^\]]+)\]\s*\n?([\s\S]*)$/i);
+  if (groupMatch) {
+    return { group: groupMatch[1].trim(), line: groupMatch[2].trim() };
+  }
+  return { group: null, line: trimmed };
+}
+
+/**
+ * Notes-view layout. Groups consecutive note_completion questions by their
+ * leading [GROUP: ...] header (or "Notes" fallback) and renders each group
+ * as a header followed by bullet rows with input fields inline at the
+ * `..........` placeholder.
+ */
+function NotesView({
+  questions,
+  answers,
+  onChange,
+}: {
+  questions: Question[];
+  answers: Record<number, string>;
+  onChange: (qid: number, val: string) => void;
+}) {
+  // Group by walking through the question list. A question inherits the
+  // previous group if it doesn't define one.
+  const groups: Array<{ header: string; items: Question[] }> = [];
+  let currentHeader = "Notes";
+  let currentItems: Question[] = [];
+  for (const q of questions) {
+    const parsed = parseNotePrompt(q.prompt);
+    if (parsed.group && parsed.group !== currentHeader) {
+      if (currentItems.length > 0) {
+        groups.push({ header: currentHeader, items: currentItems });
+      }
+      currentHeader = parsed.group;
+      currentItems = [q];
+    } else {
+      currentItems.push(q);
+    }
+  }
+  if (currentItems.length > 0) {
+    groups.push({ header: currentHeader, items: currentItems });
+  }
+
+  return (
+    <div className="bg-amber-50/50 border border-amber-200 rounded-2xl p-5 space-y-4">
+      <div className="text-xs uppercase tracking-wider text-amber-900/70 font-semibold">
+        Notes
+      </div>
+      {groups.map((g, gi) => (
+        <div key={gi}>
+          <div className="font-bold text-slate-900 mb-2 text-sm">
+            {g.header}
+          </div>
+          <ul className="space-y-1.5 pl-1">
+            {g.items.map(q => {
+              const parsed = parseNotePrompt(q.prompt);
+              const line = parsed.line.replace(/^\-\s*/, "");
+              // Split the line at the placeholder (.......... of any length).
+              const parts = line.split(/\.{3,}/);
+              const before = parts[0]?.trim() ?? "";
+              const after = parts.slice(1).join(" ").trim();
+              return (
+                <li
+                  key={q.id}
+                  className="text-sm text-slate-800 leading-relaxed flex flex-wrap items-baseline gap-1.5"
+                >
+                  <span className="w-6 text-xs font-bold text-slate-500 shrink-0">
+                    {q.questionNumber}.
+                  </span>
+                  <span>•</span>
+                  <span>{before}</span>
+                  <input
+                    type="text"
+                    value={answers[q.id] ?? ""}
+                    onChange={e => onChange(q.id, e.target.value)}
+                    placeholder="answer"
+                    className="inline-block min-w-[6rem] max-w-[14rem] border-b-2 border-amber-400 focus:outline-none focus:border-amber-600 bg-white/70 px-1.5 py-0 text-sm font-medium"
+                    maxLength={80}
+                  />
+                  {after ? <span>{after}</span> : null}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Matching-table layout. Shows a single legend of options at the top, then
+ * a compact list of questions with a dropdown next to each.
+ */
+function MatchingTable({
+  questions,
+  answers,
+  onChange,
+}: {
+  questions: Question[];
+  answers: Record<number, string>;
+  onChange: (qid: number, val: string) => void;
+}) {
+  // Collect the unique option set across all matching questions.
+  const optionSet = new Set<string>();
+  for (const q of questions) {
+    const opts = Array.isArray(q.options) ? (q.options as string[]) : [];
+    for (const o of opts) optionSet.add(o);
+  }
+  const options = Array.from(optionSet);
+
+  return (
+    <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50/40">
+      <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">
+        Matching — pick one for each question
+      </div>
+      {options.length > 0 ? (
+        <div className="text-xs text-slate-600 mb-3 bg-white rounded-lg border border-slate-200 px-3 py-2">
+          <div className="font-semibold mb-1">Options:</div>
+          <div className="flex flex-wrap gap-x-3 gap-y-1">
+            {options.map((o, i) => (
+              <span key={i}>{o}</span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      <div className="space-y-2">
+        {questions.map(q => {
+          const opts = Array.isArray(q.options) ? (q.options as string[]) : options;
+          // Render the prompt (strip any [GROUP:...] markers just in case).
+          const cleanPrompt = q.prompt
+            .replace(/^\[GROUP:[^\]]+\]\s*\n?/i, "")
+            .trim();
+          return (
+            <div
+              key={q.id}
+              className="flex items-start gap-2 bg-white rounded-lg border border-slate-200 px-3 py-2"
+            >
+              <div className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                {q.questionNumber}
+              </div>
+              <div className="flex-1 text-sm text-slate-800 leading-relaxed">
+                {cleanPrompt}
+              </div>
+              <select
+                value={answers[q.id] ?? ""}
+                onChange={e => onChange(q.id, e.target.value)}
+                className="border border-slate-300 rounded-md px-2 py-1 text-sm w-28 shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">—</option>
+                {opts.map((o, i) => (
+                  <option key={i} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
  * Custom audio status indicator for Listening. No pause, no seek, no
  * controls — just an animated "playing" pill + elapsed time. Reads from
  * the hidden <audio> element via the shared ref.
@@ -590,138 +852,135 @@ function ListeningRunner({
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
-        <div className="text-sm text-slate-600 font-medium">
-          Listening · Section{" "}
-          <span className="text-slate-900 font-bold">{section.sectionNumber}</span> of {sections.length}
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="text-xs text-slate-500">
-            {answeredCount}/{totalQuestions} answered
+      {/* STICKY HEADER — section info + timer + audio status always visible
+          while the user scrolls through questions during audio playback. */}
+      <div className="sticky top-0 z-20 bg-white border-b border-slate-200">
+        <div className="flex items-center justify-between px-5 py-3 bg-slate-50">
+          <div className="text-sm text-slate-600 font-medium">
+            Listening · Section{" "}
+            <span className="text-slate-900 font-bold">
+              {section.sectionNumber}
+            </span>{" "}
+            of {sections.length}
           </div>
-          <div
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-mono ${
-              secondsLeft < 60
-                ? "bg-red-100 text-red-700"
-                : secondsLeft < 5 * 60
-                  ? "bg-amber-100 text-amber-800"
-                  : "bg-slate-200 text-slate-700"
-            }`}
-          >
-            <Clock className="w-3.5 h-3.5" />
-            {mm}:{ss}
-          </div>
-        </div>
-      </div>
-
-      {/* Audio player */}
-      <div className="px-6 pt-6">
-        <div className="bg-slate-100 rounded-2xl p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center">
-              <Headphones className="w-4 h-4" />
+          <div className="flex items-center gap-2">
+            <div className="text-xs text-slate-500">
+              {answeredCount}/{totalQuestions} answered
             </div>
-            <div className="flex-1">
-              <div className="text-sm font-semibold text-slate-900">
-                Audio · Section {section.sectionNumber}
-              </div>
-              <div className="text-xs text-slate-500">
-                Plays once. No rewind. No pause.
+            <div
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono ${
+                secondsLeft < 60
+                  ? "bg-red-100 text-red-700"
+                  : secondsLeft < 5 * 60
+                    ? "bg-amber-100 text-amber-800"
+                    : "bg-slate-200 text-slate-700"
+              }`}
+            >
+              <Clock className="w-3 h-3" />
+              {mm}:{ss}
+            </div>
+          </div>
+        </div>
+        {/* Audio strip — compact, sticky with the header */}
+        <div className="px-5 py-2.5 bg-slate-100 border-t border-slate-200">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
+              <Headphones className="w-3.5 h-3.5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold text-slate-900 truncate">
+                Audio · Plays once · No pause
               </div>
             </div>
             {previewing ? (
-              <span className="inline-flex items-center gap-1 text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1 text-xs font-mono">
-                Audio plays in {previewLeft}s
+              <span className="inline-flex items-center gap-1 text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 text-xs font-mono shrink-0">
+                Plays in {previewLeft}s
               </span>
             ) : audioFinished ? (
-              <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1 text-xs">
-                <CheckCircle2 className="w-3 h-3" /> Audio done
+              <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 text-xs shrink-0">
+                <CheckCircle2 className="w-3 h-3" /> Done
               </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 text-xs shrink-0">
+                <span className="relative w-2 h-2 rounded-full bg-red-500">
+                  <span className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-60" />
+                </span>
+                Playing
+              </span>
+            )}
+            {section.audioUrl ? (
+              <>
+                {/* Hidden audio element — no native controls. */}
+                <audio
+                  ref={audioRef}
+                  src={previewing ? undefined : section.audioUrl}
+                  autoPlay={!previewing}
+                  onTimeUpdate={() => {
+                    if (audioRef.current) {
+                      lastPositionRef.current = audioRef.current.currentTime;
+                      if (
+                        audioRef.current.paused &&
+                        !audioRef.current.ended
+                      ) {
+                        void audioRef.current.play().catch(() => {});
+                      }
+                    }
+                  }}
+                  onPause={() => {
+                    if (audioRef.current && !audioRef.current.ended) {
+                      void audioRef.current.play().catch(() => {});
+                    }
+                  }}
+                  onSeeking={() => {
+                    if (audioRef.current) {
+                      audioRef.current.currentTime =
+                        lastPositionRef.current;
+                    }
+                  }}
+                  onEnded={() => setAudioFinished(true)}
+                />
+                {/* Hidden stalled-detector — keeps the audio-finished
+                    fallback alive but doesn't render anything visible. */}
+                <div className="hidden">
+                  <ListeningAudioStatus
+                    playing={!previewing && !audioFinished}
+                    finished={audioFinished}
+                    audioRef={audioRef}
+                    onForceFinished={() => setAudioFinished(true)}
+                  />
+                </div>
+              </>
             ) : null}
           </div>
           {previewing ? (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-3 text-xs text-amber-900">
-              <strong>Preview time.</strong> Read the questions below before
-              the audio starts. You'll have {PREVIEW_SECONDS} seconds. You can
-              start typing answers now — they'll auto-save.
+            <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 text-xs text-amber-900 flex items-center justify-between">
+              <span>
+                <strong>Preview time.</strong> Read the questions below.
+                Audio starts in {previewLeft}s.
+              </span>
               <button
                 onClick={() => {
                   setPreviewLeft(0);
                   setPreviewing(false);
                 }}
-                className="ml-2 underline font-semibold hover:text-amber-700"
+                className="ml-2 underline font-semibold hover:text-amber-700 shrink-0"
               >
-                Skip preview & start audio now →
+                Skip →
               </button>
             </div>
           ) : null}
-          {section.audioUrl ? (
-            <>
-              {/* Hidden audio element — no native controls (no pause). */}
-              <audio
-                ref={audioRef}
-                src={previewing ? undefined : section.audioUrl}
-                autoPlay={!previewing}
-                onTimeUpdate={() => {
-                  if (audioRef.current) {
-                    lastPositionRef.current = audioRef.current.currentTime;
-                    // Re-play only if the audio hasn't naturally ended. If
-                    // the audio has reached its end, leave it alone so the
-                    // ended event can fire.
-                    if (
-                      audioRef.current.paused &&
-                      !audioRef.current.ended
-                    ) {
-                      void audioRef.current.play().catch(() => {});
-                    }
-                  }
-                }}
-                onPause={() => {
-                  // Don't fight against a natural end — only re-play if
-                  // the audio still has time remaining.
-                  if (
-                    audioRef.current &&
-                    !audioRef.current.ended
-                  ) {
-                    void audioRef.current.play().catch(() => {});
-                  }
-                }}
-                onSeeking={() => {
-                  if (audioRef.current) {
-                    audioRef.current.currentTime = lastPositionRef.current;
-                  }
-                }}
-                onEnded={() => setAudioFinished(true)}
-              />
-              {/* Custom UI: no pause button, no seek bar. */}
-              <ListeningAudioStatus
-                playing={!previewing && !audioFinished}
-                finished={audioFinished}
-                audioRef={audioRef}
-                onForceFinished={() => setAudioFinished(true)}
-              />
-            </>
-          ) : (
-            <div className="text-sm text-red-600">
-              No audio available for this section. Tell admin to upload it.
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Questions */}
-      <div className="px-6 py-6">
-        <div className="space-y-5">
-          {section.questions.map(q => (
-            <QuestionRow
-              key={q.id}
-              q={q}
-              value={answers[q.id] ?? ""}
-              onChange={val => setAnswers(prev => ({ ...prev, [q.id]: val }))}
-            />
-          ))}
-        </div>
+      {/* QUESTIONS — compact, smart-rendered by section type */}
+      <div className="px-5 py-4">
+        <ListeningQuestionsArea
+          section={section}
+          answers={answers}
+          onChange={(qid, val) =>
+            setAnswers(prev => ({ ...prev, [qid]: val }))
+          }
+        />
       </div>
 
       {/* Bottom bar */}
@@ -1569,10 +1828,12 @@ function QuestionRow({
   q,
   value,
   onChange,
+  compact,
 }: {
   q: Question;
   value: string;
   onChange: (v: string) => void;
+  compact?: boolean;
 }) {
   const options = Array.isArray(q.options) ? (q.options as string[]) : null;
 
@@ -1593,18 +1854,24 @@ function QuestionRow({
     q.questionType === "matching_features" ||
     q.questionType === "matching_sentence_endings";
 
+  // Strip [GROUP:...] markers so they don't appear in cards (notes view
+  // handles grouping separately).
+  const cleanPrompt = q.prompt.replace(/^\[GROUP:[^\]]+\]\s*\n?/i, "").trim();
+
   return (
-    <div className="border border-slate-200 rounded-xl p-4">
-      <div className="flex items-start gap-3">
-        <div className="w-7 h-7 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center shrink-0">
+    <div
+      className={`border border-slate-200 rounded-xl ${compact ? "px-3 py-2.5" : "p-4"}`}
+    >
+      <div className="flex items-start gap-2">
+        <div className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
           {q.questionNumber}
         </div>
         <div className="flex-1">
-          <div className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">
-            {q.prompt}
+          <div className="text-sm text-slate-800 whitespace-pre-wrap leading-snug">
+            {cleanPrompt}
           </div>
 
-          <div className="mt-3">
+          <div className={compact ? "mt-2" : "mt-3"}>
             {fixedOptions ? (
               <div className="flex flex-wrap gap-2">
                 {fixedOptions.map(opt => (
