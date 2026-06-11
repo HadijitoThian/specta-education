@@ -425,12 +425,20 @@ function SubScoreBlock({
 
 function AdminRegrade({ token }: { token: string }) {
   const utils = trpc.useUtils();
+  const diagQuery = trpc.admin.ielts.speakingDiagnostic.useQuery(
+    { token },
+    { refetchOnWindowFocus: false }
+  );
   const regradeMut = trpc.admin.ielts.regradeAttempt.useMutation({
     onSuccess: () => {
       utils.ielts.getReport.invalidate({ token });
       utils.ielts.listeningReview.invalidate({ token });
+      utils.admin.ielts.speakingDiagnostic.invalidate({ token });
     },
   });
+
+  const diag = diagQuery.data;
+  const studentTurns = diag?.turns.filter(t => t.role === "student") ?? [];
 
   return (
     <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-5">
@@ -450,6 +458,60 @@ function AdminRegrade({ token }: { token: string }) {
           {regradeMut.isPending ? "Re-grading…" : "Re-grade now"}
         </button>
       </div>
+
+      {/* Speaking diagnostic */}
+      <div className="mt-4 border-t border-amber-200 pt-3">
+        <div className="text-xs font-semibold text-amber-900 mb-1">
+          Speaking data check
+        </div>
+        {diagQuery.isLoading ? (
+          <div className="text-xs text-amber-800">Checking…</div>
+        ) : diagQuery.isError ? (
+          <div className="text-xs text-red-600">{diagQuery.error.message}</div>
+        ) : diag ? (
+          studentTurns.length === 0 ? (
+            <div className="text-xs text-red-700">
+              No student speaking turns were saved for this attempt — the
+              recordings never reached the server, so there is nothing to
+              grade. (Conversation rows total: {diag.turns.length}.)
+            </div>
+          ) : (
+            <div className="text-xs text-amber-900">
+              <div className="mb-1">
+                {studentTurns.length} student turn(s) ·{" "}
+                {diag.gradedParts.length} graded part(s)
+              </div>
+              <div className="overflow-hidden rounded-lg border border-amber-200 bg-white/60">
+                <table className="w-full">
+                  <thead className="text-[10px] uppercase text-amber-700">
+                    <tr>
+                      <th className="px-2 py-1 text-left">Part</th>
+                      <th className="px-2 py-1 text-left">Transcript chars</th>
+                      <th className="px-2 py-1 text-left">Audio</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {studentTurns.map((t, i) => (
+                      <tr key={i} className="border-t border-amber-100">
+                        <td className="px-2 py-1">{t.partNumber}</td>
+                        <td className="px-2 py-1">{t.textLen}</td>
+                        <td className="px-2 py-1">
+                          {!t.hasAudioKey
+                            ? "no key"
+                            : t.audioBytes === -1
+                              ? "MISSING in storage"
+                              : `${t.audioBytes} bytes`}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        ) : null}
+      </div>
+
       {regradeMut.isSuccess ? (
         <div className="text-xs text-amber-900 mt-3">
           Done — Speaking parts graded: {regradeMut.data.speakingPartsGraded},

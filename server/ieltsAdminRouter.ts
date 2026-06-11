@@ -645,6 +645,75 @@ export const ieltsAdminRouter = router({
     }),
 
   /**
+   * Diagnostic: inspect the Speaking data for an attempt — every conversation
+   * turn (role, part, transcript length, whether audio is attached and whether
+   * that audio actually exists in storage) plus any graded score rows. Lets an
+   * admin see exactly why Speaking did or didn't grade.
+   */
+  speakingDiagnostic: protectedProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .query(async ({ input, ctx }) => {
+      assertAdmin(ctx);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const {
+        ieltsMockAttempts,
+        ieltsSpeakingConversations,
+        ieltsSpeakingResponses,
+      } = await import("../drizzle/schema");
+      const { storageGetBytes } = await import("./storage");
+
+      const [attempt] = await db
+        .select()
+        .from(ieltsMockAttempts)
+        .where(eq(ieltsMockAttempts.attemptToken, input.token))
+        .limit(1);
+      if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const conv = await db
+        .select()
+        .from(ieltsSpeakingConversations)
+        .where(eq(ieltsSpeakingConversations.attemptId, attempt.id))
+        .orderBy(ieltsSpeakingConversations.turnOrder);
+
+      const turns = [];
+      for (const t of conv) {
+        let audioBytes: number | null = null;
+        if (t.audioKey) {
+          try {
+            const { buffer } = await storageGetBytes(t.audioKey);
+            audioBytes = buffer.length;
+          } catch {
+            audioBytes = -1; // present in DB but missing/unreadable in storage
+          }
+        }
+        turns.push({
+          partNumber: t.partNumber,
+          turnOrder: t.turnOrder,
+          role: t.role,
+          textLen: t.text ? t.text.length : 0,
+          hasAudioKey: !!t.audioKey,
+          audioBytes,
+        });
+      }
+
+      const responses = await db
+        .select()
+        .from(ieltsSpeakingResponses)
+        .where(eq(ieltsSpeakingResponses.attemptId, attempt.id));
+
+      return {
+        attemptStatus: attempt.status,
+        turns,
+        gradedParts: responses.map(r => ({
+          partNumber: r.partNumber,
+          partBand: r.partBand ? Number(r.partBand) : null,
+        })),
+      };
+    }),
+
+  /**
    * Re-grade a completed attempt with the latest grading logic. Re-transcribes
    * any speaking audio that has no transcript (recovers attempts whose
    * original Whisper call failed), re-grades Speaking, then re-runs the full
