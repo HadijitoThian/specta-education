@@ -149,14 +149,12 @@ async function startServer() {
     }
   });
 
-  // Idempotent one-shot: builds one full IELTS Academic test in the DB.
-  // POST body (optional): { code, title }
-  // Defaults: { code: "ACAD-001", title: "Academic Test 1 — Sample" }
-  // Returns a status report. If a test with that code already exists,
-  // does nothing and returns alreadyExists: true.
+  // Builds one full IELTS Academic test in the DB. Generation runs in the
+  // background (fire-and-forget) so the HTTP request returns immediately —
+  // total work takes 5-10 min and would otherwise exceed Railway's 5-min
+  // proxy timeout. Poll /admin/ielts-tests to see the test appear.
   app.post("/api/internal/generate-ielts-test", async (req, res) => {
     try {
-      const { generateAcademicTest } = await import("../ieltsTestGenerator");
       const code =
         typeof req.body?.code === "string" && req.body.code.length > 0
           ? req.body.code
@@ -165,10 +163,48 @@ async function startServer() {
         typeof req.body?.title === "string" && req.body.title.length > 0
           ? req.body.title
           : "Academic Test 1";
-      console.log(`[generate-ielts-test] starting ${code}: ${title}`);
-      const result = await generateAcademicTest({ code, title });
-      console.log(`[generate-ielts-test] done`, result);
-      return res.status(200).json(result);
+
+      // Idempotency: check if a test with this code already exists.
+      const { getDb } = await import("../db");
+      const { ieltsMockTests } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const db = await getDb();
+      if (db) {
+        const existing = await db
+          .select({ id: ieltsMockTests.id })
+          .from(ieltsMockTests)
+          .where(eq(ieltsMockTests.code, code))
+          .limit(1);
+        if (existing.length > 0) {
+          return res.status(200).json({
+            alreadyExists: true,
+            testId: existing[0].id,
+            code,
+            message: "Test with this code already exists — delete it first to regenerate.",
+          });
+        }
+      }
+
+      console.log(`[generate-ielts-test] queued ${code}: ${title}`);
+
+      // Fire-and-forget. Errors are logged but don't bubble up.
+      void (async () => {
+        try {
+          const { generateAcademicTest } = await import("../ieltsTestGenerator");
+          const result = await generateAcademicTest({ code, title });
+          console.log(`[generate-ielts-test] background done`, result);
+        } catch (err) {
+          console.error("[generate-ielts-test] background failed", err);
+        }
+      })();
+
+      return res.status(202).json({
+        accepted: true,
+        code,
+        title,
+        message:
+          "Generation started. Takes ~5-10 minutes. Refresh /admin/ielts-tests to see when it appears.",
+      });
     } catch (err: any) {
       console.error("[generate-ielts-test] error", err);
       return res.status(500).json({ error: err?.message ?? "failed" });

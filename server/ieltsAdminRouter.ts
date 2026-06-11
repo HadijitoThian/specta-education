@@ -522,13 +522,27 @@ export const ieltsAdminRouter = router({
           .where(eq(ieltsMockTests.id, existing.id));
       }
 
-      // 2) Generate fresh.
-      const { generateAcademicTest } = await import("./ieltsTestGenerator");
-      const result = await generateAcademicTest({
+      // 2) Generate fresh — fire-and-forget so the request doesn't sit
+      // inside Railway's 5-minute proxy timeout. Caller polls list().
+      void (async () => {
+        try {
+          const { generateAcademicTest } = await import("./ieltsTestGenerator");
+          const result = await generateAcademicTest({
+            code: input.code,
+            title: input.title,
+          });
+          console.log(`[regenerateTest] done`, result);
+        } catch (err) {
+          console.error(`[regenerateTest] background failed`, err);
+        }
+      })();
+
+      return {
+        accepted: true,
         code: input.code,
-        title: input.title,
-      });
-      return result;
+        message:
+          "Regeneration started in the background. Refresh in 5-10 min to see new content.",
+      };
     }),
 
   /**
