@@ -155,7 +155,12 @@ export default function IeltsMockTest() {
         customerEmail: email.trim(),
         customerPhone: phone.trim() || undefined,
       });
-      window.location.href = res.invoiceUrl;
+      // Free trial bypasses Xendit and gives back an attempt token directly.
+      if (res.trial) {
+        window.location.href = `/ielts/mock-test/take/${res.attemptToken}`;
+      } else {
+        window.location.href = res.invoiceUrl;
+      }
     } catch (err: any) {
       setError(err?.message ?? "Could not start checkout");
     }
@@ -170,6 +175,11 @@ export default function IeltsMockTest() {
 
   const academicCount = catalog.data?.academicTests ?? 0;
   const generalCount = catalog.data?.generalTests ?? 0;
+  const academicFree = catalog.data?.academicFree ?? false;
+  const generalFree = catalog.data?.generalFree ?? false;
+  const isFreeNow =
+    (testType === "academic" && academicFree) ||
+    (testType === "general" && generalFree);
   const price = catalog.data?.priceIdr ?? 79000;
   const buyDisabled =
     authLoading ||
@@ -649,16 +659,29 @@ export default function IeltsMockTest() {
                 </div>
               ) : null}
 
+              {isFreeNow ? (
+                <div className="text-center text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3">
+                  🎉 Free during internal beta — no payment required.
+                </div>
+              ) : null}
               <button
                 type="submit"
                 disabled={buyDisabled}
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 disabled:from-slate-400 disabled:to-slate-500 text-white font-semibold py-3 rounded-lg transition shadow"
+                className={`w-full font-semibold py-3 rounded-lg transition shadow text-white ${
+                  isFreeNow
+                    ? "bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 disabled:from-slate-400 disabled:to-slate-500"
+                    : "bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 disabled:from-slate-400 disabled:to-slate-500"
+                }`}
               >
                 {startCheckout.isPending
-                  ? "Redirecting to checkout…"
+                  ? isFreeNow
+                    ? "Starting…"
+                    : "Redirecting to checkout…"
                   : !user
                     ? "Sign in to continue"
-                    : `Buy & take it — ${idr(price)}`}
+                    : isFreeNow
+                      ? "Start free test"
+                      : `Buy & take it — ${idr(price)}`}
               </button>
 
               {!user ? (

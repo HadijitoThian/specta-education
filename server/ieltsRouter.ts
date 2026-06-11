@@ -45,24 +45,37 @@ export const ieltsRouter = router({
    */
   catalog: publicProcedure.query(async () => {
     const db = await getDb();
+    const { ENV } = await import("./_core/env");
+    const freeCodes = ENV.freeTrialTestCodes;
     let academicCount = 0;
     let generalCount = 0;
+    let academicFree = false;
+    let generalFree = false;
     if (db) {
       const rows = await db
         .select({
           testType: ieltsMockTests.testType,
+          code: ieltsMockTests.code,
         })
         .from(ieltsMockTests)
         .where(eq(ieltsMockTests.isPublished, true));
       for (const r of rows) {
-        if (r.testType === "academic") academicCount++;
-        else if (r.testType === "general") generalCount++;
+        const isFree = freeCodes.includes(r.code.toUpperCase());
+        if (r.testType === "academic") {
+          academicCount++;
+          if (isFree) academicFree = true;
+        } else if (r.testType === "general") {
+          generalCount++;
+          if (isFree) generalFree = true;
+        }
       }
     }
     return {
       priceIdr: IELTS_MOCK_PRICE,
       academicTests: academicCount,
       generalTests: generalCount,
+      academicFree,
+      generalFree,
     };
   }),
 
@@ -86,6 +99,50 @@ export const ieltsRouter = router({
         throw new TRPCError({ code: "UNAUTHORIZED" });
       }
       try {
+        // If the *first* published test we'd pick is in the
+        // FREE_TRIAL_TEST_CODES env list, bypass Xendit and hand back an
+        // attempt token directly. Used for staff testing pre-launch.
+        const { ENV } = await import("./_core/env");
+        const freeCodes = ENV.freeTrialTestCodes;
+        if (freeCodes.length > 0) {
+          const db = await getDb();
+          if (db) {
+            const candidates = await db
+              .select({
+                id: ieltsMockTests.id,
+                code: ieltsMockTests.code,
+              })
+              .from(ieltsMockTests)
+              .where(
+                and(
+                  eq(ieltsMockTests.isPublished, true),
+                  eq(ieltsMockTests.testType, input.testType)
+                )
+              );
+            const free = candidates.find(t =>
+              freeCodes.includes(t.code.toUpperCase())
+            );
+            if (free) {
+              // Free trial path — create attempt directly.
+              const { nanoid } = await import("nanoid");
+              const attemptToken = nanoid(24);
+              await db.insert(ieltsMockAttempts).values({
+                userId: ctx.user.id,
+                testId: free.id,
+                attemptToken,
+                paymentRef: `FREE-TRIAL-${nanoid(8)}`,
+                paidAt: new Date(),
+                status: "ready",
+              });
+              return {
+                trial: true as const,
+                invoiceUrl: "",
+                attemptToken,
+              };
+            }
+          }
+        }
+
         const invoice = await createIeltsMockInvoice({
           userId: ctx.user.id,
           testType: input.testType,
@@ -94,6 +151,7 @@ export const ieltsRouter = router({
           customerPhone: input.customerPhone?.trim() || undefined,
         });
         return {
+          trial: false as const,
           invoiceUrl: invoice.invoiceUrl,
           attemptToken: invoice.attemptToken,
         };

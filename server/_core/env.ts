@@ -67,4 +67,13 @@ export const ENV = {
   // ----- Payments: Xendit ------------------------------------------------
   xenditSecretKey: process.env.XENDIT_SECRET_KEY ?? "",
   xenditWebhookToken: process.env.XENDIT_WEBHOOK_TOKEN ?? "",
+
+  // ----- IELTS Mock Test free trial --------------------------------------
+  // Comma-separated test codes that bypass payment entirely. Used for
+  // internal staff testing before launch. Set FREE_TRIAL_TEST_CODES=ACAD-001
+  // in Railway to make ACAD-001 free; clear or remove to make it paid again.
+  freeTrialTestCodes: (process.env.FREE_TRIAL_TEST_CODES ?? "")
+    .split(",")
+    .map(s => s.trim().toUpperCase())
+    .filter(s => s.length > 0),
 };
