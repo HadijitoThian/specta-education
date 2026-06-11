@@ -269,28 +269,60 @@ type Section = {
  * Custom audio status indicator for Listening. No pause, no seek, no
  * controls — just an animated "playing" pill + elapsed time. Reads from
  * the hidden <audio> element via the shared ref.
+ *
+ * Also detects stalled playback as a fallback to the browser's `ended`
+ * event, which is unreliable on concatenated MP3 streams.
  */
 function ListeningAudioStatus({
   playing,
   finished,
   audioRef,
+  onForceFinished,
 }: {
   playing: boolean;
   finished: boolean;
   audioRef: React.RefObject<HTMLAudioElement | null>;
+  onForceFinished: () => void;
 }) {
   const [elapsed, setElapsed] = useState(0);
   const [duration, setDuration] = useState(0);
+  const lastTimeRef = useRef(0);
+  const lastChangeAtRef = useRef(Date.now());
 
   useEffect(() => {
     const t = setInterval(() => {
       const el = audioRef.current;
       if (!el) return;
-      setElapsed(el.currentTime || 0);
+      const now = Date.now();
+      const ct = el.currentTime || 0;
+      setElapsed(ct);
       setDuration(el.duration || 0);
+
+      // Stalled-detection: if currentTime hasn't advanced for 2.5s after
+      // playback has begun, treat the audio as finished. This catches the
+      // case where concatenated MP3s confuse the browser and the `ended`
+      // event never fires.
+      if (!finished && ct > 1) {
+        if (Math.abs(ct - lastTimeRef.current) > 0.05) {
+          lastTimeRef.current = ct;
+          lastChangeAtRef.current = now;
+        } else if (now - lastChangeAtRef.current > 2500) {
+          onForceFinished();
+        }
+      }
+
+      // Also: if the audio has reached end of its known duration, force.
+      if (
+        !finished &&
+        el.duration &&
+        Number.isFinite(el.duration) &&
+        ct >= el.duration - 0.25
+      ) {
+        onForceFinished();
+      }
     }, 500);
     return () => clearInterval(t);
-  }, [audioRef]);
+  }, [audioRef, finished, onForceFinished]);
 
   const mm = (n: number) =>
     `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).padStart(2, "0")}`;
@@ -312,14 +344,14 @@ function ListeningAudioStatus({
       </div>
       <div className="text-sm font-medium text-slate-800 flex-1">
         {finished
-          ? "Audio finished"
+          ? "Audio finished — you can advance"
           : playing
             ? "Audio is playing — no pause"
             : "Audio paused (waiting for preview)"}
       </div>
       <div className="text-xs text-slate-500 font-mono">
         {mm(elapsed)}
-        {duration > 0 ? ` / ${mm(duration)}` : ""}
+        {duration > 0 && Number.isFinite(duration) ? ` / ${mm(duration)}` : ""}
       </div>
     </div>
   );
@@ -627,16 +659,24 @@ function ListeningRunner({
                 onTimeUpdate={() => {
                   if (audioRef.current) {
                     lastPositionRef.current = audioRef.current.currentTime;
-                    // Hard-block any pause attempt: if the user fires a
-                    // pause shortcut (spacebar, media keys), this snaps
-                    // back to playing on the next tick.
-                    if (audioRef.current.paused && !audioFinished) {
+                    // Re-play only if the audio hasn't naturally ended. If
+                    // the audio has reached its end, leave it alone so the
+                    // ended event can fire.
+                    if (
+                      audioRef.current.paused &&
+                      !audioRef.current.ended
+                    ) {
                       void audioRef.current.play().catch(() => {});
                     }
                   }
                 }}
                 onPause={() => {
-                  if (audioRef.current && !audioFinished) {
+                  // Don't fight against a natural end — only re-play if
+                  // the audio still has time remaining.
+                  if (
+                    audioRef.current &&
+                    !audioRef.current.ended
+                  ) {
                     void audioRef.current.play().catch(() => {});
                   }
                 }}
@@ -652,6 +692,7 @@ function ListeningRunner({
                 playing={!previewing && !audioFinished}
                 finished={audioFinished}
                 audioRef={audioRef}
+                onForceFinished={() => setAudioFinished(true)}
               />
             </>
           ) : (

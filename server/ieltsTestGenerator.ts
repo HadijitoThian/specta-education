@@ -70,32 +70,153 @@ const SECTION_BLUEPRINTS = [
   {
     sectionNumber: 1,
     theme:
-      "A telephone conversation about booking a holiday cottage. Two speakers: customer (female, British) calling Coastal Cottages, and agent (male, British) taking the booking. Cover: name, dates, number of adults/children, location preference (near beach), bedrooms, vehicle reg, special requirements (cot for baby, wheelchair access), payment method, booking reference.",
-    questionTypes: "Mostly form_completion (8-9 questions), with maybe 1-2 short_answer. Answers are short — names, numbers, dates, simple phrases.",
+      "A telephone conversation. Speaker labels: 'CUSTOMER:' (the person calling) and 'AGENT:' (the service-side speaker). The agent collects booking/enquiry information from the customer. Choose ONE coherent scenario: booking a holiday cottage, registering for a community course, opening a bank account, hiring a tour bus. CRITICAL: end the conversation cleanly when the form is complete — e.g., the agent confirms a reference number and the customer says 'Thanks, bye'. ABSOLUTELY DO NOT include a summary, recap, or list of what was just said.",
+    questionTypes:
+      "Questions are form_completion ONLY (10 questions). Format the prompt for each question as a single line of a form like: 'Name: ......(1)......' or 'Departure date: ......(3)......'. Each correctAnswer is a short literal phrase from the transcript (1-3 words: a name, a number, a date, a place). No MCQ, no matching, no summary, no list.",
   },
   {
     sectionNumber: 2,
     theme:
-      "A monologue: welcome talk by a guide at a wildlife sanctuary. Single speaker (male, Australian). Cover: history (founded 1992), number of animals and species, safety rules (no feeding, no photography in nursery, stay on path), tour schedule, facilities (cafe, gift shop, picnic area, first-aid station), where to meet at end.",
-    questionTypes: "Mix of multiple choice (3-4) and note_completion (6-7). Notes are structured under headers like 'History', 'Facilities', 'Tour schedule', 'Safety rules' with missing words to fill in (1-3 words each). Do NOT use map_labelling.",
+      "A monologue. Single speaker labelled 'GUIDE:' (or 'PRESENTER:', 'HOST:'). Single coherent topic: a welcome talk at a wildlife sanctuary, a radio show about a local event, a tour intro at a museum. CRITICAL: end with one complete sentence (e.g., 'I hope you enjoy your visit.'). Never trail off mid-sentence.",
+    questionTypes:
+      "Mix of multiple_choice (3-4 questions) and note_completion (6-7 questions). The note_completion questions MUST be organised under 2-3 DISTINCT section headers (e.g., 'History', 'Safety rules', 'Tour schedule'). Each question's prompt should include the relevant header OR be clearly part of a group. NEVER use map_labelling. Each question must test a UNIQUE fact — no two questions may test the same detail or share an opening phrase.",
   },
   {
     sectionNumber: 3,
     theme:
-      "An educational discussion: two university students (one American female, one British female) meeting with their tutor (male, British) about a comparative essay on urban migration in two countries. Discuss: structure, methodological differences, key researchers, deadlines, presentation format.",
-    questionTypes: "Mix of multiple_choice (4-5) and matching (5-6). Matching pairs researchers with their findings/positions.",
+      "An academic discussion between 3 named participants: 2 students and 1 tutor. CHOOSE specific names — e.g., 'MAYA:' (student), 'TOM:' (student), 'DR.WATSON:' (tutor) — and use them consistently as speaker labels. They discuss a research project, essay, or assignment with disagreement and viewpoints. Each student has a distinct opinion and the tutor mediates.",
+    questionTypes:
+      "5 multiple_choice questions (about specific things said in the discussion) + 5 matching questions where each statement is matched to one of the 3 named speakers. For matching, the options MUST be the speakers' names (e.g., 'A. Maya', 'B. Tom', 'C. Dr. Watson'). CRITICAL: correct answers for the matching questions MUST be shuffled and varied — DO NOT make the pattern A, B, C, A, B (which would be sequential per row). Use a randomised mix like B, A, C, A, C or C, B, A, B, A. Different speakers should be matched to different questions in unpredictable order. No two questions may share the same opening phrase.",
   },
   {
     sectionNumber: 4,
     theme:
-      "An academic lecture by a university professor (male, British, academic tone) on the economics of small-scale fisheries. Cover: definition (vessels under 12m), global statistics (40M people directly employed), main challenges (industrial competition, climate change, market access), policy recommendations (community rights, subsidies, infrastructure), case studies (Indonesia, Senegal).",
-    questionTypes: "All note_completion or summary_completion. Notes are structured with section headers and missing words to fill in.",
+      "An academic lecture by a named professor (e.g., 'PROF.MILLER:' or 'DR.CHEN:'). Single speaker. Pick ONE specific research topic. Structure the lecture into 3-4 CLEARLY DISTINCT subsections, each with its own focus and content. End with one complete sentence. Never repeat the same phrase to introduce different subsections.",
+    questionTypes:
+      "10 note_completion questions structured as student notes. CRITICAL FORMAT: the prompts together form a coherent set of notes organised under 3-4 SECTION HEADERS. Group questions under each header. For each question, the prompt should include the section header (if it's the first question under that header) AND/OR a bullet point with a fill-in blank like '- vessels under .......... metres (1)'. Each question prompt must be DISTINCT — the same opening phrase (e.g., 'Policy recommendations:') may appear once as a header, but the individual bullet-point question stems under it must be unique and test different facts.",
   },
 ];
 
+/**
+ * Validate a generated Listening section against real-IELTS constraints.
+ * Returns an array of issue strings. Empty array = pass.
+ */
+function validateListeningSection(
+  section: ListeningSectionDraft,
+  sectionNumber: 1 | 2 | 3 | 4
+): string[] {
+  const issues: string[] = [];
+
+  // 1. Exact question count.
+  if (section.questions.length !== 10) {
+    issues.push(
+      `Expected exactly 10 questions, got ${section.questions.length}`
+    );
+  }
+
+  // 2. No matching answers in sequential alphabetical/roman order.
+  const matchingQs = section.questions.filter(q =>
+    ["matching", "map_labelling"].includes(q.questionType)
+  );
+  if (matchingQs.length >= 4) {
+    const letters = matchingQs
+      .map(q => (q.correctAnswers[0] ?? "").trim().toUpperCase())
+      .filter(s => s.length >= 1);
+    // Check for strictly sequential ASCII order (A,B,C,D,... or letter pairs).
+    const allSingleLetter = letters.every(l => /^[A-Z]$/.test(l));
+    if (allSingleLetter && letters.length >= 4) {
+      let isSequential = true;
+      for (let i = 1; i < letters.length; i++) {
+        if (letters[i].charCodeAt(0) !== letters[i - 1].charCodeAt(0) + 1) {
+          isSequential = false;
+          break;
+        }
+      }
+      if (isSequential) {
+        issues.push(
+          `Matching answers are in sequential order (${letters.join(",")}) — must be shuffled`
+        );
+      }
+    }
+  }
+
+  // 3. No two questions share the first 6 words of their prompt
+  //    (excluding the section header).
+  const stems = section.questions.map(q =>
+    q.prompt
+      .replace(/\(\d+\)/g, "")
+      .replace(/\.{2,}/g, "")
+      .trim()
+      .toLowerCase()
+      .split(/\s+/)
+      .slice(0, 6)
+      .join(" ")
+  );
+  const stemCounts: Record<string, number> = {};
+  for (const s of stems) {
+    if (s.length < 10) continue; // skip very short prompts (just headers)
+    stemCounts[s] = (stemCounts[s] ?? 0) + 1;
+  }
+  for (const [stem, count] of Object.entries(stemCounts)) {
+    if (count >= 2) {
+      issues.push(
+        `${count} questions share opening "${stem.slice(0, 40)}…" — must be unique`
+      );
+    }
+  }
+
+  // 4. Transcript ends with a proper sentence-final punctuation.
+  const trimmed = section.transcript.trim();
+  const lastChar = trimmed.slice(-1);
+  if (!['"', "'", ".", "!", "?", "”", ")"].includes(lastChar)) {
+    issues.push(
+      `Transcript doesn't end with sentence-final punctuation. Tail: "…${trimmed.slice(-40)}"`
+    );
+  }
+
+  // 5. Section 1: must be predominantly form_completion.
+  if (sectionNumber === 1) {
+    const formCount = section.questions.filter(
+      q => q.questionType === "form_completion"
+    ).length;
+    if (formCount < 8) {
+      issues.push(
+        `Section 1 should be predominantly form_completion (≥8); got ${formCount}`
+      );
+    }
+  }
+
+  // 6. Section 1 must not contain a summary section.
+  if (sectionNumber === 1) {
+    const lower = trimmed.toLowerCase();
+    if (/\b(to summari[sz]e|let me summar|in summary|so to recap)\b/.test(lower)) {
+      issues.push(`Section 1 transcript contains a forbidden summary phrase`);
+    }
+  }
+
+  // 7. Section 3 matching must have answers spread across all named speakers.
+  if (sectionNumber === 3) {
+    const matchingS3 = section.questions.filter(q => q.questionType === "matching");
+    if (matchingS3.length >= 4) {
+      const answers = matchingS3.map(q =>
+        (q.correctAnswers[0] ?? "").trim().toUpperCase()
+      );
+      const uniqueAnswers = new Set(answers);
+      if (uniqueAnswers.size < 2) {
+        issues.push(
+          `Section 3 matching answers must use at least 2 different speakers; got ${Array.from(uniqueAnswers).join(",")}`
+        );
+      }
+    }
+  }
+
+  return issues;
+}
+
 async function generateListeningSection(
   sectionNumber: 1 | 2 | 3 | 4,
-  startingQuestionNumber: number
+  startingQuestionNumber: number,
+  attempt = 1
 ): Promise<ListeningSectionDraft> {
   const blueprint = SECTION_BLUEPRINTS.find(b => b.sectionNumber === sectionNumber)!;
 
@@ -134,7 +255,48 @@ ${blueprint.questionTypes}
 
 Generate the section now. JSON only.`;
 
-  return llmJson<ListeningSectionDraft>(system, user, 4000);
+  const draft = await llmJson<ListeningSectionDraft>(system, user, 4000);
+
+  // Validate. If it fails, retry up to 3 times with explicit feedback.
+  const issues = validateListeningSection(draft, sectionNumber);
+  if (issues.length === 0) return draft;
+
+  if (attempt >= 3) {
+    console.warn(
+      `[IELTS Gen] Section ${sectionNumber} still has issues after ${attempt} attempts; accepting anyway:`,
+      issues
+    );
+    return draft;
+  }
+
+  console.warn(
+    `[IELTS Gen] Section ${sectionNumber} attempt ${attempt} failed validation. Retrying with feedback:`,
+    issues
+  );
+
+  // Recursive retry with the failures fed back into the prompt.
+  const feedbackSystem = `${system}
+
+PREVIOUS ATTEMPT FAILED these validation checks — fix ALL of them this time:
+${issues.map(i => `- ${i}`).join("\n")}
+
+These rules are NON-NEGOTIABLE. Do not produce another draft that violates them.`;
+
+  // Reuse user prompt; new system carries the feedback.
+  const draftRetry = await llmJson<ListeningSectionDraft>(
+    feedbackSystem,
+    user,
+    4000
+  );
+  const retryIssues = validateListeningSection(draftRetry, sectionNumber);
+  if (retryIssues.length === 0) return draftRetry;
+
+  // Try one more time recursively if attempts remain.
+  return generateListeningSection(
+    sectionNumber,
+    startingQuestionNumber,
+    attempt + 1
+  );
 }
 
 type ReadingPassageDraft = {
@@ -448,27 +610,32 @@ async function ttsListeningSection(
     return key;
   }
 
-  // Multi-speaker: synth each segment with its speaker's voice, then
-  // concatenate the MP3 byte streams. MP3 frames are independent so naive
-  // binary concat plays correctly.
+  // Multi-speaker: synth each segment (chunking long ones at sentence
+  // boundaries to avoid ElevenLabs' soft per-request character limit which
+  // can truncate the tail) with its speaker's voice, then concatenate the
+  // MP3 byte streams. MP3 frames are independent so naive binary concat
+  // plays correctly.
   const buffers: Buffer[] = [];
   for (const seg of segments) {
     const voiceId = voiceMap.get(seg.speaker) ?? voiceForSection(sectionNumber);
-    try {
-      const audio = await ttsSynthesize({
-        text: seg.text,
-        voiceId,
-        modelId: "eleven_multilingual_v2",
-        outputFormat: "mp3_44100_128",
-        stability: 0.5,
-        similarityBoost: 0.75,
-      });
-      buffers.push(audio);
-    } catch (err) {
-      console.warn(
-        `[IELTS Gen] TTS segment failed in section ${sectionNumber} (speaker ${seg.speaker}):`,
-        err
-      );
+    const chunks = chunkTextForTTS(seg.text, 1800);
+    for (const chunk of chunks) {
+      try {
+        const audio = await ttsSynthesize({
+          text: chunk,
+          voiceId,
+          modelId: "eleven_multilingual_v2",
+          outputFormat: "mp3_44100_128",
+          stability: 0.5,
+          similarityBoost: 0.75,
+        });
+        buffers.push(audio);
+      } catch (err) {
+        console.warn(
+          `[IELTS Gen] TTS chunk failed in section ${sectionNumber} (speaker ${seg.speaker}):`,
+          err
+        );
+      }
     }
   }
 
@@ -476,6 +643,30 @@ async function ttsListeningSection(
   const key = `ielts/audio/${testCode}/section-${sectionNumber}-${nanoid(6)}.mp3`;
   await storagePut(key, combined, "audio/mpeg");
   return key;
+}
+
+/**
+ * Split text at sentence boundaries so each chunk stays under `maxLen`
+ * characters. Prevents ElevenLabs from truncating the tail of long requests.
+ */
+function chunkTextForTTS(text: string, maxLen: number): string[] {
+  const cleaned = text.trim();
+  if (cleaned.length <= maxLen) return [cleaned];
+  const sentences = cleaned.split(/(?<=[.!?])\s+/);
+  const chunks: string[] = [];
+  let current = "";
+  for (const s of sentences) {
+    if (current.length === 0) {
+      current = s;
+    } else if (current.length + 1 + s.length <= maxLen) {
+      current += " " + s;
+    } else {
+      chunks.push(current);
+      current = s;
+    }
+  }
+  if (current.length > 0) chunks.push(current);
+  return chunks;
 }
 
 async function generateChartImage(
