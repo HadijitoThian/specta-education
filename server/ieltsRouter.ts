@@ -1368,19 +1368,14 @@ export const ieltsRouter = router({
           questions: questions.map(q => {
             const a = answerByQ.get(q.id);
             const correct = (q.correctAnswers ?? []) as string[];
-            // Recompute live with the latest grading rules so older attempts
-            // (graded before the MCQ-letter / hyphen fixes) display correctly.
-            const isCorrect = isAnswerCorrect(
-              a?.studentAnswer,
-              correct,
-              q.questionType
-            );
             return {
               questionNumber: q.questionNumber,
               prompt: q.prompt,
               yourAnswer: a?.studentAnswer ?? "",
               correctAnswers: correct,
-              isCorrect,
+              // isCorrect is the authoritative grade persisted by
+              // finalizeAttempt (deterministic + context-aware LLM pass).
+              isCorrect: a?.isCorrect ?? false,
             };
           }),
         });

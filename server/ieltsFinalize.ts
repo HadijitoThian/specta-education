@@ -27,7 +27,7 @@ import { getDb } from "./db";
 import { storagePut } from "./storage";
 import { ENV } from "./_core/env";
 import { renderIeltsReportPdf, type IeltsReportData } from "./ieltsReportPdf";
-import { isAnswerCorrect } from "./ieltsGrading";
+import { gradeObjectiveAnswers } from "./ieltsGrading";
 
 // ---------------------------------------------------------------------------
 // Band conversion tables (official IELTS public conversions)
@@ -160,27 +160,38 @@ export async function finalizeAttempt(
         id: ieltsListeningQuestions.id,
         sectionId: ieltsListeningQuestions.sectionId,
         questionType: ieltsListeningQuestions.questionType,
+        prompt: ieltsListeningQuestions.prompt,
         correctAnswers: ieltsListeningQuestions.correctAnswers,
       })
       .from(ieltsListeningQuestions);
     const ourQs = lQRows.filter(q => lSectionIds.includes(q.sectionId));
-    const ourQMap = new Map(ourQs.map(q => [q.id, q]));
     listeningTotal = ourQs.length;
     const lAns = await db
       .select()
       .from(ieltsListeningAnswers)
       .where(eq(ieltsListeningAnswers.attemptId, attempt.id));
-    // Recompute correctness from the stored answer + key (don't trust the
-    // historical isCorrect flag, which may predate grading-logic fixes).
-    listeningRaw = lAns.filter(a => {
-      const q = ourQMap.get(a.questionId);
-      if (!q) return false;
-      return isAnswerCorrect(
-        a.studentAnswer,
-        (q.correctAnswers ?? []) as string[],
-        q.questionType
-      );
-    }).length;
+    // Deterministic + context-aware (LLM) grading, recomputed from the stored
+    // answers (don't trust historical isCorrect, which predates fixes). Then
+    // persist the result so the report's answer-review reflects it.
+    const graded = await gradeObjectiveAnswers(
+      ourQs.map(q => ({
+        id: q.id,
+        questionType: q.questionType,
+        prompt: q.prompt,
+        correctAnswers: (q.correctAnswers ?? []) as string[],
+      })),
+      lAns.map(a => ({ questionId: a.questionId, studentAnswer: a.studentAnswer }))
+    );
+    for (const a of lAns) {
+      const ok = graded.get(a.questionId) ?? false;
+      if (a.isCorrect !== ok) {
+        await db
+          .update(ieltsListeningAnswers)
+          .set({ isCorrect: ok })
+          .where(eq(ieltsListeningAnswers.id, a.id));
+      }
+      if (ok) listeningRaw++;
+    }
   }
   const listeningBand = listeningRawToBand(listeningRaw);
 
@@ -199,25 +210,35 @@ export async function finalizeAttempt(
         id: ieltsReadingQuestions.id,
         passageId: ieltsReadingQuestions.passageId,
         questionType: ieltsReadingQuestions.questionType,
+        prompt: ieltsReadingQuestions.prompt,
         correctAnswers: ieltsReadingQuestions.correctAnswers,
       })
       .from(ieltsReadingQuestions);
     const ourRQs = rQRows.filter(q => rPassageIds.includes(q.passageId));
-    const ourRQMap = new Map(ourRQs.map(q => [q.id, q]));
     readingTotal = ourRQs.length;
     const rAns = await db
       .select()
       .from(ieltsReadingAnswers)
       .where(eq(ieltsReadingAnswers.attemptId, attempt.id));
-    readingRaw = rAns.filter(a => {
-      const q = ourRQMap.get(a.questionId);
-      if (!q) return false;
-      return isAnswerCorrect(
-        a.studentAnswer,
-        (q.correctAnswers ?? []) as string[],
-        q.questionType
-      );
-    }).length;
+    const graded = await gradeObjectiveAnswers(
+      ourRQs.map(q => ({
+        id: q.id,
+        questionType: q.questionType,
+        prompt: q.prompt,
+        correctAnswers: (q.correctAnswers ?? []) as string[],
+      })),
+      rAns.map(a => ({ questionId: a.questionId, studentAnswer: a.studentAnswer }))
+    );
+    for (const a of rAns) {
+      const ok = graded.get(a.questionId) ?? false;
+      if (a.isCorrect !== ok) {
+        await db
+          .update(ieltsReadingAnswers)
+          .set({ isCorrect: ok })
+          .where(eq(ieltsReadingAnswers.id, a.id));
+      }
+      if (ok) readingRaw++;
+    }
   }
   const readingBand = readingRawToBand(readingRaw, test.testType);
 
