@@ -382,7 +382,14 @@ export async function renderIeltsReportPdf(
     defaultStyle: { font: "Roboto", fontSize: 10, color: COLORS.ink },
   };
 
-  const pdfDoc = printer.createPdfKitDocument(docDef);
+  // pdfmake 0.3.x: createPdfKitDocument returns an OutputDocument whose
+  // getBuffer() resolves to a Buffer. (The old 0.2.x API returned a raw
+  // PDFKit stream with .on('data'/'end') — that no longer exists, which was
+  // silently failing report-PDF generation.)
+  // pdfmake 0.3.x: createPdfKitDocument is ASYNC and resolves to a PDFKit
+  // document (a readable stream). The previous code never awaited it, so
+  // `pdfDoc` was a Promise with no `.on` — silently failing every report PDF.
+  const pdfDoc: any = await printer.createPdfKitDocument(docDef);
   const chunks: Buffer[] = [];
   return new Promise<Buffer>((resolve, reject) => {
     pdfDoc.on("data", (chunk: Buffer) => chunks.push(chunk));
