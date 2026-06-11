@@ -69,6 +69,8 @@ type ListeningSectionDraft = {
 const SECTION_BLUEPRINTS = [
   {
     sectionNumber: 1,
+    difficulty:
+      "EASIEST (band 4-5.5 entry). Everyday vocabulary. Answers are stated clearly and directly. Use AT MOST ONE gentle distractor in the whole section (e.g., the customer gives a date then says a different one — 'the 15th, no sorry, the 16th'). Speech is at a relaxed, clear pace.",
     theme:
       "A telephone conversation. Speaker labels: 'CUSTOMER:' (the person calling) and 'AGENT:' (the service-side speaker). The agent collects booking/enquiry information from the customer. Choose ONE coherent scenario: booking a holiday cottage, registering for a community course, opening a bank account, hiring a tour bus. CRITICAL: end the conversation cleanly when the form is complete — e.g., the agent confirms a reference number and the customer says 'Thanks, bye'. ABSOLUTELY DO NOT include a summary, recap, or list of what was just said.",
     questionTypes:
@@ -76,6 +78,8 @@ const SECTION_BLUEPRINTS = [
   },
   {
     sectionNumber: 2,
+    difficulty:
+      "EASY-MEDIUM (band 5-6.5). Slightly richer vocabulary. Include 2 distractors across the section — e.g., the speaker gives a time then corrects it, or lists several facilities but only one matches the question. The question wording should PARAPHRASE the audio (not use the exact same words).",
     theme:
       "A monologue by a MALE speaker. Use a male first name from this set: DAVID, MARK, JAMES, TOM, MIKE, PAUL, GEORGE, OLIVER, HENRY, WILLIAM. Speaker label format MUST be like 'DAVID:' or 'GUIDE:' (and the speaker introduces himself naturally — 'Hello everyone, I'm David and I'll be your guide today'). Single coherent topic: a welcome talk at a wildlife sanctuary, a radio show about a local event, a tour intro at a museum. CRITICAL: end with one complete sentence (e.g., 'I hope you enjoy your visit.'). Never trail off mid-sentence. CRITICAL: the speaker is MALE, so any self-introduction or name reference must be a male name. Include standard IELTS audio cues like 'Now look at questions 14 to 20' before the second batch of questions begins in the transcript.",
     questionTypes:
@@ -83,6 +87,8 @@ const SECTION_BLUEPRINTS = [
   },
   {
     sectionNumber: 3,
+    difficulty:
+      "MEDIUM-HARD (band 6-7.5). Academic vocabulary and abstract opinions. Include 3+ distractors: speakers disagree and change their minds ('I thought it was the sample size, but actually it's the methodology'), one speaker proposes an idea another rejects, and the questions PARAPHRASE heavily (the answer is never the exact words spoken). The MCQ distractor options should all be plausible things mentioned in the audio.",
     theme:
       "An academic discussion between 3 named participants: ONE MALE student, ONE FEMALE student, and ONE tutor (any gender). MUST USE these specific labels: 'TOM:' for the MALE student, 'MAYA:' for the FEMALE student, and 'DR.WATSON:' for the tutor. Do not deviate from these names or labels. They discuss a research project, essay, or assignment with disagreement and viewpoints. Each student has a distinct opinion and the tutor mediates. Include standard IELTS audio cues like 'Now look at questions 25 to 30' before the second batch begins.",
     questionTypes:
@@ -90,6 +96,8 @@ const SECTION_BLUEPRINTS = [
   },
   {
     sectionNumber: 4,
+    difficulty:
+      "HARDEST (band 6.5-8.5). Dense academic monologue with sophisticated vocabulary and complex sentence structures. The answers are NEVER stated word-for-word — the student must understand a paraphrased idea and extract the key term. Include subtle qualifications ('while early studies suggested X, more recent work points to Y'). Fast, information-rich delivery. This section separates strong candidates from average ones.",
     theme:
       "An academic lecture by a named professor (e.g., 'PROF.MILLER:' or 'DR.CHEN:'). Single speaker. Pick ONE specific research topic. Structure the lecture into 3-4 CLEARLY DISTINCT subsections, each with its own focus and content. End with one complete sentence. Never repeat the same phrase to introduce different subsections. Include standard IELTS audio cues like 'Before you listen to the next part, you have time to look at questions 35 to 40' midway through.",
     questionTypes:
@@ -220,7 +228,13 @@ async function generateListeningSection(
 ): Promise<ListeningSectionDraft> {
   const blueprint = SECTION_BLUEPRINTS.find(b => b.sectionNumber === sectionNumber)!;
 
-  const system = `You are writing IELTS Listening test content. You must produce content that matches the official IELTS Listening band-7 difficulty.
+  const system = `You are writing IELTS Listening test content matching the OFFICIAL international IELTS standard.
+
+=== DIFFICULTY FOR THIS SECTION (Section ${sectionNumber}) ===
+${blueprint.difficulty}
+
+Real IELTS gets progressively harder from Section 1 (easiest) to Section 4 (hardest). Respect the tier above exactly. The single most important quality marker: real IELTS uses AUDIO DISTRACTORS — the speaker mentions a wrong option before the right one, corrects themselves, or the question paraphrases the audio so the answer isn't the literal words spoken. Build these in per the tier above.
+
 
 Return JSON ONLY with this exact shape:
 {
@@ -878,6 +892,56 @@ export async function generateAcademicTest(args: {
     writingPromise,
     speakingPromise,
   ]);
+
+  // Step 1b: any section/passage that came back null (LLM threw / invalid
+  // JSON) gets a sequential retry — up to 2 attempts each — so we NEVER
+  // end up with fewer than 4 listening sections or 3 reading passages.
+  for (let i = 0; i < 4; i++) {
+    if (listening[i]) continue;
+    const sectionNumber = (i + 1) as 1 | 2 | 3 | 4;
+    for (let retry = 0; retry < 2 && !listening[i]; retry++) {
+      try {
+        console.log(
+          `[IELTS Gen] Sequential retry for Listening section ${sectionNumber} (try ${retry + 1})`
+        );
+        listening[i] = await generateListeningSection(
+          sectionNumber,
+          1 + i * 10
+        );
+      } catch (e: any) {
+        errors.push(
+          `Listening S${sectionNumber} retry ${retry + 1}: ${e.message}`
+        );
+      }
+    }
+  }
+  for (let i = 0; i < 3; i++) {
+    if (reading[i]) continue;
+    const passageNumber = (i + 1) as 1 | 2 | 3;
+    for (let retry = 0; retry < 2 && !reading[i]; retry++) {
+      try {
+        console.log(
+          `[IELTS Gen] Sequential retry for Reading passage ${passageNumber} (try ${retry + 1})`
+        );
+        reading[i] = await generateReadingPassage(passageNumber, 1 + i * 13);
+      } catch (e: any) {
+        errors.push(
+          `Reading P${passageNumber} retry ${retry + 1}: ${e.message}`
+        );
+      }
+    }
+  }
+
+  // Hard guard: if we still don't have all 4 listening sections, abort the
+  // whole generation rather than save a broken 3-section test. The caller
+  // (admin Regenerate / endpoint) will see the error and can retry.
+  const missingListening = listening.filter(s => !s).length;
+  const missingReading = reading.filter(p => !p).length;
+  if (missingListening > 0 || missingReading > 0) {
+    throw new Error(
+      `Generation incomplete: ${missingListening} listening section(s) and ${missingReading} reading passage(s) failed after retries. Errors: ${errors.join(" | ")}`
+    );
+  }
 
   // Step 2: insert the test row.
   console.log("[IELTS Gen] Inserting test row...");

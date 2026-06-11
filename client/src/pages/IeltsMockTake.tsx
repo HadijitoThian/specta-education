@@ -24,6 +24,17 @@ export default function IeltsMockTake() {
     },
   });
 
+  const status = attemptQuery.data?.attempt.status;
+
+  // Redirect to the report once grading/completed. Done in an effect (NOT
+  // during render) to avoid a render-time side effect that breaks hooks.
+  useEffect(() => {
+    if (status === "grading" || status === "completed") {
+      setLocation(`/ielts/mock-test/report/${token}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+
   // ----- Gates -----
 
   if (!token) {
@@ -73,7 +84,6 @@ export default function IeltsMockTake() {
     );
   }
 
-  const status = attemptQuery.data?.attempt.status;
   const test = attemptQuery.data?.test;
   const paidAt = attemptQuery.data?.attempt.paidAt;
 
@@ -150,7 +160,7 @@ export default function IeltsMockTake() {
   }
 
   if (status === "grading" || status === "completed") {
-    setLocation(`/ielts/mock-test/report/${token}`);
+    // The useEffect above handles the actual redirect; just show a spinner.
     return (
       <Shell>
         <Card>Loading your report…</Card>
@@ -1506,18 +1516,9 @@ function SpeakingRunner({
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const [examinerPlayedFor, setExaminerPlayedFor] = useState<number | null>(null);
 
-  if (stateQuery.isLoading) {
-    return <Card>Loading Speaking session…</Card>;
-  }
-  if (stateQuery.isError) {
-    return (
-      <Card>
-        <h1 className="text-xl font-semibold mb-2">Could not start Speaking</h1>
-        <p className="text-sm text-slate-600">{stateQuery.error.message}</p>
-      </Card>
-    );
-  }
-
+  // --- Derived values (safe even while loading; `?? []` guards undefined). ---
+  // These MUST be computed before any early return so the hooks below run on
+  // every render (React rules-of-hooks).
   const conversation: ConversationTurn[] =
     (stateQuery.data?.conversation as any) ?? [];
   const allPromptsDone = !!stateQuery.data?.allPromptsDone;
@@ -1535,6 +1536,33 @@ function SpeakingRunner({
     : nextPrompt
       ? `Part ${nextPrompt.partNumber}`
       : "";
+
+  // Auto-play examiner audio once it arrives. MUST be before early returns.
+  useEffect(() => {
+    if (!lastExaminerTurn) return;
+    if (examinerPlayedFor === lastExaminerTurn.id) return;
+    if (!awaitingStudent) return;
+    if (lastExaminerTurn.audioUrl && audioPlayerRef.current) {
+      audioPlayerRef.current.src = lastExaminerTurn.audioUrl;
+      void audioPlayerRef.current.play().catch(() => {});
+      setExaminerPlayedFor(lastExaminerTurn.id);
+    } else if (!lastExaminerTurn.audioUrl) {
+      // No audio (TTS failed) — mark as played so UI moves on.
+      setExaminerPlayedFor(lastExaminerTurn.id);
+    }
+  }, [lastExaminerTurn, awaitingStudent, examinerPlayedFor]);
+
+  if (stateQuery.isLoading) {
+    return <Card>Loading Speaking session…</Card>;
+  }
+  if (stateQuery.isError) {
+    return (
+      <Card>
+        <h1 className="text-xl font-semibold mb-2">Could not start Speaking</h1>
+        <p className="text-sm text-slate-600">{stateQuery.error.message}</p>
+      </Card>
+    );
+  }
 
   async function startRecording() {
     setMicError(null);
@@ -1590,21 +1618,6 @@ function SpeakingRunner({
   async function finish() {
     finishMut.mutate({ token });
   }
-
-  // Auto-play examiner audio once it arrives.
-  useEffect(() => {
-    if (!lastExaminerTurn) return;
-    if (examinerPlayedFor === lastExaminerTurn.id) return;
-    if (!awaitingStudent) return;
-    if (lastExaminerTurn.audioUrl && audioPlayerRef.current) {
-      audioPlayerRef.current.src = lastExaminerTurn.audioUrl;
-      void audioPlayerRef.current.play().catch(() => {});
-      setExaminerPlayedFor(lastExaminerTurn.id);
-    } else if (!lastExaminerTurn.audioUrl) {
-      // No audio (TTS failed) — mark as played so UI moves on.
-      setExaminerPlayedFor(lastExaminerTurn.id);
-    }
-  }, [lastExaminerTurn, awaitingStudent, examinerPlayedFor]);
 
   // Lobby — no turns yet.
   if (conversation.length === 0 && !allPromptsDone) {
