@@ -57,6 +57,10 @@ async function llmJson<T>(system: string, user: string, maxTokens = 4000): Promi
 type ListeningSectionDraft = {
   transcript: string;
   durationSec: number;
+  /** Short noun phrase for the narrator's "You will hear …" intro. */
+  audioIntro?: string;
+  /** Section 1 only — a short worked example played before the test begins. */
+  example?: { lines: string; answer: string } | null;
   questions: Array<{
     questionNumber: number;
     questionType: string;
@@ -243,7 +247,9 @@ Real IELTS gets progressively harder from Section 1 (easiest) to Section 4 (hard
 
 Return JSON ONLY with this exact shape:
 {
-  "transcript": "Full transcript with speaker labels like 'AGENT:' or 'GUIDE:' on each line. ~600-900 words. Natural conversational/lecture rhythm. Include numbers, dates, names, places that match the questions.",
+  "audioIntro": "A short noun phrase the narrator reads after 'You will hear', describing the recording — e.g. 'a conversation between a student and an accommodation officer about renting a room' or 'a talk given to new museum volunteers'. No speaker labels, no quotes, no trailing full stop.",
+  "example": ${sectionNumber === 1 ? `{ "lines": "A SHORT 2-3 line standalone example exchange WITH speaker labels that demonstrates how an answer is given (do NOT reuse any of the 10 real answers)", "answer": "the example answer, 1-3 words" }` : "null"},
+  "transcript": "Full transcript with speaker labels like 'AGENT:' or 'GUIDE:' on each line. ~600-900 words. Natural conversational/lecture rhythm. Include numbers, dates, names, places that match the questions. Insert ONE line containing exactly [[SPLIT]] at the natural midpoint between the first half of questions (${startingQuestionNumber}-${startingQuestionNumber + 4}) and the second half (${startingQuestionNumber + 5}-${startingQuestionNumber + 9}). Do NOT write any spoken instructions, reading-time cues, or 'now look at questions…' lines — the system adds all narrator instructions automatically.",
   "durationSec": number,
   "questions": [
     {
@@ -265,7 +271,8 @@ Rules:
 - For map_labelling: options are letters A-H labeling pre-known locations. correctAnswer is a single letter.
 - Transcript MUST be self-contained — every answer should be derivable from the transcript by a careful listener.
 - Match the section blueprint exactly.
-- The transcript MUST include at least one standard IELTS audio cue mid-section, such as "Now look at questions [X] to [Y]" or "Before you listen to the next part, you have time to look at questions [X] to [Y]." Place it naturally between the two halves of questions, attributed to the same speaker as the surrounding content.`;
+- The transcript MUST contain exactly ONE line that is just [[SPLIT]] (nothing else on that line), placed at the natural midpoint between the two halves of questions. Do NOT write any "now look at questions…" cues or other spoken instructions — the narrator instructions are added by the system.
+- "audioIntro" is REQUIRED. ${sectionNumber === 1 ? '"example" is REQUIRED for Section 1: a short standalone exchange whose answer is NOT one of the 10 real answers.' : '"example" must be null for this section.'}`;
 
   const user = `Section ${sectionNumber} blueprint:
 ${blueprint.theme}
@@ -666,73 +673,73 @@ function buildSpeakerVoiceMap(
   return map;
 }
 
-async function ttsListeningSection(
-  testCode: string,
-  sectionNumber: 1 | 2 | 3 | 4,
-  transcript: string
-): Promise<string> {
-  const segments = parseTranscript(transcript);
+// Reading/checking pause lengths (seconds) — matched to the real test.
+const READ_PAUSE_SEC = 20;
+const CHECK_PAUSE_SEC = 30;
 
-  // No speaker labels detected — fall back to single voice.
-  if (segments.length === 0) {
-    const cleaned = transcript.replace(/\s+/g, " ").trim();
-    const audio = await ttsSynthesize({
-      text: cleaned,
-      voiceId: voiceForSection(sectionNumber),
-      modelId: "eleven_multilingual_v2",
-      outputFormat: "mp3_44100_128",
-      stability: 0.5,
-      similarityBoost: 0.75,
-    });
-    const key = `ielts/audio/${testCode}/section-${sectionNumber}-${nanoid(6)}.mp3`;
-    await storagePut(key, audio, "audio/mpeg");
-    return key;
-  }
+/**
+ * One silent MPEG-1 Layer III frame at 44.1 kHz / 128 kbps / joint-stereo —
+ * the SAME format ElevenLabs returns (mp3_44100_128). All-zero main data
+ * decodes to silence, and MP3 frames are independent so these concatenate
+ * cleanly with the spoken segments. Header: FF FB 90 64.
+ */
+const SILENT_MP3_FRAME = Buffer.concat([
+  Buffer.from([0xff, 0xfb, 0x90, 0x64]),
+  Buffer.alloc(413), // frame length 417 bytes total for this format
+]);
+const MP3_FRAMES_PER_SEC = 44100 / 1152; // ≈ 38.28
 
-  const uniqueSpeakers = Array.from(new Set(segments.map(s => s.speaker)));
-  const voiceMap = buildSpeakerVoiceMap(sectionNumber, uniqueSpeakers);
+/** Build a silent MP3 buffer of roughly `seconds` length. */
+function silentMp3(seconds: number): Buffer {
+  const n = Math.max(1, Math.round(seconds * MP3_FRAMES_PER_SEC));
+  return Buffer.concat(new Array(n).fill(SILENT_MP3_FRAME));
+}
 
-  // For sections 2 and 4 (single-speaker monologue), or when only one
-  // speaker is detected, just synthesize the whole thing as one call.
-  if (
-    (sectionNumber === 2 || sectionNumber === 4) ||
-    uniqueSpeakers.length === 1
-  ) {
-    const cleaned = segments.map(s => s.text).join(" ");
-    const voiceId = voiceMap.get(uniqueSpeakers[0]) ?? voiceForSection(sectionNumber);
-    const audio = await ttsSynthesize({
-      text: cleaned,
-      voiceId,
-      modelId: "eleven_multilingual_v2",
-      outputFormat: "mp3_44100_128",
-      stability: 0.5,
-      similarityBoost: 0.75,
-    });
-    const key = `ielts/audio/${testCode}/section-${sectionNumber}-${nanoid(6)}.mp3`;
-    await storagePut(key, audio, "audio/mpeg");
-    return key;
-  }
-
-  // Multi-speaker: synth each segment (chunking long ones at sentence
-  // boundaries to avoid ElevenLabs' soft per-request character limit which
-  // can truncate the tail) with its speaker's voice, then concatenate the
-  // MP3 byte streams. MP3 frames are independent so naive binary concat
-  // plays correctly.
-  const buffers: Buffer[] = [];
-  for (const seg of segments) {
-    const voiceId = voiceMap.get(seg.speaker) ?? voiceForSection(sectionNumber);
-    const chunks = chunkTextForTTS(seg.text, 1800);
-    for (const chunk of chunks) {
-      try {
-        const audio = await ttsSynthesize({
+/** Synthesize narrator instruction text (chunked) into one MP3 buffer. */
+async function ttsNarrate(text: string): Promise<Buffer> {
+  const bufs: Buffer[] = [];
+  for (const chunk of chunkTextForTTS(text.trim(), 1500)) {
+    if (!chunk) continue;
+    try {
+      bufs.push(
+        await ttsSynthesize({
           text: chunk,
-          voiceId,
+          voiceId: LISTENING_VOICE_MAP.narrator,
           modelId: "eleven_multilingual_v2",
           outputFormat: "mp3_44100_128",
-          stability: 0.5,
+          stability: 0.6,
           similarityBoost: 0.75,
-        });
-        buffers.push(audio);
+        })
+      );
+    } catch (err) {
+      console.warn(`[IELTS Gen] narrator TTS failed:`, err);
+    }
+  }
+  return Buffer.concat(bufs);
+}
+
+/** Synthesize a block of speaker segments (multi-voice) into one MP3 buffer. */
+async function ttsSpeakSegments(
+  segments: Segment[],
+  sectionNumber: 1 | 2 | 3 | 4,
+  voiceMap: Map<string, string>
+): Promise<Buffer> {
+  const bufs: Buffer[] = [];
+  for (const seg of segments) {
+    const voiceId = voiceMap.get(seg.speaker) ?? voiceForSection(sectionNumber);
+    for (const chunk of chunkTextForTTS(seg.text, 1800)) {
+      if (!chunk) continue;
+      try {
+        bufs.push(
+          await ttsSynthesize({
+            text: chunk,
+            voiceId,
+            modelId: "eleven_multilingual_v2",
+            outputFormat: "mp3_44100_128",
+            stability: 0.5,
+            similarityBoost: 0.75,
+          })
+        );
       } catch (err) {
         console.warn(
           `[IELTS Gen] TTS chunk failed in section ${sectionNumber} (speaker ${seg.speaker}):`,
@@ -741,6 +748,125 @@ async function ttsListeningSection(
       }
     }
   }
+  return Buffer.concat(bufs);
+}
+
+function defaultAudioIntro(sectionNumber: 1 | 2 | 3 | 4): string {
+  switch (sectionNumber) {
+    case 1:
+      return "a conversation between two people in an everyday situation";
+    case 2:
+      return "a talk given by one speaker";
+    case 3:
+      return "a discussion between students and their tutor";
+    case 4:
+      return "part of a university lecture";
+  }
+}
+
+/**
+ * Assemble a Listening section's audio with real-IELTS-style narrated
+ * instructions: opening (Section 1), section intro, a worked example
+ * (Section 1), reading-time pauses before each half, and a check pause at
+ * the end. The dialogue is split into two halves at the [[SPLIT]] marker.
+ */
+async function ttsListeningSection(
+  testCode: string,
+  sectionNumber: 1 | 2 | 3 | 4,
+  draft: ListeningSectionDraft,
+  startingQuestionNumber: number
+): Promise<string> {
+  const fullTranscript = draft.transcript;
+
+  // Split the dialogue into two halves at the [[SPLIT]] marker (fallback:
+  // split the parsed segments down the middle).
+  let part1Text: string;
+  let part2Text: string;
+  if (fullTranscript.includes("[[SPLIT]]")) {
+    const idx = fullTranscript.indexOf("[[SPLIT]]");
+    part1Text = fullTranscript.slice(0, idx);
+    part2Text = fullTranscript.slice(idx + "[[SPLIT]]".length);
+  } else {
+    const segs = parseTranscript(fullTranscript);
+    const mid = Math.ceil(segs.length / 2);
+    part1Text = segs
+      .slice(0, mid)
+      .map(s => `${s.speaker}: ${s.text}`)
+      .join("\n");
+    part2Text = segs
+      .slice(mid)
+      .map(s => `${s.speaker}: ${s.text}`)
+      .join("\n");
+  }
+
+  const part1 = parseTranscript(part1Text);
+  const part2 = parseTranscript(part2Text);
+  const allSpeakers = Array.from(
+    new Set([...part1, ...part2].map(s => s.speaker))
+  );
+  const voiceMap = buildSpeakerVoiceMap(sectionNumber, allSpeakers);
+
+  const a = startingQuestionNumber;
+  const b = startingQuestionNumber + 4;
+  const c = startingQuestionNumber + 5;
+  const d = startingQuestionNumber + 9;
+
+  const buffers: Buffer[] = [];
+  const push = (buf: Buffer) => {
+    if (buf && buf.length > 0) buffers.push(buf);
+  };
+
+  // Opening — Section 1 only (introduces the whole test).
+  if (sectionNumber === 1) {
+    push(
+      await ttsNarrate(
+        "This is the Listening test. You will hear four separate recordings and you will have to answer questions on each one. There will be time for you to read the questions before you listen, and time to check your answers. The recording will be played once only. The test is in four sections."
+      )
+    );
+  }
+
+  // Section intro.
+  const intro = draft.audioIntro?.trim() || defaultAudioIntro(sectionNumber);
+  push(await ttsNarrate(`Section ${sectionNumber}. You will hear ${intro}.`));
+
+  // Worked example — Section 1 only.
+  if (sectionNumber === 1 && draft.example?.lines?.trim()) {
+    push(await ttsNarrate("First, look at the example."));
+    push(await ttsSpeakSegments(parseTranscript(draft.example.lines), sectionNumber, voiceMap));
+    push(
+      await ttsNarrate(
+        `The answer is ${draft.example.answer}. That is the example. Now we shall begin.`
+      )
+    );
+  }
+
+  // First half: reading time, then play.
+  push(
+    await ttsNarrate(
+      `First, you have some time to look at questions ${a} to ${b}.`
+    )
+  );
+  push(silentMp3(READ_PAUSE_SEC));
+  push(await ttsNarrate(`Now listen and answer questions ${a} to ${b}.`));
+  push(await ttsSpeakSegments(part1, sectionNumber, voiceMap));
+
+  // Second half: reading time, then play.
+  push(
+    await ttsNarrate(
+      `Before you hear the rest, you have some time to look at questions ${c} to ${d}.`
+    )
+  );
+  push(silentMp3(READ_PAUSE_SEC));
+  push(await ttsNarrate(`Now listen and answer questions ${c} to ${d}.`));
+  push(await ttsSpeakSegments(part2, sectionNumber, voiceMap));
+
+  // End of section: check time.
+  push(
+    await ttsNarrate(
+      `That is the end of Section ${sectionNumber}. You now have some time to check your answers.`
+    )
+  );
+  push(silentMp3(CHECK_PAUSE_SEC));
 
   const combined = Buffer.concat(buffers);
   const key = `ielts/audio/${testCode}/section-${sectionNumber}-${nanoid(6)}.mp3`;
@@ -966,17 +1092,23 @@ export async function generateAcademicTest(args: {
       audioKey = await ttsListeningSection(
         args.code,
         (i + 1) as 1 | 2 | 3 | 4,
-        section.transcript
+        section,
+        i * 10 + 1
       );
     } catch (e: any) {
       errors.push(`L${i + 1} TTS: ${e.message}`);
     }
+    // Store the dialogue transcript without the internal [[SPLIT]] marker.
+    const storedTranscript = section.transcript
+      .replace(/\[\[SPLIT\]\]/g, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
     const inserted = await db.insert(ieltsListeningSections).values({
       testId,
       sectionNumber: i + 1,
       audioKey,
       durationSec: section.durationSec ?? null,
-      transcript: section.transcript,
+      transcript: storedTranscript,
     });
     const sectionId = (inserted as any)[0]?.insertId as number;
     if (section.questions.length > 0) {

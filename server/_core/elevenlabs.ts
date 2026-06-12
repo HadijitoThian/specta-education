@@ -151,4 +151,10 @@ export const LISTENING_VOICE_MAP = {
   section4: {
     primary: "ErXwobaYiN019PkySvjV", // British male, academic tone
   },
+  /**
+   * Exam narrator — reads the standard IELTS-style instructions ("This is the
+   * Listening test…", reading-time and check cues). A calm British male
+   * announcer, kept DISTINCT from every section speaker.
+   */
+  narrator: "onwK4e9ZLuTAKqWW03F9", // Daniel — British male, news/announcer tone
 } as const;
