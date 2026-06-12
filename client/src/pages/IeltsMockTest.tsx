@@ -130,10 +130,8 @@ export default function IeltsMockTest() {
     window.scrollTo(0, 0);
   }, []);
 
-  useEffect(() => {
-    if (user?.name && !name) setName(user.name);
-    if (user?.email && !email) setEmail(user.email);
-  }, [user, name, email]);
+  // Note: intentionally do NOT prefill name/email from the logged-in account —
+  // the test taker enters their own details on the form.
 
   const failedFlag = new URLSearchParams(window.location.search).get("failed") === "1";
 
