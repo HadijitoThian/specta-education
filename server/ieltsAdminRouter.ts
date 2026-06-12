@@ -32,6 +32,15 @@ function assertAdmin(ctx: { user: { role: string } | null }) {
   }
 }
 
+// In-memory status of the most recent (re)generation per test code, so the
+// admin UI can show live progress / failure for the fire-and-forget job.
+type GenStatus = {
+  state: "running" | "done" | "failed";
+  message: string;
+  at: number;
+};
+const generationStatus = new Map<string, GenStatus>();
+
 // ---------------------------------------------------------------------------
 // Zod schemas for "import a full test from JSON"
 // ---------------------------------------------------------------------------
@@ -552,6 +561,11 @@ export const ieltsAdminRouter = router({
       // generation fails (e.g. ElevenLabs credits), the existing test stays
       // intact instead of being wiped. Fire-and-forget to dodge Railway's
       // 5-minute proxy timeout; caller polls list().
+      generationStatus.set(input.code, {
+        state: "running",
+        message: "Generating content + audio… (5–10 min)",
+        at: Date.now(),
+      });
       void (async () => {
         try {
           const { generateAcademicTest } = await import("./ieltsTestGenerator");
@@ -561,8 +575,18 @@ export const ieltsAdminRouter = router({
             replace: true,
           });
           console.log(`[regenerateTest] done`, result);
-        } catch (err) {
+          generationStatus.set(input.code, {
+            state: "done",
+            message: `Done — ${result.listeningSections} listening, ${result.readingPassages} reading, ${result.writingTasks} writing, ${result.speakingPrompts} speaking. Chart: ${result.chartImageGenerated ? "yes" : "no"}.`,
+            at: Date.now(),
+          });
+        } catch (err: any) {
           console.error(`[regenerateTest] background failed`, err);
+          generationStatus.set(input.code, {
+            state: "failed",
+            message: err?.message ?? "Generation failed (see Railway logs).",
+            at: Date.now(),
+          });
         }
       })();
 
@@ -570,8 +594,16 @@ export const ieltsAdminRouter = router({
         accepted: true,
         code: input.code,
         message:
-          "Regeneration started in the background. If it fails (e.g. ElevenLabs credits), the existing test is kept. Refresh in 5-10 min.",
+          "Regeneration started in the background. If it fails (e.g. ElevenLabs credits), the existing test is kept. Watch the status here.",
       };
+    }),
+
+  /** Live status of the most recent (re)generation for a test code. */
+  generationStatus: protectedProcedure
+    .input(z.object({ code: z.string().min(1) }))
+    .query(({ input, ctx }) => {
+      assertAdmin(ctx);
+      return generationStatus.get(input.code) ?? null;
     }),
 
   /**

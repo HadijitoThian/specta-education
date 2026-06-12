@@ -108,9 +108,25 @@ export default function AdminIeltsTests() {
     },
   });
 
+  const [regenCode, setRegenCode] = useState<string | null>(null);
   const regenerateMut = trpc.admin.ielts.regenerateTest.useMutation({
-    onSuccess: () => utils.admin.ielts.list.invalidate(),
+    onSuccess: (_data, vars) => {
+      setRegenCode(vars.code);
+      utils.admin.ielts.list.invalidate();
+    },
   });
+
+  // Poll generation status while a regenerate is in flight.
+  const genStatusQuery = trpc.admin.ielts.generationStatus.useQuery(
+    { code: regenCode ?? "" },
+    {
+      enabled: !!regenCode,
+      refetchInterval: q => {
+        const s = q.state.data;
+        return s && s.state === "running" ? 5000 : false;
+      },
+    }
+  );
 
   const [showImport, setShowImport] = useState(false);
   const [jsonText, setJsonText] = useState(SAMPLE_JSON);
@@ -218,6 +234,36 @@ export default function AdminIeltsTests() {
                 Cancel
               </button>
             </div>
+          </div>
+        ) : null}
+
+        {regenCode && genStatusQuery.data ? (
+          <div
+            className={`mb-4 rounded-xl border px-4 py-3 text-sm ${
+              genStatusQuery.data.state === "failed"
+                ? "bg-red-50 border-red-200 text-red-800"
+                : genStatusQuery.data.state === "done"
+                  ? "bg-green-50 border-green-200 text-green-800"
+                  : "bg-blue-50 border-blue-200 text-blue-800"
+            }`}
+          >
+            <div className="font-semibold">
+              {regenCode} —{" "}
+              {genStatusQuery.data.state === "running"
+                ? "Regenerating…"
+                : genStatusQuery.data.state === "done"
+                  ? "Regeneration complete ✓"
+                  : "Regeneration failed ✗"}
+            </div>
+            <div className="text-xs mt-0.5">{genStatusQuery.data.message}</div>
+            {genStatusQuery.data.state !== "running" ? (
+              <button
+                onClick={() => setRegenCode(null)}
+                className="text-xs underline mt-1"
+              >
+                Dismiss
+              </button>
+            ) : null}
           </div>
         ) : null}
 
