@@ -5,7 +5,7 @@ interface ChatBotButtonProps {
   className?: string;
 }
 
-const MASCOT_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/ZTneyTCDMaRFZnSd.png";
+const MASCOT_URL = "/files/migrated/ZTneyTCDMaRFZnSd.png";
 
 /**
  * A cute full-body chibi mascot floating chatbot button with "Ask SpecTa" label

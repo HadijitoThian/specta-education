@@ -38,11 +38,11 @@ const benefits = [
 ];
 
 const testimonials = [
-  { name: "Angie Y. A.", score: "8.0", image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/fcxuovpOPVSYDEOL.jpg", quote: "I received an Overall Score of 8 on my actual IELTS test. If SpecTa teachers can enhance my skills, I don't know why else you should be worried about joining!" },
-  { name: "Nabila Imanina", score: "7.0", image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/rqYJsserdhaaeKxB.jpg", quote: "I got 7.0 overall band score from 5.0 on Prediction Test. A very nice place to practice and learn about IELTS in an effective and efficient learning method." },
-  { name: "Irvan Louis", score: "7.0", image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kUbFXwPeFvsStTWl.jpg", quote: "Thanks, SpecTa! I got an overall 7! Special thanks to Sir Fred, Ms Onny, Pak Paulus, Pak Al, and Mba Wulan." },
-  { name: "Sarah Chen", score: "7.5", image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/cRuovhLnzbbhOziq.jpg", quote: "The personalized attention and structured approach helped me improve from 6.0 to 7.5 in just 8 weeks. Highly recommend SpecTa!" },
-  { name: "Ahmad Rizky", score: "8.0", image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/oGYCKRHyaDJycUxN.jpg", quote: "SpecTa's intensive program was exactly what I needed. The mock tests and feedback sessions were invaluable for my preparation." }
+  { name: "Angie Y. A.", score: "8.0", image: "/files/migrated/fcxuovpOPVSYDEOL.jpg", quote: "I received an Overall Score of 8 on my actual IELTS test. If SpecTa teachers can enhance my skills, I don't know why else you should be worried about joining!" },
+  { name: "Nabila Imanina", score: "7.0", image: "/files/migrated/rqYJsserdhaaeKxB.jpg", quote: "I got 7.0 overall band score from 5.0 on Prediction Test. A very nice place to practice and learn about IELTS in an effective and efficient learning method." },
+  { name: "Irvan Louis", score: "7.0", image: "/files/migrated/kUbFXwPeFvsStTWl.jpg", quote: "Thanks, SpecTa! I got an overall 7! Special thanks to Sir Fred, Ms Onny, Pak Paulus, Pak Al, and Mba Wulan." },
+  { name: "Sarah Chen", score: "7.5", image: "/files/migrated/cRuovhLnzbbhOziq.jpg", quote: "The personalized attention and structured approach helped me improve from 6.0 to 7.5 in just 8 weeks. Highly recommend SpecTa!" },
+  { name: "Ahmad Rizky", score: "8.0", image: "/files/migrated/oGYCKRHyaDJycUxN.jpg", quote: "SpecTa's intensive program was exactly what I needed. The mock tests and feedback sessions were invaluable for my preparation." }
 ];
 
 const packages = [
@@ -849,7 +849,7 @@ export default function IELTS() {
             >
               <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-rose-500 to-purple-600 text-white">
                 <div className="flex items-center gap-3">
-                  <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png" alt="SpecTa AI" className="w-10 h-10 object-contain" />
+                  <img src="/files/migrated/saxLOcubreWkfnzl.png" alt="SpecTa AI" className="w-10 h-10 object-contain" />
                   <div>
                     <h3 className="font-semibold">SpecTa AI Assistant</h3>
                     <p className="text-xs text-white/80">Online &bull; Ready to help</p>

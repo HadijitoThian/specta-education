@@ -371,7 +371,7 @@ export default function CounselorCRM() {
             </Link>
             <div>
               <h1 className="text-base sm:text-xl font-bold text-white flex items-center gap-2">
-                <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/QxrYSewOYzAuPIEN.jpeg" alt="SpecTa Education" className="h-7 sm:h-8 w-auto object-contain rounded" />
+                <img src="/files/migrated/QxrYSewOYzAuPIEN.jpeg" alt="SpecTa Education" className="h-7 sm:h-8 w-auto object-contain rounded" />
                 <span className="hidden sm:inline">CRM Workspace</span>
                 <span className="sm:hidden">CRM</span>
               </h1>

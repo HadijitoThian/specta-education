@@ -13,7 +13,7 @@ import type { TDocumentDefinitions, Content, StyleDictionary } from "pdfmake/int
 const __filename_esm = fileURLToPath(import.meta.url);
 const __dirname_esm = path.dirname(__filename_esm);
 const LOGO_PATH = path.join(__dirname_esm, "assets", "specta-logo.jpeg");
-const LOGO_CDN_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/oLYlgeIIkWTCNMTB.jpeg";
+const LOGO_CDN_URL = "/files/migrated/oLYlgeIIkWTCNMTB.jpeg";
 
 // ========== LABELS ==========
 const riasecLabels: Record<string, { id: string; en: string; desc_id: string; desc_en: string }> = {

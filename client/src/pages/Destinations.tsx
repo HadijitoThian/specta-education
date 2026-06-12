@@ -10,24 +10,24 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SEO } from "@/components/SEO";
 
 const destinations = [
-  { name: "Malaysia", flag: "🇲🇾", slug: "malaysia", image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg", description: "Affordable quality education with cultural similarities and easy adaptation.", universities: ["Taylor's University", "Monash Malaysia", "UCSI University"], highlights: ["Affordable tuition", "Similar culture", "English medium"] },
+  { name: "Malaysia", flag: "🇲🇾", slug: "malaysia", image: "/files/migrated/kMEinJVrDybnuqph.jpg", description: "Affordable quality education with cultural similarities and easy adaptation.", universities: ["Taylor's University", "Monash Malaysia", "UCSI University"], highlights: ["Affordable tuition", "Similar culture", "English medium"] },
   { name: "Singapore", flag: "🇸🇬", slug: "singapore", image: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=800&h=500&fit=crop", description: "Asia's premier education hub with top private institutions offering internationally recognized degrees, just 2 hours from Jakarta.", universities: ["Curtin Singapore", "JCU Singapore", "PSB Academy", "Kaplan", "MDIS", "Raffles Design"], highlights: ["Close to Indonesia", "Private institutions", "Affordable degrees"] },
-  { name: "China", flag: "🇨🇳", slug: "china", image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/UfVeuAhSuGdmrpgb.jpg", description: "Emerging global education powerhouse with affordable programs and rich cultural experience.", universities: ["Tsinghua University", "Peking University", "Fudan University"], highlights: ["Affordable fees", "Scholarship opportunities", "Growing economy"] },
+  { name: "China", flag: "🇨🇳", slug: "china", image: "/files/migrated/UfVeuAhSuGdmrpgb.jpg", description: "Emerging global education powerhouse with affordable programs and rich cultural experience.", universities: ["Tsinghua University", "Peking University", "Fudan University"], highlights: ["Affordable fees", "Scholarship opportunities", "Growing economy"] },
   { name: "United Kingdom", flag: "🇬🇧", slug: "uk", image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&h=500&fit=crop", description: "Historic universities with globally recognized degrees and rich cultural experience.", universities: ["Oxford", "Cambridge", "Imperial College"], highlights: ["Prestigious degrees", "1-year Masters", "Graduate visa"] },
   { name: "Australia", flag: "🇦🇺", slug: "australia", image: "https://images.unsplash.com/photo-1523482580672-f109ba8cb9be?w=800&h=500&fit=crop", description: "World-class universities, vibrant cities, and excellent post-study work opportunities.", universities: ["University of Melbourne", "University of Sydney", "Monash University"], highlights: ["Post-study work visa", "Multicultural environment", "High quality of life"] },
   { name: "New Zealand", flag: "🇳🇿", slug: "new-zealand", image: "https://images.unsplash.com/photo-1469521669194-babb45599def?w=800&h=500&fit=crop", description: "Beautiful landscapes, friendly people, and quality education in a safe environment.", universities: ["University of Auckland", "University of Otago", "Victoria University"], highlights: ["Post-study work", "Beautiful nature", "Friendly culture"] },
   { name: "Canada", flag: "🇨🇦", slug: "canada", image: "https://images.unsplash.com/photo-1517935706615-2717063c2225?w=800&h=500&fit=crop", description: "Welcoming immigration policies, affordable education, and high quality of life.", universities: ["University of Toronto", "UBC", "McGill"], highlights: ["Immigration pathways", "Affordable fees", "Safe cities"] },
   { name: "USA", flag: "🇺🇸", slug: "usa", image: "https://images.unsplash.com/photo-1485738422979-f5c462d49f74?w=800&h=500&fit=crop", description: "Home to the world's top universities with diverse programs and research opportunities.", universities: ["MIT", "Stanford", "Harvard"], highlights: ["Research excellence", "Flexible curriculum", "OPT opportunities"] },
-  { name: "Ireland", flag: "🇮🇪", slug: "ireland", image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/FExyOmKcAqqrSQkC.jpg", description: "English-speaking European destination with friendly culture and growing tech industry.", universities: ["Trinity College Dublin", "University College Dublin", "NUI Galway"], highlights: ["English speaking", "Tech hub", "Post-study work"] },
+  { name: "Ireland", flag: "🇮🇪", slug: "ireland", image: "/files/migrated/FExyOmKcAqqrSQkC.jpg", description: "English-speaking European destination with friendly culture and growing tech industry.", universities: ["Trinity College Dublin", "University College Dublin", "NUI Galway"], highlights: ["English speaking", "Tech hub", "Post-study work"] },
   { name: "Netherlands", flag: "🇳🇱", slug: "netherlands", image: "https://images.unsplash.com/photo-1534351590666-13e3e96b5017?w=800&h=500&fit=crop", description: "Innovative education system with many English-taught programs in Europe's heart.", universities: ["TU Delft", "University of Amsterdam", "Erasmus University"], highlights: ["English programs", "Central Europe", "Work opportunities"] }
 ];
 
 const carouselImages = [
-  { src: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg", title: "Malaysia" },
+  { src: "/files/migrated/kMEinJVrDybnuqph.jpg", title: "Malaysia" },
   { src: "https://images.unsplash.com/photo-1523482580672-f109ba8cb9be?w=1200&h=600&fit=crop", title: "Australia" },
   { src: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1200&h=600&fit=crop", title: "United Kingdom" },
-  { src: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/UfVeuAhSuGdmrpgb.jpg", title: "China" },
-  { src: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/FExyOmKcAqqrSQkC.jpg", title: "Ireland" }
+  { src: "/files/migrated/UfVeuAhSuGdmrpgb.jpg", title: "China" },
+  { src: "/files/migrated/FExyOmKcAqqrSQkC.jpg", title: "Ireland" }
 ];
 
 export default function Destinations() {
@@ -55,7 +55,7 @@ export default function Destinations() {
         description="Explore 10+ study abroad destinations including UK, USA, Australia, Canada, Singapore, Malaysia, and more with SpecTa Education."
         keywords="study abroad destinations, kuliah luar negeri, study in UK, study in USA, study in Australia, study in Canada, study in Singapore, study in Malaysia, study in China, education consultant Indonesia"
         canonical="https://spectaeducation.com/destinations"
-        ogImage="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"
+        ogImage="/files/migrated/kMEinJVrDybnuqph.jpg"
       />
       <div className="min-h-screen bg-background">
       <Navigation currentPage="destinations" />
@@ -214,7 +214,7 @@ export default function Destinations() {
             >
               <div className="flex items-center justify-between p-4 border-b border-border bg-primary text-primary-foreground">
                 <div className="flex items-center gap-3">
-                  <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png" alt="SpecTa AI" className="w-10 h-10 object-contain" />
+                  <img src="/files/migrated/saxLOcubreWkfnzl.png" alt="SpecTa AI" className="w-10 h-10 object-contain" />
                   <div>
                     <h3 className="font-semibold">SpecTa AI Assistant</h3>
                     <p className="text-xs text-primary-foreground/80">Online • Ready to help</p>

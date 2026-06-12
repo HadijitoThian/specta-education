@@ -31,7 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
-const SPECTA_LOGO_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/QxrYSewOYzAuPIEN.jpeg";
+const SPECTA_LOGO_URL = "/files/migrated/QxrYSewOYzAuPIEN.jpeg";
 
 // ==========================================
 // TYPES

@@ -34,7 +34,7 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-border">
       <div className="container flex items-center justify-between h-16">
         <button onClick={() => handleNavClick("/")} className="flex items-center gap-2">
-          <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/QxrYSewOYzAuPIEN.jpeg" alt="SpecTa Education" className="h-10 object-contain" />
+          <img src="/files/migrated/QxrYSewOYzAuPIEN.jpeg" alt="SpecTa Education" className="h-10 object-contain" />
         </button>
         
         {/* Desktop Navigation */}

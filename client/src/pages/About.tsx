@@ -14,19 +14,19 @@ const leadershipTeam = [
   {
     name: "Hadi Jito Thian",
     role: "Chief Executive Officer",
-    image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/zNTBionUQKPpwweD.png",
+    image: "/files/migrated/zNTBionUQKPpwweD.png",
     description: "Founder and CEO of SpecTa Education, leading the company's mission to help Indonesian students achieve their study abroad dreams."
   },
   {
     name: "Adhitya Irvan Maulana",
     role: "Chief Operating Officer",
-    image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/ixmfLjNLHxyqCXzT.jpg",
+    image: "/files/migrated/ixmfLjNLHxyqCXzT.jpg",
     description: "Overseeing daily operations and ensuring excellence in student services and partner relationships."
   },
   {
     name: "Harianto Tian",
     role: "Senior Advisor",
-    image: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/GyBuWooHvGHZgRVJ.jpeg",
+    image: "/files/migrated/GyBuWooHvGHZgRVJ.jpeg",
     description: "Bringing years of experience in education and business strategy to guide SpecTa Education's vision."
   }
 ];
@@ -62,10 +62,10 @@ const values = [
 
 // Mission carousel images
 const missionImages = [
-  { src: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/VVzPvoNHvKuenjJC.jpg", alt: "Diverse students learning together" },
-  { src: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/nCaOEbPxJfKYRtpD.jpg", alt: "International classroom" },
-  { src: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/ExFyNRXdbJhSwWpR.jpg", alt: "Education counseling session" },
-  { src: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/WttGGxbUvvuiLuiQ.jpg", alt: "Graduation celebration" }
+  { src: "/files/migrated/VVzPvoNHvKuenjJC.jpg", alt: "Diverse students learning together" },
+  { src: "/files/migrated/nCaOEbPxJfKYRtpD.jpg", alt: "International classroom" },
+  { src: "/files/migrated/ExFyNRXdbJhSwWpR.jpg", alt: "Education counseling session" },
+  { src: "/files/migrated/WttGGxbUvvuiLuiQ.jpg", alt: "Graduation celebration" }
 ];
 
 // Counting animation component
@@ -128,7 +128,7 @@ export default function About() {
         description="SpecTa Education is Indonesia's trusted study abroad consultant since 2005. Helping students achieve dreams of studying in UK, USA, Australia, and more."
         keywords="about SpecTa Education, study abroad consultant Indonesia, konsultan pendidikan luar negeri, education consultant Jakarta, trusted study abroad agent"
         canonical="https://spectaeducation.com/about"
-        ogImage="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"
+        ogImage="/files/migrated/kMEinJVrDybnuqph.jpg"
       />
       <div className="min-h-screen bg-background">
         <Navigation currentPage="about" />
@@ -141,7 +141,7 @@ export default function About() {
         transition={{ duration: 0.6 }}
       >
         <div className="absolute inset-0 z-0">
-          <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/XFSKFfBDnwuNIcYC.jpg" alt="SpecTa Education office - study abroad consultant in Jakarta" className="w-full h-full object-cover" />
+          <img src="/files/migrated/XFSKFfBDnwuNIcYC.jpg" alt="SpecTa Education office - study abroad consultant in Jakarta" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-white/95 via-white/90 to-white"></div>
         </div>
         <div className="container relative z-10">
@@ -385,7 +385,7 @@ export default function About() {
             >
               <div className="flex items-center justify-between p-4 border-b border-border bg-primary text-primary-foreground">
                 <div className="flex items-center gap-3">
-                  <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png" alt="SpecTa AI" className="w-10 h-10 object-contain" />
+                  <img src="/files/migrated/saxLOcubreWkfnzl.png" alt="SpecTa AI" className="w-10 h-10 object-contain" />
                   <div>
                     <h3 className="font-semibold">SpecTa AI Assistant</h3>
                     <p className="text-xs text-primary-foreground/80">Online • Ready to help</p>

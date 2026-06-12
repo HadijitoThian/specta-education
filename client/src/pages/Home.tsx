@@ -242,7 +242,7 @@ export default function Home() {
             >
               <div className="relative z-10">
                 <motion.img 
-                  src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/QxFYGzgmpzrKbZOs.jpg" 
+                  src="/files/migrated/QxFYGzgmpzrKbZOs.jpg" 
                   alt="Excited students ready to study abroad" 
                   className="w-full max-w-lg mx-auto rounded-2xl shadow-2xl object-cover"
                   fetchPriority="high"
@@ -964,7 +964,7 @@ export default function Home() {
               <div className="flex items-center justify-between p-4 border-b border-border bg-primary text-primary-foreground">
                 <div className="flex items-center gap-3">
                   <motion.img 
-                    src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png" 
+                    src="/files/migrated/saxLOcubreWkfnzl.png" 
                     alt="SpecTa AI" 
                     className="w-10 h-10 object-contain"
                     animate={{ rotate: [0, 5, -5, 0] }}

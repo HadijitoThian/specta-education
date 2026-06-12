@@ -12,14 +12,14 @@ interface SmartMascotProps {
 
 // Mascot images for different emotions
 const emotionImages: Record<MascotEmotion, string> = {
-  neutral: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png",
-  happy: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png",
-  excited: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/mHfcoLTVeHOgtyJc.png",
-  curious: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/mZzfiMupcbdtczPP.png",
-  supportive: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png",
-  celebrating: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/mHfcoLTVeHOgtyJc.png",
-  thinking: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/mZzfiMupcbdtczPP.png",
-  waving: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/CaSUALRPwpkQDDyz.png"
+  neutral: "/files/migrated/saxLOcubreWkfnzl.png",
+  happy: "/files/migrated/saxLOcubreWkfnzl.png",
+  excited: "/files/migrated/mHfcoLTVeHOgtyJc.png",
+  curious: "/files/migrated/mZzfiMupcbdtczPP.png",
+  supportive: "/files/migrated/saxLOcubreWkfnzl.png",
+  celebrating: "/files/migrated/mHfcoLTVeHOgtyJc.png",
+  thinking: "/files/migrated/mZzfiMupcbdtczPP.png",
+  waving: "/files/migrated/CaSUALRPwpkQDDyz.png"
 };
 
 // Animation variants for different emotions
@@ -259,7 +259,7 @@ export default function SmartMascot({ onChatOpen, className }: SmartMascotProps)
             alt="SpecTa AI Assistant"
             className="w-20 h-20 object-contain drop-shadow-lg"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png";
+              (e.target as HTMLImageElement).src = "/files/migrated/saxLOcubreWkfnzl.png";
             }}
           />
         </motion.div>

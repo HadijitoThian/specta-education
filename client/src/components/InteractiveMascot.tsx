@@ -13,12 +13,12 @@ interface InteractiveMascotProps {
 }
 
 const mascotImages: Record<MascotState, string> = {
-  idle: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png",
-  waving: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/CaSUALRPwpkQDDyz.png",
-  thinking: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/mZzfiMupcbdtczPP.png",
-  talking: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/hzbRrgiiMQYyvWTv.png",
-  listening: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/XKmcLcwwCgIUrXwm.png",
-  celebrating: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/mHfcoLTVeHOgtyJc.png"
+  idle: "/files/migrated/saxLOcubreWkfnzl.png",
+  waving: "/files/migrated/CaSUALRPwpkQDDyz.png",
+  thinking: "/files/migrated/mZzfiMupcbdtczPP.png",
+  talking: "/files/migrated/hzbRrgiiMQYyvWTv.png",
+  listening: "/files/migrated/XKmcLcwwCgIUrXwm.png",
+  celebrating: "/files/migrated/mHfcoLTVeHOgtyJc.png"
 };
 
 // Speech bubble messages for different states

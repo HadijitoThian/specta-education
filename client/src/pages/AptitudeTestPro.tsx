@@ -473,7 +473,7 @@ export default function AptitudeTestPro() {
         description="Comprehensive AI-powered career and major assessment. Get personalized recommendations for your ideal study path and career direction."
         keywords="tes bakat AI pro, comprehensive aptitude test, tes minat bakat lengkap, career assessment Indonesia, personality test, RIASEC pro, multiple intelligence assessment"
         canonical="https://spectaeducation.com/test/pro"
-        ogImage="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"
+        ogImage="/files/migrated/kMEinJVrDybnuqph.jpg"
       />
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       <div ref={topRef} />

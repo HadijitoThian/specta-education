@@ -521,7 +521,7 @@ export default function AdminDashboard() {
         <div className="container flex items-center justify-between h-16">
           <div className="flex items-center gap-4">
             <Link href="/">
-              <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/QxrYSewOYzAuPIEN.jpeg" alt="SpecTa Education" className="h-10 object-contain" />
+              <img src="/files/migrated/QxrYSewOYzAuPIEN.jpeg" alt="SpecTa Education" className="h-10 object-contain" />
             </Link>
             <span className="text-sm font-medium text-muted-foreground">Admin Dashboard</span>
             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadge(user?.role || 'user')}`}>

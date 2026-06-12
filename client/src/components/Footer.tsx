@@ -8,7 +8,7 @@ export default function Footer() {
         <div className="grid md:grid-cols-4 gap-12">
           <div className="space-y-4">
             <div className="bg-white rounded-lg px-3 py-1.5 inline-block">
-              <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/QxrYSewOYzAuPIEN.jpeg" alt="SpecTa Education" className="h-10 object-contain" />
+              <img src="/files/migrated/QxrYSewOYzAuPIEN.jpeg" alt="SpecTa Education" className="h-10 object-contain" />
             </div>
             <p className="text-sm text-background/70">
               Your trusted partner for international education and study abroad services since 2005.

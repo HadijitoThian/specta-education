@@ -553,7 +553,7 @@ export default function Quiz() {
         description="Take our free AI-powered aptitude test to discover your ideal major and career path. Personalized recommendations from SpecTa Education."
         keywords="tes bakat gratis, free aptitude test, tes minat bakat online, career aptitude test, jurusan kuliah terbaik, RIASEC test, multiple intelligence test"
         canonical="https://spectaeducation.com/quiz"
-        ogImage="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"
+        ogImage="/files/migrated/kMEinJVrDybnuqph.jpg"
       />
       <div className="min-h-screen bg-gray-50" ref={resultRef}>
       <ConfettiEffect />

@@ -55,7 +55,7 @@ const universities: University[] = [
     name: "Taylor's University",
     shortName: "Taylor's",
     logo: "/taylors-logo.png",
-    campusImage: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/AAkMQonwpGTFfxlx.jpg",
+    campusImage: "/files/migrated/AAkMQonwpGTFfxlx.jpg",
     ranking: "#284",
     rankingDetail: "QS World University Rankings 2026",
     location: "Subang Jaya, Selangor",
@@ -100,7 +100,7 @@ const universities: University[] = [
     name: "University of Nottingham Malaysia",
     shortName: "Nottingham",
     logo: "/nottingham-logo.png",
-    campusImage: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/NCXljemgcBhEldBY.jpg",
+    campusImage: "/files/migrated/NCXljemgcBhEldBY.jpg",
     ranking: "#97",
     rankingDetail: "QS World University Rankings 2026",
     location: "Semenyih, Selangor",
@@ -145,7 +145,7 @@ const universities: University[] = [
     name: "INTI International University",
     shortName: "INTI",
     logo: "/inti-logo.png",
-    campusImage: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/tKJIowLUONIjAcMQ.jpg",
+    campusImage: "/files/migrated/tKJIowLUONIjAcMQ.jpg",
     ranking: "#509",
     rankingDetail: "QS World University Rankings 2026",
     location: "Nilai, Negeri Sembilan",
@@ -280,7 +280,7 @@ const universities: University[] = [
     name: "Monash University Malaysia",
     shortName: "Monash",
     logo: "/monash-logo.png",
-    campusImage: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/GihOrTKVQPsOHIxQ.jpg",
+    campusImage: "/files/migrated/GihOrTKVQPsOHIxQ.jpg",
     ranking: "#36",
     rankingDetail: "QS World University Rankings 2026",
     location: "Bandar Sunway, Selangor",
@@ -325,7 +325,7 @@ const universities: University[] = [
     name: "University of Southampton Malaysia",
     shortName: "Southampton",
     logo: "/southampton-logo.png",
-    campusImage: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/llcNNhaJPILqCLZZ.jpg",
+    campusImage: "/files/migrated/llcNNhaJPILqCLZZ.jpg",
     ranking: "#87",
     rankingDetail: "QS World University Rankings 2026",
     location: "Iskandar Puteri, Johor",
@@ -370,7 +370,7 @@ const universities: University[] = [
     name: "MILA University",
     shortName: "MILA",
     logo: "/mila-logo.png",
-    campusImage: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/FNouoNsNLTkAiDKB.jpg",
+    campusImage: "/files/migrated/FNouoNsNLTkAiDKB.jpg",
     ranking: "#414",
     rankingDetail: "QS Asia University Rankings 2026",
     location: "Nilai, Negeri Sembilan",
@@ -444,7 +444,7 @@ export default function Malaysia() {
           {/* Petronas Towers on the left */}
           <div className="absolute left-0 top-0 w-1/2 h-full">
             <img 
-              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg" 
+              src="/files/migrated/kMEinJVrDybnuqph.jpg" 
               alt="Petronas Twin Towers" 
               className="w-full h-full object-cover"
             />
@@ -452,7 +452,7 @@ export default function Malaysia() {
           {/* Graduates on the right */}
           <div className="absolute right-0 top-0 w-1/2 h-full">
             <img 
-              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/dbBmVZceycIprbDa.jpg" 
+              src="/files/migrated/dbBmVZceycIprbDa.jpg" 
               alt="Graduates Celebrating" 
               className="w-full h-full object-cover"
             />

@@ -330,7 +330,7 @@ export default function Compare() {
         description="Compare study abroad destinations side-by-side. Tuition costs, living expenses, visa requirements, and post-study work options."
         keywords="compare study abroad destinations, biaya kuliah luar negeri, tuition fees comparison, study abroad cost calculator, visa requirements"
         canonical="https://spectaeducation.com/compare"
-        ogImage="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/kMEinJVrDybnuqph.jpg"
+        ogImage="/files/migrated/kMEinJVrDybnuqph.jpg"
       />
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <Navigation currentPage="compare" />

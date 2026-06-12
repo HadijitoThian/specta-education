@@ -7,7 +7,7 @@
  */
 
 const BASE_URL = "https://spectaeducation.com";
-const DEFAULT_OG_IMAGE = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/JkROfRrqqpCGwfuP.png";
+const DEFAULT_OG_IMAGE = "/files/migrated/JkROfRrqqpCGwfuP.png";
 
 interface PageMeta {
   title: string;

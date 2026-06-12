@@ -1005,7 +1005,7 @@ export default function Scholarships() {
               <div className="flex items-center justify-between p-4 border-b border-border bg-primary text-primary-foreground">
                 <div className="flex items-center gap-3">
                   <motion.img
-                    src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663225686644/saxLOcubreWkfnzl.png"
+                    src="/files/migrated/saxLOcubreWkfnzl.png"
                     alt="SpecTa AI"
                     className="w-10 h-10 object-contain"
                     animate={{ rotate: [0, 5, -5, 0] }}
