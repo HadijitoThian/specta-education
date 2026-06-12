@@ -659,6 +659,38 @@ export const ieltsAdminRouter = router({
       return result;
     }),
 
+  /**
+   * Create a shareable free-access link. Returns a signed URL that any
+   * logged-in user can open to start a FREE attempt (for the given test type)
+   * until it expires. Useful for giving the team / a cohort free access.
+   */
+  createFreePass: protectedProcedure
+    .input(
+      z.object({
+        testType: z.enum(["academic", "general"]).default("academic"),
+        days: z.number().int().min(1).max(365).default(30),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      assertAdmin(ctx);
+      const { SignJWT } = await import("jose");
+      const { ENV } = await import("./_core/env");
+      const expSec = Math.floor(Date.now() / 1000) + input.days * 86400;
+      const token = await new SignJWT({
+        purpose: "ielts-free-pass",
+        testType: input.testType,
+      })
+        .setProtectedHeader({ alg: "HS256" })
+        .setExpirationTime(expSec)
+        .sign(new TextEncoder().encode(ENV.cookieSecret));
+      const base = ENV.appUrl.replace(/\/+$/, "");
+      return {
+        url: `${base}/ielts/redeem/${token}`,
+        expiresAt: new Date(expSec * 1000).toISOString(),
+        testType: input.testType,
+      };
+    }),
+
   /** Live status of the most recent (re)generation for a test code. */
   generationStatus: protectedProcedure
     .input(z.object({ code: z.string().min(1) }))

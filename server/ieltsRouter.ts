@@ -112,6 +112,68 @@ export const ieltsRouter = router({
     }),
 
   /**
+   * Redeem an admin-issued free-access link. The token is a signed JWT
+   * (purpose "ielts-free-pass") with a testType + expiry. Creates a free
+   * attempt for the logged-in user against the first published test of that
+   * type. Reusable until expiry — each user gets their own attempt.
+   */
+  redeemFreePass: protectedProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const { jwtVerify } = await import("jose");
+      const { ENV } = await import("./_core/env");
+      let payload: any;
+      try {
+        const res = await jwtVerify(
+          input.token,
+          new TextEncoder().encode(ENV.cookieSecret)
+        );
+        payload = res.payload;
+      } catch {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This free-access link is invalid or has expired.",
+        });
+      }
+      if (payload?.purpose !== "ielts-free-pass") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid link." });
+      }
+      const testType = payload.testType === "general" ? "general" : "academic";
+
+      const [test] = await db
+        .select({ id: ieltsMockTests.id })
+        .from(ieltsMockTests)
+        .where(
+          and(
+            eq(ieltsMockTests.isPublished, true),
+            eq(ieltsMockTests.testType, testType)
+          )
+        )
+        .limit(1);
+      if (!test) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No published test is available for this link yet.",
+        });
+      }
+
+      const attemptToken = nanoid(24);
+      await db.insert(ieltsMockAttempts).values({
+        userId: ctx.user.id,
+        testId: test.id,
+        attemptToken,
+        paymentRef: `FREE-LINK-${nanoid(8)}`,
+        paidAt: new Date(),
+        status: "ready",
+      });
+      return { attemptToken };
+    }),
+
+  /**
    * Look up an attempt by its token. Returns minimal info — used on the
    * post-payment landing page to confirm the attempt is unlocked.
    */

@@ -58,6 +58,7 @@ const SocialMediaManager = lazy(() => import("./pages/SocialMediaManager"));
 const AdsAgent = lazy(() => import("./pages/AdsAgent"));
 const AdminIeltsTests = lazy(() => import("./pages/AdminIeltsTests"));
 const IeltsMockTest = lazy(() => import("./pages/IeltsMockTest"));
+const IeltsFreeRedeem = lazy(() => import("./pages/IeltsFreeRedeem"));
 const IeltsMockSuccess = lazy(() => import("./pages/IeltsMockSuccess"));
 const IeltsMockTake = lazy(() => import("./pages/IeltsMockTake"));
 const IeltsMockReport = lazy(() => import("./pages/IeltsMockReport"));
@@ -143,6 +144,7 @@ function Router() {
         <Route path={"/admin/ads-agent"} component={AdsAgent} />
         <Route path={"/admin/ielts-tests"} component={AdminIeltsTests} />
         <Route path={"/ielts/mock-test"} component={IeltsMockTest} />
+        <Route path={"/ielts/redeem/:token"} component={IeltsFreeRedeem} />
         <Route path={"/ielts/mock-test/success"} component={IeltsMockSuccess} />
         <Route path={"/ielts/mock-test/take/:token"} component={IeltsMockTake} />
         <Route path={"/ielts/mock-test/report/:token"} component={IeltsMockReport} />

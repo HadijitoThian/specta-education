@@ -24,9 +24,11 @@ export default function Login() {
         setError(data.error ?? "Login failed");
         return;
       }
-      setLocation("/");
-      // Force reload so tRPC `auth.me` re-fetches with the new cookie.
-      window.location.reload();
+      // Honour ?next=… (e.g. returning to a free-access redeem link).
+      const next = new URLSearchParams(window.location.search).get("next");
+      const dest = next && next.startsWith("/") ? next : "/";
+      // Hard navigate so tRPC `auth.me` re-fetches with the new cookie.
+      window.location.href = dest;
     } catch (err) {
       setError("Network error — please try again");
     } finally {

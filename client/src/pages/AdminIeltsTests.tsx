@@ -132,6 +132,16 @@ export default function AdminIeltsTests() {
     onSuccess: (_data, vars) => setRegenCode(vars.code),
   });
 
+  const createFreePassMut = trpc.admin.ielts.createFreePass.useMutation({
+    onSuccess: data => {
+      navigator.clipboard?.writeText(data.url).catch(() => {});
+      alert(
+        `Free-access link created (expires ${new Date(data.expiresAt).toLocaleDateString()}).\n\nCopied to clipboard:\n${data.url}\n\nAnyone who opens it (after signing in) gets a free ${data.testType} attempt.`
+      );
+    },
+    onError: e => alert(`Failed: ${e.message}`),
+  });
+
   const fixQ2731Mut = trpc.admin.ielts.fixReadingResearcherMatching.useMutation({
     onSuccess: data => {
       utils.admin.ielts.list.invalidate();
@@ -207,12 +217,22 @@ export default function AdminIeltsTests() {
               Authored content for the IELTS Mock Test product.
             </p>
           </div>
-          <button
-            onClick={() => setShowImport(s => !s)}
-            className="bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium px-4 py-2 rounded-lg"
-          >
-            {showImport ? "Close" : "+ Import test from JSON"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => createFreePassMut.mutate({ testType: "academic", days: 30 })}
+              disabled={createFreePassMut.isPending}
+              className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white text-sm font-medium px-4 py-2 rounded-lg"
+              title="Create a shareable free-access link (Academic, valid 30 days)"
+            >
+              {createFreePassMut.isPending ? "Creating…" : "🎟 Create free link"}
+            </button>
+            <button
+              onClick={() => setShowImport(s => !s)}
+              className="bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium px-4 py-2 rounded-lg"
+            >
+              {showImport ? "Close" : "+ Import test from JSON"}
+            </button>
+          </div>
         </div>
 
         {showImport ? (
