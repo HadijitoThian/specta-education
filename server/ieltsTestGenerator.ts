@@ -36,6 +36,97 @@ import { nanoid } from "nanoid";
 // LLM helpers — each one produces strict JSON for one logical unit
 // ---------------------------------------------------------------------------
 
+// Coerce an LLM-produced question type into a value the DB enum accepts, so a
+// stray "multiple_choice"/"table_completion" never throws an enum error
+// mid-insert (which previously left half-built tests).
+const LISTENING_TYPES = new Set([
+  "mcq", "multi_select", "matching", "map_labelling", "form_completion",
+  "note_completion", "sentence_completion", "summary_completion", "short_answer",
+]);
+const READING_TYPES = new Set([
+  "tfng", "ynng", "mcq", "matching_headings", "matching_information",
+  "matching_features", "matching_sentence_endings", "sentence_completion",
+  "summary_completion", "note_completion", "table_completion",
+  "flowchart_completion", "diagram_labelling", "short_answer",
+]);
+
+function normalizeQuestionType(raw: string, kind: "listening" | "reading"): string {
+  const t = (raw ?? "").toLowerCase().trim().replace(/[\s-]+/g, "_");
+  const valid = kind === "listening" ? LISTENING_TYPES : READING_TYPES;
+  if (valid.has(t)) return t;
+  const synonyms: Record<string, string> = {
+    multiple_choice: "mcq",
+    multiplechoice: "mcq",
+    choice: "mcq",
+    multi_answer: "multi_select",
+    multiple_answer: "multi_select",
+    map_labeling: "map_labelling",
+    plan_labelling: "map_labelling",
+    plan_labeling: "map_labelling",
+    diagram_labeling: kind === "reading" ? "diagram_labelling" : "map_labelling",
+    diagram_labelling: kind === "reading" ? "diagram_labelling" : "map_labelling",
+    form: "form_completion",
+    forms_completion: "form_completion",
+    notes_completion: "note_completion",
+    table_completion: kind === "reading" ? "table_completion" : "note_completion",
+    flow_chart_completion: kind === "reading" ? "flowchart_completion" : "note_completion",
+    flowchart_completion: kind === "reading" ? "flowchart_completion" : "note_completion",
+    sentence: "sentence_completion",
+    summary: "summary_completion",
+    short_answer_question: "short_answer",
+    true_false_not_given: "tfng",
+    yes_no_not_given: "ynng",
+    matching: kind === "reading" ? "matching_information" : "matching",
+    matching_people: "matching",
+    matching_paragraphs: "matching_information",
+  };
+  if (synonyms[t] && valid.has(synonyms[t])) return synonyms[t];
+  // Reasonable last-resort defaults.
+  return kind === "listening" ? "short_answer" : "short_answer";
+}
+
+/** Delete a test and all of its child rows by code. Safe no-op if absent. */
+async function deleteTestByCode(
+  db: NonNullable<Awaited<ReturnType<typeof getDb>>>,
+  code: string
+): Promise<void> {
+  const [t] = await db
+    .select({ id: ieltsMockTests.id })
+    .from(ieltsMockTests)
+    .where(eq(ieltsMockTests.code, code))
+    .limit(1);
+  if (!t) return;
+  const sections = await db
+    .select({ id: ieltsListeningSections.id })
+    .from(ieltsListeningSections)
+    .where(eq(ieltsListeningSections.testId, t.id));
+  for (const s of sections) {
+    await db
+      .delete(ieltsListeningQuestions)
+      .where(eq(ieltsListeningQuestions.sectionId, s.id));
+  }
+  await db
+    .delete(ieltsListeningSections)
+    .where(eq(ieltsListeningSections.testId, t.id));
+  const passages = await db
+    .select({ id: ieltsReadingPassages.id })
+    .from(ieltsReadingPassages)
+    .where(eq(ieltsReadingPassages.testId, t.id));
+  for (const p of passages) {
+    await db
+      .delete(ieltsReadingQuestions)
+      .where(eq(ieltsReadingQuestions.passageId, p.id));
+  }
+  await db
+    .delete(ieltsReadingPassages)
+    .where(eq(ieltsReadingPassages.testId, t.id));
+  await db.delete(ieltsWritingTasks).where(eq(ieltsWritingTasks.testId, t.id));
+  await db
+    .delete(ieltsSpeakingPrompts)
+    .where(eq(ieltsSpeakingPrompts.testId, t.id));
+  await db.delete(ieltsMockTests).where(eq(ieltsMockTests.id, t.id));
+}
+
 async function llmJson<T>(system: string, user: string, maxTokens = 4000): Promise<T> {
   const res = await invokeLLM({
     messages: [
@@ -762,6 +853,29 @@ function silentMp3(seconds: number, tmpl: Mp3FrameInfo): Buffer {
   return Buffer.concat(new Array(n).fill(frame));
 }
 
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+/**
+ * ElevenLabs synthesis with retries for transient failures (rate limits /
+ * brief network errors). Throws if all attempts fail.
+ */
+async function synthWithRetry(
+  opts: Parameters<typeof ttsSynthesize>[0],
+  attempts = 3
+): Promise<Buffer> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await ttsSynthesize(opts);
+    } catch (err) {
+      lastErr = err;
+      console.warn(`[IELTS Gen] TTS attempt ${i + 1}/${attempts} failed:`, err);
+      if (i < attempts - 1) await sleep(800 * (i + 1));
+    }
+  }
+  throw lastErr;
+}
+
 /** Synthesize narrator instruction text (chunked) into one MP3 buffer. */
 async function ttsNarrate(text: string): Promise<Buffer> {
   // Narrator voice, with a fallback to a known-good voice if the configured
@@ -778,7 +892,7 @@ async function ttsNarrate(text: string): Promise<Buffer> {
     for (const voiceId of voiceCandidates) {
       try {
         bufs.push(
-          await ttsSynthesize({
+          await synthWithRetry({
             text: chunk,
             voiceId,
             modelId: "eleven_multilingual_v2",
@@ -813,7 +927,7 @@ async function ttsSpeakSegments(
       if (!chunk) continue;
       try {
         bufs.push(
-          await ttsSynthesize({
+          await synthWithRetry({
             text: chunk,
             voiceId,
             modelId: "eleven_multilingual_v2",
@@ -894,6 +1008,7 @@ async function ttsListeningSection(
   const last = startingQuestionNumber + 9;
 
   const buffers: Buffer[] = [];
+  let speechBytes = 0; // bytes of actual spoken transcript audio (not silence)
   // Frame template for silence — detected from the first real ElevenLabs
   // buffer so the silent frames match its exact format (channel mode etc.).
   let frameTmpl: Mp3FrameInfo | null = null;
@@ -905,6 +1020,10 @@ async function ttsListeningSection(
   };
   const pushSilence = (seconds: number) => {
     push(silentMp3(seconds, frameTmpl ?? FALLBACK_FRAME));
+  };
+  const pushSpeech = (buf: Buffer) => {
+    speechBytes += buf.length;
+    push(buf);
   };
 
   // Opening — Section 1 only (introduces the whole test).
@@ -940,7 +1059,7 @@ async function ttsListeningSection(
     );
     pushSilence(READ_PAUSE_SEC + 10); // a little longer — all 10 at once
     push(await ttsNarrate(`Now listen and answer questions ${a} to ${last}.`));
-    push(await ttsSpeakSegments(part1, sectionNumber, voiceMap));
+    pushSpeech(await ttsSpeakSegments(part1, sectionNumber, voiceMap));
   } else {
     // First half: reading time, then play.
     push(
@@ -950,7 +1069,7 @@ async function ttsListeningSection(
     );
     pushSilence(READ_PAUSE_SEC);
     push(await ttsNarrate(`Now listen and answer questions ${a} to ${b}.`));
-    push(await ttsSpeakSegments(part1, sectionNumber, voiceMap));
+    pushSpeech(await ttsSpeakSegments(part1, sectionNumber, voiceMap));
 
     // Second half: reading time, then play.
     push(
@@ -960,7 +1079,7 @@ async function ttsListeningSection(
     );
     pushSilence(READ_PAUSE_SEC);
     push(await ttsNarrate(`Now listen and answer questions ${c} to ${d}.`));
-    push(await ttsSpeakSegments(part2, sectionNumber, voiceMap));
+    pushSpeech(await ttsSpeakSegments(part2, sectionNumber, voiceMap));
   }
 
   // End of section: check time.
@@ -970,6 +1089,16 @@ async function ttsListeningSection(
     )
   );
   pushSilence(CHECK_PAUSE_SEC);
+
+  // Fail loudly if the spoken transcript produced essentially no audio — this
+  // means ElevenLabs failed for the whole section (e.g. credits exhausted or
+  // rate-limited). Better to abort than ship a section that's only narration
+  // + silence, which the player would blow straight through.
+  if (speechBytes < 3000) {
+    throw new Error(
+      `Section ${sectionNumber} produced no speech audio (${speechBytes} bytes) — ElevenLabs likely failed (check credits / rate limit).`
+    );
+  }
 
   const combined = Buffer.concat(buffers);
   const key = `ielts/audio/${testCode}/section-${sectionNumber}-${nanoid(6)}.mp3`;
@@ -1067,17 +1196,23 @@ export type GenerateTestResult = {
 export async function generateAcademicTest(args: {
   code: string;
   title: string;
+  /** Replace an existing test with this code (delete it only AFTER the new
+   *  content + audio are fully generated, so a failure leaves the old test
+   *  intact). When false (default), an existing test is left untouched. */
+  replace?: boolean;
 }): Promise<GenerateTestResult> {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
 
-  // Idempotent: if test exists, return its id and do nothing.
+  // If a test with this code exists: when not replacing, return it untouched
+  // (idempotent). When replacing, we keep it for now and only delete it once
+  // the new content is fully ready (just before inserting — see below).
   const existing = await db
     .select()
     .from(ieltsMockTests)
     .where(eq(ieltsMockTests.code, args.code))
     .limit(1);
-  if (existing.length > 0) {
+  if (existing.length > 0 && !args.replace) {
     return {
       alreadyExists: true,
       testId: existing[0].id,
@@ -1193,6 +1328,45 @@ export async function generateAcademicTest(args: {
     );
   }
 
+  // Step 1c: synthesize ALL listening audio BEFORE any DB write. If any
+  // section's audio fails (after per-section retries), abort the whole run so
+  // we never persist a half-built test (e.g. only 2 sections with audio). The
+  // R2 key only needs the test code, so this can run before inserting rows.
+  console.log("[IELTS Gen] Synthesizing Listening audio (pre-insert)...");
+  const audioKeys: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    const section = listening[i]!;
+    let audioKey = "";
+    for (let attempt = 0; attempt < 2 && !audioKey; attempt++) {
+      try {
+        audioKey = await ttsListeningSection(
+          args.code,
+          (i + 1) as 1 | 2 | 3 | 4,
+          section,
+          i * 10 + 1
+        );
+      } catch (e: any) {
+        errors.push(`L${i + 1} TTS try ${attempt + 1}: ${e.message}`);
+        console.error(`[IELTS Gen] Section ${i + 1} TTS failed:`, e.message);
+      }
+    }
+    if (!audioKey) {
+      throw new Error(
+        `Listening Section ${i + 1} audio failed after retries — aborting BEFORE saving so no broken test ships. ` +
+          `This is almost always ElevenLabs (check credits / rate limit). Errors: ${errors.join(" | ")}`
+      );
+    }
+    audioKeys[i] = audioKey;
+  }
+
+  // Replace mode: now that all content + audio are ready, delete the old test
+  // (with all child rows) so the swap is effectively atomic — a failure above
+  // would have aborted before reaching here, leaving the old test intact.
+  if (args.replace && existing.length > 0) {
+    console.log("[IELTS Gen] Deleting previous test before insert...");
+    await deleteTestByCode(db, args.code);
+  }
+
   // Step 2: insert the test row.
   console.log("[IELTS Gen] Inserting test row...");
   const insertedTest = await db.insert(ieltsMockTests).values({
@@ -1204,23 +1378,12 @@ export async function generateAcademicTest(args: {
   });
   const testId = (insertedTest as any)[0]?.insertId as number;
 
-  // Step 3: Listening audio gen + persist.
-  console.log("[IELTS Gen] Synthesizing Listening audio...");
+  // Step 3: persist Listening sections (audio already generated above).
+  console.log("[IELTS Gen] Inserting Listening sections...");
   let listeningCount = 0;
   for (let i = 0; i < 4; i++) {
     const section = listening[i];
     if (!section) continue;
-    let audioKey = "";
-    try {
-      audioKey = await ttsListeningSection(
-        args.code,
-        (i + 1) as 1 | 2 | 3 | 4,
-        section,
-        i * 10 + 1
-      );
-    } catch (e: any) {
-      errors.push(`L${i + 1} TTS: ${e.message}`);
-    }
     // Store the dialogue transcript without the internal [[SPLIT]] marker.
     const storedTranscript = section.transcript
       .replace(/\[\[SPLIT\]\]/g, "")
@@ -1229,7 +1392,7 @@ export async function generateAcademicTest(args: {
     const inserted = await db.insert(ieltsListeningSections).values({
       testId,
       sectionNumber: i + 1,
-      audioKey,
+      audioKey: audioKeys[i],
       durationSec: section.durationSec ?? null,
       transcript: storedTranscript,
     });
@@ -1239,7 +1402,7 @@ export async function generateAcademicTest(args: {
         section.questions.map(q => ({
           sectionId,
           questionNumber: q.questionNumber,
-          questionType: q.questionType as any,
+          questionType: normalizeQuestionType(q.questionType, "listening") as any,
           prompt: q.prompt,
           options: q.options ?? null,
           correctAnswers: q.correctAnswers,
@@ -1269,7 +1432,7 @@ export async function generateAcademicTest(args: {
         passage.questions.map(q => ({
           passageId,
           questionNumber: q.questionNumber,
-          questionType: q.questionType as any,
+          questionType: normalizeQuestionType(q.questionType, "reading") as any,
           prompt: q.prompt,
           options: q.options ?? null,
           correctAnswers: q.correctAnswers,

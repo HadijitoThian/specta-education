@@ -547,60 +547,18 @@ export const ieltsAdminRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
-      // 1) Delete existing by code (with all child rows). Re-uses logic
-      // similar to the delete mutation above.
-      const [existing] = await db
-        .select({ id: ieltsMockTests.id })
-        .from(ieltsMockTests)
-        .where(eq(ieltsMockTests.code, input.code))
-        .limit(1);
-
-      if (existing) {
-        const sections = await db
-          .select({ id: ieltsListeningSections.id })
-          .from(ieltsListeningSections)
-          .where(eq(ieltsListeningSections.testId, existing.id));
-        for (const s of sections) {
-          await db
-            .delete(ieltsListeningQuestions)
-            .where(eq(ieltsListeningQuestions.sectionId, s.id));
-        }
-        await db
-          .delete(ieltsListeningSections)
-          .where(eq(ieltsListeningSections.testId, existing.id));
-
-        const passages = await db
-          .select({ id: ieltsReadingPassages.id })
-          .from(ieltsReadingPassages)
-          .where(eq(ieltsReadingPassages.testId, existing.id));
-        for (const p of passages) {
-          await db
-            .delete(ieltsReadingQuestions)
-            .where(eq(ieltsReadingQuestions.passageId, p.id));
-        }
-        await db
-          .delete(ieltsReadingPassages)
-          .where(eq(ieltsReadingPassages.testId, existing.id));
-
-        await db
-          .delete(ieltsWritingTasks)
-          .where(eq(ieltsWritingTasks.testId, existing.id));
-        await db
-          .delete(ieltsSpeakingPrompts)
-          .where(eq(ieltsSpeakingPrompts.testId, existing.id));
-        await db
-          .delete(ieltsMockTests)
-          .where(eq(ieltsMockTests.id, existing.id));
-      }
-
-      // 2) Generate fresh — fire-and-forget so the request doesn't sit
-      // inside Railway's 5-minute proxy timeout. Caller polls list().
+      // Generate fresh in REPLACE mode — the old test is kept until the new
+      // content + audio are fully generated, then swapped atomically. So if
+      // generation fails (e.g. ElevenLabs credits), the existing test stays
+      // intact instead of being wiped. Fire-and-forget to dodge Railway's
+      // 5-minute proxy timeout; caller polls list().
       void (async () => {
         try {
           const { generateAcademicTest } = await import("./ieltsTestGenerator");
           const result = await generateAcademicTest({
             code: input.code,
             title: input.title,
+            replace: true,
           });
           console.log(`[regenerateTest] done`, result);
         } catch (err) {
@@ -612,7 +570,7 @@ export const ieltsAdminRouter = router({
         accepted: true,
         code: input.code,
         message:
-          "Regeneration started in the background. Refresh in 5-10 min to see new content.",
+          "Regeneration started in the background. If it fails (e.g. ElevenLabs credits), the existing test is kept. Refresh in 5-10 min.",
       };
     }),
 
