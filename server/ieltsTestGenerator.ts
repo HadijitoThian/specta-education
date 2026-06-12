@@ -87,7 +87,7 @@ const SECTION_BLUEPRINTS = [
     theme:
       "A monologue by a MALE speaker. Use a male first name from this set: DAVID, MARK, JAMES, TOM, MIKE, PAUL, GEORGE, OLIVER, HENRY, WILLIAM. Speaker label format MUST be like 'DAVID:' or 'GUIDE:' (and the speaker introduces himself naturally — 'Hello everyone, I'm David and I'll be your guide today'). Single coherent topic: a welcome talk at a wildlife sanctuary, a radio show about a local event, a tour intro at a museum. CRITICAL: end with one complete sentence (e.g., 'I hope you enjoy your visit.'). Never trail off mid-sentence. CRITICAL: the speaker is MALE, so any self-introduction or name reference must be a male name.",
     questionTypes:
-      "Mix of multiple_choice (3-4 questions) and note_completion (6-7 questions). The note_completion prompts MUST use this exact format: prepend '[GROUP: <header text>]' on a line by itself ONLY at the first question under each group. The line of the question itself is a bullet point with the fill-in blank, e.g.:\n  Question 14 prompt: '[GROUP: History of the sanctuary]\\n- Founded in .......... by a group of volunteers'\n  Question 15 prompt: '- Currently houses ............ different species'\n  Question 16 prompt: '[GROUP: Safety rules]\\n- Do not approach the .............'\nUse 2-3 distinct GROUP headers across the note_completion questions. NEVER use map_labelling. Each question must test a UNIQUE fact — no two questions may share an opening phrase.",
+      "Authentic Section 2 mix across the 10 questions: 3-4 multiple_choice + 3 matching + 3-4 note_completion. Keep each TYPE in a contiguous block (all MCQ together, then all matching together, then all notes together) in question-number order.\n  - multiple_choice: 3 plausible options each (A/B/C), real distractors mentioned in the talk.\n  - matching: a SINGLE shared option list of 4-5 items (e.g. 'A. the cafe', 'B. the gift shop', 'C. the main hall', 'D. the garden', 'E. the library') repeated as the options on EACH of the 3 matching questions; each question names a thing/person and asks which option it matches. correctAnswers are single letters, SHUFFLED (never A,B,C in order) and options MAY repeat. Do NOT use map_labelling (no on-screen map).\n  - note_completion: use '[GROUP: <header>]' on its own line at the first question of each group, then bullet lines with '..........' blanks. 2-3 group headers. The first note question's prompt also carries the [LIMIT: ...] tag.\nEach question tests a UNIQUE fact — no two questions may share an opening phrase.",
   },
   {
     sectionNumber: 3,
@@ -236,6 +236,11 @@ async function generateListeningSection(
   attempt = 1
 ): Promise<ListeningSectionDraft> {
   const blueprint = SECTION_BLUEPRINTS.find(b => b.sectionNumber === sectionNumber)!;
+  const needsSplit = sectionNumber !== 4; // Section 4 plays straight through.
+
+  const splitFieldNote = needsSplit
+    ? `Insert ONE line containing exactly [[SPLIT]] at the natural midpoint between the first half of questions (${startingQuestionNumber}-${startingQuestionNumber + 4}) and the second half (${startingQuestionNumber + 5}-${startingQuestionNumber + 9}).`
+    : `Do NOT include any [[SPLIT]] marker — this section is played straight through.`;
 
   const system = `You are writing IELTS Listening test content matching the OFFICIAL international IELTS standard.
 
@@ -249,12 +254,12 @@ Return JSON ONLY with this exact shape:
 {
   "audioIntro": "A short noun phrase the narrator reads after 'You will hear', describing the recording — e.g. 'a conversation between a student and an accommodation officer about renting a room' or 'a talk given to new museum volunteers'. No speaker labels, no quotes, no trailing full stop.",
   "example": ${sectionNumber === 1 ? `{ "lines": "A SHORT 2-3 line standalone example exchange WITH speaker labels that demonstrates how an answer is given (do NOT reuse any of the 10 real answers)", "answer": "the example answer, 1-3 words" }` : "null"},
-  "transcript": "Full transcript with speaker labels like 'AGENT:' or 'GUIDE:' on each line. ~600-900 words. Natural conversational/lecture rhythm. Include numbers, dates, names, places that match the questions. Insert ONE line containing exactly [[SPLIT]] at the natural midpoint between the first half of questions (${startingQuestionNumber}-${startingQuestionNumber + 4}) and the second half (${startingQuestionNumber + 5}-${startingQuestionNumber + 9}). Do NOT write any spoken instructions, reading-time cues, or 'now look at questions…' lines — the system adds all narrator instructions automatically.",
+  "transcript": "Full transcript with speaker labels like 'AGENT:' or 'GUIDE:' on each line. ~600-900 words. Natural conversational/lecture rhythm with realistic interjections (mm, right, I see). Include numbers, dates, names, places that match the questions. ${splitFieldNote} Do NOT write any spoken instructions, reading-time cues, or 'now look at questions…' lines — the system adds all narrator instructions automatically.",
   "durationSec": number,
   "questions": [
     {
       "questionNumber": number,
-      "questionType": "form_completion" | "note_completion" | "sentence_completion" | "summary_completion" | "short_answer" | "mcq" | "matching" | "map_labelling",
+      "questionType": "form_completion" | "note_completion" | "sentence_completion" | "summary_completion" | "short_answer" | "mcq" | "matching",
       "prompt": "The full question text the student sees. For form/note completion, include the fill-in line like 'Name: ......(1)......'.",
       "options": null | ["A. ...", "B. ...", "C. ..."],
       "correctAnswers": ["accepted variant 1", "accepted variant 2 (e.g. lowercase)"]
@@ -266,12 +271,11 @@ Rules:
 - Exactly 10 questions per section.
 - Question numbers start at ${startingQuestionNumber} and go up by 1.
 - correctAnswers must match EXACTLY what's in the transcript (case-insensitive accepted).
-- For form_completion / note_completion: keep answers short (1-3 words max).
-- For mcq: provide 3 plain-text options like "A. Something", "B. Something".
-- For map_labelling: options are letters A-H labeling pre-known locations. correctAnswer is a single letter.
-- Transcript MUST be self-contained — every answer should be derivable from the transcript by a careful listener.
-- Match the section blueprint exactly.
-- The transcript MUST contain exactly ONE line that is just [[SPLIT]] (nothing else on that line), placed at the natural midpoint between the two halves of questions. Do NOT write any "now look at questions…" cues or other spoken instructions — the narrator instructions are added by the system.
+- WORD LIMITS (real IELTS): every completion / short-answer question must obey a stated word limit. For the FIRST completion question of each contiguous completion block, PREFIX its prompt with a limit tag on its own line: '[LIMIT: NO MORE THAN TWO WORDS AND/OR A NUMBER]' (or 'ONE WORD AND/OR A NUMBER' / 'NO MORE THAN THREE WORDS' as appropriate). Every correctAnswer in that block MUST obey that limit. Keep completion answers short (1-3 words).
+- For mcq: provide exactly 3 plain-text options like "A. Something", "B. Something", "C. Something". All 3 must be plausible (real distractors). correctAnswers is the single letter, e.g. ["A"].
+- For matching: provide a shared option list (e.g. ["A. ...","B. ...","C. ...","D. ...","E. ..."]) repeated on each matching question; correctAnswers is the single letter. Answers MUST be shuffled (not A,B,C,D…) and may repeat options.
+- Transcript MUST be self-contained — every answer should be derivable from the transcript by a careful listener, but paraphrased (not the literal words for harder sections).
+- Match the section blueprint exactly.${needsSplit ? "\n- The transcript MUST contain exactly ONE line that is just [[SPLIT]] (nothing else on that line), placed at the natural midpoint between the two halves of questions." : "\n- Do NOT include a [[SPLIT]] marker."} Do NOT write any "now look at questions…" cues or other spoken instructions — the narrator instructions are added by the system.
 - "audioIntro" is REQUIRED. ${sectionNumber === 1 ? '"example" is REQUIRED for Section 1: a short standalone exchange whose answer is NOT one of the 10 real answers.' : '"example" must be null for this section.'}`;
 
   const user = `Section ${sectionNumber} blueprint:
@@ -760,22 +764,37 @@ function silentMp3(seconds: number, tmpl: Mp3FrameInfo): Buffer {
 
 /** Synthesize narrator instruction text (chunked) into one MP3 buffer. */
 async function ttsNarrate(text: string): Promise<Buffer> {
+  // Narrator voice, with a fallback to a known-good voice if the configured
+  // narrator voice id isn't available on the account (so instructions are
+  // never silently dropped).
+  const voiceCandidates = [
+    LISTENING_VOICE_MAP.narrator,
+    LISTENING_VOICE_MAP.section1.primary, // British female (ENV default — always available)
+  ];
   const bufs: Buffer[] = [];
   for (const chunk of chunkTextForTTS(text.trim(), 1500)) {
     if (!chunk) continue;
-    try {
-      bufs.push(
-        await ttsSynthesize({
-          text: chunk,
-          voiceId: LISTENING_VOICE_MAP.narrator,
-          modelId: "eleven_multilingual_v2",
-          outputFormat: "mp3_44100_128",
-          stability: 0.6,
-          similarityBoost: 0.75,
-        })
-      );
-    } catch (err) {
-      console.warn(`[IELTS Gen] narrator TTS failed:`, err);
+    let done = false;
+    for (const voiceId of voiceCandidates) {
+      try {
+        bufs.push(
+          await ttsSynthesize({
+            text: chunk,
+            voiceId,
+            modelId: "eleven_multilingual_v2",
+            outputFormat: "mp3_44100_128",
+            stability: 0.6,
+            similarityBoost: 0.75,
+          })
+        );
+        done = true;
+        break;
+      } catch (err) {
+        console.warn(`[IELTS Gen] narrator TTS failed (voice ${voiceId}):`, err);
+      }
+    }
+    if (!done) {
+      console.warn(`[IELTS Gen] narrator chunk dropped (all voices failed)`);
     }
   }
   return Buffer.concat(bufs);
@@ -839,27 +858,26 @@ async function ttsListeningSection(
   draft: ListeningSectionDraft,
   startingQuestionNumber: number
 ): Promise<string> {
+  // Strip the split marker; Section 4 is played straight through.
   const fullTranscript = draft.transcript;
+  const straightThrough = sectionNumber === 4;
 
-  // Split the dialogue into two halves at the [[SPLIT]] marker (fallback:
-  // split the parsed segments down the middle).
-  let part1Text: string;
-  let part2Text: string;
-  if (fullTranscript.includes("[[SPLIT]]")) {
-    const idx = fullTranscript.indexOf("[[SPLIT]]");
-    part1Text = fullTranscript.slice(0, idx);
-    part2Text = fullTranscript.slice(idx + "[[SPLIT]]".length);
+  // Sections 1-3 split into two halves at [[SPLIT]] (fallback: midpoint).
+  let part1Text = fullTranscript;
+  let part2Text = "";
+  if (!straightThrough) {
+    if (fullTranscript.includes("[[SPLIT]]")) {
+      const idx = fullTranscript.indexOf("[[SPLIT]]");
+      part1Text = fullTranscript.slice(0, idx);
+      part2Text = fullTranscript.slice(idx + "[[SPLIT]]".length);
+    } else {
+      const segs = parseTranscript(fullTranscript);
+      const mid = Math.ceil(segs.length / 2);
+      part1Text = segs.slice(0, mid).map(s => `${s.speaker}: ${s.text}`).join("\n");
+      part2Text = segs.slice(mid).map(s => `${s.speaker}: ${s.text}`).join("\n");
+    }
   } else {
-    const segs = parseTranscript(fullTranscript);
-    const mid = Math.ceil(segs.length / 2);
-    part1Text = segs
-      .slice(0, mid)
-      .map(s => `${s.speaker}: ${s.text}`)
-      .join("\n");
-    part2Text = segs
-      .slice(mid)
-      .map(s => `${s.speaker}: ${s.text}`)
-      .join("\n");
+    part1Text = fullTranscript.replace(/\[\[SPLIT\]\]/g, " ");
   }
 
   const part1 = parseTranscript(part1Text);
@@ -873,6 +891,7 @@ async function ttsListeningSection(
   const b = startingQuestionNumber + 4;
   const c = startingQuestionNumber + 5;
   const d = startingQuestionNumber + 9;
+  const last = startingQuestionNumber + 9;
 
   const buffers: Buffer[] = [];
   // Frame template for silence — detected from the first real ElevenLabs
@@ -912,25 +931,37 @@ async function ttsListeningSection(
     );
   }
 
-  // First half: reading time, then play.
-  push(
-    await ttsNarrate(
-      `First, you have some time to look at questions ${a} to ${b}.`
-    )
-  );
-  pushSilence(READ_PAUSE_SEC);
-  push(await ttsNarrate(`Now listen and answer questions ${a} to ${b}.`));
-  push(await ttsSpeakSegments(part1, sectionNumber, voiceMap));
+  if (straightThrough) {
+    // Section 4: read all questions once, then play straight through.
+    push(
+      await ttsNarrate(
+        `First, you have some time to look at questions ${a} to ${last}.`
+      )
+    );
+    pushSilence(READ_PAUSE_SEC + 10); // a little longer — all 10 at once
+    push(await ttsNarrate(`Now listen and answer questions ${a} to ${last}.`));
+    push(await ttsSpeakSegments(part1, sectionNumber, voiceMap));
+  } else {
+    // First half: reading time, then play.
+    push(
+      await ttsNarrate(
+        `First, you have some time to look at questions ${a} to ${b}.`
+      )
+    );
+    pushSilence(READ_PAUSE_SEC);
+    push(await ttsNarrate(`Now listen and answer questions ${a} to ${b}.`));
+    push(await ttsSpeakSegments(part1, sectionNumber, voiceMap));
 
-  // Second half: reading time, then play.
-  push(
-    await ttsNarrate(
-      `Before you hear the rest, you have some time to look at questions ${c} to ${d}.`
-    )
-  );
-  pushSilence(READ_PAUSE_SEC);
-  push(await ttsNarrate(`Now listen and answer questions ${c} to ${d}.`));
-  push(await ttsSpeakSegments(part2, sectionNumber, voiceMap));
+    // Second half: reading time, then play.
+    push(
+      await ttsNarrate(
+        `Before you hear the rest, you have some time to look at questions ${c} to ${d}.`
+      )
+    );
+    pushSilence(READ_PAUSE_SEC);
+    push(await ttsNarrate(`Now listen and answer questions ${c} to ${d}.`));
+    push(await ttsSpeakSegments(part2, sectionNumber, voiceMap));
+  }
 
   // End of section: check time.
   push(

@@ -334,45 +334,57 @@ function ListeningQuestionsArea({
   return (
     <div className="space-y-5">
       {blocks.map((block, i) => {
-        if (block.kind === "notes") {
-          // A run of 2+ notes gets the unified outline layout; a lone
-          // note_completion falls back to a normal card.
-          if (block.questions.length >= 2) {
-            return (
-              <NotesView
-                key={`notes-${i}`}
-                questions={block.questions}
-                answers={answers}
-                onChange={onChange}
-              />
-            );
-          }
-          return (
-            <QuestionRow
-              key={`note-${block.questions[0].id}`}
-              q={block.questions[0]}
-              value={answers[block.questions[0].id] ?? ""}
-              onChange={val => onChange(block.questions[0].id, val)}
-              compact
-            />
-          );
-        }
+        // Word-limit instruction (real IELTS) — shown once above the block if
+        // the first question carries a [LIMIT: …] tag.
+        const limit = extractLimit(block.questions[0]?.prompt ?? "").limit;
+        const limitLine = limit ? (
+          <p className="text-xs font-semibold text-slate-600 italic mb-1.5">
+            Write {limit.toLowerCase()} for each answer.
+          </p>
+        ) : null;
 
-        if (block.kind === "matching") {
-          // A run of 3+ matching questions gets the compact table; fewer
-          // fall back to normal cards.
-          if (block.questions.length >= 3) {
-            return (
-              <MatchingTable
-                key={`matching-${i}`}
+        let inner: React.ReactNode;
+        if (block.kind === "notes") {
+          inner =
+            block.questions.length >= 2 ? (
+              <NotesView
                 questions={block.questions}
                 answers={answers}
                 onChange={onChange}
               />
+            ) : (
+              <QuestionRow
+                q={block.questions[0]}
+                value={answers[block.questions[0].id] ?? ""}
+                onChange={val => onChange(block.questions[0].id, val)}
+                compact
+              />
             );
-          }
-          return (
-            <div key={`matching-${i}`} className="grid sm:grid-cols-1 gap-2">
+        } else if (block.kind === "matching") {
+          inner =
+            block.questions.length >= 3 ? (
+              <MatchingTable
+                questions={block.questions}
+                answers={answers}
+                onChange={onChange}
+              />
+            ) : (
+              <div className="grid sm:grid-cols-1 gap-2">
+                {block.questions.map(q => (
+                  <QuestionRow
+                    key={q.id}
+                    q={q}
+                    value={answers[q.id] ?? ""}
+                    onChange={val => onChange(q.id, val)}
+                    compact
+                  />
+                ))}
+              </div>
+            );
+        } else {
+          // Default: a run of MCQ / short-answer / etc.
+          inner = (
+            <div className="grid sm:grid-cols-1 gap-2">
               {block.questions.map(q => (
                 <QuestionRow
                   key={q.id}
@@ -386,18 +398,10 @@ function ListeningQuestionsArea({
           );
         }
 
-        // Default: a run of MCQ / short-answer / etc.
         return (
-          <div key={`other-${i}`} className="grid sm:grid-cols-1 gap-2">
-            {block.questions.map(q => (
-              <QuestionRow
-                key={q.id}
-                q={q}
-                value={answers[q.id] ?? ""}
-                onChange={val => onChange(q.id, val)}
-                compact
-              />
-            ))}
+          <div key={`block-${i}`}>
+            {limitLine}
+            {inner}
           </div>
         );
       })}
@@ -405,9 +409,18 @@ function ListeningQuestionsArea({
   );
 }
 
+/** Extracts a "[LIMIT: …]" word-limit tag from a prompt. */
+function extractLimit(prompt: string): { limit: string | null; rest: string } {
+  const m = prompt.match(/\[LIMIT:\s*([^\]]+)\]/i);
+  if (m) {
+    return { limit: m[1].trim(), rest: prompt.replace(m[0], "").trim() };
+  }
+  return { limit: null, rest: prompt };
+}
+
 /** Parses "[GROUP: header]\n- bullet line" out of a question prompt. */
 function parseNotePrompt(prompt: string): { group: string | null; line: string } {
-  const trimmed = prompt.trim();
+  const trimmed = extractLimit(prompt).rest.trim();
   const groupMatch = trimmed.match(/^\[GROUP:\s*([^\]]+)\]\s*\n?([\s\S]*)$/i);
   if (groupMatch) {
     return { group: groupMatch[1].trim(), line: groupMatch[2].trim() };
@@ -537,9 +550,10 @@ function MatchingTable({
       <div className="space-y-2">
         {questions.map(q => {
           const opts = Array.isArray(q.options) ? (q.options as string[]) : options;
-          // Render the prompt (strip any [GROUP:...] markers just in case).
+          // Render the prompt (strip [LIMIT:...] / [GROUP:...] markers).
           const cleanPrompt = q.prompt
-            .replace(/^\[GROUP:[^\]]+\]\s*\n?/i, "")
+            .replace(/\[LIMIT:[^\]]+\]/i, "")
+            .replace(/^\s*\[GROUP:[^\]]+\]\s*\n?/i, "")
             .trim();
           return (
             <div
@@ -1902,9 +1916,12 @@ function QuestionRow({
     q.questionType === "matching_features" ||
     q.questionType === "matching_sentence_endings";
 
-  // Strip [GROUP:...] markers so they don't appear in cards (notes view
-  // handles grouping separately).
-  const cleanPrompt = q.prompt.replace(/^\[GROUP:[^\]]+\]\s*\n?/i, "").trim();
+  // Strip [LIMIT:...] and [GROUP:...] markers so they don't appear in cards
+  // (the word-limit line and notes view handle these separately).
+  const cleanPrompt = q.prompt
+    .replace(/\[LIMIT:[^\]]+\]/i, "")
+    .replace(/^\s*\[GROUP:[^\]]+\]\s*\n?/i, "")
+    .trim();
 
   return (
     <div
