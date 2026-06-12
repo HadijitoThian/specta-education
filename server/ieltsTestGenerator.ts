@@ -150,6 +150,9 @@ type ListeningSectionDraft = {
   durationSec: number;
   /** Short noun phrase for the narrator's "You will hear …" intro. */
   audioIntro?: string;
+  /** The last question number covered BEFORE the [[SPLIT]] (the first batch).
+   *  The narrator announces exactly this boundary so it matches the audio. */
+  firstBatchEnd?: number;
   /** Section 1 only — a short worked example played before the test begins. */
   example?: { lines: string; answer: string } | null;
   questions: Array<{
@@ -318,6 +321,56 @@ function validateListeningSection(
     }
   }
 
+  // 8. Completion answers MUST appear verbatim in the transcript (a listener
+  //    must be able to hear the exact word). This catches the "answers aren't
+  //    in the audio" problem (esp. Section 3).
+  const normTranscript = section.transcript
+    .toLowerCase()
+    .replace(/[-–—_/]/g, " ")
+    .replace(/[.,;:!?'"“”‘’()[\]{}]/g, "")
+    .replace(/\s+/g, " ");
+  const completionTypes = new Set([
+    "form_completion",
+    "note_completion",
+    "sentence_completion",
+    "summary_completion",
+    "short_answer",
+  ]);
+  let missingInTranscript = 0;
+  for (const q of section.questions) {
+    if (!completionTypes.has(q.questionType)) continue;
+    const found = (q.correctAnswers ?? []).some(ans => {
+      const a = String(ans)
+        .toLowerCase()
+        .replace(/[-–—_/]/g, " ")
+        .replace(/[.,;:!?'"“”‘’()[\]{}]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!a) return false;
+      return (
+        normTranscript.includes(a) ||
+        normTranscript.replace(/\s+/g, "").includes(a.replace(/\s+/g, ""))
+      );
+    });
+    if (!found) missingInTranscript++;
+  }
+  if (missingInTranscript > 2) {
+    issues.push(
+      `${missingInTranscript} completion answer(s) do not appear in the transcript — every gap answer must be a word actually spoken in the audio`
+    );
+  }
+
+  // 9. Split alignment: firstBatchEnd must be within the section's range.
+  if (sectionNumber !== 4 && section.firstBatchEnd != null) {
+    const lo = (sectionNumber - 1) * 10 + 1;
+    const hi = lo + 9;
+    if (section.firstBatchEnd < lo + 2 || section.firstBatchEnd > hi - 2) {
+      issues.push(
+        `firstBatchEnd (${section.firstBatchEnd}) should be between ${lo + 2} and ${hi - 2}`
+      );
+    }
+  }
+
   return issues;
 }
 
@@ -344,7 +397,7 @@ Real IELTS gets progressively harder from Section 1 (easiest) to Section 4 (hard
 Return JSON ONLY with this exact shape:
 {
   "audioIntro": "A short noun phrase the narrator reads after 'You will hear', describing the recording — e.g. 'a conversation between a student and an accommodation officer about renting a room' or 'a talk given to new museum volunteers'. No speaker labels, no quotes, no trailing full stop.",
-  "example": ${sectionNumber === 1 ? `{ "lines": "A SHORT 2-3 line standalone example exchange WITH speaker labels that demonstrates how an answer is given (do NOT reuse any of the 10 real answers)", "answer": "the example answer, 1-3 words" }` : "null"},
+  "example": ${sectionNumber === 1 ? `{ "lines": "A SHORT 2-3 line standalone example exchange WITH speaker labels that demonstrates how an answer is given (do NOT reuse any of the 10 real answers)", "answer": "the example answer, 1-3 words" }` : "null"},${needsSplit ? `\n  "firstBatchEnd": "The LAST question number covered BEFORE the [[SPLIT]] — an integer between ${startingQuestionNumber + 2} and ${startingQuestionNumber + 7}. The audio before [[SPLIT]] must answer questions ${startingQuestionNumber} through this number; the audio after answers the rest. The narrator announces EXACTLY this boundary, so it MUST match where you place [[SPLIT]].",` : ""}
   "transcript": "Full transcript with speaker labels like 'AGENT:' or 'GUIDE:' on each line. ~600-900 words. Natural conversational/lecture rhythm with realistic interjections (mm, right, I see). Include numbers, dates, names, places that match the questions. ${splitFieldNote} Do NOT write any spoken instructions, reading-time cues, or 'now look at questions…' lines — the system adds all narrator instructions automatically.",
   "durationSec": number,
   "questions": [
@@ -360,14 +413,14 @@ Return JSON ONLY with this exact shape:
 
 Rules:
 - Exactly 10 questions per section.
-- Question numbers start at ${startingQuestionNumber} and go up by 1.
-- correctAnswers must match EXACTLY what's in the transcript (case-insensitive accepted).
+- Question numbers start at ${startingQuestionNumber} and go up by 1.${needsSplit ? `\n- SPLIT ALIGNMENT (critical): the questions answered in the FIRST half of the audio (before [[SPLIT]]) must be EXACTLY questions ${startingQuestionNumber} to firstBatchEnd, IN ORDER. Place [[SPLIT]] right after the audio content that answers question firstBatchEnd. Questions must be answered in the audio in the SAME ORDER as their numbers. Set firstBatchEnd to match.` : ""}
+- ANSWERS MUST BE HEARD: for every completion / short_answer question, the exact word(s) in correctAnswers MUST appear VERBATIM in the transcript (the listener must be able to write down what they hear). You may paraphrase the QUESTION wording, but NEVER the answer word itself.
+- NUMBER/NAME CLARITY (so TTS reads them slowly and clearly): write phone numbers, postcodes, reference codes and spelled-out names digit-by-digit / letter-by-letter separated by commas, e.g. a phone number as "oh, two, oh, seven — double four, nine, one, three", a postcode as "B, N, one — three, X, F", a surname as "that's S, M, I, T, H". Never write a long number as one run-on token.
 - WORD LIMITS (real IELTS): every completion / short-answer question must obey a stated word limit. For the FIRST completion question of each contiguous completion block, PREFIX its prompt with a limit tag on its own line: '[LIMIT: NO MORE THAN TWO WORDS AND/OR A NUMBER]' (or 'ONE WORD AND/OR A NUMBER' / 'NO MORE THAN THREE WORDS' as appropriate). Every correctAnswer in that block MUST obey that limit. Keep completion answers short (1-3 words).
-- For mcq: provide exactly 3 plain-text options like "A. Something", "B. Something", "C. Something". All 3 must be plausible (real distractors). correctAnswers is the single letter, e.g. ["A"].
+- For mcq: provide exactly 3 plain-text options like "A. Something", "B. Something", "C. Something". All 3 must be plausible (real distractors). The audio MUST clearly support the correct option. correctAnswers is the single letter, e.g. ["A"].
 - For matching: provide a shared option list (e.g. ["A. ...","B. ...","C. ...","D. ...","E. ..."]) repeated on each matching question; correctAnswers is the single letter. Answers MUST be shuffled (not A,B,C,D…) and may repeat options.
-- Transcript MUST be self-contained — every answer should be derivable from the transcript by a careful listener, but paraphrased (not the literal words for harder sections).
-- Match the section blueprint exactly.${needsSplit ? "\n- The transcript MUST contain exactly ONE line that is just [[SPLIT]] (nothing else on that line), placed at the natural midpoint between the two halves of questions." : "\n- Do NOT include a [[SPLIT]] marker."} Do NOT write any "now look at questions…" cues or other spoken instructions — the narrator instructions are added by the system.
-- "audioIntro" is REQUIRED. ${sectionNumber === 1 ? '"example" is REQUIRED for Section 1: a short standalone exchange whose answer is NOT one of the 10 real answers.' : '"example" must be null for this section.'}`;
+- Match the section blueprint exactly.${needsSplit ? "\n- The transcript MUST contain exactly ONE line that is just [[SPLIT]] (nothing else on that line), at the firstBatchEnd boundary described above." : "\n- Do NOT include a [[SPLIT]] marker."} Do NOT write any "now look at questions…" cues or other spoken instructions — the narrator instructions are added by the system.
+- "audioIntro" is REQUIRED.${needsSplit ? ' "firstBatchEnd" is REQUIRED.' : ""} ${sectionNumber === 1 ? '"example" is REQUIRED for Section 1: a short standalone exchange whose answer is NOT one of the 10 real answers.' : '"example" must be null for this section.'}`;
 
   const user = `Section ${sectionNumber} blueprint:
 ${blueprint.theme}
@@ -504,10 +557,18 @@ Generate the passage and all questions now. JSON only.`;
   return llmJson<ReadingPassageDraft>(system, user, 6000);
 }
 
+type WritingChart = {
+  type: "bar" | "line" | "pie";
+  title: string;
+  xLabels: string[];
+  yAxisLabel?: string;
+  series: Array<{ label: string; data: number[] }>;
+};
+
 type WritingDraft = {
   task1: {
     prompt: string;
-    chartImagePrompt: string; // For FLUX image generation
+    chart: WritingChart;
   };
   task2: {
     prompt: string;
@@ -520,22 +581,30 @@ async function generateWritingTasks(): Promise<WritingDraft> {
 Return JSON ONLY:
 {
   "task1": {
-    "prompt": "Full Task 1 prompt. Must describe a chart/graph/diagram. Open with 'The chart below shows…' or similar. End with 'Summarise the information by selecting and reporting the main features, and make comparisons where relevant. Write at least 150 words.'",
-    "chartImagePrompt": "Short description of the chart visual to generate. Be specific about chart type, axes, data series, time periods. This prompt will be sent to an image generator."
+    "prompt": "Full Task 1 prompt. Open with a sentence describing the visual, e.g. 'The chart below shows the percentage of households with internet access in four countries between 2010 and 2020.' Then a new line, then EXACTLY: 'Summarise the information by selecting and reporting the main features, and make comparisons where relevant.' Then a new line, then: 'Write at least 150 words.' The prompt must accurately describe the data in the chart object below.",
+    "chart": {
+      "type": "bar | line | pie",
+      "title": "Chart title shown above the chart",
+      "xLabels": ["category or time labels, e.g. \\"2010\\",\\"2015\\",\\"2020\\""],
+      "yAxisLabel": "what the y-axis measures, e.g. \\"Percentage (%)\\" (omit for pie)",
+      "series": [ { "label": "series name (e.g. a country)", "data": [12, 34, 62] } ]
+    }
   },
   "task2": {
-    "prompt": "Full Task 2 prompt. Must be a discursive essay question (discuss-both-views, advantages/disadvantages, agree/disagree, or two-part question). End with: 'Give reasons for your answer and include any relevant examples from your own knowledge or experience. Write at least 250 words.'"
+    "prompt": "Full Task 2 prompt. A discursive essay question (discuss-both-views, advantages/disadvantages, agree/disagree, or two-part). End with: 'Give reasons for your answer and include any relevant examples from your own knowledge or experience. Write at least 250 words.'"
   }
 }
 
 Rules:
-- Task 1 chart should be a believable real-world data scenario (consumer behavior, education, environment, economics).
+- The chart data MUST be concrete real-looking numbers. For bar/line: every series.data array length MUST equal xLabels length. For pie: ONE series whose data length equals xLabels length and values sum to ~100.
+- 2-4 series for bar/line; clear, comparable, realistic values.
+- The Task 1 prompt's opening sentence MUST match the chart (same metric, units, categories, time period).
 - Task 2 should be a meaty topic with multiple legitimate viewpoints, suitable for band 7+ responses.
-- Indonesia-relevant data scenarios for Task 1 are great (e.g., smartphone usage by age group in Indonesia).`;
+- Indonesia-relevant scenarios for Task 1 are great (e.g., smartphone usage by age group in Indonesia).`;
 
   const user = `Generate one Academic Task 1 + Task 2 pair now. JSON only.`;
 
-  return llmJson<WritingDraft>(system, user, 1500);
+  return llmJson<WritingDraft>(system, user, 1800);
 }
 
 type SpeakingDraft = {
@@ -1002,10 +1071,20 @@ async function ttsListeningSection(
   const voiceMap = buildSpeakerVoiceMap(sectionNumber, allSpeakers);
 
   const a = startingQuestionNumber;
-  const b = startingQuestionNumber + 4;
-  const c = startingQuestionNumber + 5;
-  const d = startingQuestionNumber + 9;
   const last = startingQuestionNumber + 9;
+  // Boundary between the two halves — announced by the narrator. Use the
+  // LLM-reported firstBatchEnd so the announcement matches where the audio
+  // actually splits (fallback: the midpoint).
+  let b = startingQuestionNumber + 4;
+  if (
+    draft.firstBatchEnd != null &&
+    draft.firstBatchEnd > a &&
+    draft.firstBatchEnd < last
+  ) {
+    b = draft.firstBatchEnd;
+  }
+  const c = b + 1;
+  const d = last;
 
   const buffers: Buffer[] = [];
   let speechBytes = 0; // bytes of actual spoken transcript audio (not silence)
@@ -1130,51 +1209,69 @@ function chunkTextForTTS(text: string, maxLen: number): string[] {
   return chunks;
 }
 
+/**
+ * Render the Task 1 chart as a REAL, accurately-labelled chart using QuickChart
+ * (Chart.js as a service). FLUX/diffusion image models cannot render correct
+ * numeric data — they produce a chart-shaped picture with garbled/absent
+ * values — so we build a precise Chart.js config from the LLM's data instead.
+ */
 async function generateChartImage(
   testCode: string,
-  chartImagePrompt: string
+  chart: WritingChart | undefined | null
 ): Promise<string | null> {
-  if (!ENV.deepinfraApiKey) return null;
-  const fullPrompt = `Clean modern data visualization chart: ${chartImagePrompt}. Professional design, clear labels, axis lines, legend, neutral color palette (blue and amber), white background, presentation quality. Photographed flat with subtle shadow. No people, no logos.`;
-  const res = await fetch(
-    "https://api.deepinfra.com/v1/openai/images/generations",
-    {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        "content-type": "application/json",
-        authorization: `Bearer ${ENV.deepinfraApiKey}`,
+  if (!chart || !Array.isArray(chart.series) || chart.series.length === 0) {
+    return null;
+  }
+  const palette = ["#2563eb", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6"];
+  const isPie = chart.type === "pie";
+  const datasets = chart.series.map((s, i) => ({
+    label: s.label,
+    data: s.data,
+    ...(isPie
+      ? { backgroundColor: palette }
+      : {
+          backgroundColor: palette[i % palette.length],
+          borderColor: palette[i % palette.length],
+          fill: false,
+        }),
+  }));
+  const config = {
+    type: chart.type === "line" ? "line" : chart.type === "pie" ? "pie" : "bar",
+    data: { labels: chart.xLabels, datasets },
+    options: {
+      plugins: {
+        title: { display: true, text: chart.title, font: { size: 16 } },
+        legend: { display: true },
       },
-      body: JSON.stringify({
-        model: ENV.deepinfraImageModel,
-        prompt: fullPrompt,
-        n: 1,
-        size: "1024x1024",
-        response_format: "b64_json",
-      }),
-    }
-  );
-  if (!res.ok) {
-    console.warn(`[IELTS Gen] FLUX chart failed: ${res.status}`);
-    return null;
-  }
-  const data = (await res.json()) as {
-    data: Array<{ b64_json?: string; url?: string }>;
+      ...(isPie
+        ? {}
+        : {
+            scales: {
+              y: {
+                title: { display: !!chart.yAxisLabel, text: chart.yAxisLabel ?? "" },
+                beginAtZero: true,
+              },
+            },
+          }),
+    },
   };
-  const first = data.data?.[0];
-  if (!first) return null;
-  let buffer: Buffer;
-  if (first.b64_json) {
-    buffer = Buffer.from(first.b64_json, "base64");
-  } else if (first.url) {
-    const imgRes = await fetch(first.url);
-    buffer = Buffer.from(await imgRes.arrayBuffer());
-  } else {
+  const url =
+    "https://quickchart.io/chart?w=720&h=440&bkg=white&v=4&c=" +
+    encodeURIComponent(JSON.stringify(config));
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.warn(`[IELTS Gen] QuickChart failed: ${res.status}`);
+      return null;
+    }
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const key = `ielts/writing/${testCode}/task-1-${nanoid(6)}.png`;
+    await storagePut(key, buffer, "image/png");
+    return key;
+  } catch (err) {
+    console.warn(`[IELTS Gen] QuickChart error:`, err);
     return null;
   }
-  const key = `ielts/writing/${testCode}/task-1-${nanoid(6)}.png`;
-  await storagePut(key, buffer, "image/png");
-  return key;
 }
 
 // ---------------------------------------------------------------------------
@@ -1449,7 +1546,7 @@ export async function generateAcademicTest(args: {
   let chartKey: string | null = null;
   if (writing) {
     try {
-      chartKey = await generateChartImage(args.code, writing.task1.chartImagePrompt);
+      chartKey = await generateChartImage(args.code, writing.task1.chart);
       chartGenerated = !!chartKey;
     } catch (e: any) {
       errors.push(`Chart gen: ${e.message}`);

@@ -80,9 +80,15 @@ export function isAnswerCorrect(
     return false;
   }
 
-  // Completion / short-answer: normalised free-text comparison.
+  // Completion / short-answer: normalised free-text comparison. Also compare
+  // with ALL spaces removed so spacing differences never fail a correct
+  // answer (e.g. "guest house" == "guesthouse", "10 am" == "10am").
   const stNorm = normalizeAnswerText(st);
-  return correctAnswers.some(c => normalizeAnswerText(c) === stNorm);
+  const stNoSpace = stNorm.replace(/\s+/g, "");
+  return correctAnswers.some(c => {
+    const cNorm = normalizeAnswerText(c);
+    return cNorm === stNorm || cNorm.replace(/\s+/g, "") === stNoSpace;
+  });
 }
 
 // ---------------------------------------------------------------------------
