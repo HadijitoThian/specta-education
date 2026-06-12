@@ -22,8 +22,86 @@ import { eq, and, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { ENV } from "./_core/env";
 import { getDb } from "./db";
-import { ieltsMockAttempts, ieltsMockTests } from "../drizzle/schema";
+import { ieltsMockAttempts, ieltsMockTests, users } from "../drizzle/schema";
 import { notifyOwner } from "./_core/notification";
+
+function appBaseUrl(): string {
+  const u = ENV.appUrl?.replace(/\/+$/, "") || "https://specta-education-production.up.railway.app";
+  return /^https?:\/\//i.test(u) ? u : `https://${u}`;
+}
+
+/**
+ * Email the buyer a direct link to start their test. Sent when payment is
+ * confirmed, so the link reaches them even if the post-payment browser
+ * redirect fails. Best-effort (never throws).
+ */
+async function sendTestReadyEmail(
+  toEmail: string,
+  toName: string,
+  attemptToken: string
+): Promise<void> {
+  if (!ENV.resendApiKey || !toEmail) return;
+  const takeUrl = `${appBaseUrl()}/ielts/mock-test/take/${attemptToken}`;
+  const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f8fafc;">
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
+  <div style="background:linear-gradient(135deg,#1d4ed8,#4338ca,#7c3aed);padding:28px 24px;color:#fff;">
+    <div style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;opacity:0.85;">SpecTa IELTS Mock Test</div>
+    <div style="font-size:22px;font-weight:700;margin-top:4px;">Your test is ready 🎉</div>
+  </div>
+  <div style="padding:24px;color:#0f172a;">
+    <p style="margin:0 0 12px 0;">Hi ${escapeHtml(toName)},</p>
+    <p style="margin:0 0 18px 0;color:#475569;line-height:1.6;">Your payment is confirmed and your IELTS Mock Test is unlocked. Click below to begin — set aside about 2 hours 45 minutes and find a quiet space with your microphone ready.</p>
+    <div style="margin:4px 0 18px 0;"><a href="${takeUrl}" style="display:inline-block;background:#4338ca;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 24px;border-radius:8px;">Start my test</a></div>
+    <p style="margin:0 0 8px 0;color:#475569;line-height:1.6;font-size:13px;">Or open this link:<br/><a href="${takeUrl}" style="color:#4338ca;">${takeUrl}</a></p>
+    <p style="margin:16px 0 0 0;font-size:13px;color:#94a3b8;">Tip: you can pause between sections, but each section is timed once it begins. Your band-score report is emailed the moment you finish.</p>
+  </div>
+  <div style="padding:14px 24px;background:#f1f5f9;color:#64748b;font-size:11px;line-height:1.5;">
+    This is a SpecTa Education practice mock test. It is not an official IELTS score and is not affiliated with British Council, IDP, or Cambridge Assessment English.
+  </div>
+</div>
+</body></html>`;
+  const text = `Hi ${toName},
+
+Your payment is confirmed and your IELTS Mock Test is unlocked.
+
+Start your test here:
+${takeUrl}
+
+Set aside ~2h45m, find a quiet space, and have your microphone ready. Your band-score report is emailed the moment you finish.
+
+— SpecTa Education`;
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${ENV.resendApiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        from: ENV.smtpFrom,
+        to: toEmail,
+        subject: "Your SpecTa IELTS Mock Test is ready — start here",
+        html,
+        text,
+      }),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      console.warn(`[IELTS Mock] test-ready email failed (${res.status}): ${detail}`);
+    }
+  } catch (err) {
+    console.warn("[IELTS Mock] test-ready email error:", err);
+  }
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 const XENDIT_API_BASE = "https://api.xendit.co";
 export const IELTS_MOCK_PRICE = 79000; // IDR
@@ -211,25 +289,37 @@ export async function markIeltsAttemptPaid(
     console.error(`[IELTS Mock] No attempt found for ${externalId}`);
     return null;
   }
-  if (attempt.paidAt) {
-    return { alreadyProcessed: true, attemptToken: attempt.attemptToken };
+  const wasAlreadyPaid = !!attempt.paidAt;
+
+  if (!wasAlreadyPaid) {
+    await db
+      .update(ieltsMockAttempts)
+      .set({ paidAt: new Date(), status: "ready" })
+      .where(eq(ieltsMockAttempts.id, attempt.id));
+
+    // Best-effort notify owner. Don't block the webhook on this.
+    notifyOwner({
+      title: `🎓 New IELTS Mock Test purchase`,
+      content: `Attempt ${attempt.attemptToken} just unlocked. Xendit invoice: ${xenditInvoiceId}. External ID: ${externalId}.`,
+    }).catch(err => console.warn("[IELTS Mock] notifyOwner failed:", err));
   }
 
-  await db
-    .update(ieltsMockAttempts)
-    .set({
-      paidAt: new Date(),
-      status: "ready",
-    })
-    .where(eq(ieltsMockAttempts.id, attempt.id));
+  // Email the buyer their start link (every paid confirmation, so a Xendit
+  // webhook re-send also re-delivers the link). Best-effort.
+  try {
+    const [u] = await db
+      .select({ email: users.email, name: users.name })
+      .from(users)
+      .where(eq(users.id, attempt.userId))
+      .limit(1);
+    if (u?.email) {
+      await sendTestReadyEmail(u.email, u.name ?? "there", attempt.attemptToken);
+    }
+  } catch (err) {
+    console.warn("[IELTS Mock] could not send test-ready email:", err);
+  }
 
-  // Best-effort notify owner. Don't block the webhook on this.
-  notifyOwner({
-    title: `🎓 New IELTS Mock Test purchase`,
-    content: `Attempt ${attempt.attemptToken} just unlocked. Xendit invoice: ${xenditInvoiceId}. External ID: ${externalId}.`,
-  }).catch(err => console.warn("[IELTS Mock] notifyOwner failed:", err));
-
-  return { alreadyProcessed: false, attemptToken: attempt.attemptToken };
+  return { alreadyProcessed: wasAlreadyPaid, attemptToken: attempt.attemptToken };
 }
 
 /** Mark expired/failed payment so the attempt row doesn't dangle forever. */
