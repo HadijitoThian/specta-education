@@ -587,6 +587,73 @@ function MatchingTable({
 }
 
 /**
+ * Reading questions layout. Renders questions in number order, grouping a
+ * contiguous run of matching-style questions (e.g. "match the statement to the
+ * researcher A–F") into a single legend + statement-picker table, so the
+ * options are shown ONCE at the top — exactly like the real test.
+ */
+function ReadingQuestionsArea({
+  questions,
+  answers,
+  onChange,
+}: {
+  questions: Question[];
+  answers: Record<number, string>;
+  onChange: (qid: number, val: string) => void;
+}) {
+  const MATCHING = new Set([
+    "matching",
+    "map_labelling",
+    "matching_headings",
+    "matching_information",
+    "matching_features",
+    "matching_sentence_endings",
+  ]);
+  const sorted = [...questions].sort(
+    (a, b) => a.questionNumber - b.questionNumber
+  );
+  const blocks: { kind: "matching" | "other"; questions: Question[] }[] = [];
+  for (const q of sorted) {
+    const kind = MATCHING.has(q.questionType) ? "matching" : "other";
+    const last = blocks[blocks.length - 1];
+    if (last && last.kind === kind) last.questions.push(q);
+    else blocks.push({ kind, questions: [q] });
+  }
+
+  return (
+    <div className="space-y-4">
+      {blocks.map((block, i) => {
+        const hasOptions = block.questions.some(
+          q => Array.isArray(q.options) && (q.options as string[]).length > 0
+        );
+        if (block.kind === "matching" && block.questions.length >= 2 && hasOptions) {
+          return (
+            <MatchingTable
+              key={`rmatch-${i}`}
+              questions={block.questions}
+              answers={answers}
+              onChange={onChange}
+            />
+          );
+        }
+        return (
+          <div key={`rother-${i}`} className="space-y-4">
+            {block.questions.map(q => (
+              <QuestionRow
+                key={q.id}
+                q={q}
+                value={answers[q.id] ?? ""}
+                onChange={val => onChange(q.id, val)}
+              />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
  * Custom audio status indicator for Listening. No pause, no seek, no
  * controls — just an animated "playing" pill + elapsed time. Reads from
  * the hidden <audio> element via the shared ref.
@@ -1254,16 +1321,13 @@ function ReadingRunner({
           <h2 className="text-lg font-bold text-slate-900 mb-3 sticky top-0 bg-white py-2">
             Questions
           </h2>
-          <div className="space-y-4">
-            {passage.questions.map(q => (
-              <QuestionRow
-                key={q.id}
-                q={q}
-                value={answers[q.id] ?? ""}
-                onChange={val => setAnswers(prev => ({ ...prev, [q.id]: val }))}
-              />
-            ))}
-          </div>
+          <ReadingQuestionsArea
+            questions={passage.questions}
+            answers={answers}
+            onChange={(qid, val) =>
+              setAnswers(prev => ({ ...prev, [qid]: val }))
+            }
+          />
         </div>
       </div>
 

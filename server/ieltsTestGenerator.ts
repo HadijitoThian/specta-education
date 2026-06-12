@@ -540,7 +540,7 @@ Rules:
 - For TFNG: correctAnswers is ["TRUE"] or ["FALSE"] or ["NOT GIVEN"].
 - For YNNG: correctAnswers is ["YES"] or ["NO"] or ["NOT GIVEN"].
 - For matching: correctAnswer is a single letter like ["A"].
-- For completion: keep answers to 1-3 words and ensure they appear verbatim in the passage.
+- matching_features (match a statement to a person/researcher): the passage MUST name the people (e.g. Dr Helena Marsh, Professor Adeyemi…). EVERY matching_features question must carry the SAME full options list of those named people, formatted ["A. Dr Helena Marsh", "B. Professor Adeyemi", … up to F]. The question's "prompt" is a paraphrased CLAIM/STATEMENT (not a verbatim quote) that exactly one of them made; correctAnswers is that person's letter. Provide MORE people than questions (e.g. 6 people A–F for 5 questions) so some are not used, and the same person may be the answer to more than one. Shuffle the answer letters.
 - Body must support every correct answer — be precise.
 - Avoid copyright issues — write original prose, do not paraphrase a specific published work.
 - CRITICAL — Anti-pattern detection: for ANY matching-style question (matching_headings, matching_features, matching_information, matching_sentence_endings), the correct answer letters/roman numerals MUST be in random order. A student must NOT be able to guess by clicking i, ii, iii, iv, v or A, B, C, D, E sequentially. Shuffle deliberately. Failure to shuffle is a test-killer.
