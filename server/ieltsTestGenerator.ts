@@ -1013,12 +1013,12 @@ export async function generateAcademicTest(args: {
     return null;
   });
 
-  const [listening, reading, writing, speaking] = await Promise.all([
+  const [listening, reading] = await Promise.all([
     Promise.all(listeningPromises),
     Promise.all(readingPromises),
-    writingPromise,
-    speakingPromise,
   ]);
+  let writing = await writingPromise;
+  let speaking = await speakingPromise;
 
   // Step 1b: any section/passage that came back null (LLM threw / invalid
   // JSON) gets a sequential retry — up to 2 attempts each — so we NEVER
@@ -1059,14 +1059,34 @@ export async function generateAcademicTest(args: {
     }
   }
 
-  // Hard guard: if we still don't have all 4 listening sections, abort the
-  // whole generation rather than save a broken 3-section test. The caller
-  // (admin Regenerate / endpoint) will see the error and can retry.
+  // Writing + Speaking get the same retry treatment so a regenerate never
+  // produces a test that's missing a whole skill (e.g. "writing is gone").
+  for (let retry = 0; retry < 2 && !writing; retry++) {
+    try {
+      console.log(`[IELTS Gen] Sequential retry for Writing (try ${retry + 1})`);
+      writing = await generateWritingTasks();
+    } catch (e: any) {
+      errors.push(`Writing retry ${retry + 1}: ${e.message}`);
+    }
+  }
+  for (let retry = 0; retry < 2 && !speaking; retry++) {
+    try {
+      console.log(`[IELTS Gen] Sequential retry for Speaking (try ${retry + 1})`);
+      speaking = await generateSpeakingPrompts();
+    } catch (e: any) {
+      errors.push(`Speaking retry ${retry + 1}: ${e.message}`);
+    }
+  }
+
+  // Hard guard: if any whole skill is still missing, abort rather than save a
+  // broken test. The caller (admin Regenerate / endpoint) sees the error and
+  // can retry — far better than silently shipping a test with no Writing.
   const missingListening = listening.filter(s => !s).length;
   const missingReading = reading.filter(p => !p).length;
-  if (missingListening > 0 || missingReading > 0) {
+  if (missingListening > 0 || missingReading > 0 || !writing || !speaking) {
     throw new Error(
-      `Generation incomplete: ${missingListening} listening section(s) and ${missingReading} reading passage(s) failed after retries. Errors: ${errors.join(" | ")}`
+      `Generation incomplete: ${missingListening} listening section(s), ${missingReading} reading passage(s)` +
+        `${!writing ? ", Writing" : ""}${!speaking ? ", Speaking" : ""} failed after retries. Errors: ${errors.join(" | ")}`
     );
   }
 
