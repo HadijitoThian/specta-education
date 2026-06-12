@@ -117,10 +117,14 @@ export async function createIeltsMockInvoice(
     throw new Error("Failed to reserve attempt row");
   }
 
-  const baseUrl =
+  let baseUrl =
     params.appUrl?.replace(/\/+$/, "") ||
     ENV.appUrl?.replace(/\/+$/, "") ||
     "https://specta-education-production.up.railway.app";
+  // Xendit requires an ABSOLUTE URL (with scheme). If APP_URL was set without
+  // "https://", Xendit treats our domain as a path on checkout.xendit.co and
+  // the post-payment redirect 404s — so force a scheme here.
+  if (!/^https?:\/\//i.test(baseUrl)) baseUrl = `https://${baseUrl}`;
 
   const successUrl = `${baseUrl}/ielts/mock-test/success?attempt=${attemptToken}`;
   const failureUrl = `${baseUrl}/ielts/mock-test?failed=1`;

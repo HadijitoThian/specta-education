@@ -5,7 +5,12 @@ export const ENV = {
 
   // Public base URL of the app. Used to build OAuth redirect URIs and
   // absolute links in emails. Local: http://localhost:5173.
-  appUrl: process.env.APP_URL ?? "http://localhost:5173",
+  // Always normalised to include a scheme — if APP_URL is set without
+  // "https://", external redirects (Xendit) and email links break.
+  appUrl: (() => {
+    const u = (process.env.APP_URL ?? "http://localhost:5173").replace(/\/+$/, "");
+    return /^https?:\/\//i.test(u) ? u : `https://${u}`;
+  })(),
 
   // ----- Auth: Email + password ------------------------------------------
   // Email of the user automatically granted admin role on signup.
