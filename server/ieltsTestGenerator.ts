@@ -1605,3 +1605,187 @@ export async function generateAcademicTest(args: {
     errors,
   };
 }
+
+/**
+ * Regenerate ONLY the text skills (Reading, Writing, Speaking) of an existing
+ * test, IN PLACE — the test row and all Listening sections + audio are left
+ * completely untouched. This uses ZERO ElevenLabs credits (the chart uses
+ * QuickChart, which is free). Content is generated first; the old rows for a
+ * skill are only deleted+replaced once the new content is ready, so a failure
+ * leaves the existing content intact.
+ */
+export async function regenerateTextContent(args: {
+  code: string;
+  reading?: boolean;
+  writing?: boolean;
+  speaking?: boolean;
+}): Promise<{
+  readingPassages: number;
+  writingTasks: number;
+  speakingPrompts: number;
+  chartImageGenerated: boolean;
+  errors: string[];
+}> {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+
+  const [test] = await db
+    .select()
+    .from(ieltsMockTests)
+    .where(eq(ieltsMockTests.code, args.code))
+    .limit(1);
+  if (!test) throw new Error(`Test ${args.code} not found`);
+  const testId = test.id;
+  const errors: string[] = [];
+
+  // --- Generate everything requested FIRST (no DB writes yet) ---
+  let reading: (ReadingPassageDraft | null)[] | null = null;
+  if (args.reading) {
+    reading = [null, null, null];
+    for (let i = 0; i < 3; i++) {
+      for (let r = 0; r < 3 && !reading[i]; r++) {
+        try {
+          reading[i] = await generateReadingPassage((i + 1) as 1 | 2 | 3, 1 + i * 13);
+        } catch (e: any) {
+          errors.push(`Reading P${i + 1} try ${r + 1}: ${e.message}`);
+        }
+      }
+    }
+    if (reading.some(p => !p)) {
+      throw new Error(
+        `Reading generation failed — existing content kept. Errors: ${errors.join(" | ")}`
+      );
+    }
+  }
+
+  let writing: WritingDraft | null = null;
+  if (args.writing) {
+    for (let r = 0; r < 3 && !writing; r++) {
+      try {
+        writing = await generateWritingTasks();
+      } catch (e: any) {
+        errors.push(`Writing try ${r + 1}: ${e.message}`);
+      }
+    }
+    if (!writing) {
+      throw new Error(
+        `Writing generation failed — existing content kept. Errors: ${errors.join(" | ")}`
+      );
+    }
+  }
+
+  let speaking: SpeakingDraft | null = null;
+  if (args.speaking) {
+    for (let r = 0; r < 3 && !speaking; r++) {
+      try {
+        speaking = await generateSpeakingPrompts();
+      } catch (e: any) {
+        errors.push(`Speaking try ${r + 1}: ${e.message}`);
+      }
+    }
+    if (!speaking) {
+      throw new Error(
+        `Speaking generation failed — existing content kept. Errors: ${errors.join(" | ")}`
+      );
+    }
+  }
+
+  // --- Swap in the new content (delete old rows for that skill, insert new) ---
+  let readingPassages = 0;
+  if (reading) {
+    const passages = await db
+      .select({ id: ieltsReadingPassages.id })
+      .from(ieltsReadingPassages)
+      .where(eq(ieltsReadingPassages.testId, testId));
+    for (const p of passages) {
+      await db
+        .delete(ieltsReadingQuestions)
+        .where(eq(ieltsReadingQuestions.passageId, p.id));
+    }
+    await db
+      .delete(ieltsReadingPassages)
+      .where(eq(ieltsReadingPassages.testId, testId));
+    for (let i = 0; i < 3; i++) {
+      const passage = reading[i]!;
+      const inserted = await db.insert(ieltsReadingPassages).values({
+        testId,
+        passageNumber: i + 1,
+        title: passage.title,
+        body: passage.body,
+        wordCount: passage.wordCount ?? null,
+      });
+      const passageId = (inserted as any)[0]?.insertId as number;
+      if (passage.questions.length > 0) {
+        await db.insert(ieltsReadingQuestions).values(
+          passage.questions.map(q => ({
+            passageId,
+            questionNumber: q.questionNumber,
+            questionType: normalizeQuestionType(q.questionType, "reading") as any,
+            prompt: q.prompt,
+            options: q.options ?? null,
+            correctAnswers: q.correctAnswers,
+            maxScore: 1,
+          }))
+        );
+      }
+      readingPassages++;
+    }
+  }
+
+  let writingTasks = 0;
+  let chartImageGenerated = false;
+  if (writing) {
+    let chartKey: string | null = null;
+    try {
+      chartKey = await generateChartImage(args.code, writing.task1.chart);
+      chartImageGenerated = !!chartKey;
+    } catch (e: any) {
+      errors.push(`Chart gen: ${e.message}`);
+    }
+    await db.delete(ieltsWritingTasks).where(eq(ieltsWritingTasks.testId, testId));
+    await db.insert(ieltsWritingTasks).values([
+      {
+        testId,
+        taskNumber: 1,
+        taskFormat: "chart",
+        prompt: writing.task1.prompt,
+        imageKey: chartKey,
+        minWords: 150,
+        timeLimitSec: 1200,
+      },
+      {
+        testId,
+        taskNumber: 2,
+        taskFormat: "essay",
+        prompt: writing.task2.prompt,
+        imageKey: null,
+        minWords: 250,
+        timeLimitSec: 2400,
+      },
+    ]);
+    writingTasks = 2;
+  }
+
+  let speakingPrompts = 0;
+  if (speaking) {
+    await db
+      .delete(ieltsSpeakingPrompts)
+      .where(eq(ieltsSpeakingPrompts.testId, testId));
+    for (const part of speaking.parts) {
+      if (part.prompts.length === 0) continue;
+      await db.insert(ieltsSpeakingPrompts).values(
+        part.prompts.map(p => ({
+          testId,
+          partNumber: part.partNumber,
+          promptOrder: p.promptOrder,
+          prompt: p.prompt,
+          cueCardText: p.cueCardText ?? null,
+          followUpHint: null,
+        }))
+      );
+      speakingPrompts += part.prompts.length;
+    }
+  }
+
+  return { readingPassages, writingTasks, speakingPrompts, chartImageGenerated, errors };
+}

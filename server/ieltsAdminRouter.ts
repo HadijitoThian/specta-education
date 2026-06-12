@@ -598,6 +598,53 @@ export const ieltsAdminRouter = router({
       };
     }),
 
+  /**
+   * Regenerate ONLY the text skills (Reading / Writing / Speaking) in place,
+   * keeping the existing Listening audio untouched. Uses ZERO ElevenLabs
+   * credits. Defaults to all three text skills.
+   */
+  regenerateText: protectedProcedure
+    .input(
+      z.object({
+        code: z.string().min(1).max(32),
+        reading: z.boolean().optional().default(true),
+        writing: z.boolean().optional().default(true),
+        speaking: z.boolean().optional().default(true),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      assertAdmin(ctx);
+      generationStatus.set(input.code, {
+        state: "running",
+        message: "Regenerating text (Reading/Writing/Speaking) — no audio, no ElevenLabs credits…",
+        at: Date.now(),
+      });
+      void (async () => {
+        try {
+          const { regenerateTextContent } = await import("./ieltsTestGenerator");
+          const result = await regenerateTextContent({
+            code: input.code,
+            reading: input.reading,
+            writing: input.writing,
+            speaking: input.speaking,
+          });
+          generationStatus.set(input.code, {
+            state: "done",
+            message: `Done (no audio touched) — ${result.readingPassages} reading, ${result.writingTasks} writing, ${result.speakingPrompts} speaking. Chart: ${result.chartImageGenerated ? "yes" : "no"}.`,
+            at: Date.now(),
+          });
+        } catch (err: any) {
+          console.error(`[regenerateText] failed`, err);
+          generationStatus.set(input.code, {
+            state: "failed",
+            message: err?.message ?? "Text regeneration failed (see Railway logs).",
+            at: Date.now(),
+          });
+        }
+      })();
+      return { accepted: true, code: input.code };
+    }),
+
   /** Live status of the most recent (re)generation for a test code. */
   generationStatus: protectedProcedure
     .input(z.object({ code: z.string().min(1) }))

@@ -128,6 +128,10 @@ export default function AdminIeltsTests() {
     }
   );
 
+  const regenerateTextMut = trpc.admin.ielts.regenerateText.useMutation({
+    onSuccess: (_data, vars) => setRegenCode(vars.code),
+  });
+
   const [showImport, setShowImport] = useState(false);
   const [jsonText, setJsonText] = useState(SAMPLE_JSON);
   const [answerKeyFor, setAnswerKeyFor] = useState<number | null>(null);
@@ -376,7 +380,26 @@ export default function AdminIeltsTests() {
                           className="text-xs text-purple-700 hover:text-purple-900 underline font-semibold"
                           title="Delete and regenerate with the latest content blueprint"
                         >
-                          {regenerateMut.isPending ? "Regenerating…" : "Regenerate"}
+                          {regenerateMut.isPending ? "Regenerating…" : "Regenerate (all + audio)"}
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (
+                              confirm(
+                                `Regenerate TEXT only for "${t.code}" (Reading + Writing + Speaking)? Listening audio is kept as-is. Uses NO ElevenLabs credits.`
+                              )
+                            ) {
+                              regenerateTextMut.mutate({ code: t.code });
+                            }
+                          }}
+                          disabled={regenerateTextMut.isPending}
+                          className="text-xs text-teal-700 hover:text-teal-900 underline font-semibold"
+                          title="Regenerate Reading/Writing/Speaking only — keeps Listening audio, no ElevenLabs credits"
+                        >
+                          {regenerateTextMut.isPending
+                            ? "Regenerating text…"
+                            : "Regenerate text (no audio)"}
                         </button>
 
                         <button
