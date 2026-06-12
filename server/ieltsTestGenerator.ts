@@ -85,7 +85,7 @@ const SECTION_BLUEPRINTS = [
     difficulty:
       "EASY-MEDIUM (band 5-6.5). Slightly richer vocabulary. Include 2 distractors across the section — e.g., the speaker gives a time then corrects it, or lists several facilities but only one matches the question. The question wording should PARAPHRASE the audio (not use the exact same words).",
     theme:
-      "A monologue by a MALE speaker. Use a male first name from this set: DAVID, MARK, JAMES, TOM, MIKE, PAUL, GEORGE, OLIVER, HENRY, WILLIAM. Speaker label format MUST be like 'DAVID:' or 'GUIDE:' (and the speaker introduces himself naturally — 'Hello everyone, I'm David and I'll be your guide today'). Single coherent topic: a welcome talk at a wildlife sanctuary, a radio show about a local event, a tour intro at a museum. CRITICAL: end with one complete sentence (e.g., 'I hope you enjoy your visit.'). Never trail off mid-sentence. CRITICAL: the speaker is MALE, so any self-introduction or name reference must be a male name. Include standard IELTS audio cues like 'Now look at questions 14 to 20' before the second batch of questions begins in the transcript.",
+      "A monologue by a MALE speaker. Use a male first name from this set: DAVID, MARK, JAMES, TOM, MIKE, PAUL, GEORGE, OLIVER, HENRY, WILLIAM. Speaker label format MUST be like 'DAVID:' or 'GUIDE:' (and the speaker introduces himself naturally — 'Hello everyone, I'm David and I'll be your guide today'). Single coherent topic: a welcome talk at a wildlife sanctuary, a radio show about a local event, a tour intro at a museum. CRITICAL: end with one complete sentence (e.g., 'I hope you enjoy your visit.'). Never trail off mid-sentence. CRITICAL: the speaker is MALE, so any self-introduction or name reference must be a male name.",
     questionTypes:
       "Mix of multiple_choice (3-4 questions) and note_completion (6-7 questions). The note_completion prompts MUST use this exact format: prepend '[GROUP: <header text>]' on a line by itself ONLY at the first question under each group. The line of the question itself is a bullet point with the fill-in blank, e.g.:\n  Question 14 prompt: '[GROUP: History of the sanctuary]\\n- Founded in .......... by a group of volunteers'\n  Question 15 prompt: '- Currently houses ............ different species'\n  Question 16 prompt: '[GROUP: Safety rules]\\n- Do not approach the .............'\nUse 2-3 distinct GROUP headers across the note_completion questions. NEVER use map_labelling. Each question must test a UNIQUE fact — no two questions may share an opening phrase.",
   },
@@ -94,16 +94,16 @@ const SECTION_BLUEPRINTS = [
     difficulty:
       "MEDIUM-HARD (band 6-7.5). Academic vocabulary and abstract opinions. Include 3+ distractors: speakers disagree and change their minds ('I thought it was the sample size, but actually it's the methodology'), one speaker proposes an idea another rejects, and the questions PARAPHRASE heavily (the answer is never the exact words spoken). The MCQ distractor options should all be plausible things mentioned in the audio.",
     theme:
-      "An academic discussion between 3 named participants: ONE MALE student, ONE FEMALE student, and ONE tutor (any gender). MUST USE these specific labels: 'TOM:' for the MALE student, 'MAYA:' for the FEMALE student, and 'DR.WATSON:' for the tutor. Do not deviate from these names or labels. They discuss a research project, essay, or assignment with disagreement and viewpoints. Each student has a distinct opinion and the tutor mediates. Include standard IELTS audio cues like 'Now look at questions 25 to 30' before the second batch begins.",
+      "An academic discussion between 3 named participants: ONE MALE student, ONE FEMALE student, and ONE tutor (any gender). MUST USE these specific labels: 'TOM:' for the MALE student, 'MAYA:' for the FEMALE student, and 'DR.WATSON:' for the tutor. Do not deviate from these names or labels. They discuss a research project, essay, or assignment with disagreement and viewpoints. Each student has a distinct opinion and the tutor mediates.",
     questionTypes:
-      "5 multiple_choice questions (questions 21-25) + 5 sentence_completion questions (questions 26-30).\n  MCQ format (21-25): each MCQ prompt may reference a speaker for a clear hook, e.g., 'What does MAYA think about the methodology?' or 'According to DR. WATSON, the main issue with the studies is...'. Provide exactly 3 options (A, B, C) that are all plausible things mentioned in the audio.\n  Sentence completion format (26-30): begin this batch with the audio cue 'Now look at questions 26 to 30.' These are gap-fill sentences ABOUT THE CONTENT of the discussion — NOT 'who said it' matching. Instruction style: 'Complete the sentences below. Write NO MORE THAN TWO WORDS for each answer.' Each prompt is a single sentence summarising a point from the discussion with ONE '..........' blank, where the missing word(s) are a key term actually spoken (paraphrase the surrounding sentence so the answer isn't given away). Example: 'The team agreed that the biggest limitation was the small .......... .' Each stem must be UNIQUE — never reuse an opening phrase. Do NOT use speaker names as answer options anywhere in questions 26-30.",
+      "5 multiple_choice questions (questions 21-25) + 5 sentence_completion questions (questions 26-30).\n  MCQ format (21-25): each MCQ prompt may reference a speaker for a clear hook, e.g., 'What does MAYA think about the methodology?' or 'According to DR. WATSON, the main issue with the studies is...'. Provide exactly 3 options (A, B, C) that are all plausible things mentioned in the audio.\n  Sentence completion format (26-30): these are gap-fill sentences ABOUT THE CONTENT of the discussion — NOT 'who said it' matching. Instruction style: 'Complete the sentences below. Write NO MORE THAN TWO WORDS for each answer.' Each prompt is a single sentence summarising a point from the discussion with ONE '..........' blank, where the missing word(s) are a key term actually spoken (paraphrase the surrounding sentence so the answer isn't given away). Example: 'The team agreed that the biggest limitation was the small .......... .' Each stem must be UNIQUE — never reuse an opening phrase. Do NOT use speaker names as answer options anywhere in questions 26-30.",
   },
   {
     sectionNumber: 4,
     difficulty:
       "HARDEST (band 6.5-8.5). Dense academic monologue with sophisticated vocabulary and complex sentence structures. The answers are NEVER stated word-for-word — the student must understand a paraphrased idea and extract the key term. Include subtle qualifications ('while early studies suggested X, more recent work points to Y'). Fast, information-rich delivery. This section separates strong candidates from average ones.",
     theme:
-      "An academic lecture by a named professor (e.g., 'PROF.MILLER:' or 'DR.CHEN:'). Single speaker. Pick ONE specific research topic. Structure the lecture into 3-4 CLEARLY DISTINCT subsections, each with its own focus and content. End with one complete sentence. Never repeat the same phrase to introduce different subsections. Include standard IELTS audio cues like 'Before you listen to the next part, you have time to look at questions 35 to 40' midway through.",
+      "An academic lecture by a named professor (e.g., 'PROF.MILLER:' or 'DR.CHEN:'). Single speaker. Pick ONE specific research topic. Structure the lecture into 3-4 CLEARLY DISTINCT subsections, each with its own focus and content. End with one complete sentence. Never repeat the same phrase to introduce different subsections.",
     questionTypes:
       "10 note_completion questions presented as a UNIFIED set of student notes. CRITICAL FORMAT: each prompt MUST be in this exact form:\n  - First question under a NEW group: '[GROUP: <header text>]\\n- <bullet line with fill-in blank using ..........>'\n  - Subsequent questions under the same group: '- <bullet line with fill-in blank using ..........>'\n  Example sequence:\n    Q31 prompt: '[GROUP: Definitions and scope]\\n- Small-scale fisheries: vessels under .......... metres'\n    Q32 prompt: '- Worldwide, around .......... million people directly depend'\n    Q33 prompt: '[GROUP: Main challenges]\\n- Industrial fishing fleets compete for ..........'\n    Q34 prompt: '- Climate change reduces ..........'\n  Use 3-4 distinct GROUP headers across the 10 questions. Each question stem must be UNIQUE — never use the same opening phrase twice.",
   },
@@ -677,22 +677,85 @@ function buildSpeakerVoiceMap(
 const READ_PAUSE_SEC = 20;
 const CHECK_PAUSE_SEC = 30;
 
-/**
- * One silent MPEG-1 Layer III frame at 44.1 kHz / 128 kbps / joint-stereo —
- * the SAME format ElevenLabs returns (mp3_44100_128). All-zero main data
- * decodes to silence, and MP3 frames are independent so these concatenate
- * cleanly with the spoken segments. Header: FF FB 90 64.
- */
-const SILENT_MP3_FRAME = Buffer.concat([
-  Buffer.from([0xff, 0xfb, 0x90, 0x64]),
-  Buffer.alloc(413), // frame length 417 bytes total for this format
-]);
-const MP3_FRAMES_PER_SEC = 44100 / 1152; // ≈ 38.28
+type Mp3FrameInfo = {
+  header: Buffer; // exact 4-byte header copied from a real frame
+  frameLength: number;
+  sampleRate: number;
+  samplesPerFrame: number;
+};
 
-/** Build a silent MP3 buffer of roughly `seconds` length. */
-function silentMp3(seconds: number): Buffer {
-  const n = Math.max(1, Math.round(seconds * MP3_FRAMES_PER_SEC));
-  return Buffer.concat(new Array(n).fill(SILENT_MP3_FRAME));
+/**
+ * Find the first valid MPEG audio (Layer III) frame in a buffer and return its
+ * header + geometry. We copy the EXACT header (which encodes channel mode,
+ * sample rate, bitrate) so our silent frames are byte-compatible with the
+ * surrounding ElevenLabs speech — otherwise a format mismatch (e.g. mono vs
+ * joint-stereo) makes browsers stall at the silence and stop playing.
+ */
+function detectMp3Frame(buf: Buffer): Mp3FrameInfo | null {
+  const V1_BITRATES = [
+    0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320,
+  ];
+  const V2_BITRATES = [
+    0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160,
+  ];
+  for (let i = 0; i + 4 <= buf.length; i++) {
+    if (buf[i] !== 0xff) continue;
+    if ((buf[i + 1] & 0xe0) !== 0xe0) continue; // sync
+    const verBits = (buf[i + 1] >> 3) & 0x3;
+    const layerBits = (buf[i + 1] >> 1) & 0x3;
+    if (layerBits !== 0b01) continue; // Layer III only
+    const bitrateIdx = (buf[i + 2] >> 4) & 0xf;
+    const srIdx = (buf[i + 2] >> 2) & 0x3;
+    const padding = (buf[i + 2] >> 1) & 0x1;
+    if (bitrateIdx === 0 || bitrateIdx === 0xf || srIdx === 0x3) continue;
+    const isMpeg1 = verBits === 0b11;
+    const isMpeg2 = verBits === 0b10;
+    const isMpeg25 = verBits === 0b00;
+    if (!isMpeg1 && !isMpeg2 && !isMpeg25) continue;
+    const bitrate = (isMpeg1 ? V1_BITRATES : V2_BITRATES)[bitrateIdx] * 1000;
+    const srTable = isMpeg1
+      ? [44100, 48000, 32000]
+      : isMpeg2
+        ? [22050, 24000, 16000]
+        : [11025, 12000, 8000];
+    const sampleRate = srTable[srIdx];
+    const samplesPerFrame = isMpeg1 ? 1152 : 576;
+    const coef = isMpeg1 ? 144 : 72;
+    const frameLength = Math.floor((coef * bitrate) / sampleRate) + padding;
+    if (frameLength < 8) continue;
+    return {
+      header: Buffer.from([buf[i], buf[i + 1], buf[i + 2], buf[i + 3]]),
+      frameLength,
+      sampleRate,
+      samplesPerFrame,
+    };
+  }
+  return null;
+}
+
+// Fallback frame: MPEG-1 Layer III, 44.1kHz/128k, joint-stereo (FF FB 90 64).
+const FALLBACK_FRAME: Mp3FrameInfo = {
+  header: Buffer.from([0xff, 0xfb, 0x90, 0x64]),
+  frameLength: 417,
+  sampleRate: 44100,
+  samplesPerFrame: 1152,
+};
+
+/**
+ * Build a silent MP3 buffer of ~`seconds` length using `tmpl`'s exact frame
+ * format. All-zero frame bodies decode to silence; reusing the real header
+ * keeps the stream format constant so playback continues seamlessly.
+ */
+function silentMp3(seconds: number, tmpl: Mp3FrameInfo): Buffer {
+  const frame = Buffer.concat([
+    tmpl.header,
+    Buffer.alloc(Math.max(0, tmpl.frameLength - 4)),
+  ]);
+  const n = Math.max(
+    1,
+    Math.round((seconds * tmpl.sampleRate) / tmpl.samplesPerFrame)
+  );
+  return Buffer.concat(new Array(n).fill(frame));
 }
 
 /** Synthesize narrator instruction text (chunked) into one MP3 buffer. */
@@ -812,8 +875,17 @@ async function ttsListeningSection(
   const d = startingQuestionNumber + 9;
 
   const buffers: Buffer[] = [];
+  // Frame template for silence — detected from the first real ElevenLabs
+  // buffer so the silent frames match its exact format (channel mode etc.).
+  let frameTmpl: Mp3FrameInfo | null = null;
   const push = (buf: Buffer) => {
-    if (buf && buf.length > 0) buffers.push(buf);
+    if (buf && buf.length > 0) {
+      buffers.push(buf);
+      if (!frameTmpl) frameTmpl = detectMp3Frame(buf);
+    }
+  };
+  const pushSilence = (seconds: number) => {
+    push(silentMp3(seconds, frameTmpl ?? FALLBACK_FRAME));
   };
 
   // Opening — Section 1 only (introduces the whole test).
@@ -846,7 +918,7 @@ async function ttsListeningSection(
       `First, you have some time to look at questions ${a} to ${b}.`
     )
   );
-  push(silentMp3(READ_PAUSE_SEC));
+  pushSilence(READ_PAUSE_SEC);
   push(await ttsNarrate(`Now listen and answer questions ${a} to ${b}.`));
   push(await ttsSpeakSegments(part1, sectionNumber, voiceMap));
 
@@ -856,7 +928,7 @@ async function ttsListeningSection(
       `Before you hear the rest, you have some time to look at questions ${c} to ${d}.`
     )
   );
-  push(silentMp3(READ_PAUSE_SEC));
+  pushSilence(READ_PAUSE_SEC);
   push(await ttsNarrate(`Now listen and answer questions ${c} to ${d}.`));
   push(await ttsSpeakSegments(part2, sectionNumber, voiceMap));
 
@@ -866,7 +938,7 @@ async function ttsListeningSection(
       `That is the end of Section ${sectionNumber}. You now have some time to check your answers.`
     )
   );
-  push(silentMp3(CHECK_PAUSE_SEC));
+  pushSilence(CHECK_PAUSE_SEC);
 
   const combined = Buffer.concat(buffers);
   const key = `ielts/audio/${testCode}/section-${sectionNumber}-${nanoid(6)}.mp3`;
