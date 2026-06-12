@@ -263,6 +263,87 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── IELTS Mock Test — headline offering ── */}
+      <section className="py-12">
+        <div className="container">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-700 via-indigo-700 to-purple-700 p-8 md:p-12 text-white shadow-xl"
+          >
+            <div className="absolute -top-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+            <div className="absolute -bottom-20 -left-10 w-72 h-72 bg-amber-400/10 rounded-full blur-3xl" />
+            <div className="relative grid lg:grid-cols-2 gap-8 items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 bg-amber-400/20 text-amber-200 text-xs font-semibold px-3 py-1 rounded-full mb-4">
+                  <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
+                  NEW · Full 4-skill mock test
+                </div>
+                <h2 className="text-3xl md:text-4xl font-extrabold leading-tight mb-3">
+                  Take a full IELTS Mock Test.
+                  <br />
+                  Get your band score — today.
+                </h2>
+                <p className="text-white/85 text-base md:text-lg mb-6 max-w-xl">
+                  Listening, Reading, Writing & Speaking — graded by AI against
+                  the official IELTS band rubric, with a personalised report
+                  emailed straight to you. Know exactly where you stand before
+                  the real exam.
+                </p>
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-white/90 mb-7">
+                  <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-300" /> All 4 skills (~2h 45m)</span>
+                  <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-300" /> AI-graded to IELTS rubric</span>
+                  <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-300" /> Branded PDF report by email</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-4">
+                  <Link
+                    href="/ielts/mock-test"
+                    className="inline-flex items-center gap-2 bg-white text-blue-700 font-bold px-6 py-3 rounded-xl hover:bg-amber-50 transition shadow-lg"
+                  >
+                    Start your mock test
+                    <ChevronRight className="w-5 h-5" />
+                  </Link>
+                  <div className="text-white/90">
+                    <span className="text-2xl font-extrabold text-amber-300">Rp 79.000</span>
+                    <span className="text-sm text-white/70"> · one-off, no subscription</span>
+                  </div>
+                </div>
+              </div>
+              <div className="hidden lg:block">
+                <div className="bg-white/10 backdrop-blur rounded-2xl border border-white/20 p-6">
+                  <div className="text-xs uppercase tracking-wider text-white/70 mb-3">
+                    Your band-score report
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: "Listening", band: "7.5" },
+                      { label: "Reading", band: "7.0" },
+                      { label: "Writing", band: "6.5" },
+                      { label: "Speaking", band: "7.0" },
+                    ].map(s => (
+                      <div key={s.label} className="bg-white/10 rounded-xl px-4 py-3">
+                        <div className="text-xs text-white/70">{s.label}</div>
+                        <div className="text-2xl font-bold">{s.band}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 bg-amber-400/90 text-blue-900 rounded-xl px-4 py-3 flex items-center justify-between">
+                    <span className="text-sm font-semibold">Overall Band</span>
+                    <span className="text-3xl font-extrabold">7.0</span>
+                  </div>
+                  <p className="text-[11px] text-white/60 mt-3 leading-relaxed">
+                    Sample report. Not an official IELTS score; not affiliated
+                    with British Council, IDP, or Cambridge.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Stats Section with Counting Animation */}
       <section className="py-16 bg-muted/50">
         <div className="container">
