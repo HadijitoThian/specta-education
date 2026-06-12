@@ -16,8 +16,6 @@ import NotFound from "@/pages/NotFound";
 // Each lazy() call creates a separate JS chunk that is only downloaded when
 // the user navigates to that route. This dramatically reduces initial bundle size.
 const About = lazy(() => import("./pages/About"));
-const IELTS = lazy(() => import("./pages/IELTS"));
-const IELTSPractice = lazy(() => import("./pages/IELTSPractice"));
 const Destinations = lazy(() => import("./pages/Destinations"));
 const CountryPage = lazy(() => import("./pages/CountryPage"));
 const Malaysia = lazy(() => import("./pages/Malaysia"));
@@ -96,8 +94,8 @@ function Router() {
         {/* ── Public pages ── */}
         <Route path={"/"} component={Home} />
         <Route path={"/about"} component={About} />
-        <Route path={"/ielts"} component={IELTS} />
-        <Route path={"/ielts/practice"} component={IELTSPractice} />
+        {/* Old IELTS study pages removed — the IELTS Mock Test is the offering. */}
+        <Route path={"/ielts"} component={IeltsMockTest} />
         <Route path={"/destinations"} component={Destinations} />
         <Route path={"/destinations/:slug"} component={CountryPage} />
         <Route path={"/malaysia"} component={Malaysia} />

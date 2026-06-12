@@ -270,8 +270,8 @@ export default function IeltsMockReport() {
           {/* Admin: re-grade this attempt with the latest grading logic */}
           {isAdmin ? <AdminRegrade token={token} /> : null}
 
-          {/* Listening answer review */}
-          <ListeningReview token={token} />
+          {/* Admin-only: per-question answer review (students never see this) */}
+          {isAdmin ? <ListeningReview token={token} /> : null}
 
           {/* Disclaimer */}
           <div className="text-xs text-slate-500 text-center leading-relaxed mt-8 mb-6 px-4">

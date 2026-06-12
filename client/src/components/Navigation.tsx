@@ -42,8 +42,8 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
           <button onClick={() => handleNavClick("/about")} className={`text-sm font-medium transition-colors ${isActive("about") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             About Us
           </button>
-          <button onClick={() => handleNavClick("/ielts")} className={`text-sm font-medium transition-colors ${isActive("ielts") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
-            IELTS
+          <button onClick={() => handleNavClick("/ielts/mock-test")} className={`text-sm font-semibold transition-colors ${isActive("ielts") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
+            IELTS Mock Test
           </button>
           
           {/* Destinations Dropdown */}
@@ -138,8 +138,8 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             <button onClick={() => handleNavClick("/about")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
               About Us
             </button>
-            <button onClick={() => handleNavClick("/ielts")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
-              IELTS
+            <button onClick={() => handleNavClick("/ielts/mock-test")} className="block w-full text-left text-sm font-semibold text-muted-foreground hover:text-primary">
+              IELTS Mock Test
             </button>
             <div className="space-y-2">
               <span className="block text-sm font-medium text-foreground">Destinations</span>

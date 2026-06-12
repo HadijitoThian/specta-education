@@ -46,37 +46,25 @@ export const ieltsRouter = router({
    */
   catalog: publicProcedure.query(async () => {
     const db = await getDb();
-    const { ENV } = await import("./_core/env");
-    const freeCodes = ENV.freeTrialTestCodes;
     let academicCount = 0;
     let generalCount = 0;
-    let academicFree = false;
-    let generalFree = false;
     if (db) {
       const rows = await db
-        .select({
-          testType: ieltsMockTests.testType,
-          code: ieltsMockTests.code,
-        })
+        .select({ testType: ieltsMockTests.testType })
         .from(ieltsMockTests)
         .where(eq(ieltsMockTests.isPublished, true));
       for (const r of rows) {
-        const isFree = freeCodes.includes(r.code.toUpperCase());
-        if (r.testType === "academic") {
-          academicCount++;
-          if (isFree) academicFree = true;
-        } else if (r.testType === "general") {
-          generalCount++;
-          if (isFree) generalFree = true;
-        }
+        if (r.testType === "academic") academicCount++;
+        else if (r.testType === "general") generalCount++;
       }
     }
     return {
       priceIdr: IELTS_MOCK_PRICE,
       academicTests: academicCount,
       generalTests: generalCount,
-      academicFree,
-      generalFree,
+      // Public flow is paid-only. Free access is admin-issued.
+      academicFree: false,
+      generalFree: false,
     };
   }),
 
@@ -100,50 +88,8 @@ export const ieltsRouter = router({
         throw new TRPCError({ code: "UNAUTHORIZED" });
       }
       try {
-        // If the *first* published test we'd pick is in the
-        // FREE_TRIAL_TEST_CODES env list, bypass Xendit and hand back an
-        // attempt token directly. Used for staff testing pre-launch.
-        const { ENV } = await import("./_core/env");
-        const freeCodes = ENV.freeTrialTestCodes;
-        if (freeCodes.length > 0) {
-          const db = await getDb();
-          if (db) {
-            const candidates = await db
-              .select({
-                id: ieltsMockTests.id,
-                code: ieltsMockTests.code,
-              })
-              .from(ieltsMockTests)
-              .where(
-                and(
-                  eq(ieltsMockTests.isPublished, true),
-                  eq(ieltsMockTests.testType, input.testType)
-                )
-              );
-            const free = candidates.find(t =>
-              freeCodes.includes(t.code.toUpperCase())
-            );
-            if (free) {
-              // Free trial path — create attempt directly.
-              const { nanoid } = await import("nanoid");
-              const attemptToken = nanoid(24);
-              await db.insert(ieltsMockAttempts).values({
-                userId: ctx.user.id,
-                testId: free.id,
-                attemptToken,
-                paymentRef: `FREE-TRIAL-${nanoid(8)}`,
-                paidAt: new Date(),
-                status: "ready",
-              });
-              return {
-                trial: true as const,
-                invoiceUrl: "",
-                attemptToken,
-              };
-            }
-          }
-        }
-
+        // Paid-only: everyone goes through Xendit. (Free access is admin-only
+        // — via "Test as student" or an admin-issued free link.)
         const invoice = await createIeltsMockInvoice({
           userId: ctx.user.id,
           testType: input.testType,
@@ -1334,15 +1280,18 @@ export const ieltsRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
+      // Answer key + the student's answers are ADMIN-ONLY — students never get
+      // to see correct answers or their own answers, only their band result.
+      if (ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
       const [attempt] = await db
         .select()
         .from(ieltsMockAttempts)
         .where(eq(ieltsMockAttempts.attemptToken, input.token))
         .limit(1);
       if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
-      if (attempt.userId !== ctx.user.id && ctx.user.role !== "admin") {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
 
       const sections = await db
         .select()
