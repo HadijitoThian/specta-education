@@ -645,6 +645,20 @@ export const ieltsAdminRouter = router({
       return { accepted: true, code: input.code };
     }),
 
+  /**
+   * SURGICAL: rewrite ONLY Reading questions 27-31 into the "match statement
+   * to researcher (A-F)" type, from the existing passage-3 text. Everything
+   * else is untouched. Fast (one LLM call) so it runs synchronously.
+   */
+  fixReadingResearcherMatching: protectedProcedure
+    .input(z.object({ code: z.string().min(1).max(32) }))
+    .mutation(async ({ input, ctx }) => {
+      assertAdmin(ctx);
+      const { fixReadingResearcherMatching } = await import("./ieltsTestGenerator");
+      const result = await fixReadingResearcherMatching({ code: input.code });
+      return result;
+    }),
+
   /** Live status of the most recent (re)generation for a test code. */
   generationStatus: protectedProcedure
     .input(z.object({ code: z.string().min(1) }))

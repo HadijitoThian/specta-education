@@ -132,6 +132,17 @@ export default function AdminIeltsTests() {
     onSuccess: (_data, vars) => setRegenCode(vars.code),
   });
 
+  const fixQ2731Mut = trpc.admin.ielts.fixReadingResearcherMatching.useMutation({
+    onSuccess: data => {
+      utils.admin.ielts.list.invalidate();
+      alert(
+        `Q27-31 updated: ${data.updated} question(s) set to researcher-matching.\nPeople: ${data.people.join(", ")}` +
+          (data.errors.length ? `\nNotes: ${data.errors.join(" | ")}` : "")
+      );
+    },
+    onError: e => alert(`Failed: ${e.message}`),
+  });
+
   const [showImport, setShowImport] = useState(false);
   const [jsonText, setJsonText] = useState(SAMPLE_JSON);
   const [answerKeyFor, setAnswerKeyFor] = useState<number | null>(null);
@@ -400,6 +411,23 @@ export default function AdminIeltsTests() {
                           {regenerateTextMut.isPending
                             ? "Regenerating text…"
                             : "Regenerate text (no audio)"}
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (
+                              confirm(
+                                `Fix ONLY Reading Q27-31 for "${t.code}" into researcher-matching (A-F)? Nothing else changes — passage text and all other questions stay exactly as they are.`
+                              )
+                            ) {
+                              fixQ2731Mut.mutate({ code: t.code });
+                            }
+                          }}
+                          disabled={fixQ2731Mut.isPending}
+                          className="text-xs text-orange-700 hover:text-orange-900 underline font-semibold"
+                          title="Surgically rewrite only Reading questions 27-31 as researcher-matching; everything else untouched"
+                        >
+                          {fixQ2731Mut.isPending ? "Fixing Q27-31…" : "Fix Q27-31"}
                         </button>
 
                         <button

@@ -1789,3 +1789,120 @@ export async function regenerateTextContent(args: {
 
   return { readingPassages, writingTasks, speakingPrompts, chartImageGenerated, errors };
 }
+
+/**
+ * SURGICAL fix: rewrite ONLY reading questions 27-31 into a "match each
+ * statement to the researcher (A-F)" task, derived strictly from the EXISTING
+ * passage-3 text. The passage and every other question (and Writing/Speaking/
+ * Listening) are left completely untouched. Updates the 5 existing question
+ * rows in place (same ids). No ElevenLabs, no image generation.
+ */
+export async function fixReadingResearcherMatching(args: {
+  code: string;
+}): Promise<{ updated: number; people: string[]; errors: string[] }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const errors: string[] = [];
+
+  const [test] = await db
+    .select({ id: ieltsMockTests.id })
+    .from(ieltsMockTests)
+    .where(eq(ieltsMockTests.code, args.code))
+    .limit(1);
+  if (!test) throw new Error(`Test ${args.code} not found`);
+
+  // Passage 3 holds questions 27-40.
+  const [passage] = await db
+    .select({ id: ieltsReadingPassages.id, body: ieltsReadingPassages.body })
+    .from(ieltsReadingPassages)
+    .where(
+      and(
+        eq(ieltsReadingPassages.testId, test.id),
+        eq(ieltsReadingPassages.passageNumber, 3)
+      )
+    )
+    .limit(1);
+  if (!passage) throw new Error("Passage 3 not found");
+
+  const allQs = await db
+    .select({
+      id: ieltsReadingQuestions.id,
+      questionNumber: ieltsReadingQuestions.questionNumber,
+    })
+    .from(ieltsReadingQuestions)
+    .where(eq(ieltsReadingQuestions.passageId, passage.id))
+    .orderBy(ieltsReadingQuestions.questionNumber);
+  const targets = allQs.filter(
+    q => q.questionNumber >= 27 && q.questionNumber <= 31
+  );
+  if (targets.length === 0) {
+    throw new Error("No questions numbered 27-31 found in passage 3");
+  }
+
+  const system = `You are an IELTS Academic Reading author. Rewrite questions ${targets
+    .map(t => t.questionNumber)
+    .join(", ")} as a "Matching — which researcher made each statement?" task, based STRICTLY on the passage provided. Do not invent facts.
+
+Return JSON ONLY:
+{
+  "people": ["A. <name exactly as in the passage>", "B. <name>", ... up to F],
+  "questions": [
+    { "questionNumber": ${targets[0].questionNumber}, "statement": "a SHORT paraphrased claim that the passage attributes to exactly one of the people", "answer": "the single letter, e.g. C" }
+    // one object per target question, in order
+  ]
+}
+
+Rules:
+- Use ONLY people/researchers actually NAMED in the passage. Provide as many as the passage supports (ideally 5-6, labelled from A). If the passage names fewer than the number of questions, that's fine — letters may repeat as answers.
+- Each statement must be a PARAPHRASE the passage clearly attributes to that specific person (not a verbatim quote).
+- The answer letters across the ${targets.length} questions MUST be shuffled (NOT A,B,C,D,E in order) and may repeat.
+- Provide EXACTLY ${targets.length} questions, matching these question numbers in order: ${targets
+    .map(t => t.questionNumber)
+    .join(", ")}.`;
+
+  const user = `PASSAGE 3 TEXT:\n"""\n${passage.body}\n"""\n\nGenerate the JSON now.`;
+
+  const draft = await llmJson<{
+    people: string[];
+    questions: Array<{ questionNumber: number; statement: string; answer: string }>;
+  }>(system, user, 2000);
+
+  const people = (draft.people ?? []).filter(p => typeof p === "string");
+  if (people.length < 2) {
+    throw new Error(
+      "The passage does not clearly name enough researchers for a matching task — passage may need editing first."
+    );
+  }
+  const validLetters = new Set(
+    people.map(p => (p.trim().match(/^([A-Za-z])/)?.[1] ?? "").toUpperCase())
+  );
+
+  let updated = 0;
+  for (let i = 0; i < targets.length; i++) {
+    const target = targets[i];
+    const q = draft.questions?.[i];
+    if (!q) {
+      errors.push(`No generated question for Q${target.questionNumber}`);
+      continue;
+    }
+    const letter = (q.answer ?? "").trim().toUpperCase().slice(0, 1);
+    if (!validLetters.has(letter)) {
+      errors.push(
+        `Q${target.questionNumber}: answer "${q.answer}" not in people list`
+      );
+      continue;
+    }
+    await db
+      .update(ieltsReadingQuestions)
+      .set({
+        questionType: "matching_features" as any,
+        prompt: q.statement,
+        options: people,
+        correctAnswers: [letter],
+      })
+      .where(eq(ieltsReadingQuestions.id, target.id));
+    updated++;
+  }
+
+  return { updated, people, errors };
+}
