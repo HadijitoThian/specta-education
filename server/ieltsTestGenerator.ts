@@ -92,7 +92,7 @@ const SECTION_BLUEPRINTS = [
     theme:
       "An academic discussion between 3 named participants: ONE MALE student, ONE FEMALE student, and ONE tutor (any gender). MUST USE these specific labels: 'TOM:' for the MALE student, 'MAYA:' for the FEMALE student, and 'DR.WATSON:' for the tutor. Do not deviate from these names or labels. They discuss a research project, essay, or assignment with disagreement and viewpoints. Each student has a distinct opinion and the tutor mediates. Include standard IELTS audio cues like 'Now look at questions 25 to 30' before the second batch begins.",
     questionTypes:
-      "5 multiple_choice questions about specific things said in the discussion + 5 matching questions. CRITICAL — MCQ format: each MCQ prompt MUST explicitly mention WHICH speaker the question is about, e.g., 'What does MAYA think about the methodology?' or 'According to DR. WATSON, the main issue with the studies is...'. This gives students a clear hook. For matching, the options MUST be the speakers' names (e.g., 'A. Maya', 'B. Tom', 'C. Dr. Watson'). CRITICAL: correct answers for matching MUST be shuffled — DO NOT make the pattern A, B, C, A, B (sequential). Use a randomised mix like B, A, C, A, C or C, B, A, B, A. No two questions may share an opening phrase.",
+      "5 multiple_choice questions (questions 21-25) + 5 sentence_completion questions (questions 26-30).\n  MCQ format (21-25): each MCQ prompt may reference a speaker for a clear hook, e.g., 'What does MAYA think about the methodology?' or 'According to DR. WATSON, the main issue with the studies is...'. Provide exactly 3 options (A, B, C) that are all plausible things mentioned in the audio.\n  Sentence completion format (26-30): begin this batch with the audio cue 'Now look at questions 26 to 30.' These are gap-fill sentences ABOUT THE CONTENT of the discussion — NOT 'who said it' matching. Instruction style: 'Complete the sentences below. Write NO MORE THAN TWO WORDS for each answer.' Each prompt is a single sentence summarising a point from the discussion with ONE '..........' blank, where the missing word(s) are a key term actually spoken (paraphrase the surrounding sentence so the answer isn't given away). Example: 'The team agreed that the biggest limitation was the small .......... .' Each stem must be UNIQUE — never reuse an opening phrase. Do NOT use speaker names as answer options anywhere in questions 26-30.",
   },
   {
     sectionNumber: 4,
@@ -202,19 +202,24 @@ function validateListeningSection(
     }
   }
 
-  // 7. Section 3 matching must have answers spread across all named speakers.
+  // 7. Section 3 must use MCQ (21-25) + sentence_completion (26-30) — NOT
+  //    speaker-matching ("who said it"), which felt inauthentic.
   if (sectionNumber === 3) {
-    const matchingS3 = section.questions.filter(q => q.questionType === "matching");
-    if (matchingS3.length >= 4) {
-      const answers = matchingS3.map(q =>
-        (q.correctAnswers[0] ?? "").trim().toUpperCase()
+    const matchingS3 = section.questions.filter(
+      q => q.questionType === "matching"
+    ).length;
+    if (matchingS3 > 0) {
+      issues.push(
+        `Section 3 must not use speaker-matching questions — use sentence_completion for questions 26-30`
       );
-      const uniqueAnswers = new Set(answers);
-      if (uniqueAnswers.size < 2) {
-        issues.push(
-          `Section 3 matching answers must use at least 2 different speakers; got ${Array.from(uniqueAnswers).join(",")}`
-        );
-      }
+    }
+    const scS3 = section.questions.filter(
+      q => q.questionType === "sentence_completion"
+    ).length;
+    if (scS3 < 4) {
+      issues.push(
+        `Section 3 should include ~5 sentence_completion questions (26-30); got ${scS3}`
+      );
     }
   }
 
@@ -598,44 +603,40 @@ function buildSpeakerVoiceMap(
     if (femaleSpeaker)
       map.set(femaleSpeaker, LISTENING_VOICE_MAP.section1.primary); // British female
   } else if (sectionNumber === 3) {
-    // 3 speakers: tutor + 2 students. Assign voices by detected gender of
-    // each speaker's name. Default tutor is British male.
+    // 3 speakers: tutor + 2 students. Assign each a DISTINCT voice from its
+    // gender pool so two same-gender speakers (e.g. a male student + a male
+    // tutor) never share a voice. We have 2 male and 2 female voices.
     const tutorPatterns = /TUTOR|PROFESSOR|TEACHER|DR\.?\b|MR\.?\b|MS\.?\b|MRS\.?\b|PROF\.?|LECTURER/i;
     let tutor = uniqueSpeakers.find(s => tutorPatterns.test(s));
     if (!tutor && uniqueSpeakers.length >= 1) tutor = uniqueSpeakers[uniqueSpeakers.length - 1];
 
-    // Tutor voice depends on detected gender.
-    if (tutor) {
-      const tutorGender = detectGender(tutor);
-      if (tutorGender === "female") {
-        map.set(tutor, LISTENING_VOICE_MAP.section3.primary); // American female
-      } else {
-        map.set(tutor, LISTENING_VOICE_MAP.section4.primary); // British male
-      }
-    }
+    // Distinct voice pools per gender (British male + Australian male;
+    // American female + British female).
+    const malePool = [
+      LISTENING_VOICE_MAP.section4.primary, // British male (Antoni)
+      LISTENING_VOICE_MAP.section2.primary, // Australian male (Arnold)
+    ];
+    const femalePool = [
+      LISTENING_VOICE_MAP.section3.primary, // American female (Rachel)
+      LISTENING_VOICE_MAP.section1.primary, // British female (Bella)
+    ];
 
-    const students = uniqueSpeakers.filter(s => s !== tutor);
-    // Voice pool — tracks which female voice we've used so far.
-    let femaleVoicesUsed = 0;
-    for (const student of students) {
-      const gender = detectGender(student);
+    // Assign tutor first for a stable allocation, then the other speakers.
+    const ordered = tutor
+      ? [tutor, ...uniqueSpeakers.filter(s => s !== tutor)]
+      : [...uniqueSpeakers];
+
+    let maleIdx = 0;
+    let femaleIdx = 0;
+    for (const sp of ordered) {
+      const gender = detectGender(sp);
       if (gender === "male") {
-        map.set(student, LISTENING_VOICE_MAP.section1.secondary); // British male
-      } else if (gender === "female") {
-        const voice =
-          femaleVoicesUsed === 0
-            ? LISTENING_VOICE_MAP.section3.primary // American female
-            : LISTENING_VOICE_MAP.section3.secondary; // British female
-        femaleVoicesUsed++;
-        map.set(student, voice);
+        map.set(sp, malePool[maleIdx % malePool.length]);
+        maleIdx++;
       } else {
-        // Unknown — default to one of the female voices for variety.
-        const voice =
-          femaleVoicesUsed === 0
-            ? LISTENING_VOICE_MAP.section3.primary
-            : LISTENING_VOICE_MAP.section3.secondary;
-        femaleVoicesUsed++;
-        map.set(student, voice);
+        // female or unknown → cycle the female pool for variety/distinctness
+        map.set(sp, femalePool[femaleIdx % femalePool.length]);
+        femaleIdx++;
       }
     }
   } else if (sectionNumber === 2) {
