@@ -16,6 +16,7 @@ import {
   sendDueForWeek,
   parseSnapshot,
 } from "./crmParentReports";
+import { whatsappConfigured, reportTemplateName, sendWhatsAppText } from "./whatsappGateway";
 
 function isOwner(u: { role: string; crmRole: string | null }) {
   return u.role === "admin" || u.crmRole === "owner";
@@ -97,6 +98,7 @@ export const crmReportsRouter = router({
         .select({
           report: crmParentReports,
           assignedCounselorId: leads.assignedCounselorId,
+          parentPhone: leads.parentPhone,
         })
         .from(crmParentReports)
         .leftJoin(leads, eq(leads.id, crmParentReports.leadId))
@@ -106,7 +108,30 @@ export const crmReportsRouter = router({
       if (!isOwner(ctx.user) && r.assignedCounselorId !== ctx.user.id) {
         throw new TRPCError({ code: "FORBIDDEN" });
       }
-      return { ...r.report, snapshotParsed: parseSnapshot(r.report.snapshot) };
+      return {
+        ...r.report,
+        snapshotParsed: parseSnapshot(r.report.snapshot),
+        parentPhone: r.parentPhone,
+        whatsappReady: whatsappConfigured() && !!reportTemplateName(),
+      };
+    }),
+
+  /** Owner: send a test free-form WhatsApp via the bot (verify connectivity). */
+  testWhatsApp: protectedProcedure
+    .input(z.object({ phone: z.string().min(3), text: z.string().max(900).optional() }))
+    .mutation(async ({ input, ctx }) => {
+      if (!isOwner(ctx.user)) throw new TRPCError({ code: "FORBIDDEN", message: "Owner only." });
+      const res = await sendWhatsAppText(
+        input.phone,
+        input.text || "✅ SpecTa CRM is connected to WhatsApp. (Test message.)"
+      );
+      if (!res.ok) {
+        throw new TRPCError({
+          code: res.skipped ? "PRECONDITION_FAILED" : "INTERNAL_SERVER_ERROR",
+          message: res.error || "Send failed",
+        });
+      }
+      return { ok: true };
     }),
 
   /** Owner: generate this week's drafts (idempotent). */
@@ -188,15 +213,17 @@ export const crmReportsRouter = router({
       id: z.number().int(),
       summaryNote: z.string().max(2000).nullable().optional(),
       includeActivityIds: z.array(z.number().int()).optional(),
+      channelWhatsapp: z.boolean().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       assertCrm(ctx.user);
       const db = await db_();
-      if (input.summaryNote !== undefined || input.includeActivityIds) {
+      if (input.summaryNote !== undefined || input.includeActivityIds || input.channelWhatsapp !== undefined) {
         const [row] = await db.select().from(crmParentReports).where(eq(crmParentReports.id, input.id)).limit(1);
         if (!row) throw new TRPCError({ code: "NOT_FOUND" });
         const patch: Record<string, unknown> = {};
         if (input.summaryNote !== undefined) patch.summaryNote = input.summaryNote;
+        if (input.channelWhatsapp !== undefined) patch.channelWhatsapp = input.channelWhatsapp;
         if (input.includeActivityIds) {
           const snap = parseSnapshot(row.snapshot);
           if (snap) {

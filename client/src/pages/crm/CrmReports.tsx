@@ -38,6 +38,10 @@ export default function CrmReports() {
     onSuccess: r => { setMsg(`Sent ${r.sent}, failed ${r.failed}, held ${r.held}.`); refresh(); },
     onError: e => setMsg(e.message),
   });
+  const testWa = trpc.reports.testWhatsApp.useMutation({
+    onSuccess: () => setMsg("WhatsApp test sent ✓ — check that phone (must have messaged the bot in the last 24h)."),
+    onError: e => setMsg(e.message),
+  });
 
   const reports = list.data?.reports ?? [];
   const weekOf = list.data?.weekOf;
@@ -56,6 +60,9 @@ export default function CrmReports() {
             </button>
             <button onClick={() => { if (confirm("Send all approved reports (and drafts that have content) now?")) sendDue.mutate({}); }} disabled={sendDue.isPending} className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50" style={{ background: PURPLE }}>
               {sendDue.isPending ? "Sending…" : "Send all ready"}
+            </button>
+            <button onClick={() => { const p = window.prompt("Send a test WhatsApp to which number? (e.g. 0812xxxxxxx)"); if (p) testWa.mutate({ phone: p }); }} disabled={testWa.isPending} className="px-4 py-2 rounded-lg text-sm font-medium border border-slate-300 text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+              {testWa.isPending ? "Testing…" : "Test WhatsApp"}
             </button>
           </div>
         )}
@@ -109,12 +116,14 @@ function ReviewPanel({ id, onClose, onChanged }: { id: number; onClose: () => vo
   const q = trpc.reports.get.useQuery({ id });
   const [note, setNote] = useState("");
   const [includes, setIncludes] = useState<Record<number, boolean>>({});
+  const [wa, setWa] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [justSent, setJustSent] = useState(false);
 
   useEffect(() => {
     if (q.data) {
       setNote(q.data.summaryNote ?? "");
+      setWa(!!q.data.channelWhatsapp);
       const m: Record<number, boolean> = {};
       q.data.snapshotParsed?.activities.forEach(a => { m[a.id] = a.include; });
       setIncludes(m);
@@ -158,7 +167,7 @@ function ReviewPanel({ id, onClose, onChanged }: { id: number; onClose: () => vo
   // Always persist the current editor state (note + which activities show)
   // before approving or sending, so the note is never lost.
   const persist = () =>
-    save.mutateAsync({ id, summaryNote: note, includeActivityIds: Object.entries(includes).filter(([, v]) => v).map(([k]) => Number(k)) });
+    save.mutateAsync({ id, summaryNote: note, channelWhatsapp: wa, includeActivityIds: Object.entries(includes).filter(([, v]) => v).map(([k]) => Number(k)) });
 
   const doSave = async () => { setBusy(true); setMsg(null); try { await persist(); setMsg("Saved."); after(); } catch (e: any) { setMsg(e.message); } finally { setBusy(false); } };
   const doApprove = async () => { setBusy(true); setMsg(null); try { await persist(); await approve.mutateAsync({ id }); setMsg("Approved & saved."); after(); } catch (e: any) { setMsg(e.message); } finally { setBusy(false); } };
@@ -172,6 +181,7 @@ function ReviewPanel({ id, onClose, onChanged }: { id: number; onClose: () => vo
       await sendOne.mutateAsync({
         id,
         summaryNote: note,
+        channelWhatsapp: wa,
         includeActivityIds: Object.entries(includes).filter(([, v]) => v).map(([k]) => Number(k)),
       });
       setJustSent(true); after();
@@ -219,6 +229,22 @@ function ReviewPanel({ id, onClose, onChanged }: { id: number; onClose: () => vo
             ))}
           </ul>
         </div>
+      </div>
+
+      {/* Channels */}
+      <div className="mt-4 flex items-center gap-2 text-sm">
+        <input
+          id={`wa-${id}`}
+          type="checkbox"
+          checked={wa}
+          disabled={!q.data.whatsappReady || !q.data.parentPhone}
+          onChange={e => setWa(e.target.checked)}
+        />
+        <label htmlFor={`wa-${id}`} className={(!q.data.whatsappReady || !q.data.parentPhone) ? "text-slate-400" : "text-slate-700"}>
+          Also send to parent's WhatsApp
+        </label>
+        {!q.data.parentPhone && <span className="text-xs text-amber-600">— no parent phone on file</span>}
+        {q.data.parentPhone && !q.data.whatsappReady && <span className="text-xs text-slate-400">— WhatsApp not connected yet</span>}
       </div>
 
       {/* Actions */}

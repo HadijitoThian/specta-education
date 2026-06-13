@@ -8,9 +8,11 @@
  * sent; empty ones are held.
  */
 import { and, eq, gte, inArray, ne, isNotNull } from "drizzle-orm";
+import { nanoid } from "nanoid";
 import { getDb } from "./db";
 import { ENV } from "./_core/env";
 import { sendEmail } from "./email";
+import { sendWhatsAppTemplate, reportTemplateName } from "./whatsappGateway";
 import {
   leads,
   crmActivityTimeline,
@@ -227,35 +229,74 @@ export function renderParentEmailHtml(snap: ReportSnapshot, parentName: string |
 </div>`;
 }
 
-/** Send one report by id (email channel). Updates status to sent/failed. */
+/** Send one report by id over its enabled channels (email + optional WhatsApp). */
 export async function sendReportById(id: number): Promise<{ ok: boolean; error?: string }> {
   const db = await getDb();
   if (!db) return { ok: false, error: "Database unavailable" };
   const [r] = await db.select().from(crmParentReports).where(eq(crmParentReports.id, id)).limit(1);
   if (!r) return { ok: false, error: "Report not found" };
-  if (!r.parentEmail) {
-    await db.update(crmParentReports).set({ status: "failed", error: "No parent email" }).where(eq(crmParentReports.id, id));
-    return { ok: false, error: "No parent email" };
-  }
   const snap = parseSnapshot(r.snapshot);
   if (!snap) {
     await db.update(crmParentReports).set({ status: "failed", error: "No snapshot" }).where(eq(crmParentReports.id, id));
     return { ok: false, error: "No snapshot" };
   }
-  try {
-    const html = renderParentEmailHtml(snap, r.parentName, r.summaryNote);
-    const ok = await sendEmail({
-      to: r.parentEmail,
-      subject: `Weekly Progress Report: ${snap.studentName} — SpecTa Education`,
-      html,
-    });
-    if (!ok) throw new Error("Email send returned false");
-    await db.update(crmParentReports).set({ status: "sent", sentAt: new Date(), error: null }).where(eq(crmParentReports.id, id));
-    return { ok: true };
-  } catch (e: any) {
-    await db.update(crmParentReports).set({ status: "failed", error: e?.message || "send error" }).where(eq(crmParentReports.id, id));
-    return { ok: false, error: e?.message || "send error" };
+
+  // Student record carries the parent WhatsApp + the My Journey link token.
+  const [lead] = await db
+    .select({ parentPhone: leads.parentPhone, journeyToken: leads.journeyToken })
+    .from(leads)
+    .where(eq(leads.id, r.leadId))
+    .limit(1);
+
+  const problems: string[] = [];
+  let anyOk = false;
+
+  // --- Email channel ---
+  if (r.channelEmail && r.parentEmail) {
+    try {
+      const html = renderParentEmailHtml(snap, r.parentName, r.summaryNote);
+      const ok = await sendEmail({
+        to: r.parentEmail,
+        subject: `Weekly Progress Report: ${snap.studentName} — SpecTa Education`,
+        html,
+      });
+      if (ok) anyOk = true; else problems.push("email send returned false");
+    } catch (e: any) {
+      problems.push(`email: ${e?.message || "error"}`);
+    }
   }
+
+  // --- WhatsApp channel (approved template → links to My Journey) ---
+  if (r.channelWhatsapp && lead?.parentPhone && reportTemplateName()) {
+    try {
+      let journeyToken = lead.journeyToken;
+      if (!journeyToken) {
+        journeyToken = nanoid(16);
+        await db.update(leads).set({ journeyToken }).where(eq(leads.id, r.leadId));
+      }
+      const base = ENV.appUrl?.replace(/\/+$/, "") || "https://www.spectaeducation.com";
+      const link = `${/^https?:\/\//i.test(base) ? base : `https://${base}`}/journey/${journeyToken}`;
+      const res = await sendWhatsAppTemplate(lead.parentPhone, reportTemplateName(), [
+        r.parentName || "Parent",
+        snap.studentName,
+        link,
+      ]);
+      if (res.ok) anyOk = true;
+      else if (!res.skipped) problems.push(`whatsapp: ${res.error}`);
+    } catch (e: any) {
+      problems.push(`whatsapp: ${e?.message || "error"}`);
+    }
+  }
+
+  if (anyOk) {
+    await db.update(crmParentReports)
+      .set({ status: "sent", sentAt: new Date(), error: problems.length ? problems.join("; ") : null })
+      .where(eq(crmParentReports.id, id));
+    return { ok: true };
+  }
+  const err = problems.join("; ") || "No channel available — needs a parent email, or WhatsApp enabled + a parent phone + approved template.";
+  await db.update(crmParentReports).set({ status: "failed", error: err }).where(eq(crmParentReports.id, id));
+  return { ok: false, error: err };
 }
 
 /** A report has "content" if at least one activity is included. */
