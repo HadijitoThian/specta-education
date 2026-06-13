@@ -217,10 +217,15 @@ export async function createIeltsMockInvoice(
       email: params.customerEmail,
       ...(params.customerPhone ? { mobile_number: params.customerPhone } : {}),
     },
+    // Disable Xendit's own customer emails (their "complete your order" /
+    // receipt templates were rendering as raw HTML in some mail clients). We
+    // send our own branded emails instead (the "Start my test" link on
+    // payment, and the band-score report when finished). Empty arrays = no
+    // Xendit notification for any event.
     customer_notification_preference: {
-      invoice_created: ["email"],
-      invoice_reminder: ["email"],
-      invoice_paid: ["email"],
+      invoice_created: [],
+      invoice_reminder: [],
+      invoice_paid: [],
     },
     invoice_duration: 86400,
     success_redirect_url: successUrl,
