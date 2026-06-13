@@ -51,6 +51,9 @@ const StaffLogin = lazy(() => import("./pages/StaffLogin"));
 const StaffDashboard = lazy(() => import("./pages/StaffDashboard"));
 const CounselorCRM = lazy(() => import("./pages/CounselorCRM"));
 const StudentProfile360 = lazy(() => import("./pages/StudentProfile360"));
+// New clean CRM (Phase 1+) — replaces the dormant CounselorCRM workspace.
+const CrmHome = lazy(() => import("./pages/crm/CrmHome"));
+const CrmTeam = lazy(() => import("./pages/crm/CrmTeam"));
 const TeamChat = lazy(() => import("./pages/TeamChat"));
 const UniversityDatabase = lazy(() => import("./pages/UniversityDatabase"));
 const AIFollowUpAssistant = lazy(() => import("./pages/AIFollowUpAssistant"));
@@ -130,7 +133,10 @@ function Router() {
         {/* ── Staff / CRM ── */}
         <Route path={"/staff-login"} component={StaffLogin} />
         <Route path={"/staff-dashboard"} component={StaffDashboard} />
-        <Route path={"/crm"} component={CounselorCRM} />
+        <Route path={"/crm"} component={CrmHome} />
+        <Route path={"/crm/team"} component={CrmTeam} />
+        {/* Legacy dormant CRM pages — retained until later phases replace them. */}
+        <Route path={"/crm/legacy"} component={CounselorCRM} />
         <Route path={"/crm/lead/:id"} component={StudentProfile360} />
         <Route path={"/crm/team-chat"} component={TeamChat} />
         <Route path={"/crm/universities"} component={UniversityDatabase} />
