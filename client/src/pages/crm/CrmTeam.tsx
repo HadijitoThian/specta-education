@@ -179,7 +179,7 @@ export default function CrmTeam() {
       </div>
 
       <p className="text-xs text-slate-400 mt-3">
-        New members sign in at <span className="font-mono">/login</span> with their email and the temporary password you set. Tell them to change it after first sign-in.
+        New members are automatically emailed their login link and temporary password. They sign in at <span className="font-mono">/login</span> — remind them to change the password after first sign-in.
       </p>
     </CrmShell>
   );

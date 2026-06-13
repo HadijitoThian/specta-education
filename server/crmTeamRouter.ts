@@ -18,6 +18,32 @@ import { nanoid } from "nanoid";
 import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
 import { users } from "../drizzle/schema";
+import { sendStaffWelcomeEmail } from "./email";
+import { ENV } from "./_core/env";
+
+const ROLE_LABEL_FOR_EMAIL: Record<string, string> = {
+  counselor: "Education Counselor",
+  ielts_instructor: "IELTS Instructor",
+  visa_specialist: "Visa Specialist",
+  front_desk: "Front Desk",
+  owner: "Owner",
+};
+
+function crmLoginUrl(): string {
+  const base = ENV.appUrl?.replace(/\/+$/, "") || "https://www.spectaeducation.com";
+  return `${/^https?:\/\//i.test(base) ? base : `https://${base}`}/login`;
+}
+
+/** Best-effort welcome email with login details for a new team member. */
+function sendTeamWelcome(email: string, name: string, crmRole: string, password: string) {
+  sendStaffWelcomeEmail({
+    to: email,
+    name,
+    role: ROLE_LABEL_FOR_EMAIL[crmRole] ?? "Team Member",
+    password,
+    loginUrl: crmLoginUrl(),
+  }).catch(e => console.warn("[CRM team] welcome email failed:", e));
+}
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -131,6 +157,7 @@ export const crmTeamRouter = router({
             loginMethod: "password",
           })
           .where(eq(users.id, existing.id));
+        sendTeamWelcome(emailLower, input.name.trim(), input.crmRole, input.password);
         return { id: existing.id, upgraded: true };
       }
 
@@ -150,6 +177,7 @@ export const crmTeamRouter = router({
         crmActive: true,
       });
       const id = (result as any)[0]?.insertId as number;
+      sendTeamWelcome(emailLower, input.name.trim(), input.crmRole, input.password);
       return { id, upgraded: false };
     }),
 
