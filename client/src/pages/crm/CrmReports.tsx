@@ -118,19 +118,33 @@ function ReviewPanel({ id, onClose, onChanged }: { id: number; onClose: () => vo
     }
   }, [q.data?.id]);
 
+  const [busy, setBusy] = useState(false);
   const after = () => { utils.reports.get.invalidate({ id }); onChanged(); };
-  const save = trpc.reports.updateDraft.useMutation({ onSuccess: () => { setMsg("Saved."); after(); } });
-  const approve = trpc.reports.approve.useMutation({ onSuccess: () => { setMsg("Approved."); after(); } });
+  const save = trpc.reports.updateDraft.useMutation();
+  const approve = trpc.reports.approve.useMutation();
   const skip = trpc.reports.skip.useMutation({ onSuccess: () => { setMsg("Skipped."); after(); } });
-  const sendOne = trpc.reports.sendOne.useMutation({ onSuccess: () => { setMsg("Sent ✓"); after(); }, onError: e => setMsg(e.message) });
+  const sendOne = trpc.reports.sendOne.useMutation();
 
   if (q.isLoading) return <div className="mt-5 bg-white border rounded-xl p-5 text-slate-400">Loading…</div>;
   if (!q.data) return null;
   const snap = q.data.snapshotParsed;
   const r = q.data;
+  const isSent = r.status === "sent";
 
-  const doSave = () =>
-    save.mutate({ id, summaryNote: note, includeActivityIds: Object.entries(includes).filter(([, v]) => v).map(([k]) => Number(k)) });
+  // Always persist the current editor state (note + which activities show)
+  // before approving or sending, so the note is never lost.
+  const persist = () =>
+    save.mutateAsync({ id, summaryNote: note, includeActivityIds: Object.entries(includes).filter(([, v]) => v).map(([k]) => Number(k)) });
+
+  const doSave = async () => { setBusy(true); setMsg(null); try { await persist(); setMsg("Saved."); after(); } catch (e: any) { setMsg(e.message); } finally { setBusy(false); } };
+  const doApprove = async () => { setBusy(true); setMsg(null); try { await persist(); await approve.mutateAsync({ id }); setMsg("Approved & saved."); after(); } catch (e: any) { setMsg(e.message); } finally { setBusy(false); } };
+  const doSend = async () => {
+    if (!r.parentEmail) { setMsg("No parent email set."); return; }
+    if (!confirm("Send this report to the parent now?")) return;
+    setBusy(true); setMsg(null);
+    try { await persist(); await sendOne.mutateAsync({ id }); setMsg("Sent ✓ — email delivered."); after(); }
+    catch (e: any) { setMsg(e.message); } finally { setBusy(false); }
+  };
 
   return (
     <div className="mt-5 bg-white border border-slate-200 rounded-xl p-5">
@@ -176,14 +190,21 @@ function ReviewPanel({ id, onClose, onChanged }: { id: number; onClose: () => vo
       </div>
 
       {/* Actions */}
-      <div className="mt-5 flex flex-wrap gap-2 items-center">
-        <button onClick={doSave} disabled={save.isPending || r.status === "sent"} className="px-4 py-2 rounded-lg text-sm font-medium border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50">Save changes</button>
-        <button onClick={() => approve.mutate({ id })} disabled={approve.isPending || r.status !== "draft"} className="px-4 py-2 rounded-lg text-sm font-medium border border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50">Approve</button>
-        <button onClick={() => { if (!r.parentEmail) { setMsg("No parent email set."); return; } if (confirm("Send this report to the parent now?")) sendOne.mutate({ id }); }} disabled={sendOne.isPending || !r.parentEmail} className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50" style={{ background: PURPLE }}>
-          {sendOne.isPending ? "Sending…" : "Send now"}
-        </button>
-        <button onClick={() => skip.mutate({ id })} disabled={skip.isPending} className="px-4 py-2 rounded-lg text-sm text-slate-500 hover:bg-slate-100">Skip this week</button>
-      </div>
+      {isSent ? (
+        <div className="mt-5 flex items-center gap-3">
+          <span className="text-sm font-semibold text-emerald-700">✓ Sent to {r.parentEmail}</span>
+          <button onClick={doSend} disabled={busy} className="text-sm text-slate-500 hover:underline disabled:opacity-50">Resend</button>
+        </div>
+      ) : (
+        <div className="mt-5 flex flex-wrap gap-2 items-center">
+          <button onClick={doSave} disabled={busy} className="px-4 py-2 rounded-lg text-sm font-medium border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50">Save changes</button>
+          <button onClick={doApprove} disabled={busy || r.status !== "draft"} className="px-4 py-2 rounded-lg text-sm font-medium border border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50">{r.status === "approved" ? "Approved ✓" : "Approve"}</button>
+          <button onClick={doSend} disabled={busy || !r.parentEmail} className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50" style={{ background: PURPLE }}>
+            {busy ? "Sending…" : "Send now"}
+          </button>
+          <button onClick={() => skip.mutate({ id })} disabled={busy || skip.isPending} className="px-4 py-2 rounded-lg text-sm text-slate-500 hover:bg-slate-100">Skip this week</button>
+        </div>
+      )}
     </div>
   );
 }

@@ -169,6 +169,9 @@ export function renderParentEmailHtml(snap: ReportSnapshot, parentName: string |
         </tr>`).join("")
     : `<tr><td colspan="2" style="padding:8px;color:#999;font-size:13px;">No new updates this week — your counselor will be in touch.</td></tr>`;
 
+  const greetingEn = parentName && parentName.trim() ? `Mr./Ms. ${esc(parentName.trim())}` : "Parent/Guardian";
+  const greetingId = parentName && parentName.trim() ? `Bapak/Ibu ${esc(parentName.trim())}` : "Bapak/Ibu Wali";
+
   const row = (label: string, value: string) => `
     <tr>
       <td style="padding:7px 8px;font-weight:600;color:#555;font-size:13px;width:42%;">${label}</td>
@@ -185,14 +188,18 @@ export function renderParentEmailHtml(snap: ReportSnapshot, parentName: string |
     <div style="color:rgba(255,255,255,0.85);font-size:13px;margin-top:2px;">Laporan Kemajuan Mingguan</div>
   </div>
   <div style="background:#fff;padding:20px;">
-    <p style="margin:0 0 12px;font-size:14px;color:#333;">Dear <strong>${esc(parentName || "Parent/Guardian")}</strong>,</p>
-    <p style="margin:0 0 6px;font-size:14px;color:#555;line-height:1.6;">
-      Here is this week's progress update for <strong>${esc(snap.studentName)}</strong>.
-      ${summaryNote ? esc(summaryNote) : "We're committed to keeping you informed every step of the way."}
+    <p style="margin:0 0 2px;font-size:14px;color:#333;">Dear <strong>${greetingEn}</strong>,</p>
+    <p style="margin:0 0 12px;font-size:12.5px;color:#999;">Yth. <strong>${greetingId}</strong>,</p>
+    <p style="margin:0 0 4px;font-size:14px;color:#555;line-height:1.6;">
+      Here is this week's progress update for <strong>${esc(snap.studentName)}</strong>. We're committed to keeping you informed every step of the way.
     </p>
     <p style="margin:0 0 16px;font-size:12.5px;color:#999;line-height:1.5;">
       Berikut perkembangan ${esc(snap.studentName)} minggu ini. Kami berkomitmen menjaga Anda tetap mendapat kabar di setiap langkah.
     </p>
+    ${summaryNote && summaryNote.trim() ? `<div style="margin:0 0 16px;background:#fdf2f8;border-left:4px solid #E91E8C;border-radius:6px;padding:12px 14px;">
+      <div style="font-size:12px;font-weight:700;color:#9C27B0;margin-bottom:4px;">📩 A note from your counselor · Catatan dari konselor</div>
+      <div style="font-size:13.5px;color:#444;line-height:1.6;white-space:pre-wrap;">${esc(summaryNote.trim())}</div>
+    </div>` : ""}
 
     <table style="width:100%;border-collapse:collapse;background:#fafafa;border-radius:8px;overflow:hidden;">
       ${row("Current stage / Tahap saat ini", `<span style="background:#9C27B01a;color:#9C27B0;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">${esc(snap.stageLabel)}</span>`)}
