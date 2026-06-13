@@ -23,10 +23,35 @@ const ROLE_LABEL: Record<string, string> = {
 type NavItem = { label: string; href: string; ownerOnly?: boolean; soon?: boolean };
 const NAV: NavItem[] = [
   { label: "Home", href: "/crm" },
-  { label: "Students", href: "/crm/students", soon: true },
+  { label: "Students", href: "/crm/students" },
   { label: "Parent Reports", href: "/crm/reports", soon: true },
   { label: "Team", href: "/crm/team", ownerOnly: true },
 ];
+
+export const STAGE_META: Record<string, { label: string; color: string }> = {
+  new_lead: { label: "New Lead", color: "#3b82f6" },
+  consultation: { label: "Consultation", color: "#8b5cf6" },
+  ielts_prep: { label: "IELTS Prep", color: "#f59e0b" },
+  shortlist: { label: "Shortlist", color: "#0ea5e9" },
+  application: { label: "Application", color: "#f97316" },
+  offer: { label: "Offer", color: "#14b8a6" },
+  visa: { label: "Visa", color: "#6366f1" },
+  pre_departure: { label: "Pre-Departure", color: "#a855f7" },
+  enrolled: { label: "Enrolled", color: "#22c55e" },
+  inactive: { label: "Inactive", color: "#9ca3af" },
+};
+
+export function StageBadge({ stage }: { stage: string }) {
+  const m = STAGE_META[stage] ?? { label: stage, color: "#6b7280" };
+  return (
+    <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: `${m.color}1a`, color: m.color }}>
+      {m.label}
+    </span>
+  );
+}
+
+export const inputCls =
+  "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300";
 
 function Centered({ children }: { children: ReactNode }) {
   return (

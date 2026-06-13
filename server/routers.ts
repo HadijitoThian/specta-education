@@ -225,6 +225,7 @@ import { adsAgentRouter } from "./adsAgent";
 import { ieltsAdminRouter } from "./ieltsAdminRouter";
 import { ieltsRouter } from "./ieltsRouter";
 import { crmTeamRouter } from "./crmTeamRouter";
+import { crmStudentsRouter } from "./crmStudentsRouter";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail, sendParentProgressEmail } from "./email";
 import crypto from "crypto";
 import { createProTestInvoice, verifyWebhookToken, generateExternalId, getProTestPrice, getProTestDiscountPrice } from "./xenditService";
@@ -7914,6 +7915,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
 
   ielts: ieltsRouter,
   team: crmTeamRouter,
+  students: crmStudentsRouter,
 });
 export type AppRouter = typeof appRouter;
 // Agents disabled — the background scheduler (lead/CRM/SEO/social/GM agents)

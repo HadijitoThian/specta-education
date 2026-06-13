@@ -106,6 +106,23 @@ export const leads = mysqlTable("leads", {
   programInterest: varchar("programInterest", { length: 255 }),
   parentName: varchar("parentName", { length: 255 }),
   parentEmail: varchar("parentEmail", { length: 320 }),
+  parentPhone: varchar("parentPhone", { length: 50 }),
+  // --- New clean CRM (Phase 2) ---
+  // 9-stage student journey from the blueprint (+ off-pipeline "inactive").
+  pipelineStage: mysqlEnum("pipelineStage", [
+    "new_lead",
+    "consultation",
+    "ielts_prep",
+    "shortlist",
+    "application",
+    "offer",
+    "visa",
+    "pre_departure",
+    "enrolled",
+    "inactive",
+  ]).default("new_lead").notNull(),
+  assignedCounselorId: int("assignedCounselorId"), // references users.id (single login)
+  office: mysqlEnum("office", ["kelapa_gading", "pik", "gading_serpong"]),
   status: mysqlEnum("status", ["new", "contacted", "qualified", "converted", "closed"]).default("new").notNull(),
   forwardedAt: timestamp("forwardedAt"),
   intentSummary: text("intentSummary"),
