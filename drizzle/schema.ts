@@ -2133,6 +2133,10 @@ export const ieltsMockAttempts = mysqlTable("ieltsMockAttempts", {
   testId: int("testId").notNull(),
   attemptToken: varchar("attemptToken", { length: 32 }).notNull().unique(),
   paymentRef: varchar("paymentRef", { length: 128 }),
+  // The name/email the buyer entered on the purchase form — results + the
+  // start-test link are sent here (falls back to the account email if null).
+  customerName: varchar("customerName", { length: 120 }),
+  customerEmail: varchar("customerEmail", { length: 255 }),
   paidAt: timestamp("paidAt"),
   status: mysqlEnum("status", [
     "awaiting_payment", "ready", "listening", "reading", "writing",

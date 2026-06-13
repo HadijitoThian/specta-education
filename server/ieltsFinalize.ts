@@ -396,13 +396,16 @@ export async function finalizeAttempt(
     });
   }
 
-  // Email the student.
+  // Email the student — prefer the email entered on the purchase form, fall
+  // back to the account email.
+  const reportToEmail = attempt.customerEmail || user?.email;
+  const reportToName = attempt.customerName || user?.name || "Student";
   let emailSent = false;
-  if (user?.email && ENV.resendApiKey) {
+  if (reportToEmail && ENV.resendApiKey) {
     try {
       emailSent = await sendReportEmail({
-        toEmail: user.email,
-        toName: user.name ?? "Student",
+        toEmail: reportToEmail,
+        toName: reportToName,
         reportData,
         pdfBuffer,
         pdfUrl: pdfKey

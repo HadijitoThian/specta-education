@@ -188,6 +188,8 @@ export async function createIeltsMockInvoice(
     testId: test.id,
     attemptToken,
     paymentRef: externalId,
+    customerName: params.customerName,
+    customerEmail: params.customerEmail,
     status: "awaiting_payment",
   });
   const attemptId = (insertResult as any)[0]?.insertId as number;
@@ -310,15 +312,18 @@ export async function markIeltsAttemptPaid(
   }
 
   // Email the buyer their start link (every paid confirmation, so a Xendit
-  // webhook re-send also re-delivers the link). Best-effort.
+  // webhook re-send also re-delivers the link). Best-effort. Prefer the email
+  // they entered on the purchase form; fall back to their account email.
   try {
     const [u] = await db
       .select({ email: users.email, name: users.name })
       .from(users)
       .where(eq(users.id, attempt.userId))
       .limit(1);
-    if (u?.email) {
-      await sendTestReadyEmail(u.email, u.name ?? "there", attempt.attemptToken);
+    const toEmail = attempt.customerEmail || u?.email;
+    const toName = attempt.customerName || u?.name || "there";
+    if (toEmail) {
+      await sendTestReadyEmail(toEmail, toName, attempt.attemptToken);
     }
   } catch (err) {
     console.warn("[IELTS Mock] could not send test-ready email:", err);
