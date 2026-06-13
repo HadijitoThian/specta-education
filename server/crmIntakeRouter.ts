@@ -16,6 +16,7 @@ import { getDb } from "./db";
 import { leads, users, crmActivityTimeline } from "../drizzle/schema";
 import { sendEmail } from "./email";
 import { ENV } from "./_core/env";
+import { distributeOne } from "./leadDistribution";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -134,6 +135,9 @@ export const crmIntakeRouter = router({
             ${input.programInterest ? `<br/>Program: ${input.programInterest}` : ""}</p>
             <p><a href="${appBase()}/crm/students/${id}">Open in CRM →</a></p>`,
         }).catch(e => console.warn("[Intake] counselor notify failed:", e));
+      } else {
+        // General/front-desk link (no specific counsellor) → auto-distribute.
+        void distributeOne(id);
       }
 
       return { journeyToken, counselorName, duplicate: false };

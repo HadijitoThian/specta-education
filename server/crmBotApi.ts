@@ -20,6 +20,7 @@ import { leads, users, crmActivityTimeline, crmStudentDocuments } from "../drizz
 import { storagePut } from "./storage";
 import { normalizePhone } from "./whatsappGateway";
 import { REPORT_STAGE_LABEL } from "./crmParentReports";
+import { distributeOne } from "./leadDistribution";
 
 function authed(req: Request): boolean {
   const key = process.env.CRM_BOT_API_KEY;
@@ -121,6 +122,7 @@ export function registerCrmBotRoutes(app: Express) {
       await db.insert(crmActivityTimeline).values({
         leadId: id, activityType: "whatsapp", title: "Captured via WhatsApp (Emma)", staffEmail: null,
       });
+      void distributeOne(id); // even split across offices/counsellors (best-effort)
       return res.json({ ok: true, id, journeyToken, created: true });
     } catch (e: any) {
       console.error("[BotAPI] upsert-student:", e?.message);

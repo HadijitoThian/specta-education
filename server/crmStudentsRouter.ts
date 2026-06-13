@@ -9,13 +9,14 @@
  */
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, like, ne, or, sql } from "drizzle-orm";
 
 import { nanoid } from "nanoid";
 
 import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
 import { storagePut } from "./storage";
+import { distributeUnassigned } from "./leadDistribution";
 import {
   leads,
   users,
@@ -301,6 +302,25 @@ export const crmStudentsRouter = router({
       await logActivity(db, input.id, input.activityType, input.title.trim(), ctx.user.email, input.description?.trim() || null);
       return { ok: true };
     }),
+
+  /** How many active leads are currently unassigned. */
+  unassignedCount: protectedProcedure.query(async ({ ctx }) => {
+    assertCrm(ctx.user);
+    const db = await db_();
+    const [r] = await db
+      .select({ c: sql<number>`COUNT(*)` })
+      .from(leads)
+      .where(and(sql`${leads.assignedCounselorId} IS NULL`, ne(leads.pipelineStage, "inactive")));
+    return { count: Number(r?.c ?? 0) };
+  }),
+
+  /** Owner: evenly distribute all unassigned leads across offices + counsellors. */
+  distributeUnassigned: protectedProcedure.mutation(async ({ ctx }) => {
+    if (!(ctx.user.role === "admin" || ctx.user.crmRole === "owner")) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Owner only." });
+    }
+    return distributeUnassigned();
+  }),
 
   // ---- Tasks ----
   addTask: protectedProcedure

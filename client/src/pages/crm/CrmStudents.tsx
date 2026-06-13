@@ -26,6 +26,18 @@ export default function CrmStudents() {
   const [mineOnly, setMineOnly] = useState(false);
   const [adding, setAdding] = useState(false);
 
+  const me = trpc.team.me.useQuery(undefined, { retry: false });
+  const utils = trpc.useUtils();
+  const unassigned = trpc.students.unassignedCount.useQuery(undefined, { retry: false });
+  const [distMsg, setDistMsg] = useState<string | null>(null);
+  const distribute = trpc.students.distributeUnassigned.useMutation({
+    onSuccess: r => {
+      setDistMsg(`Distributed ${r.assigned} lead${r.assigned === 1 ? "" : "s"}: ` + (r.perCounsellor.map(p => `${p.name} ${p.count}`).join(", ") || "none"));
+      utils.students.unassignedCount.invalidate();
+      list.refetch();
+    },
+    onError: e => setDistMsg(e.message),
+  });
   const stages = trpc.students.stages.useQuery();
   const list = trpc.students.list.useQuery({
     stage: (stage || undefined) as any,
@@ -40,10 +52,22 @@ export default function CrmStudents() {
           <h1 className="text-2xl font-bold text-slate-800">Students</h1>
           <p className="text-slate-500 mt-1">Everyone in your pipeline.</p>
         </div>
-        <button onClick={() => setAdding(true)} className="px-4 py-2 rounded-lg text-white text-sm font-medium" style={{ background: PURPLE }}>
-          + Add student
-        </button>
+        <div className="flex gap-2">
+          {me.data?.isOwner && (unassigned.data?.count ?? 0) > 0 && (
+            <button
+              onClick={() => { if (confirm(`Evenly distribute ${unassigned.data!.count} unassigned lead(s) across offices & counsellors?`)) distribute.mutate(); }}
+              disabled={distribute.isPending}
+              className="px-4 py-2 rounded-lg text-sm font-medium border border-purple-300 text-purple-700 hover:bg-purple-50 disabled:opacity-50"
+            >
+              {distribute.isPending ? "Distributing…" : `Distribute ${unassigned.data!.count} unassigned`}
+            </button>
+          )}
+          <button onClick={() => setAdding(true)} className="px-4 py-2 rounded-lg text-white text-sm font-medium" style={{ background: PURPLE }}>
+            + Add student
+          </button>
+        </div>
       </div>
+      {distMsg && <div className="mt-4 bg-purple-50 text-purple-800 text-sm rounded-lg px-4 py-2">{distMsg}</div>}
 
       {/* Filters */}
       <div className="mt-5 flex flex-wrap gap-3 items-center">
