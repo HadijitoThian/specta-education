@@ -145,7 +145,16 @@ DB enum; per-skill retries + hard guard; `generationStatus` live banner in admin
   section from the IELTS page.
 - **All images self-hosted on R2** under `/files/migrated/…` (33 assets moved off
   `files.manuscdn.com`; logo included). Scripts: `scripts/migrate-manus-images.cjs`,
-  `scripts/scan-manus-db.cjs` (DB is clean of manus URLs).
+  `scripts/scan-manus-db.cjs` (DB is clean of manus URLs). Mapping:
+  `files.manuscdn.com/.../session_file/310519663225686644/<NAME>` → R2 key
+  `migrated/<NAME>` → served at `/files/migrated/<NAME>`.
+- **2026-06: caught a missed Manus dependency** — `client/index.html` (og:image,
+  twitter:image, hero `preload`, JSON-LD logo/image, manus preconnect hints) and
+  `scripts/add-seo-pages.json` still pointed at `files.manuscdn.com`. Repointed
+  to absolute `https://www.spectaeducation.com/files/migrated/<NAME>` (absolute
+  is required for social/SEO crawlers) and removed the manus preconnect. Served
+  code is now 100% off Manus; remaining "manus" mentions are docs/tests/migration
+  scripts + the legacy `manus-runtime-user-info` localStorage key (harmless).
 
 ## 6. Admin dashboard + agents
 
