@@ -28,7 +28,7 @@ export default function IeltsMockReport() {
   const reportQuery = trpc.ielts.getReport.useQuery(
     { token },
     {
-      enabled: !!token && !!user,
+      enabled: !!token,
       refetchOnWindowFocus: false,
       // Auto-poll every 4s while still grading.
       refetchInterval: q => {
@@ -56,18 +56,6 @@ export default function IeltsMockReport() {
       </Shell>
     );
   }
-  if (!user) {
-    return (
-      <Shell>
-        <Card>
-          <h1 className="text-xl font-semibold mb-2">Sign in to see your report</h1>
-          <Link href="/login" className="text-blue-600 hover:underline">
-            Sign in
-          </Link>
-        </Card>
-      </Shell>
-    );
-  }
   if (reportQuery.isError) {
     return (
       <Shell>
@@ -79,7 +67,7 @@ export default function IeltsMockReport() {
     );
   }
 
-  const isAdmin = user.role === "admin";
+  const isAdmin = user?.role === "admin";
 
   const data = reportQuery.data!;
   if ("ready" in data && !data.ready) {

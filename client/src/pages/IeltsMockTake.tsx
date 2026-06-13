@@ -10,12 +10,14 @@ export default function IeltsMockTake() {
   const [, params] = useRoute<{ token: string }>("/ielts/mock-test/take/:token");
   const token = params?.token ?? "";
   const [, setLocation] = useLocation();
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
   const utils = trpc.useUtils();
 
+  // Guest flow: no login required. The secret token in the URL (emailed to the
+  // buyer after payment) is what authorizes loading + taking the test.
   const attemptQuery = trpc.ielts.getAttempt.useQuery(
     { token },
-    { enabled: !!token && !!user, refetchOnWindowFocus: false }
+    { enabled: !!token, refetchOnWindowFocus: false }
   );
 
   const startSkill = trpc.ielts.startSkill.useMutation({
@@ -54,19 +56,6 @@ export default function IeltsMockTake() {
     return (
       <Shell>
         <Card>Loading…</Card>
-      </Shell>
-    );
-  }
-
-  if (!user) {
-    return (
-      <Shell>
-        <Card>
-          <h1 className="text-xl font-semibold mb-2">Sign in to take your test</h1>
-          <Link href="/login" className="text-blue-600 hover:underline">
-            Sign in
-          </Link>
-        </Card>
       </Shell>
     );
   }

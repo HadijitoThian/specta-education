@@ -72,7 +72,7 @@ export const ieltsRouter = router({
    * Start a checkout. Reserves an attempt row, creates a Xendit invoice,
    * returns the hosted invoice URL the client should redirect to.
    */
-  startCheckout: protectedProcedure
+  startCheckout: publicProcedure
     .input(
       z.object({
         testType: z.enum(["academic", "general"]),
@@ -84,14 +84,14 @@ export const ieltsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      if (!ctx.user) {
-        throw new TRPCError({ code: "UNAUTHORIZED" });
-      }
       try {
-        // Paid-only: everyone goes through Xendit. (Free access is admin-only
-        // — via "Test as student" or an admin-issued free link.)
+        // GUEST checkout: no account required. The buyer fills name/email on
+        // the form; we email them a payment link, then (on payment) the secret
+        // take-test link. createIeltsMockInvoice resolves/creates the owning
+        // user from the form email. If an admin happens to be logged in, attach
+        // to their account instead. (Free access is admin-only.)
         const invoice = await createIeltsMockInvoice({
-          userId: ctx.user.id,
+          userId: ctx.user?.id,
           testType: input.testType,
           customerName: input.customerName.trim(),
           customerEmail: input.customerEmail.trim(),
@@ -120,7 +120,9 @@ export const ieltsRouter = router({
   redeemFreePass: protectedProcedure
     .input(z.object({ token: z.string().min(1) }))
     .mutation(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      if (!ctx.user) {
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      }
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
@@ -177,10 +179,9 @@ export const ieltsRouter = router({
    * Look up an attempt by its token. Returns minimal info — used on the
    * post-payment landing page to confirm the attempt is unlocked.
    */
-  getAttempt: protectedProcedure
+  getAttempt: publicProcedure
     .input(z.object({ token: z.string().min(1) }))
     .query(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
@@ -191,9 +192,6 @@ export const ieltsRouter = router({
         .limit(1);
       if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
 
-      if (attempt.userId !== ctx.user.id && ctx.user.role !== "admin") {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
 
       const [test] = await db
         .select({
@@ -222,10 +220,9 @@ export const ieltsRouter = router({
    * Strips correctAnswers from every question. Used by the take-test page
    * to render the Listening / Reading UI without leaking the answer key.
    */
-  getListeningContent: protectedProcedure
+  getListeningContent: publicProcedure
     .input(z.object({ token: z.string().min(1) }))
     .query(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
@@ -235,9 +232,6 @@ export const ieltsRouter = router({
         .where(eq(ieltsMockAttempts.attemptToken, input.token))
         .limit(1);
       if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
-      if (attempt.userId !== ctx.user.id && ctx.user.role !== "admin") {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
       if (!attempt.paidAt) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
@@ -313,7 +307,7 @@ export const ieltsRouter = router({
    * appropriate `status` and stamps `startedAt` the first time the student
    * starts any skill. Idempotent.
    */
-  startSkill: protectedProcedure
+  startSkill: publicProcedure
     .input(
       z.object({
         token: z.string().min(1),
@@ -321,7 +315,6 @@ export const ieltsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
@@ -331,9 +324,6 @@ export const ieltsRouter = router({
         .where(eq(ieltsMockAttempts.attemptToken, input.token))
         .limit(1);
       if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
-      if (attempt.userId !== ctx.user.id && ctx.user.role !== "admin") {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
       if (!attempt.paidAt) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
@@ -358,7 +348,7 @@ export const ieltsRouter = router({
    * student answer against the question's `correctAnswers` array (case-
    * insensitive, trimmed) to set isCorrect, so grading is "free" at finish.
    */
-  saveListeningAnswers: protectedProcedure
+  saveListeningAnswers: publicProcedure
     .input(
       z.object({
         token: z.string().min(1),
@@ -373,7 +363,6 @@ export const ieltsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
@@ -383,9 +372,6 @@ export const ieltsRouter = router({
         .where(eq(ieltsMockAttempts.attemptToken, input.token))
         .limit(1);
       if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
-      if (attempt.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
       if (attempt.status === "completed") {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
@@ -457,10 +443,9 @@ export const ieltsRouter = router({
    * Mark Listening as finished and advance to Reading. Doesn't grade —
    * grading is already happening on each saveListeningAnswers call.
    */
-  finishListening: protectedProcedure
+  finishListening: publicProcedure
     .input(z.object({ token: z.string().min(1) }))
     .mutation(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
@@ -470,9 +455,6 @@ export const ieltsRouter = router({
         .where(eq(ieltsMockAttempts.attemptToken, input.token))
         .limit(1);
       if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
-      if (attempt.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
 
       await db
         .update(ieltsMockAttempts)
@@ -488,10 +470,9 @@ export const ieltsRouter = router({
    * Returns the 3 reading passages + their questions for an attempt.
    * Strips correctAnswers. Also returns any saved answers for resume.
    */
-  getReadingContent: protectedProcedure
+  getReadingContent: publicProcedure
     .input(z.object({ token: z.string().min(1) }))
     .query(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
@@ -501,9 +482,6 @@ export const ieltsRouter = router({
         .where(eq(ieltsMockAttempts.attemptToken, input.token))
         .limit(1);
       if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
-      if (attempt.userId !== ctx.user.id && ctx.user.role !== "admin") {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
       if (!attempt.paidAt) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
@@ -573,7 +551,7 @@ export const ieltsRouter = router({
     }),
 
   /** Save (or update) the student's Reading answers. Auto-grades inline. */
-  saveReadingAnswers: protectedProcedure
+  saveReadingAnswers: publicProcedure
     .input(
       z.object({
         token: z.string().min(1),
@@ -588,7 +566,6 @@ export const ieltsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
@@ -598,9 +575,6 @@ export const ieltsRouter = router({
         .where(eq(ieltsMockAttempts.attemptToken, input.token))
         .limit(1);
       if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
-      if (attempt.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
       if (attempt.status === "completed") {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
@@ -670,10 +644,9 @@ export const ieltsRouter = router({
   /**
    * Mark Reading as finished and advance to Writing.
    */
-  finishReading: protectedProcedure
+  finishReading: publicProcedure
     .input(z.object({ token: z.string().min(1) }))
     .mutation(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
@@ -683,9 +656,6 @@ export const ieltsRouter = router({
         .where(eq(ieltsMockAttempts.attemptToken, input.token))
         .limit(1);
       if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
-      if (attempt.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
 
       await db
         .update(ieltsMockAttempts)
@@ -698,10 +668,9 @@ export const ieltsRouter = router({
   // -------------------- WRITING --------------------
 
   /** Returns the 2 writing tasks for an attempt + any saved drafts. */
-  getWritingContent: protectedProcedure
+  getWritingContent: publicProcedure
     .input(z.object({ token: z.string().min(1) }))
     .query(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
@@ -711,9 +680,6 @@ export const ieltsRouter = router({
         .where(eq(ieltsMockAttempts.attemptToken, input.token))
         .limit(1);
       if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
-      if (attempt.userId !== ctx.user.id && ctx.user.role !== "admin") {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
       if (!attempt.paidAt) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
@@ -766,7 +732,7 @@ export const ieltsRouter = router({
     }),
 
   /** Autosave a writing draft. Upserts on (attemptId, taskId). */
-  saveWritingDraft: protectedProcedure
+  saveWritingDraft: publicProcedure
     .input(
       z.object({
         token: z.string().min(1),
@@ -775,7 +741,6 @@ export const ieltsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
@@ -785,9 +750,6 @@ export const ieltsRouter = router({
         .where(eq(ieltsMockAttempts.attemptToken, input.token))
         .limit(1);
       if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
-      if (attempt.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
       if (attempt.status === "completed") {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
@@ -830,10 +792,9 @@ export const ieltsRouter = router({
    * sub-scores + feedback per task, then transition to "speaking". This
    * mutation can take 30-90s because it makes one LLM call per task.
    */
-  finishWriting: protectedProcedure
+  finishWriting: publicProcedure
     .input(z.object({ token: z.string().min(1) }))
     .mutation(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
@@ -843,9 +804,6 @@ export const ieltsRouter = router({
         .where(eq(ieltsMockAttempts.attemptToken, input.token))
         .limit(1);
       if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
-      if (attempt.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
 
       const tasks = await db
         .select()
@@ -914,10 +872,9 @@ export const ieltsRouter = router({
    * computed position (currentPart, currentPromptIdx). Conversation rows
    * include audioUrl built from audioKey via the /files/ proxy.
    */
-  getSpeakingState: protectedProcedure
+  getSpeakingState: publicProcedure
     .input(z.object({ token: z.string().min(1) }))
     .query(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
@@ -927,9 +884,6 @@ export const ieltsRouter = router({
         .where(eq(ieltsMockAttempts.attemptToken, input.token))
         .limit(1);
       if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
-      if (attempt.userId !== ctx.user.id && ctx.user.role !== "admin") {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
 
       const prompts = await db
         .select()
@@ -989,10 +943,9 @@ export const ieltsRouter = router({
    * Idempotent-ish: if a row for that prompt already exists, returns it.
    * Uses ElevenLabs to synthesize the prompt text into MP3, uploads to R2.
    */
-  nextExaminerTurn: protectedProcedure
+  nextExaminerTurn: publicProcedure
     .input(z.object({ token: z.string().min(1) }))
     .mutation(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
@@ -1002,9 +955,6 @@ export const ieltsRouter = router({
         .where(eq(ieltsMockAttempts.attemptToken, input.token))
         .limit(1);
       if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
-      if (attempt.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
 
       const prompts = await db
         .select()
@@ -1078,7 +1028,7 @@ export const ieltsRouter = router({
    * Student submits an audio recording. We persist it to R2, call Whisper,
    * append the transcript as a conversation turn.
    */
-  submitStudentTurn: protectedProcedure
+  submitStudentTurn: publicProcedure
     .input(
       z.object({
         token: z.string().min(1),
@@ -1088,7 +1038,6 @@ export const ieltsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
@@ -1098,9 +1047,6 @@ export const ieltsRouter = router({
         .where(eq(ieltsMockAttempts.attemptToken, input.token))
         .limit(1);
       if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
-      if (attempt.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
 
       const cleanB64 = input.base64.replace(/^data:[^;]+;base64,/, "");
       const buffer = Buffer.from(cleanB64, "base64");
@@ -1167,10 +1113,9 @@ export const ieltsRouter = router({
    * per-part FC/LR/GRA/P + band + feedback. Then transition to "grading"
    * (which P1h/P4 will pick up to compute overall band + generate PDF).
    */
-  finishSpeaking: protectedProcedure
+  finishSpeaking: publicProcedure
     .input(z.object({ token: z.string().min(1) }))
     .mutation(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
@@ -1180,9 +1125,6 @@ export const ieltsRouter = router({
         .where(eq(ieltsMockAttempts.attemptToken, input.token))
         .limit(1);
       if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
-      if (attempt.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
 
       await regradeSpeakingForAttempt(attempt.id, { reTranscribe: true });
 
@@ -1211,10 +1153,9 @@ export const ieltsRouter = router({
    * The client report page uses this. Falls back to "still grading" if
    * the score row doesn't exist yet.
    */
-  getReport: protectedProcedure
+  getReport: publicProcedure
     .input(z.object({ token: z.string().min(1) }))
     .query(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
@@ -1224,9 +1165,6 @@ export const ieltsRouter = router({
         .where(eq(ieltsMockAttempts.attemptToken, input.token))
         .limit(1);
       if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
-      if (attempt.userId !== ctx.user.id && ctx.user.role !== "admin") {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
 
       const [test] = await db
         .select()
@@ -1338,7 +1276,9 @@ export const ieltsRouter = router({
   listeningReview: protectedProcedure
     .input(z.object({ token: z.string().min(1) }))
     .query(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      if (!ctx.user) {
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      }
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 

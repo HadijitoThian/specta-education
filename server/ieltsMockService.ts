@@ -202,13 +202,50 @@ async function pickRandomPublishedTest(
 }
 
 export type CreateIeltsMockInvoiceParams = {
-  userId: number;
+  /**
+   * Owning account. Optional — this is a GUEST checkout: buyers don't need an
+   * account. When omitted we look up (or create) a lightweight user keyed by
+   * the form email so the attempt always has an owner row, while the buyer
+   * never sees a login wall. The secret attemptToken (emailed to them) is what
+   * authorizes taking the test.
+   */
+  userId?: number;
   testType: "academic" | "general";
   customerName: string;
   customerEmail: string;
   customerPhone?: string;
   appUrl?: string; // override APP_URL if needed
 };
+
+/**
+ * Guest checkout: find an existing account by the form email, or create a
+ * password-less placeholder user to own the attempt. Returns the user id.
+ */
+async function resolveGuestUserId(
+  db: NonNullable<Awaited<ReturnType<typeof getDb>>>,
+  email: string,
+  name: string
+): Promise<number> {
+  const emailLower = email.trim().toLowerCase();
+  const [existing] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.emailLower, emailLower))
+    .limit(1);
+  if (existing) return existing.id;
+
+  const insertResult = await db.insert(users).values({
+    openId: `guest:${nanoid(24)}`,
+    name: name.trim() || null,
+    email: email.trim(),
+    emailLower,
+    loginMethod: "guest",
+    role: "user",
+  });
+  const newId = (insertResult as any)[0]?.insertId as number;
+  if (!newId) throw new Error("Failed to create guest user for checkout");
+  return newId;
+}
 
 export type CreateIeltsMockInvoiceResult = {
   invoiceUrl: string;
@@ -240,10 +277,16 @@ export async function createIeltsMockInvoice(
   const attemptToken = nanoid(24);
   const externalId = generateExternalId();
 
+  // Guest checkout: ensure the attempt has an owning user row even when the
+  // buyer isn't logged in (resolve by email / create a placeholder).
+  const ownerUserId =
+    params.userId ??
+    (await resolveGuestUserId(db, params.customerEmail, params.customerName));
+
   // Reserve the attempt row before hitting Xendit so we can recover even if
   // we crash between Xendit and DB.
   const insertResult = await db.insert(ieltsMockAttempts).values({
-    userId: params.userId,
+    userId: ownerUserId,
     testId: test.id,
     attemptToken,
     paymentRef: externalId,

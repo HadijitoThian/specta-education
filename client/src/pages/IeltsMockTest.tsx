@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import {
   Sparkles,
@@ -114,8 +113,7 @@ const FAQ = [
 ];
 
 export default function IeltsMockTest() {
-  const [, setLocation] = useLocation();
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
   const catalog = trpc.ielts.catalog.useQuery();
   const startCheckout = trpc.ielts.startCheckout.useMutation();
 
@@ -138,10 +136,9 @@ export default function IeltsMockTest() {
   const handleBuy = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!user) {
-      setLocation("/login");
-      return;
-    }
+    // Guest checkout — no account or login required. The buyer enters their
+    // own name/email here; we email them the payment link, then (on payment)
+    // the secret take-test link. The token in that link authorizes everything.
     if (!name.trim() || !email.trim()) {
       setError("Name and email are required");
       return;
@@ -675,24 +672,15 @@ export default function IeltsMockTest() {
                   ? isFreeNow
                     ? "Starting…"
                     : "Redirecting to checkout…"
-                  : !user
-                    ? "Sign in to continue"
-                    : isFreeNow
-                      ? "Start free test"
-                      : `Buy & take it — ${idr(price)}`}
+                  : isFreeNow
+                    ? "Start free test"
+                    : `Buy & take it — ${idr(price)}`}
               </button>
 
-              {!user ? (
-                <p className="text-xs text-slate-500 text-center mt-3">
-                  You'll sign in or create an account first.{" "}
-                  <Link
-                    href="/signup"
-                    className="text-blue-600 hover:underline"
-                  >
-                    Create account
-                  </Link>
-                </p>
-              ) : null}
+              <p className="text-xs text-slate-500 text-center mt-3">
+                No account needed — we'll email your payment link, then your
+                test link once you've paid.
+              </p>
             </form>
           </div>
 
