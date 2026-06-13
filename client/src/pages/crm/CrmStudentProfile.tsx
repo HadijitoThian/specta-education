@@ -189,17 +189,19 @@ function Tasks({ studentId, tasks, onChange }: { studentId: number; tasks: any[]
   const [due, setDue] = useState("");
   const add = trpc.students.addTask.useMutation({ onSuccess: () => { setTitle(""); setDue(""); onChange(); } });
   const toggle = trpc.students.toggleTask.useMutation({ onSuccess: onChange });
+  const del = trpc.students.deleteTask.useMutation({ onSuccess: onChange });
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5">
       <div className="font-semibold text-slate-800 mb-3 text-sm">Tasks</div>
       <ul className="space-y-2 mb-3">
         {tasks.length === 0 && <li className="text-sm text-slate-400">No tasks.</li>}
         {tasks.map(t => (
-          <li key={t.id} className="flex items-start gap-2 text-sm">
+          <li key={t.id} className="flex items-start gap-2 text-sm group">
             <input type="checkbox" checked={t.status === "done"} onChange={e => toggle.mutate({ id: t.id, done: e.target.checked })} className="mt-1" />
-            <span className={t.status === "done" ? "line-through text-slate-400" : "text-slate-700"}>
+            <span className={`flex-1 ${t.status === "done" ? "line-through text-slate-400" : "text-slate-700"}`}>
               {t.title}{t.dueDate ? <span className="text-xs text-slate-400"> · due {fmtDate(t.dueDate)}</span> : ""}
             </span>
+            <button onClick={() => del.mutate({ id: t.id })} title="Delete task" className="text-slate-300 hover:text-red-500 shrink-0">✕</button>
           </li>
         ))}
       </ul>
@@ -212,31 +214,82 @@ function Tasks({ studentId, tasks, onChange }: { studentId: number; tasks: any[]
   );
 }
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve((r.result as string).split(",")[1] || "");
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
 function Documents({ studentId, documents, onChange }: { studentId: number; documents: any[]; onChange: () => void }) {
   const [label, setLabel] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const add = trpc.students.addDocument.useMutation({ onSuccess: () => { setLabel(""); onChange(); } });
+  const upload = trpc.students.uploadDocument.useMutation();
+  const del = trpc.students.deleteDocument.useMutation({ onSuccess: onChange });
   const setStatus = trpc.students.setDocStatus.useMutation({ onSuccess: onChange });
   const next: Record<string, string> = { pending: "submitted", submitted: "verified", verified: "pending", rejected: "pending" };
   const color: Record<string, string> = { pending: "#9ca3af", submitted: "#f59e0b", verified: "#22c55e", rejected: "#ef4444" };
+
+  const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-picking same file
+    if (!file) return;
+    if (file.size > 16 * 1024 * 1024) { setErr("File too large (max 16MB)."); return; }
+    setErr(null);
+    setBusy(true);
+    try {
+      const fileBase64 = await fileToBase64(file);
+      await upload.mutateAsync({
+        studentId,
+        docLabel: label.trim() || file.name,
+        fileName: file.name,
+        fileType: file.type || "application/octet-stream",
+        fileBase64,
+      });
+      setLabel("");
+      onChange();
+    } catch (e: any) {
+      setErr(e?.message || "Upload failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5">
       <div className="font-semibold text-slate-800 mb-3 text-sm">Documents</div>
+      {err && <div className="mb-2 bg-red-50 text-red-700 text-xs rounded px-2 py-1">{err}</div>}
       <ul className="space-y-2 mb-3">
         {documents.length === 0 && <li className="text-sm text-slate-400">No documents tracked.</li>}
         {documents.map(d => (
-          <li key={d.id} className="flex items-center justify-between text-sm">
-            <span className="text-slate-700">{d.docLabel}</span>
-            <button onClick={() => setStatus.mutate({ id: d.id, status: next[d.status] as any })} className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: `${color[d.status]}1a`, color: color[d.status] }}>
+          <li key={d.id} className="flex items-center justify-between text-sm gap-2">
+            <span className="text-slate-700 flex-1 min-w-0 truncate">
+              {d.fileUrl
+                ? <a href={d.fileUrl} target="_blank" rel="noreferrer" className="text-purple-700 hover:underline">{d.docLabel} 📎</a>
+                : d.docLabel}
+            </span>
+            <button onClick={() => setStatus.mutate({ id: d.id, status: next[d.status] as any })} className="text-xs font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: `${color[d.status]}1a`, color: color[d.status] }}>
               {d.status}
             </button>
+            <button onClick={() => { if (confirm("Delete this document?")) del.mutate({ id: d.id }); }} title="Delete" className="text-slate-300 hover:text-red-500 shrink-0">✕</button>
           </li>
         ))}
       </ul>
-      <div className="flex gap-2">
-        <input value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. Passport, Transcript…" className={inputCls} />
-        <button onClick={() => label.trim() && add.mutate({ studentId, docType: label.trim().toLowerCase().replace(/\s+/g, "_"), docLabel: label.trim() })} disabled={add.isPending || !label.trim()} className="px-3 py-2 rounded-lg text-white text-sm shrink-0 disabled:opacity-50" style={{ background: PURPLE }}>Add</button>
+      <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Label (e.g. Passport, Transcript…)" className={inputCls} />
+      <div className="flex gap-2 mt-2">
+        <label className={`px-3 py-2 rounded-lg text-white text-sm shrink-0 cursor-pointer ${busy ? "opacity-60 pointer-events-none" : ""}`} style={{ background: PURPLE }}>
+          {busy ? "Uploading…" : "⬆ Upload file"}
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" onChange={onPickFile} className="hidden" />
+        </label>
+        <button onClick={() => label.trim() && add.mutate({ studentId, docType: label.trim().toLowerCase().replace(/\s+/g, "_"), docLabel: label.trim() })} disabled={add.isPending || !label.trim()} className="px-3 py-2 rounded-lg text-sm text-slate-600 border border-slate-300 hover:bg-slate-50 shrink-0 disabled:opacity-50">
+          Add to list
+        </button>
       </div>
-      <div className="text-xs text-slate-400 mt-1">Tap a status to cycle pending → submitted → verified.</div>
+      <div className="text-xs text-slate-400 mt-1">Upload the actual file, or just add a name to the checklist. Tap a status to cycle it.</div>
     </div>
   );
 }

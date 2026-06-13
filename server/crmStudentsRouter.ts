@@ -11,8 +11,11 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 
+import { nanoid } from "nanoid";
+
 import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
+import { storagePut } from "./storage";
 import {
   leads,
   users,
@@ -342,6 +345,15 @@ export const crmStudentsRouter = router({
       return { ok: true };
     }),
 
+  deleteTask: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(async ({ input, ctx }) => {
+      assertCrm(ctx.user);
+      const db = await db_();
+      await db.delete(crmTasks).where(eq(crmTasks.id, input.id));
+      return { ok: true };
+    }),
+
   // ---- Documents (checklist; file upload arrives later) ----
   addDocument: protectedProcedure
     .input(z.object({ studentId: z.number().int(), docType: z.string().min(1).max(100), docLabel: z.string().min(1).max(255) }))
@@ -372,6 +384,53 @@ export const crmStudentsRouter = router({
           verifiedAt: input.status === "verified" ? now : undefined,
         })
         .where(eq(crmStudentDocuments.id, input.id));
+      return { ok: true };
+    }),
+
+  /** Upload an actual file (PDF/JPG/PNG) for a document → R2, marked submitted. */
+  uploadDocument: protectedProcedure
+    .input(
+      z.object({
+        studentId: z.number().int(),
+        docLabel: z.string().min(1).max(255),
+        fileName: z.string().min(1).max(255),
+        fileType: z.string().max(100),
+        fileBase64: z.string(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      assertCrm(ctx.user);
+      const db = await db_();
+      const buffer = Buffer.from(input.fileBase64, "base64");
+      if (buffer.length > 16 * 1024 * 1024) {
+        throw new TRPCError({ code: "PAYLOAD_TOO_LARGE", message: "File too large (max 16MB)." });
+      }
+      const safeName = input.fileName.replace(/[^\w.\-]+/g, "_").slice(-80);
+      const docType = input.docLabel.trim().toLowerCase().replace(/\s+/g, "_").slice(0, 60);
+      const key = `crm/documents/${input.studentId}/${nanoid(8)}-${safeName}`;
+      const { url } = await storagePut(key, buffer, input.fileType || "application/octet-stream");
+      await db.insert(crmStudentDocuments).values({
+        leadId: input.studentId,
+        docType,
+        docLabel: input.docLabel.trim(),
+        status: "submitted",
+        fileUrl: url,
+        fileKey: key,
+        fileName: input.fileName,
+        fileMimeType: input.fileType,
+        submittedAt: new Date(),
+        staffEmail: ctx.user.email ?? null,
+      });
+      await logActivity(db, input.studentId, "document", `Uploaded document: ${input.docLabel.trim()}`, ctx.user.email);
+      return { ok: true, url };
+    }),
+
+  deleteDocument: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(async ({ input, ctx }) => {
+      assertCrm(ctx.user);
+      const db = await db_();
+      await db.delete(crmStudentDocuments).where(eq(crmStudentDocuments.id, input.id));
       return { ok: true };
     }),
 });
