@@ -101,11 +101,34 @@ context-equivalent answers (e.g. "through a friend" == "a friend", spacing,
 synonyms) via the LLM pass; still reject misspellings + wrong info. MCQ compares
 the option letter.
 
-**Payment flow:** form → `startCheckout` → Xendit invoice → pay → Xendit webhook
+**Payment flow (GUEST CHECKOUT — no account/login):** buyer fills name+email on
+form → `startCheckout` (public) → Xendit invoice → pay → Xendit webhook
 (`markIeltsAttemptPaid`) marks attempt paid AND **emails buyer a "Start my test"
 link** (so a redirect failure doesn't lose them) → success page → take test →
 finish → report emailed. Admin can issue **free links** (`createFreePass`) or
 "Test as student".
+
+**Guest-checkout architecture (CRITICAL — option B, the intended design):** NO
+account or login anywhere in the buyer journey. The secret `attemptToken` in the
+emailed take link IS the credential.
+- `startCheckout` is a **publicProcedure**; `createIeltsMockInvoice` resolves (or
+  creates) a password-less owner user from the form email (`resolveGuestUserId`
+  in `ieltsMockService.ts`: lookup by `users.emailLower`, else insert
+  `openId:"guest:<nanoid>"`, `loginMethod:"guest"`). The attempt still gets an
+  owner row; the buyer never sees a login wall. `userId` is optional in
+  `CreateIeltsMockInvoiceParams` (attaches to a logged-in admin if present).
+- The WHOLE take/report flow in `ieltsRouter.ts` is **publicProcedure**,
+  authorized purely by token (no `ctx.user`, no per-account ownership check):
+  getAttempt, getListeningContent, startSkill, save/finish each skill,
+  getReport, etc. ONLY `redeemFreePass`, `myAttempts`, `listeningReview`
+  (answer-key, admin) stay `protectedProcedure`.
+- Client: buy form (`IeltsMockTest.tsx`), take page (`IeltsMockTake.tsx`),
+  report page (`IeltsMockReport.tsx`) and success page have **no login gates**;
+  queries enabled by `!!token` only. (Was a bug: form bounced logged-out buyers
+  to `/login` and the take flow was login-locked — fixed.)
+- All three emails (payment link at checkout, "Start my test" on payment, report
+  on finish) go to the **form email** (`attempt.customerEmail`), not any account
+  email. Verify with `node scripts/simulate-paid-webhook.cjs` (no real money).
 
 **Reliability safeguards in generation:** generate ALL audio before any DB write
 (abort cleanly on TTS failure — never ships a half test); atomic replace (old
