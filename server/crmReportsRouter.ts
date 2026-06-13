@@ -139,7 +139,6 @@ export const crmReportsRouter = router({
         .limit(1);
       if (!r) throw new TRPCError({ code: "NOT_FOUND" });
       if (!isOwner(ctx.user) && r.assignedCounselorId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
-      if (r.report.status === "sent") throw new TRPCError({ code: "BAD_REQUEST", message: "Already sent." });
 
       const patch: Record<string, unknown> = {};
       if (input.summaryNote !== undefined) patch.summaryNote = input.summaryNote;
@@ -179,11 +178,35 @@ export const crmReportsRouter = router({
       return { ok: true };
     }),
 
-  /** Send one report now (review-and-send, or test). */
+  /**
+   * Send one report now. Persists any last-second edits (the counselor note +
+   * which activities show) BEFORE sending, so the note is always included —
+   * even if the user clicks Send without a separate Save.
+   */
   sendOne: protectedProcedure
-    .input(z.object({ id: z.number().int() }))
+    .input(z.object({
+      id: z.number().int(),
+      summaryNote: z.string().max(2000).nullable().optional(),
+      includeActivityIds: z.array(z.number().int()).optional(),
+    }))
     .mutation(async ({ input, ctx }) => {
       assertCrm(ctx.user);
+      const db = await db_();
+      if (input.summaryNote !== undefined || input.includeActivityIds) {
+        const [row] = await db.select().from(crmParentReports).where(eq(crmParentReports.id, input.id)).limit(1);
+        if (!row) throw new TRPCError({ code: "NOT_FOUND" });
+        const patch: Record<string, unknown> = {};
+        if (input.summaryNote !== undefined) patch.summaryNote = input.summaryNote;
+        if (input.includeActivityIds) {
+          const snap = parseSnapshot(row.snapshot);
+          if (snap) {
+            const keep = new Set(input.includeActivityIds);
+            snap.activities = snap.activities.map(a => ({ ...a, include: keep.has(a.id) }));
+            patch.snapshot = JSON.stringify(snap);
+          }
+        }
+        if (Object.keys(patch).length) await db.update(crmParentReports).set(patch).where(eq(crmParentReports.id, input.id));
+      }
       const res = await sendReportById(input.id);
       if (!res.ok) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: res.error || "Send failed" });
       return { ok: true };

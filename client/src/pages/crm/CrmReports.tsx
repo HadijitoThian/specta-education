@@ -142,8 +142,16 @@ function ReviewPanel({ id, onClose, onChanged }: { id: number; onClose: () => vo
     if (!r.parentEmail) { setMsg("No parent email set."); return; }
     if (!confirm("Send this report to the parent now?")) return;
     setBusy(true); setMsg(null);
-    try { await persist(); await sendOne.mutateAsync({ id }); setMsg("Sent ✓ — email delivered."); after(); }
-    catch (e: any) { setMsg(e.message); } finally { setBusy(false); }
+    try {
+      // The note + included activities ride along with the send itself, so
+      // whatever is in the box right now is what the parent receives.
+      await sendOne.mutateAsync({
+        id,
+        summaryNote: note,
+        includeActivityIds: Object.entries(includes).filter(([, v]) => v).map(([k]) => Number(k)),
+      });
+      setMsg("Sent ✓ — email delivered."); after();
+    } catch (e: any) { setMsg(e.message); } finally { setBusy(false); }
   };
 
   return (
