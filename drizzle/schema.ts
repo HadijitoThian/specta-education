@@ -12,6 +12,22 @@ export const users = mysqlTable("users", {
   emailLower: varchar("emailLower", { length: 320 }).unique(),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin", "general_manager"]).default("user").notNull(),
+  // --- Internal CRM (team dashboard) ---
+  // A user becomes a CRM team member when crmRole != "none". The site admin
+  // (role="admin") always has full CRM/owner access regardless of crmRole.
+  // Single login: the whole team logs in here (no separate staffAccounts).
+  crmRole: mysqlEnum("crmRole", [
+    "none",
+    "owner",
+    "counselor",
+    "ielts_instructor",
+    "visa_specialist",
+    "front_desk",
+  ]).default("none").notNull(),
+  office: mysqlEnum("office", ["kelapa_gading", "pik", "gading_serpong"]),
+  phone: varchar("phone", { length: 50 }),
+  jobTitle: varchar("jobTitle", { length: 120 }),
+  crmActive: boolean("crmActive").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
