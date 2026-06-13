@@ -58,6 +58,7 @@ const CrmStudents = lazy(() => import("./pages/crm/CrmStudents"));
 const CrmStudentProfile = lazy(() => import("./pages/crm/CrmStudentProfile"));
 const CrmReports = lazy(() => import("./pages/crm/CrmReports"));
 const CrmCockpit = lazy(() => import("./pages/crm/CrmCockpit"));
+const IntakeForm = lazy(() => import("./pages/crm/IntakeForm"));
 const TeamChat = lazy(() => import("./pages/TeamChat"));
 const UniversityDatabase = lazy(() => import("./pages/UniversityDatabase"));
 const AIFollowUpAssistant = lazy(() => import("./pages/AIFollowUpAssistant"));
@@ -143,6 +144,9 @@ function Router() {
         <Route path={"/crm/students/:id"} component={CrmStudentProfile} />
         <Route path={"/crm/reports"} component={CrmReports} />
         <Route path={"/crm/cockpit"} component={CrmCockpit} />
+        {/* Public student intake (counselor QR/link) — no login */}
+        <Route path={"/join/:token"} component={IntakeForm} />
+        <Route path={"/join"} component={IntakeForm} />
         {/* Legacy dormant CRM pages — retained until later phases replace them. */}
         <Route path={"/crm/legacy"} component={CounselorCRM} />
         <Route path={"/crm/lead/:id"} component={StudentProfile360} />

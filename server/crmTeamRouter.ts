@@ -108,6 +108,7 @@ export const crmTeamRouter = router({
         phone: users.phone,
         jobTitle: users.jobTitle,
         crmActive: users.crmActive,
+        intakeToken: users.intakeToken,
         lastSignedIn: users.lastSignedIn,
         createdAt: users.createdAt,
       })
@@ -116,6 +117,30 @@ export const crmTeamRouter = router({
       .orderBy(desc(users.crmActive), users.name);
     return rows;
   }),
+
+  /** The caller's own public student-intake link (generates a token if needed). */
+  intakeLink: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+    let token = ctx.user.intakeToken;
+    if (!token) {
+      token = nanoid(16);
+      await db.update(users).set({ intakeToken: token }).where(eq(users.id, ctx.user.id));
+    }
+    return { token, counselorName: ctx.user.name };
+  }),
+
+  /** Owner: (re)generate a team member's intake token. */
+  generateIntakeToken: protectedProcedure
+    .input(z.object({ userId: z.number().int() }))
+    .mutation(async ({ input, ctx }) => {
+      if (!isOwnerLevel(ctx.user)) throw new TRPCError({ code: "FORBIDDEN", message: "Owner only." });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const token = nanoid(16);
+      await db.update(users).set({ intakeToken: token }).where(eq(users.id, input.userId));
+      return { token };
+    }),
 
   /** Create a new team member = a users row with a CRM role + a login password. */
   create: protectedProcedure
