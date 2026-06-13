@@ -4,6 +4,7 @@
  * (edit intro note, pick which activities show), then approves & sends (email).
  */
 import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { CrmShell, inputCls } from "./CrmShell";
 
@@ -104,10 +105,12 @@ export default function CrmReports() {
 
 function ReviewPanel({ id, onClose, onChanged }: { id: number; onClose: () => void; onChanged: () => void }) {
   const utils = trpc.useUtils();
+  const [, setLocation] = useLocation();
   const q = trpc.reports.get.useQuery({ id });
   const [note, setNote] = useState("");
   const [includes, setIncludes] = useState<Record<number, boolean>>({});
   const [msg, setMsg] = useState<string | null>(null);
+  const [justSent, setJustSent] = useState(false);
 
   useEffect(() => {
     if (q.data) {
@@ -131,6 +134,27 @@ function ReviewPanel({ id, onClose, onChanged }: { id: number; onClose: () => vo
   const r = q.data;
   const isSent = r.status === "sent";
 
+  // Clear success confirmation after a send.
+  if (justSent) {
+    return (
+      <div className="mt-5 bg-white border-2 border-emerald-200 rounded-xl p-8 text-center">
+        <div className="text-5xl mb-2">✅</div>
+        <div className="text-xl font-bold text-slate-800">Report sent!</div>
+        <div className="text-sm text-slate-600 mt-1">
+          The weekly progress report was emailed to <strong>{r.parentName || "the parent"}</strong> at <strong>{r.parentEmail}</strong>.
+        </div>
+        <div className="flex gap-3 justify-center mt-5">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg text-white text-sm font-medium" style={{ background: PURPLE }}>
+            Back to reports
+          </button>
+          <button onClick={() => setLocation(`/crm/students/${r.leadId}`)} className="px-4 py-2 rounded-lg text-sm font-medium border border-slate-300 text-slate-700 hover:bg-slate-50">
+            Open {snap?.studentName || "student"}'s page
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Always persist the current editor state (note + which activities show)
   // before approving or sending, so the note is never lost.
   const persist = () =>
@@ -150,7 +174,7 @@ function ReviewPanel({ id, onClose, onChanged }: { id: number; onClose: () => vo
         summaryNote: note,
         includeActivityIds: Object.entries(includes).filter(([, v]) => v).map(([k]) => Number(k)),
       });
-      setMsg("Sent ✓ — email delivered."); after();
+      setJustSent(true); after();
     } catch (e: any) { setMsg(e.message); } finally { setBusy(false); }
   };
 
