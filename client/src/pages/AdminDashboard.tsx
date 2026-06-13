@@ -114,12 +114,8 @@ function AgentAssignmentsWidget() {
         </tbody>
       </table>
       {assignments.length > 8 && (
-        <div className="text-center mt-3">
-          <Link href="/admin/agents">
-            <Button variant="ghost" size="sm" className="text-xs text-red-600 hover:text-red-700">
-              View all {assignments.length} assignments →
-            </Button>
-          </Link>
+        <div className="text-center mt-3 text-xs text-muted-foreground">
+          Showing 8 of {assignments.length} assignments
         </div>
       )}
     </div>
@@ -529,22 +525,11 @@ export default function AdminDashboard() {
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/admin/ads-agent">
-              <Button variant="outline" size="sm" className="bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100">
-                <Bot className="w-4 h-4 mr-2" />
-                AI Ads Agent
-              </Button>
-            </Link>
-            <Link href="/admin/social-media">
-              <Button variant="outline" size="sm" className="bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100">
+            {/* Agents disabled — single entry to the IELTS Mock Test admin. */}
+            <Link href="/admin/ielts-tests">
+              <Button variant="outline" size="sm" className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100">
                 <Sparkles className="w-4 h-4 mr-2" />
-                Social Media
-              </Button>
-            </Link>
-            <Link href="/admin/agents">
-              <Button variant="outline" size="sm" className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100">
-                <Bot className="w-4 h-4 mr-2" />
-                AI Agents
+                IELTS Mock Tests
               </Button>
             </Link>
             <span className="text-sm text-muted-foreground">
@@ -663,11 +648,6 @@ export default function AdminDashboard() {
                 <p className="text-xs text-muted-foreground">Auto-assigned by CRM Distributor Agent</p>
               </div>
             </div>
-            <Link href="/admin/agents">
-              <Button variant="outline" size="sm" className="text-xs">
-                <Eye className="w-3 h-3 mr-1" /> View All Agents
-              </Button>
-            </Link>
           </div>
           <AgentAssignmentsWidget />
         </div>

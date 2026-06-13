@@ -7914,8 +7914,12 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
   ielts: ieltsRouter,
 });
 export type AppRouter = typeof appRouter;
-// Start agent scheduler when server starts
-startAgentScheduler();
+// Agents disabled — the background scheduler (lead/CRM/SEO/social/GM agents)
+// is turned off to stop all automated runs + third-party API spend. The agent
+// code remains for reference until fresh agents are built. Re-enable by
+// uncommenting the call below.
+// startAgentScheduler();
+void startAgentScheduler; // keep the import referenced (no-op)
 
 // Auto-seed universities on startup
 seedUniversitiesIfEmpty().then(r => {
