@@ -8,6 +8,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerPasswordAuthRoutes } from "./passwordAuth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
+import { registerCrmBotRoutes } from "../crmBotApi";
 import { serveStatic, setupVite } from "./vite";
 import { registerXenditWebhook } from "../xenditWebhook";
 import { processDripEmails, checkCampaignPerformanceAlerts } from "../dripCampaignService";
@@ -549,6 +550,9 @@ ${allPages.map(p => `  <url>
     onlineStaff.forEach((v, em) => online.push({ email: em, name: v.name }));
     res.json({ online });
   });
+
+  // CRM inbound API for the WhatsApp bot (Step B — bot feeds the CRM)
+  registerCrmBotRoutes(app);
 
   // tRPC API
   app.use(
