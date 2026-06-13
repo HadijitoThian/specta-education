@@ -24,7 +24,7 @@ type NavItem = { label: string; href: string; ownerOnly?: boolean; soon?: boolea
 const NAV: NavItem[] = [
   { label: "Home", href: "/crm" },
   { label: "Students", href: "/crm/students" },
-  { label: "Parent Reports", href: "/crm/reports", soon: true },
+  { label: "Parent Reports", href: "/crm/reports" },
   { label: "Team", href: "/crm/team", ownerOnly: true },
 ];
 

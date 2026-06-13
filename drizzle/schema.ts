@@ -1560,6 +1560,31 @@ export type CrmActivityTimeline = typeof crmActivityTimeline.$inferSelect;
 export type InsertCrmActivityTimeline = typeof crmActivityTimeline.$inferInsert;
 
 /**
+ * CRM Parent Weekly Reports (Phase 3) — one row per student per week. Drafted
+ * (Sunday), reviewed by the counselor/owner, then sent (Monday 09:00 WIB).
+ * `snapshot` is the frozen JSON content + which activities are included.
+ */
+export const crmParentReports = mysqlTable("crm_parent_reports", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  weekOf: varchar("weekOf", { length: 10 }).notNull(), // YYYY-MM-DD (the Monday)
+  status: mysqlEnum("status", ["draft", "approved", "sent", "failed", "skipped"]).default("draft").notNull(),
+  summaryNote: text("summaryNote"), // counselor's personal intro line
+  snapshot: text("snapshot"), // JSON: stage, goals, doc counts, activities[]
+  channelEmail: boolean("channelEmail").default(true).notNull(),
+  channelWhatsapp: boolean("channelWhatsapp").default(false).notNull(),
+  parentName: varchar("parentName", { length: 255 }),
+  parentEmail: varchar("parentEmail", { length: 320 }),
+  reviewedBy: varchar("reviewedBy", { length: 320 }),
+  sentAt: timestamp("sentAt"),
+  error: text("error"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CrmParentReport = typeof crmParentReports.$inferSelect;
+export type InsertCrmParentReport = typeof crmParentReports.$inferInsert;
+
+/**
  * CRM Notifications — in-app alerts for counselors
  */
 export const crmNotifications = mysqlTable("crm_notifications", {
