@@ -17,7 +17,7 @@ export default function IntakeForm() {
   const token = params?.token;
   const formQ = trpc.intake.form.useQuery({ token });
   const submit = trpc.intake.submit.useMutation();
-  const [done, setDone] = useState<{ counselorName: string; duplicate: boolean } | null>(null);
+  const [done, setDone] = useState<{ counselorName: string; duplicate: boolean; journeyToken: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   const [f, setF] = useState({
@@ -47,7 +47,7 @@ export default function IntakeForm() {
         studyLevel: f.studyLevel || undefined,
         intakeDate: f.intakeDate || undefined,
       });
-      setDone({ counselorName: res.counselorName, duplicate: res.duplicate });
+      setDone({ counselorName: res.counselorName, duplicate: res.duplicate, journeyToken: res.journeyToken });
     } catch (e: any) {
       setErr(e?.message || "Something went wrong. Please try again.");
     }
@@ -69,7 +69,10 @@ export default function IntakeForm() {
                 ? "We already have your details — your counselor will be in touch shortly."
                 : <>Your registration is in. <strong>{done.counselorName}</strong> from SpecTa Education will reach out to you very soon.</>}
             </p>
-            <p className="text-xs text-slate-400 mt-4">You can close this page.</p>
+            <a href={`/journey/${done.journeyToken}`} className="inline-block mt-5 px-5 py-2.5 rounded-lg text-white font-semibold" style={{ background: PURPLE }}>
+              Track my journey →
+            </a>
+            <p className="text-xs text-slate-400 mt-4">Bookmark that page to follow your progress and upload documents anytime — no password needed.</p>
           </div>
         ) : (
           <form onSubmit={onSubmit} className="bg-white rounded-2xl shadow p-6 sm:p-8">
