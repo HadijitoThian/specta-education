@@ -13,7 +13,12 @@
  * so the CRM works fine before WhatsApp is wired, and email keeps flowing.
  */
 
-const botUrl = () => process.env.WHATSAPP_BOT_URL?.replace(/\/+$/, "") || "";
+const botUrl = () => {
+  let u = process.env.WHATSAPP_BOT_URL?.replace(/\/+$/, "") || "";
+  // fetch() needs an absolute URL — force a scheme if the env value omits it.
+  if (u && !/^https?:\/\//i.test(u)) u = `https://${u}`;
+  return u;
+};
 const botKey = () => process.env.WHATSAPP_BOT_API_KEY || "";
 
 export function whatsappConfigured(): boolean {
