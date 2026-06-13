@@ -307,9 +307,16 @@ export async function sendReportById(id: number): Promise<SendChannelResult> {
       }
       const base = ENV.appUrl?.replace(/\/+$/, "") || "https://www.spectaeducation.com";
       const link = `${/^https?:\/\//i.test(base) ? base : `https://${base}`}/journey/${journeyToken}`;
-      const res = reportTemplateName()
+      const textBody = renderParentWhatsAppText(snap, r.parentName, r.summaryNote, link);
+      let res = reportTemplateName()
         ? await sendWhatsAppTemplate(lead.parentPhone, reportTemplateName(), [r.parentName || "Parent", snap.studentName, link])
-        : await sendWhatsAppText(lead.parentPhone, renderParentWhatsAppText(snap, r.parentName, r.summaryNote, link));
+        : await sendWhatsAppText(lead.parentPhone, textBody);
+      // If the template couldn't be used (e.g. not approved yet), fall back to
+      // free-form text — still reaches recipients inside their 24h window.
+      if (!res.ok && reportTemplateName()) {
+        const fb = await sendWhatsAppText(lead.parentPhone, textBody);
+        res = fb.ok ? fb : { ok: false, error: `template failed (${res.error}); text fallback failed (${fb.error})` };
+      }
       if (res.ok) { anyOk = true; whatsappOk = true; }
       else { whatsappOk = false; if (!res.skipped) problems.push(`whatsapp: ${res.error}`); }
     } catch (e: any) {
