@@ -30,37 +30,112 @@ function appBaseUrl(): string {
   return /^https?:\/\//i.test(u) ? u : `https://${u}`;
 }
 
+/** SpecTa logo (self-hosted on R2; absolute URL for email clients). */
+function logoUrl(): string {
+  return `${appBaseUrl()}/files/migrated/QxrYSewOYzAuPIEN.jpeg`;
+}
+
+/** A bulletproof, email-client-safe CTA button. */
+function ctaButton(url: string, label: string): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 20px 0;"><tr><td style="border-radius:10px;background:linear-gradient(135deg,#2563eb,#4338ca);"><a href="${url}" style="display:inline-block;padding:14px 28px;color:#ffffff;font-weight:700;font-size:15px;text-decoration:none;border-radius:10px;">${label}</a></td></tr></table>`;
+}
+
+/** Branded email shell: white logo header → gradient title band → body → footer. */
+function brandedEmail(opts: { badge: string; title: string; bodyHtml: string }): string {
+  return `<!DOCTYPE html><html><body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f1f5f9;">
+<div style="max-width:600px;margin:0 auto;padding:24px 12px;">
+  <div style="background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 8px 24px rgba(15,23,42,0.06);">
+    <div style="text-align:center;padding:22px 24px 6px 24px;">
+      <img src="${logoUrl()}" alt="SpecTa Education" height="46" style="height:46px;object-fit:contain;" />
+    </div>
+    <div style="background:linear-gradient(135deg,#1d4ed8,#4338ca,#7c3aed);padding:22px 24px;color:#ffffff;">
+      <div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.85;">${opts.badge}</div>
+      <div style="font-size:22px;font-weight:800;margin-top:4px;line-height:1.25;">${opts.title}</div>
+    </div>
+    <div style="padding:24px;color:#0f172a;">${opts.bodyHtml}</div>
+    <div style="padding:14px 24px;background:#f8fafc;color:#94a3b8;font-size:11px;line-height:1.5;border-top:1px solid #eef2f7;">
+      SpecTa Education · Jakarta · A practice mock test — not an official IELTS score, and not affiliated with British Council, IDP, or Cambridge Assessment English.
+    </div>
+  </div>
+</div>
+</body></html>`;
+}
+
+async function sendBrandedEmail(toEmail: string, subject: string, html: string, text: string): Promise<boolean> {
+  if (!ENV.resendApiKey || !toEmail) return false;
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { authorization: `Bearer ${ENV.resendApiKey}`, "content-type": "application/json" },
+      body: JSON.stringify({ from: ENV.smtpFrom, to: toEmail, subject, html, text }),
+    });
+    if (!res.ok) {
+      console.warn(`[IELTS Mock] email failed (${res.status}): ${await res.text().catch(() => "")}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn("[IELTS Mock] email error:", err);
+    return false;
+  }
+}
+
+/**
+ * Email the buyer a branded payment link at checkout (also our follow-up /
+ * abandoned-cart touchpoint). Sent to the email entered on the form.
+ */
+async function sendPaymentEmail(
+  toEmail: string,
+  toName: string,
+  invoiceUrl: string,
+  testTypeLabel: string
+): Promise<void> {
+  const body = `
+    <p style="margin:0 0 12px 0;">Hi ${escapeHtml(toName || "there")},</p>
+    <p style="margin:0 0 16px 0;color:#475569;line-height:1.6;">You're one step away from your <strong>IELTS Mock Test (${escapeHtml(testTypeLabel)})</strong> — a full 4-skill test, AI-graded against the official IELTS band scale, with a personalised report sent straight to you.</p>
+    <p style="margin:0 0 2px 0;color:#0f172a;font-weight:800;font-size:20px;">Rp 79.000 <span style="font-weight:400;font-size:13px;color:#64748b;">· one-off, no subscription</span></p>
+    ${ctaButton(invoiceUrl, "Complete my payment →")}
+    <ul style="margin:0 0 14px 0;padding-left:18px;color:#475569;font-size:14px;line-height:1.8;">
+      <li>All 4 skills — Listening, Reading, Writing &amp; Speaking (~2h 45m)</li>
+      <li>AI-graded to the official IELTS band scale</li>
+      <li>Branded band-score report emailed the moment you finish</li>
+    </ul>
+    <p style="margin:0;color:#94a3b8;font-size:12px;line-height:1.6;">This payment link is valid for 24 hours. If the button doesn't work, copy this link:<br/><a href="${invoiceUrl}" style="color:#4338ca;">${invoiceUrl}</a></p>`;
+  const text = `Hi ${toName || "there"},
+
+You're one step away from your IELTS Mock Test (${testTypeLabel}) — Rp 79.000, one-off.
+All 4 skills, AI-graded to the IELTS band scale, with a personalised report.
+
+Complete your payment here (valid 24 hours):
+${invoiceUrl}
+
+— SpecTa Education`;
+  await sendBrandedEmail(
+    toEmail,
+    "Complete your IELTS Mock Test purchase — SpecTa Education",
+    brandedEmail({ badge: "IELTS Mock Test", title: "Complete your purchase", bodyHtml: body }),
+    text
+  );
+}
+
 /**
  * Email the buyer a direct link to start their test. Sent when payment is
  * confirmed, so the link reaches them even if the post-payment browser
- * redirect fails. Best-effort (never throws).
+ * redirect fails. Best-effort.
  */
 async function sendTestReadyEmail(
   toEmail: string,
   toName: string,
   attemptToken: string
 ): Promise<void> {
-  if (!ENV.resendApiKey || !toEmail) return;
   const takeUrl = `${appBaseUrl()}/ielts/mock-test/take/${attemptToken}`;
-  const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f8fafc;">
-<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
-  <div style="background:linear-gradient(135deg,#1d4ed8,#4338ca,#7c3aed);padding:28px 24px;color:#fff;">
-    <div style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;opacity:0.85;">SpecTa IELTS Mock Test</div>
-    <div style="font-size:22px;font-weight:700;margin-top:4px;">Your test is ready 🎉</div>
-  </div>
-  <div style="padding:24px;color:#0f172a;">
-    <p style="margin:0 0 12px 0;">Hi ${escapeHtml(toName)},</p>
-    <p style="margin:0 0 18px 0;color:#475569;line-height:1.6;">Your payment is confirmed and your IELTS Mock Test is unlocked. Click below to begin — set aside about 2 hours 45 minutes and find a quiet space with your microphone ready.</p>
-    <div style="margin:4px 0 18px 0;"><a href="${takeUrl}" style="display:inline-block;background:#4338ca;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 24px;border-radius:8px;">Start my test</a></div>
-    <p style="margin:0 0 8px 0;color:#475569;line-height:1.6;font-size:13px;">Or open this link:<br/><a href="${takeUrl}" style="color:#4338ca;">${takeUrl}</a></p>
-    <p style="margin:16px 0 0 0;font-size:13px;color:#94a3b8;">Tip: you can pause between sections, but each section is timed once it begins. Your band-score report is emailed the moment you finish.</p>
-  </div>
-  <div style="padding:14px 24px;background:#f1f5f9;color:#64748b;font-size:11px;line-height:1.5;">
-    This is a SpecTa Education practice mock test. It is not an official IELTS score and is not affiliated with British Council, IDP, or Cambridge Assessment English.
-  </div>
-</div>
-</body></html>`;
-  const text = `Hi ${toName},
+  const body = `
+    <p style="margin:0 0 12px 0;">Hi ${escapeHtml(toName || "there")},</p>
+    <p style="margin:0 0 18px 0;color:#475569;line-height:1.6;">Your payment is confirmed and your IELTS Mock Test is <strong>unlocked</strong>! Click below to begin — set aside about <strong>2 hours 45 minutes</strong>, find a quiet space, and have your microphone ready.</p>
+    ${ctaButton(takeUrl, "Start my test →")}
+    <p style="margin:0 0 8px 0;color:#475569;line-height:1.6;font-size:13px;">If the button doesn't work, open this link:<br/><a href="${takeUrl}" style="color:#4338ca;">${takeUrl}</a></p>
+    <p style="margin:16px 0 0 0;font-size:13px;color:#94a3b8;line-height:1.6;">Each section is timed once it begins. Your band-score report is emailed the moment you finish.</p>`;
+  const text = `Hi ${toName || "there"},
 
 Your payment is confirmed and your IELTS Mock Test is unlocked.
 
@@ -70,28 +145,12 @@ ${takeUrl}
 Set aside ~2h45m, find a quiet space, and have your microphone ready. Your band-score report is emailed the moment you finish.
 
 — SpecTa Education`;
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${ENV.resendApiKey}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        from: ENV.smtpFrom,
-        to: toEmail,
-        subject: "Your SpecTa IELTS Mock Test is ready — start here",
-        html,
-        text,
-      }),
-    });
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      console.warn(`[IELTS Mock] test-ready email failed (${res.status}): ${detail}`);
-    }
-  } catch (err) {
-    console.warn("[IELTS Mock] test-ready email error:", err);
-  }
+  await sendBrandedEmail(
+    toEmail,
+    "Your SpecTa IELTS Mock Test is ready — start here",
+    brandedEmail({ badge: "IELTS Mock Test", title: "Your test is ready 🎉", bodyHtml: body }),
+    text
+  );
 }
 
 function escapeHtml(s: string): string {
@@ -263,6 +322,15 @@ export async function createIeltsMockInvoice(
     invoice_url: string;
     external_id: string;
   };
+
+  // Send our own branded "Complete your payment" email to the form email
+  // (Xendit's own emails are disabled). Best-effort — never blocks checkout.
+  sendPaymentEmail(
+    params.customerEmail,
+    params.customerName,
+    invoice.invoice_url,
+    test.testType === "academic" ? "Academic" : "General Training"
+  ).catch(err => console.warn("[IELTS Mock] payment email error:", err));
 
   return {
     invoiceUrl: invoice.invoice_url,
