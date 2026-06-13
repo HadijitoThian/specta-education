@@ -229,16 +229,18 @@ export function renderParentEmailHtml(snap: ReportSnapshot, parentName: string |
 </div>`;
 }
 
+type SendChannelResult = { ok: boolean; emailOk: boolean | null; whatsappOk: boolean | null; error?: string };
+
 /** Send one report by id over its enabled channels (email + optional WhatsApp). */
-export async function sendReportById(id: number): Promise<{ ok: boolean; error?: string }> {
+export async function sendReportById(id: number): Promise<SendChannelResult> {
   const db = await getDb();
-  if (!db) return { ok: false, error: "Database unavailable" };
+  if (!db) return { ok: false, emailOk: null, whatsappOk: null, error: "Database unavailable" };
   const [r] = await db.select().from(crmParentReports).where(eq(crmParentReports.id, id)).limit(1);
-  if (!r) return { ok: false, error: "Report not found" };
+  if (!r) return { ok: false, emailOk: null, whatsappOk: null, error: "Report not found" };
   const snap = parseSnapshot(r.snapshot);
   if (!snap) {
     await db.update(crmParentReports).set({ status: "failed", error: "No snapshot" }).where(eq(crmParentReports.id, id));
-    return { ok: false, error: "No snapshot" };
+    return { ok: false, emailOk: null, whatsappOk: null, error: "No snapshot" };
   }
 
   // Student record carries the parent WhatsApp + the My Journey link token.
@@ -250,6 +252,8 @@ export async function sendReportById(id: number): Promise<{ ok: boolean; error?:
 
   const problems: string[] = [];
   let anyOk = false;
+  let emailOk: boolean | null = null;
+  let whatsappOk: boolean | null = null;
 
   // --- Email channel ---
   if (r.channelEmail && r.parentEmail) {
@@ -260,9 +264,9 @@ export async function sendReportById(id: number): Promise<{ ok: boolean; error?:
         subject: `Weekly Progress Report: ${snap.studentName} — SpecTa Education`,
         html,
       });
-      if (ok) anyOk = true; else problems.push("email send returned false");
+      if (ok) { anyOk = true; emailOk = true; } else { emailOk = false; problems.push("email send returned false"); }
     } catch (e: any) {
-      problems.push(`email: ${e?.message || "error"}`);
+      emailOk = false; problems.push(`email: ${e?.message || "error"}`);
     }
   }
 
@@ -281,10 +285,10 @@ export async function sendReportById(id: number): Promise<{ ok: boolean; error?:
         snap.studentName,
         link,
       ]);
-      if (res.ok) anyOk = true;
-      else if (!res.skipped) problems.push(`whatsapp: ${res.error}`);
+      if (res.ok) { anyOk = true; whatsappOk = true; }
+      else { whatsappOk = false; if (!res.skipped) problems.push(`whatsapp: ${res.error}`); }
     } catch (e: any) {
-      problems.push(`whatsapp: ${e?.message || "error"}`);
+      whatsappOk = false; problems.push(`whatsapp: ${e?.message || "error"}`);
     }
   }
 
@@ -292,11 +296,11 @@ export async function sendReportById(id: number): Promise<{ ok: boolean; error?:
     await db.update(crmParentReports)
       .set({ status: "sent", sentAt: new Date(), error: problems.length ? problems.join("; ") : null })
       .where(eq(crmParentReports.id, id));
-    return { ok: true };
+    return { ok: true, emailOk, whatsappOk, error: problems.length ? problems.join("; ") : undefined };
   }
   const err = problems.join("; ") || "No channel available — needs a parent email, or WhatsApp enabled + a parent phone + approved template.";
   await db.update(crmParentReports).set({ status: "failed", error: err }).where(eq(crmParentReports.id, id));
-  return { ok: false, error: err };
+  return { ok: false, emailOk, whatsappOk, error: err };
 }
 
 /** A report has "content" if at least one activity is included. */

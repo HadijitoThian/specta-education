@@ -234,9 +234,8 @@ export const crmReportsRouter = router({
         }
         if (Object.keys(patch).length) await db.update(crmParentReports).set(patch).where(eq(crmParentReports.id, input.id));
       }
-      const res = await sendReportById(input.id);
-      if (!res.ok) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: res.error || "Send failed" });
-      return { ok: true };
+      // Return per-channel detail so the UI can show what went through.
+      return sendReportById(input.id);
     }),
 
   /** Owner: send all due reports for the week (approved + drafts with content). */

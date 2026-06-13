@@ -119,6 +119,7 @@ function ReviewPanel({ id, onClose, onChanged }: { id: number; onClose: () => vo
   const [wa, setWa] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [justSent, setJustSent] = useState(false);
+  const [sendResult, setSendResult] = useState<{ emailOk: boolean | null; whatsappOk: boolean | null; error?: string } | null>(null);
 
   useEffect(() => {
     if (q.data) {
@@ -149,8 +150,11 @@ function ReviewPanel({ id, onClose, onChanged }: { id: number; onClose: () => vo
       <div className="mt-5 bg-white border-2 border-emerald-200 rounded-xl p-8 text-center">
         <div className="text-5xl mb-2">✅</div>
         <div className="text-xl font-bold text-slate-800">Report sent!</div>
-        <div className="text-sm text-slate-600 mt-1">
-          The weekly progress report was emailed to <strong>{r.parentName || "the parent"}</strong> at <strong>{r.parentEmail}</strong>.
+        <div className="text-sm mt-2 space-y-1">
+          {sendResult?.emailOk === true && <div className="text-slate-700">✓ Emailed to {r.parentEmail}</div>}
+          {sendResult?.emailOk === false && <div className="text-red-600">✗ Email failed</div>}
+          {sendResult?.whatsappOk === true && <div className="text-slate-700">✓ Sent to parent's WhatsApp</div>}
+          {sendResult?.whatsappOk === false && <div className="text-amber-600">⚠ WhatsApp not sent — {sendResult.error?.replace(/^.*whatsapp:\s*/i, "") || "unknown error"}</div>}
         </div>
         <div className="flex gap-3 justify-center mt-5">
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-white text-sm font-medium" style={{ background: PURPLE }}>
@@ -178,13 +182,14 @@ function ReviewPanel({ id, onClose, onChanged }: { id: number; onClose: () => vo
     try {
       // The note + included activities ride along with the send itself, so
       // whatever is in the box right now is what the parent receives.
-      await sendOne.mutateAsync({
+      const res = await sendOne.mutateAsync({
         id,
         summaryNote: note,
         channelWhatsapp: wa,
         includeActivityIds: Object.entries(includes).filter(([, v]) => v).map(([k]) => Number(k)),
       });
-      setJustSent(true); after();
+      if (res.ok) { setSendResult(res); setJustSent(true); after(); }
+      else { setMsg(res.error || "Send failed"); after(); }
     } catch (e: any) { setMsg(e.message); } finally { setBusy(false); }
   };
 
