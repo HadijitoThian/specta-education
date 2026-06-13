@@ -227,6 +227,7 @@ import { ieltsRouter } from "./ieltsRouter";
 import { crmTeamRouter } from "./crmTeamRouter";
 import { crmStudentsRouter } from "./crmStudentsRouter";
 import { crmReportsRouter } from "./crmReportsRouter";
+import { startCrmReportScheduler } from "./crmReportScheduler";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail, sendParentProgressEmail } from "./email";
 import crypto from "crypto";
 import { createProTestInvoice, verifyWebhookToken, generateExternalId, getProTestPrice, getProTestDiscountPrice } from "./xenditService";
@@ -7926,6 +7927,10 @@ export type AppRouter = typeof appRouter;
 // uncommenting the call below.
 // startAgentScheduler();
 void startAgentScheduler; // keep the import referenced (no-op)
+
+// CRM parent-report scheduler (NEW, separate from the disabled agents):
+// auto-drafts Sunday evening + auto-sends Monday 09:00 WIB.
+startCrmReportScheduler();
 
 // Auto-seed universities on startup
 seedUniversitiesIfEmpty().then(r => {

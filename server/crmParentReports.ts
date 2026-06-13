@@ -55,9 +55,17 @@ export function mondayOf(date: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** The week we report on right now (this week's Monday, in WIB). */
+/**
+ * The "report Monday" we're currently working toward (WIB). Mon–Sat → this
+ * week's Monday (the batch sent/at-hand). Sunday → tomorrow's Monday, so the
+ * Sunday-evening drafting and the dashboard line up with Monday's send.
+ */
 export function currentReportWeek(): string {
-  return mondayOf(wibNow());
+  const now = wibNow();
+  if (now.getUTCDay() === 0) {
+    return mondayOf(new Date(now.getTime() + 24 * 60 * 60 * 1000));
+  }
+  return mondayOf(now);
 }
 
 export function parseSnapshot(raw: string | null): ReportSnapshot | null {
