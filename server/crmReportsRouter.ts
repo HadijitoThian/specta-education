@@ -16,7 +16,7 @@ import {
   sendDueForWeek,
   parseSnapshot,
 } from "./crmParentReports";
-import { whatsappConfigured, reportTemplateName, sendWhatsAppText } from "./whatsappGateway";
+import { whatsappConfigured, sendWhatsAppText } from "./whatsappGateway";
 
 function isOwner(u: { role: string; crmRole: string | null }) {
   return u.role === "admin" || u.crmRole === "owner";
@@ -112,7 +112,7 @@ export const crmReportsRouter = router({
         ...r.report,
         snapshotParsed: parseSnapshot(r.report.snapshot),
         parentPhone: r.parentPhone,
-        whatsappReady: whatsappConfigured() && !!reportTemplateName(),
+        whatsappReady: whatsappConfigured(),
       };
     }),
 

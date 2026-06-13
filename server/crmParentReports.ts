@@ -12,7 +12,7 @@ import { nanoid } from "nanoid";
 import { getDb } from "./db";
 import { ENV } from "./_core/env";
 import { sendEmail } from "./email";
-import { sendWhatsAppTemplate, reportTemplateName } from "./whatsappGateway";
+import { sendWhatsAppTemplate, sendWhatsAppText, reportTemplateName } from "./whatsappGateway";
 import {
   leads,
   crmActivityTimeline,
@@ -231,6 +231,30 @@ export function renderParentEmailHtml(snap: ReportSnapshot, parentName: string |
 
 type SendChannelResult = { ok: boolean; emailOk: boolean | null; whatsappOk: boolean | null; error?: string };
 
+/** Free-form WhatsApp text version of the weekly report (WhatsApp *bold* syntax). */
+export function renderParentWhatsAppText(
+  snap: ReportSnapshot,
+  parentName: string | null,
+  summaryNote: string | null,
+  link: string
+): string {
+  const greet = parentName && parentName.trim() ? `Mr./Ms. ${parentName.trim()}` : "Parent/Guardian";
+  const lines: string[] = [];
+  lines.push(`Hi *${greet}*, here's this week's study-abroad progress update for *${snap.studentName}* from SpecTa Education.`);
+  if (summaryNote && summaryNote.trim()) lines.push(`\n📩 ${summaryNote.trim()}`);
+  lines.push(`\n📊 Stage: *${snap.stageLabel}*`);
+  if (snap.country) lines.push(`🌏 Destination: ${snap.country}`);
+  if (snap.program) lines.push(`🎓 Program: ${snap.program}`);
+  if (snap.intake) lines.push(`🗓 Target intake: ${snap.intake}`);
+  if (snap.docsTotal > 0) lines.push(`📄 Documents: ${snap.docsSubmitted}/${snap.docsTotal} submitted`);
+  const acts = snap.activities.filter(a => a.include);
+  lines.push("\n*This week:*");
+  if (acts.length) for (const a of acts) lines.push(`• ${a.title}`);
+  else lines.push("• Your counsellor will be in touch with next steps.");
+  lines.push(`\nFull update: ${link}`);
+  return lines.join("\n");
+}
+
 /** Send one report by id over its enabled channels (email + optional WhatsApp). */
 export async function sendReportById(id: number): Promise<SendChannelResult> {
   const db = await getDb();
@@ -270,8 +294,11 @@ export async function sendReportById(id: number): Promise<SendChannelResult> {
     }
   }
 
-  // --- WhatsApp channel (approved template → links to My Journey) ---
-  if (r.channelWhatsapp && lead?.parentPhone && reportTemplateName()) {
+  // --- WhatsApp channel ---
+  // If an approved template is configured, use it (works any time). Otherwise
+  // send free-form text (richer, but only delivered within the recipient's 24h
+  // window — fine for parents who've recently messaged Emma / for testing).
+  if (r.channelWhatsapp && lead?.parentPhone) {
     try {
       let journeyToken = lead.journeyToken;
       if (!journeyToken) {
@@ -280,11 +307,9 @@ export async function sendReportById(id: number): Promise<SendChannelResult> {
       }
       const base = ENV.appUrl?.replace(/\/+$/, "") || "https://www.spectaeducation.com";
       const link = `${/^https?:\/\//i.test(base) ? base : `https://${base}`}/journey/${journeyToken}`;
-      const res = await sendWhatsAppTemplate(lead.parentPhone, reportTemplateName(), [
-        r.parentName || "Parent",
-        snap.studentName,
-        link,
-      ]);
+      const res = reportTemplateName()
+        ? await sendWhatsAppTemplate(lead.parentPhone, reportTemplateName(), [r.parentName || "Parent", snap.studentName, link])
+        : await sendWhatsAppText(lead.parentPhone, renderParentWhatsAppText(snap, r.parentName, r.summaryNote, link));
       if (res.ok) { anyOk = true; whatsappOk = true; }
       else { whatsappOk = false; if (!res.skipped) problems.push(`whatsapp: ${res.error}`); }
     } catch (e: any) {
