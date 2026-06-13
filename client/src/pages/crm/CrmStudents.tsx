@@ -21,7 +21,7 @@ function timeAgo(d: Date | string | null) {
 
 export default function CrmStudents() {
   const [, setLocation] = useLocation();
-  const [stage, setStage] = useState<string>("");
+  const [stage, setStage] = useState<string>(() => new URLSearchParams(window.location.search).get("stage") || "");
   const [search, setSearch] = useState("");
   const [mineOnly, setMineOnly] = useState(false);
   const [adding, setAdding] = useState(false);

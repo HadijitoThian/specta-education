@@ -227,6 +227,7 @@ import { ieltsRouter } from "./ieltsRouter";
 import { crmTeamRouter } from "./crmTeamRouter";
 import { crmStudentsRouter } from "./crmStudentsRouter";
 import { crmReportsRouter } from "./crmReportsRouter";
+import { crmCockpitRouter } from "./crmCockpitRouter";
 import { startCrmReportScheduler } from "./crmReportScheduler";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail, sendParentProgressEmail } from "./email";
 import crypto from "crypto";
@@ -7919,6 +7920,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
   team: crmTeamRouter,
   students: crmStudentsRouter,
   reports: crmReportsRouter,
+  cockpit: crmCockpitRouter,
 });
 export type AppRouter = typeof appRouter;
 // Agents disabled — the background scheduler (lead/CRM/SEO/social/GM agents)

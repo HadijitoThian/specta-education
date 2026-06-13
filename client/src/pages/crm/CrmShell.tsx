@@ -23,6 +23,7 @@ const ROLE_LABEL: Record<string, string> = {
 type NavItem = { label: string; href: string; ownerOnly?: boolean; soon?: boolean };
 const NAV: NavItem[] = [
   { label: "Home", href: "/crm" },
+  { label: "Cockpit", href: "/crm/cockpit", ownerOnly: true },
   { label: "Students", href: "/crm/students" },
   { label: "Parent Reports", href: "/crm/reports" },
   { label: "Team", href: "/crm/team", ownerOnly: true },
