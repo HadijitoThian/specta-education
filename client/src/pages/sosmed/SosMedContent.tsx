@@ -122,6 +122,9 @@ function DraftDetail({ id, onClose, onDeleted }: { id: number; onClose: () => vo
                   </div>
                   <div className="text-xs font-medium text-slate-700 mt-1">{s.headline}</div>
                   <div className="text-[11px] text-slate-400">{s.subheadline}</div>
+                  {s.imageUrl && (
+                    <a href={s.imageUrl} download={`specta-slide-${i + 1}.png`} className="inline-block mt-1 text-xs text-pink-600 hover:underline">⬇ Download</a>
+                  )}
                 </div>
               ))}
             </div>

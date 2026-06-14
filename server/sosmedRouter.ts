@@ -16,12 +16,22 @@ import { invokeLLM } from "./_core/llm";
 import { generateImage } from "./_core/imageGeneration";
 import { composeInstagramImage } from "./imageCompositor";
 import { storagePut } from "./storage";
+import { ENV } from "./_core/env";
 
 type Slide = { headline: string; subheadline: string; imagePrompt: string; imageUrl?: string | null };
 
 function parseSlides(raw: string | null): Slide[] {
   if (!raw) return [];
   try { const v = JSON.parse(raw); return Array.isArray(v) ? v : []; } catch { return []; }
+}
+
+/** R2 object key from a storagePut URL (the part after the host). */
+function r2KeyFromUrl(url: string): string {
+  try { return new URL(url).pathname.replace(/^\/+/, ""); } catch { return ""; }
+}
+function appBase(): string {
+  const b = ENV.appUrl?.replace(/\/+$/, "") || "https://www.spectaeducation.com";
+  return /^https?:\/\//i.test(b) ? b : `https://${b}`;
 }
 
 function isOwner(u: { role: string; crmRole: string | null }) {
@@ -171,14 +181,20 @@ export const sosmedRouter = router({
       for (const s of slides) {
         try {
           const bg = await generateImage({ prompt: s.imagePrompt, width: 1024, height: 1024 });
-          let imageUrl = bg.url;
+          const bgKey = r2KeyFromUrl(bg.url);
+          // Serve via the same-origin /files proxy (the R2 public URL isn't exposed).
+          let imageUrl = bgKey ? `/files/${bgKey}` : bg.url;
           try {
-            const comp = await composeInstagramImage({ backgroundUrl: bg.url, headline: s.headline, subheadline: s.subheadline });
+            const comp = await composeInstagramImage({
+              backgroundUrl: bgKey ? `${appBase()}/files/${bgKey}` : bg.url,
+              headline: s.headline,
+              subheadline: s.subheadline,
+            });
             if (comp.success && comp.imageBuffer) {
               const put = await storagePut(`sosmed/${nanoid(10)}.png`, comp.imageBuffer, "image/png");
-              imageUrl = put.url;
+              imageUrl = `/files/${put.key}`;
             }
-          } catch { /* fall back to raw background */ }
+          } catch { /* fall back to raw background (via proxy) */ }
           s.imageUrl = imageUrl;
         } catch (e: any) {
           s.imageUrl = null;
