@@ -33,6 +33,7 @@ export default function SosMedBrandKit() {
   const utils = trpc.useUtils();
   const kit = trpc.sosmed.getBrandKit.useQuery(undefined, { retry: false });
   const [f, setF] = useState<Form>({});
+  const [ready, setReady] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const save = trpc.sosmed.updateBrandKit.useMutation({
     onSuccess: () => { setMsg("Saved ✓"); utils.sosmed.getBrandKit.invalidate(); },
@@ -44,11 +45,13 @@ export default function SosMedBrandKit() {
       const init: Form = {};
       FIELDS.forEach(fl => { init[fl.key] = (kit.data as any)[fl.key] ?? ""; });
       setF(init);
+      setReady(true); // only allow Save once the saved values are loaded
     }
   }, [kit.data?.id]);
 
   const set = (k: string, v: string) => setF(s => ({ ...s, [k]: v }));
   const onSave = () => {
+    if (!ready) return; // never overwrite with a blank, un-loaded form
     setMsg(null);
     const payload: any = {};
     FIELDS.forEach(fl => { payload[fl.key] = f[fl.key] ?? ""; });
@@ -62,8 +65,8 @@ export default function SosMedBrandKit() {
           <h1 className="text-2xl font-bold text-slate-800">Brand Kit</h1>
           <p className="text-slate-500 mt-1">The foundation every content agent reads. Edit freely.</p>
         </div>
-        <button onClick={onSave} disabled={save.isPending} className="px-5 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-60" style={{ background: PINK }}>
-          {save.isPending ? "Saving…" : "Save"}
+        <button onClick={onSave} disabled={save.isPending || !ready} className="px-5 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-60" style={{ background: PINK }}>
+          {save.isPending ? "Saving…" : !ready ? "Loading…" : "Save"}
         </button>
       </div>
       {msg && <div className="mt-4 bg-pink-50 text-pink-800 text-sm rounded-lg px-4 py-2">{msg}</div>}
