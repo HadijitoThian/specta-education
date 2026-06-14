@@ -1615,6 +1615,26 @@ export type BrandKit = typeof brandKit.$inferSelect;
 export type InsertBrandKit = typeof brandKit.$inferInsert;
 
 /**
+ * Social Media — generated content drafts (Phase 2). One row per post idea.
+ * `slides` is a JSON array of { headline, subheadline, imagePrompt, imageUrl }.
+ */
+export const sosmedContent = mysqlTable("sosmed_content", {
+  id: int("id").autoincrement().primaryKey(),
+  brief: text("brief"),
+  format: mysqlEnum("format", ["single", "carousel"]).default("single").notNull(),
+  caption: text("caption"),
+  hashtags: text("hashtags"),
+  slides: text("slides"), // JSON
+  status: mysqlEnum("status", ["draft", "approved", "scheduled", "posted"]).default("draft").notNull(),
+  createdBy: int("createdBy"),
+  createdByName: varchar("createdByName", { length: 160 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type SosmedContent = typeof sosmedContent.$inferSelect;
+export type InsertSosmedContent = typeof sosmedContent.$inferInsert;
+
+/**
  * CRM Notifications — in-app alerts for counselors
  */
 export const crmNotifications = mysqlTable("crm_notifications", {
