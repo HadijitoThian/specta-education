@@ -17,6 +17,8 @@ import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
 import { storagePut } from "./storage";
 import { distributeUnassigned } from "./leadDistribution";
+import { invokeLLM } from "./_core/llm";
+import { sendWhatsAppText, whatsappConfigured } from "./whatsappGateway";
 import {
   leads,
   users,
@@ -321,6 +323,80 @@ export const crmStudentsRouter = router({
     }
     return distributeUnassigned();
   }),
+
+  // ---- WhatsApp copilot ----
+
+  /** Whether sending WhatsApp from the CRM is wired up. */
+  whatsappReady: protectedProcedure.query(({ ctx }) => {
+    assertCrm(ctx.user);
+    return { ready: whatsappConfigured() };
+  }),
+
+  /** Send a WhatsApp message to the student (via the bot), logged on the timeline. */
+  sendWhatsApp: protectedProcedure
+    .input(z.object({ id: z.number().int(), text: z.string().min(1).max(2000) }))
+    .mutation(async ({ input, ctx }) => {
+      assertCrm(ctx.user);
+      const db = await db_();
+      const [lead] = await db.select({ phone: leads.studentPhone }).from(leads).where(eq(leads.id, input.id)).limit(1);
+      if (!lead) throw new TRPCError({ code: "NOT_FOUND" });
+      if (!lead.phone) throw new TRPCError({ code: "BAD_REQUEST", message: "This student has no phone number." });
+      const res = await sendWhatsAppText(lead.phone, input.text.trim());
+      if (!res.ok) {
+        throw new TRPCError({
+          code: res.skipped ? "PRECONDITION_FAILED" : "INTERNAL_SERVER_ERROR",
+          message: res.error || "Send failed",
+        });
+      }
+      await logActivity(db, input.id, "whatsapp", `WhatsApp sent: ${input.text.trim().slice(0, 140)}`, ctx.user.email);
+      return { ok: true };
+    }),
+
+  /** AI-draft a personalised WhatsApp follow-up from the student's CRM status. */
+  draftWhatsApp: protectedProcedure
+    .input(z.object({ id: z.number().int(), intent: z.string().max(300).optional() }))
+    .mutation(async ({ input, ctx }) => {
+      assertCrm(ctx.user);
+      const db = await db_();
+      const [lead] = await db.select().from(leads).where(eq(leads.id, input.id)).limit(1);
+      if (!lead) throw new TRPCError({ code: "NOT_FOUND" });
+      const acts = await db
+        .select({ title: crmActivityTimeline.title })
+        .from(crmActivityTimeline)
+        .where(eq(crmActivityTimeline.leadId, input.id))
+        .orderBy(desc(crmActivityTimeline.createdAt))
+        .limit(6);
+      const docs = await db.select({ status: crmStudentDocuments.status }).from(crmStudentDocuments).where(eq(crmStudentDocuments.leadId, input.id));
+      const context = {
+        name: lead.studentName,
+        stage: STAGE_LABEL[lead.pipelineStage] ?? lead.pipelineStage,
+        country: lead.preferredCountry,
+        program: lead.programInterest,
+        studyLevel: lead.studyLevel,
+        intake: lead.intakeDate,
+        documentsSubmitted: docs.filter(d => d.status === "submitted" || d.status === "verified").length,
+        documentsTotal: docs.length,
+        recentActivity: acts.map(a => a.title),
+      };
+      const system =
+        "You are a warm, senior counsellor at SpecTa Education, a Jakarta study-abroad consultancy. " +
+        "Write ONE short WhatsApp message in Bahasa Indonesia to this student — casual-professional senior-counsellor tone, 2–4 sentences. " +
+        "Do NOT use a formal 'Dear'; start naturally. Use *bold* sparingly (WhatsApp style). Personalise using their status. " +
+        (input.intent
+          ? `The counsellor's goal for this message: ${input.intent}. `
+          : "Write a friendly check-in / next-step nudge based on where they are in their journey. ") +
+        "Output ONLY the message text — no quotes, no preamble, no sign-off name.";
+      const res = await invokeLLM({
+        model: "deepseek-v4-flash",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: JSON.stringify(context) },
+        ],
+      });
+      const content = res.choices?.[0]?.message?.content;
+      const draft = (typeof content === "string" ? content : "").trim();
+      return { draft };
+    }),
 
   // ---- Tasks ----
   addTask: protectedProcedure

@@ -86,6 +86,7 @@ export default function CrmStudentProfile() {
       {/* Quick log + timeline */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mt-5">
         <div className="lg:col-span-2 space-y-5">
+          <WhatsAppCopilot id={id} phone={student.studentPhone} />
           <QuickLog id={id} onSaved={refetch} />
           <div className="bg-white border border-slate-200 rounded-xl p-5">
             <div className="font-semibold text-slate-800 mb-3">Activity timeline</div>
@@ -112,6 +113,39 @@ export default function CrmStudentProfile() {
         </div>
       </div>
     </CrmShell>
+  );
+}
+
+function WhatsAppCopilot({ id, phone }: { id: number; phone: string | null }) {
+  const utils = trpc.useUtils();
+  const ready = trpc.students.whatsappReady.useQuery();
+  const [text, setText] = useState("");
+  const [intent, setIntent] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const draft = trpc.students.draftWhatsApp.useMutation({ onSuccess: r => { setText(r.draft); setMsg(null); }, onError: e => setMsg(e.message) });
+  const send = trpc.students.sendWhatsApp.useMutation({
+    onSuccess: () => { setMsg("Sent ✓"); setText(""); utils.students.get.invalidate({ id }); },
+    onError: e => setMsg(e.message),
+  });
+  if (!ready.data?.ready) return null;
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-4">
+      <div className="font-semibold text-slate-800 text-sm mb-2">
+        💬 WhatsApp {phone ? <span className="text-xs text-slate-400 font-normal">to {phone}</span> : <span className="text-xs text-amber-600 font-normal">— no phone on file</span>}
+      </div>
+      {msg && <div className="text-xs text-purple-700 mb-2">{msg}</div>}
+      <div className="flex gap-2 mb-2">
+        <input value={intent} onChange={e => setIntent(e.target.value)} placeholder="What's it about? (optional — e.g. ask for transcript)" className={inputCls} />
+        <button onClick={() => draft.mutate({ id, intent: intent.trim() || undefined })} disabled={draft.isPending} className="px-3 py-2 rounded-lg text-sm border border-purple-300 text-purple-700 hover:bg-purple-50 shrink-0 disabled:opacity-50">
+          {draft.isPending ? "Drafting…" : "✨ Draft with Emma"}
+        </button>
+      </div>
+      <textarea value={text} onChange={e => setText(e.target.value)} rows={3} placeholder="Type a message, or hit Draft…" className={inputCls} />
+      <button onClick={() => { if (!phone) { setMsg("No phone number on file."); return; } if (text.trim()) send.mutate({ id, text: text.trim() }); }} disabled={send.isPending || !phone || !text.trim()} className="mt-2 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50" style={{ background: PURPLE }}>
+        {send.isPending ? "Sending…" : "Send WhatsApp"}
+      </button>
+      <div className="text-xs text-slate-400 mt-1">Free-form WhatsApp delivers within 24h of the student's last message; outside that window it may not go through.</div>
+    </div>
   );
 }
 
