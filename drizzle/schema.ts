@@ -1597,6 +1597,7 @@ export const brandKit = mysqlTable("brand_kit", {
   id: int("id").autoincrement().primaryKey(),
   brandName: varchar("brandName", { length: 160 }).default("SpecTa Education").notNull(),
   logoUrl: varchar("logoUrl", { length: 500 }),
+  logoWhiteUrl: varchar("logoWhiteUrl", { length: 500 }),
   primaryColor: varchar("primaryColor", { length: 16 }).default("#E91E8C").notNull(),
   secondaryColor: varchar("secondaryColor", { length: 16 }).default("#9C27B0").notNull(),
   accentColor: varchar("accentColor", { length: 16 }).default("#FF6B4A").notNull(),

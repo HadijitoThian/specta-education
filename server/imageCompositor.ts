@@ -41,6 +41,8 @@ export interface CompositorInput {
   ctaText?: string;
   badge?: string;
   copyright?: string;
+  logoUrl?: string;       // transparent colour PNG (for bright photos)
+  logoWhiteUrl?: string;  // transparent white PNG (for dark photos)
 }
 
 // ── Helper: convert text to SVG <path> string using opentype.js ────────────
@@ -272,62 +274,31 @@ export async function composeInstagramImage(input: CompositorInput): Promise<{ s
       .jpeg({ quality: 92 })
       .toBuffer();
 
-    // ── Step 5: Composite SpecTa logo with smart brightness detection ──────
+    // ── Step 5: Composite the transparent logo (white on dark, colour on
+    // bright) — NO white backdrop box. ────────────────────────────────────
     try {
-      const logoRaw = await downloadImage(SPECTA_LOGO_URL);
-      const logoResized = await sharp(logoRaw)
-        .resize({ width: 180, height: 90, fit: "inside" })
-        .png()
-        .toBuffer();
-
-      const logoMeta = await sharp(logoResized).metadata();
-      const logoW = logoMeta.width || 180;
-      const logoH = logoMeta.height || 90;
       const logoX = 24;
       const logoY = 24;
-      const pad = 12;
-
-      // Measure brightness of background under logo area
+      // Measure brightness behind the logo area first, then pick the variant.
       const brightness = await measureBrightness(
-        composited,
-        logoX, logoY,
-        Math.min(logoW + pad * 2, W - logoX),
-        Math.min(logoH + pad * 2, H - logoY)
+        composited, logoX, logoY,
+        Math.min(210, W - logoX), Math.min(120, H - logoY)
       );
+      const useWhite = brightness < 150;
+      const chosen =
+        (useWhite ? input.logoWhiteUrl : input.logoUrl) || input.logoUrl || SPECTA_LOGO_URL;
 
-      if (brightness > 160) {
-        // Bright background — place logo directly, no backdrop
-        composited = await sharp(composited)
-          .composite([{ input: logoResized, top: logoY, left: logoX }])
-          .jpeg({ quality: 92 })
-          .toBuffer();
-      } else if (brightness > 100) {
-        // Medium — subtle semi-transparent white backdrop
-        const backdropSvg = `<svg width="${logoW + pad * 2}" height="${logoH + pad * 2}">
-          <rect width="${logoW + pad * 2}" height="${logoH + pad * 2}" rx="10" fill="white" fill-opacity="0.35"/>
-        </svg>`;
-        composited = await sharp(composited)
-          .composite([
-            { input: Buffer.from(backdropSvg), top: logoY, left: logoX },
-            { input: logoResized, top: logoY + pad, left: logoX + pad },
-          ])
-          .jpeg({ quality: 92 })
-          .toBuffer();
-      } else {
-        // Dark — white rounded backdrop for full visibility
-        const backdropSvg = `<svg width="${logoW + pad * 2}" height="${logoH + pad * 2}">
-          <rect width="${logoW + pad * 2}" height="${logoH + pad * 2}" rx="12" fill="white" fill-opacity="0.85"/>
-        </svg>`;
-        composited = await sharp(composited)
-          .composite([
-            { input: Buffer.from(backdropSvg), top: logoY, left: logoX },
-            { input: logoResized, top: logoY + pad, left: logoX + pad },
-          ])
-          .jpeg({ quality: 92 })
-          .toBuffer();
-      }
+      const logoRaw = await downloadImage(chosen);
+      const logoResized = await sharp(logoRaw)
+        .resize({ width: 200, height: 110, fit: "inside" })
+        .png()
+        .toBuffer();
+      composited = await sharp(composited)
+        .composite([{ input: logoResized, top: logoY, left: logoX }])
+        .jpeg({ quality: 92 })
+        .toBuffer();
 
-      console.log(`[compositor] Logo placed. Brightness: ${brightness.toFixed(0)} (${brightness > 160 ? "bright-no box" : brightness > 100 ? "medium-subtle" : "dark-white box"})`);
+      console.log(`[compositor] Logo placed (brightness ${brightness.toFixed(0)} → ${useWhite ? "white" : "colour"} logo)`);
     } catch (e: any) {
       console.warn("[compositor] Logo overlay failed:", e.message);
     }

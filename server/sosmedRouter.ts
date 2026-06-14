@@ -71,6 +71,7 @@ export const sosmedRouter = router({
       z.object({
         brandName: z.string().max(160).optional(),
         logoUrl: z.string().max(500).nullable().optional(),
+        logoWhiteUrl: z.string().max(500).nullable().optional(),
         primaryColor: z.string().max(16).optional(),
         secondaryColor: z.string().max(16).optional(),
         accentColor: z.string().max(16).optional(),
@@ -190,6 +191,8 @@ export const sosmedRouter = router({
               backgroundUrl: bgKey ? `${appBase()}/files/${bgKey}` : bgUrl,
               headline: s.headline,
               subheadline: s.subheadline,
+              logoUrl: kit?.logoUrl || undefined,
+              logoWhiteUrl: kit?.logoWhiteUrl || undefined,
             });
             if (comp.success && comp.imageBuffer) {
               const put = await storagePut(`sosmed/${nanoid(10)}.png`, comp.imageBuffer, "image/png");

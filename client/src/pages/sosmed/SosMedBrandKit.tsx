@@ -12,7 +12,8 @@ const PINK = "#E91E8C";
 type Form = Record<string, string>;
 const FIELDS: { key: string; label: string; type: "text" | "color" | "area"; hint?: string }[] = [
   { key: "brandName", label: "Brand name", type: "text" },
-  { key: "logoUrl", label: "Logo URL", type: "text", hint: "A public image URL (we'll add upload later)." },
+  { key: "logoUrl", label: "Logo URL (colour, transparent PNG)", type: "text", hint: "Used on bright photos." },
+  { key: "logoWhiteUrl", label: "White logo URL (transparent PNG)", type: "text", hint: "Used on dark photos." },
   { key: "primaryColor", label: "Primary color", type: "color" },
   { key: "secondaryColor", label: "Secondary color", type: "color" },
   { key: "accentColor", label: "Accent color", type: "color" },
