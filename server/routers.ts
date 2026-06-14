@@ -232,6 +232,7 @@ import { crmIntakeRouter } from "./crmIntakeRouter";
 import { crmJourneyRouter } from "./crmJourneyRouter";
 import { sosmedRouter } from "./sosmedRouter";
 import { startCrmReportScheduler } from "./crmReportScheduler";
+import { startArticleProducerScheduler } from "./articleProducer";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail, sendParentProgressEmail } from "./email";
 import crypto from "crypto";
 import { createProTestInvoice, verifyWebhookToken, generateExternalId, getProTestPrice, getProTestDiscountPrice } from "./xenditService";
@@ -4508,6 +4509,36 @@ Return JSON with the refined article:
         if (!text) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI refinement failed" });
         return JSON.parse(text);
       }),
+
+    // --- Article Producer (GEO-optimized, generate + save in one step) ---
+    // Suggests topics from the producer's curated bank (next-up first).
+    suggestTopics: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+      const { ARTICLE_TOPIC_BANK, pickNextTopic } = await import("./articleProducer");
+      const next = await pickNextTopic();
+      return { next, all: ARTICLE_TOPIC_BANK };
+    }),
+
+    // One-click "Produce now": generates a GEO-optimized article AND saves it
+    // (default as a review-ready draft). Returns the created post.
+    produceArticle: protectedProcedure
+      .input(z.object({
+        topic: z.string().min(1),
+        targetKeyword: z.string().optional(),
+        tone: z.string().optional(),
+        language: z.string().optional(),
+        status: z.enum(["draft", "published"]).optional(),
+        categoryId: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { produceArticle } = await import("./articleProducer");
+        try {
+          return await produceArticle({ ...input, authorId: ctx.user.id });
+        } catch (e) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message });
+        }
+      }),
   }),
 
   // Blog Comments & Ratings
@@ -7939,6 +7970,10 @@ void startAgentScheduler; // keep the import referenced (no-op)
 // CRM parent-report scheduler (NEW, separate from the disabled agents):
 // auto-drafts Sunday evening + auto-sends Monday 09:00 WIB.
 startCrmReportScheduler();
+
+// Article Producer scheduler (SEO/GEO): weekly review-ready blog drafts.
+// OFF unless ARTICLE_PRODUCER_ENABLED=true (no token spend until opted in).
+startArticleProducerScheduler();
 
 // Auto-seed universities on startup
 seedUniversitiesIfEmpty().then(r => {

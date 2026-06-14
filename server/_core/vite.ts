@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import viteConfig from "../../vite.config";
-import { injectSeoMeta } from "../seoMetaInjector";
+import { injectSeoMetaAsync } from "../seoMetaInjector";
 
 export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
@@ -40,7 +40,7 @@ export async function setupVite(app: Express, server: Server) {
         `src="/src/main.tsx?v=${nanoid()}"`
       );
       // Inject page-specific SEO meta tags before Vite transforms
-      template = injectSeoMeta(template, url);
+      template = await injectSeoMetaAsync(template, url);
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
@@ -79,10 +79,10 @@ export function serveStatic(app: Express) {
 
   // fall through to index.html if the file doesn't exist
   // Inject page-specific SEO meta tags for production
-  app.use("*", (req, res) => {
+  app.use("*", async (req, res) => {
     const indexPath = path.resolve(distPath, "index.html");
     let html = fs.readFileSync(indexPath, "utf-8");
-    html = injectSeoMeta(html, req.originalUrl);
+    html = await injectSeoMetaAsync(html, req.originalUrl);
     res.status(200).set({ "Content-Type": "text/html" }).end(html);
   });
 }

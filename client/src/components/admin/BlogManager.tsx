@@ -22,6 +22,9 @@ export default function BlogManager() {
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [showTagDialog, setShowTagDialog] = useState(false);
   const [showAIDialog, setShowAIDialog] = useState(false);
+  const [showProducerDialog, setShowProducerDialog] = useState(false);
+  const [prodTopic, setProdTopic] = useState("");
+  const [prodKeyword, setProdKeyword] = useState("");
 
   // Editor state
   const [title, setTitle] = useState("");
@@ -126,6 +129,23 @@ export default function BlogManager() {
       toast.success("Tag deleted!");
       utils.blog.listTags.invalidate();
     },
+  });
+
+  // GEO Producer: generates + saves a review-ready draft in one step.
+  const { data: topicSuggestions } = trpc.blog.suggestTopics.useQuery(undefined, {
+    enabled: showProducerDialog,
+    retry: false,
+  });
+  const produceArticle = trpc.blog.produceArticle.useMutation({
+    onSuccess: (post) => {
+      toast.success(`Draft created: "${post.title}". Review it before publishing.`);
+      utils.blog.listPosts.invalidate();
+      setShowProducerDialog(false);
+      setProdTopic("");
+      setProdKeyword("");
+      setStatusFilter("draft");
+    },
+    onError: (e) => toast.error(e.message),
   });
 
   const generateArticle = trpc.blog.generateArticle.useMutation({
@@ -276,6 +296,9 @@ export default function BlogManager() {
             </Button>
             <Button size="sm" variant="outline" onClick={() => setShowAIDialog(true)} className="text-purple-600 border-purple-300 hover:bg-purple-50">
               <Sparkles className="w-4 h-4 mr-1" /> Generate with AI
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowProducerDialog(true)} className="text-emerald-600 border-emerald-300 hover:bg-emerald-50">
+              <Globe className="w-4 h-4 mr-1" /> GEO Producer
             </Button>
             <Button size="sm" onClick={() => { resetEditor(); setViewMode("editor"); }} className="bg-red-600 hover:bg-red-700">
               <Plus className="w-4 h-4 mr-1" /> New Article
@@ -501,6 +524,58 @@ export default function BlogManager() {
               <Button variant="outline" onClick={() => setShowAIDialog(false)}>Cancel</Button>
               <Button onClick={handleAIGenerate} disabled={isGenerating || !aiTopic} className="bg-purple-600 hover:bg-purple-700">
                 {isGenerating ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Generating...</> : <><Sparkles className="w-4 h-4 mr-1" /> Generate</>}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* GEO Producer Dialog — one-click generate + save review-ready draft */}
+        <Dialog open={showProducerDialog} onOpenChange={setShowProducerDialog}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Globe className="w-5 h-5 text-emerald-500" /> GEO Article Producer
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500">
+                Writes a search- and AI-assistant-optimized article (key takeaways, FAQ, internal links + Article schema) and saves it as a <strong>draft</strong> for you to review before publishing.
+              </p>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Topic *</label>
+                <Textarea
+                  placeholder="Pick a suggested topic below, or type your own"
+                  value={prodTopic}
+                  onChange={e => setProdTopic(e.target.value)}
+                  rows={2}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Target Keyword (optional)</label>
+                <Input placeholder="e.g., kuliah di Australia" value={prodKeyword} onChange={e => setProdKeyword(e.target.value)} />
+              </div>
+              {topicSuggestions?.all?.length ? (
+                <div>
+                  <label className="text-xs font-medium mb-1 block text-gray-500">Suggested topics (next-up first)</label>
+                  <div className="flex flex-col gap-1 max-h-44 overflow-y-auto">
+                    {topicSuggestions.all.map((t, i) => (
+                      <button
+                        key={i}
+                        onClick={() => { setProdTopic(t.topic); setProdKeyword(t.keyword); }}
+                        className={`text-left text-sm px-2 py-1.5 rounded border hover:bg-emerald-50 ${prodTopic === t.topic ? "border-emerald-400 bg-emerald-50" : "border-gray-200"}`}
+                      >
+                        {topicSuggestions.next?.topic === t.topic && <Badge className="bg-emerald-100 text-emerald-700 mr-1 text-[10px]">next</Badge>}
+                        {t.topic}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowProducerDialog(false)}>Cancel</Button>
+              <Button onClick={() => produceArticle.mutate({ topic: prodTopic, targetKeyword: prodKeyword || undefined })} disabled={produceArticle.isPending || !prodTopic} className="bg-emerald-600 hover:bg-emerald-700">
+                {produceArticle.isPending ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Producing...</> : <><Globe className="w-4 h-4 mr-1" /> Produce Draft</>}
               </Button>
             </DialogFooter>
           </DialogContent>

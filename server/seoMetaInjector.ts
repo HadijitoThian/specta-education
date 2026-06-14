@@ -399,3 +399,156 @@ function escapeHtml(str: string): string {
 function escapeAttr(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
+
+/** Strip HTML tags down to readable text (for meta descriptions / fallbacks). */
+function stripHtml(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function toAbsolute(url: string | null | undefined): string {
+  if (!url) return DEFAULT_OG_IMAGE.startsWith("http") ? DEFAULT_OG_IMAGE : `${BASE_URL}${DEFAULT_OG_IMAGE}`;
+  if (/^https?:\/\//i.test(url)) return url;
+  return `${BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
+/** Minimal shape of a published blog post used for server-side rendering. */
+export interface BlogPostSeo {
+  title: string;
+  slug: string;
+  excerpt?: string | null;
+  content: string;
+  featuredImage?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  targetKeyword?: string | null;
+  publishedAt?: Date | string | null;
+  updatedAt?: Date | string | null;
+  createdAt?: Date | string | null;
+}
+
+/**
+ * Server-render a full blog article into the HTML so Google AND AI crawlers
+ * (ChatGPT, Perplexity, Gemini, Claude) see the real content + Article schema
+ * without running any JavaScript. This is the core GEO unlock for the blog.
+ */
+export function injectBlogArticle(html: string, post: BlogPostSeo): string {
+  const canonicalUrl = `${BASE_URL}/blog/${post.slug}`;
+  const title = post.metaTitle || `${post.title} | SpecTa Education`;
+  const bodyText = stripHtml(post.content);
+  const description = (post.metaDescription || post.excerpt || bodyText).slice(0, 300);
+  const ogImage = toAbsolute(post.featuredImage);
+  const published = post.publishedAt ? new Date(post.publishedAt).toISOString() : undefined;
+  const modified = post.updatedAt ? new Date(post.updatedAt).toISOString() : published;
+
+  // ── <head> meta ───────────────────────────────────────────────
+  html = html.replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(title)}</title>`);
+  html = html.replace(
+    /<meta\s+name="description"\s+content="[^"]*"\s*\/?>/,
+    `<meta name="description" content="${escapeAttr(description)}" />`
+  );
+  if (post.targetKeyword) {
+    html = html.replace(
+      /<meta\s+name="keywords"\s+content="[^"]*"\s*\/?>/,
+      `<meta name="keywords" content="${escapeAttr(post.targetKeyword)}, study abroad, SpecTa Education" />`
+    );
+  }
+  // OG / Twitter — switch to article type + post image
+  html = html.replace(
+    /<meta\s+property="og:type"\s+content="[^"]*"\s*\/?>/,
+    `<meta property="og:type" content="article" />`
+  );
+  html = html.replace(/<meta\s+property="og:url"\s+content="[^"]*"\s*\/?>/, `<meta property="og:url" content="${escapeAttr(canonicalUrl)}" />`);
+  html = html.replace(/<meta\s+property="og:title"\s+content="[^"]*"\s*\/?>/, `<meta property="og:title" content="${escapeAttr(title)}" />`);
+  html = html.replace(/<meta\s+property="og:description"\s+content="[^"]*"\s*\/?>/, `<meta property="og:description" content="${escapeAttr(description)}" />`);
+  html = html.replace(/<meta\s+property="og:image"\s+content="[^"]*"\s*\/?>/, `<meta property="og:image" content="${escapeAttr(ogImage)}" />`);
+  html = html.replace(/<meta\s+name="twitter:title"\s+content="[^"]*"\s*\/?>/, `<meta name="twitter:title" content="${escapeAttr(title)}" />`);
+  html = html.replace(/<meta\s+name="twitter:description"\s+content="[^"]*"\s*\/?>/, `<meta name="twitter:description" content="${escapeAttr(description)}" />`);
+  html = html.replace(/<meta\s+name="twitter:image"\s+content="[^"]*"\s*\/?>/, `<meta name="twitter:image" content="${escapeAttr(ogImage)}" />`);
+
+  // ── Article JSON-LD ───────────────────────────────────────────
+  const articleLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title.slice(0, 110),
+    description,
+    image: [ogImage],
+    author: { "@type": "Organization", name: "SpecTa Education", url: BASE_URL },
+    publisher: {
+      "@type": "Organization",
+      name: "SpecTa Education",
+      logo: { "@type": "ImageObject", url: "https://www.spectaeducation.com/files/migrated/kMEinJVrDybnuqph.jpg" },
+    },
+    mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
+    url: canonicalUrl,
+    inLanguage: "id-ID",
+    ...(published ? { datePublished: published } : {}),
+    ...(modified ? { dateModified: modified } : {}),
+    ...(post.targetKeyword ? { keywords: post.targetKeyword } : {}),
+  };
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: `${BASE_URL}/` },
+      { "@type": "ListItem", position: 2, name: "Blog", item: `${BASE_URL}/blog` },
+      { "@type": "ListItem", position: 3, name: post.title, item: canonicalUrl },
+    ],
+  };
+  const ldScripts =
+    `\n    <script type="application/ld+json">${JSON.stringify(articleLd)}</script>` +
+    `\n    <script type="application/ld+json">${JSON.stringify(breadcrumbLd)}</script>\n  </head>`;
+  html = html.replace("</head>", ldScripts);
+
+  // ── Pre-rendered article body (real content for no-JS crawlers) ─
+  const articleHtml = `
+        <article>
+          <h1>${escapeHtml(post.title)}</h1>
+          ${published ? `<p><time datetime="${escapeAttr(published)}">${new Date(published).toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })}</time> · SpecTa Education</p>` : ""}
+          ${post.excerpt ? `<p>${escapeHtml(post.excerpt)}</p>` : ""}
+          ${post.content}
+          <p><a href="/blog">← Back to the SpecTa Education blog</a> · <a href="/contact">Book a free consultation</a></p>
+        </article>`;
+  html = html.replace(
+    /<div id="seo-prerender">[\s\S]*?<\/div>\s*<\/div>/,
+    `<div id="seo-prerender">${articleHtml}\n      </div>\n    </div>`
+  );
+
+  return html;
+}
+
+/**
+ * Async SEO injector. For /blog/:slug it fetches the real published post from
+ * the DB and renders the full article + Article schema. Everything else falls
+ * back to the synchronous meta-only injector.
+ */
+export async function injectSeoMetaAsync(html: string, urlPath: string): Promise<string> {
+  let path = urlPath.split("?")[0].split("#")[0];
+  if (path !== "/" && path.endsWith("/")) path = path.slice(0, -1);
+
+  const blogMatch = path.match(/^\/blog\/(.+)$/);
+  if (blogMatch) {
+    try {
+      const { getBlogPostBySlug } = await import("./db");
+      const post = await getBlogPostBySlug(decodeURIComponent(blogMatch[1]));
+      if (post && post.status === "published") {
+        return injectBlogArticle(html, post as BlogPostSeo);
+      }
+    } catch (e) {
+      console.error("[seo] blog article injection failed:", (e as Error).message);
+    }
+  }
+
+  // Fallback: synchronous meta-only injection.
+  return injectSeoMeta(html, urlPath);
+}
