@@ -18,7 +18,7 @@ import { getDb } from "./db";
 import { storagePut } from "./storage";
 import { distributeUnassigned } from "./leadDistribution";
 import { invokeLLM } from "./_core/llm";
-import { sendWhatsAppText, whatsappConfigured } from "./whatsappGateway";
+import { sendWhatsAppText, whatsappConfigured, getBotConversation } from "./whatsappGateway";
 import {
   leads,
   users,
@@ -332,6 +332,20 @@ export const crmStudentsRouter = router({
     return { ready: whatsappConfigured() };
   }),
 
+  /** The student's WhatsApp conversation (pulled live from the bot). */
+  conversation: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .query(async ({ input, ctx }) => {
+      assertCrm(ctx.user);
+      const db = await db_();
+      const [lead] = await db.select({ phone: leads.studentPhone }).from(leads).where(eq(leads.id, input.id)).limit(1);
+      if (!lead) throw new TRPCError({ code: "NOT_FOUND" });
+      if (!whatsappConfigured()) return { ready: false, hasPhone: !!lead.phone, messages: [] as any[] };
+      if (!lead.phone) return { ready: true, hasPhone: false, messages: [] as any[] };
+      const messages = await getBotConversation(lead.phone);
+      return { ready: true, hasPhone: true, messages };
+    }),
+
   /** Send a WhatsApp message to the student (via the bot), logged on the timeline. */
   sendWhatsApp: protectedProcedure
     .input(z.object({ id: z.number().int(), text: z.string().min(1).max(2000) }))
@@ -367,6 +381,10 @@ export const crmStudentsRouter = router({
         .orderBy(desc(crmActivityTimeline.createdAt))
         .limit(6);
       const docs = await db.select({ status: crmStudentDocuments.status }).from(crmStudentDocuments).where(eq(crmStudentDocuments.leadId, input.id));
+      const convo = lead.studentPhone ? await getBotConversation(lead.studentPhone, 12) : [];
+      const transcript = convo
+        .map(m => `${m.direction === "inbound" ? "Student" : "Emma"}: ${String(m.content).slice(0, 300)}`)
+        .join("\n");
       const context = {
         name: lead.studentName,
         stage: STAGE_LABEL[lead.pipelineStage] ?? lead.pipelineStage,
@@ -377,11 +395,13 @@ export const crmStudentsRouter = router({
         documentsSubmitted: docs.filter(d => d.status === "submitted" || d.status === "verified").length,
         documentsTotal: docs.length,
         recentActivity: acts.map(a => a.title),
+        recentConversation: transcript || "(no WhatsApp history available)",
       };
       const system =
         "You are a warm, senior counsellor at SpecTa Education, a Jakarta study-abroad consultancy. " +
         "Write ONE short WhatsApp message in Bahasa Indonesia to this student — casual-professional senior-counsellor tone, 2–4 sentences. " +
-        "Do NOT use a formal 'Dear'; start naturally. Use *bold* sparingly (WhatsApp style). Personalise using their status. " +
+        "Do NOT use a formal 'Dear'; start naturally. Use *bold* sparingly (WhatsApp style). Personalise using their status and the recent conversation. " +
+        (transcript ? "Continue/reply to the recentConversation naturally — don't repeat what's already been said. " : "") +
         (input.intent
           ? `The counsellor's goal for this message: ${input.intent}. `
           : "Write a friendly check-in / next-step nudge based on where they are in their journey. ") +

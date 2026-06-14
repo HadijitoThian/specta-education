@@ -74,6 +74,25 @@ export async function sendWhatsAppText(to: string, text: string): Promise<SendRe
   return callBot({ to: phone, text });
 }
 
+export type BotMessage = { direction: "inbound" | "outbound"; content: string; created_at: string };
+
+/** Read a student's WhatsApp conversation from the bot (chronological). */
+export async function getBotConversation(to: string, limit = 60): Promise<BotMessage[]> {
+  if (!whatsappConfigured()) return [];
+  const phone = normalizePhone(to);
+  if (!phone) return [];
+  try {
+    const res = await fetch(`${botUrl()}/messages?phone=${encodeURIComponent(phone)}&limit=${limit}`, {
+      headers: { "x-api-key": botKey() },
+    });
+    const json: any = await res.json().catch(() => ({}));
+    if (!res.ok || !Array.isArray(json?.messages)) return [];
+    return json.messages as BotMessage[];
+  } catch {
+    return [];
+  }
+}
+
 /** Approved-template send — works any time (required outside the 24h window). */
 export async function sendWhatsAppTemplate(
   to: string,

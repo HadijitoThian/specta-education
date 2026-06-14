@@ -86,6 +86,7 @@ export default function CrmStudentProfile() {
       {/* Quick log + timeline */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mt-5">
         <div className="lg:col-span-2 space-y-5">
+          <Conversation id={id} />
           <WhatsAppCopilot id={id} phone={student.studentPhone} />
           <QuickLog id={id} onSaved={refetch} />
           <div className="bg-white border border-slate-200 rounded-xl p-5">
@@ -113,6 +114,37 @@ export default function CrmStudentProfile() {
         </div>
       </div>
     </CrmShell>
+  );
+}
+
+function Conversation({ id }: { id: number }) {
+  const q = trpc.students.conversation.useQuery({ id }, { retry: false });
+  if (!q.data?.ready) return null; // hidden until WhatsApp is connected
+  const msgs = (q.data.messages || []) as Array<{ direction: string; content: string; created_at: string }>;
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="font-semibold text-slate-800 text-sm">WhatsApp conversation</div>
+        <button onClick={() => q.refetch()} className="text-xs text-purple-700 hover:underline">Refresh</button>
+      </div>
+      {!q.data.hasPhone && <div className="text-sm text-amber-600">No phone number on file.</div>}
+      {q.data.hasPhone && msgs.length === 0 && <div className="text-sm text-slate-400">No WhatsApp messages yet.</div>}
+      <div className="space-y-2 max-h-96 overflow-auto pr-1">
+        {msgs.map((m, i) => {
+          const out = m.direction === "outbound";
+          return (
+            <div key={i} className={`flex ${out ? "justify-end" : "justify-start"}`}>
+              <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${out ? "text-white rounded-br-sm" : "bg-slate-100 text-slate-800 rounded-bl-sm"}`} style={out ? { background: PURPLE } : undefined}>
+                <div className="whitespace-pre-wrap break-words">{m.content}</div>
+                <div className={`text-[10px] mt-0.5 ${out ? "text-white/70" : "text-slate-400"}`}>
+                  {out ? "Emma / SpecTa" : "Student"} · {new Date(m.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
