@@ -181,12 +181,13 @@ export const sosmedRouter = router({
       for (const s of slides) {
         try {
           const bg = await generateImage({ prompt: s.imagePrompt, width: 1024, height: 1024 });
-          const bgKey = r2KeyFromUrl(bg.url);
+          const bgUrl = bg.url || "";
+          const bgKey = r2KeyFromUrl(bgUrl);
           // Serve via the same-origin /files proxy (the R2 public URL isn't exposed).
-          let imageUrl = bgKey ? `/files/${bgKey}` : bg.url;
+          let imageUrl = bgKey ? `/files/${bgKey}` : bgUrl;
           try {
             const comp = await composeInstagramImage({
-              backgroundUrl: bgKey ? `${appBase()}/files/${bgKey}` : bg.url,
+              backgroundUrl: bgKey ? `${appBase()}/files/${bgKey}` : bgUrl,
               headline: s.headline,
               subheadline: s.subheadline,
             });
