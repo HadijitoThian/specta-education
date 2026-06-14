@@ -1610,6 +1610,7 @@ export const brandKit = mysqlTable("brand_kit", {
   dontList: text("dontList"),
   contentAngles: text("contentAngles"),
   hashtags: text("hashtags"),
+  visualStyle: text("visualStyle"), // Art Director's learned design style (guides image gen)
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type BrandKit = typeof brandKit.$inferSelect;

@@ -15,6 +15,7 @@ type NavItem = { label: string; href: string; soon?: boolean };
 const NAV: NavItem[] = [
   { label: "Home", href: "/sosmed" },
   { label: "Brand Kit", href: "/sosmed/brand-kit" },
+  { label: "Art Director", href: "/sosmed/art-director" },
   { label: "Content Studio", href: "/sosmed/content" },
   { label: "Calendar", href: "/sosmed/calendar", soon: true },
 ];

@@ -26,6 +26,7 @@ const FIELDS: { key: string; label: string; type: "text" | "color" | "area"; hin
   { key: "dontList", label: "Don'ts", type: "area" },
   { key: "contentAngles", label: "Content angles (one per line)", type: "area" },
   { key: "hashtags", label: "Default hashtags", type: "area" },
+  { key: "visualStyle", label: "Visual style (set via Art Director)", type: "area", hint: "Guides AI image generation. Best edited from the Art Director chat." },
 ];
 
 export default function SosMedBrandKit() {

@@ -63,6 +63,7 @@ const StudentJourney = lazy(() => import("./pages/crm/StudentJourney"));
 const SosMedHome = lazy(() => import("./pages/sosmed/SosMedHome"));
 const SosMedBrandKit = lazy(() => import("./pages/sosmed/SosMedBrandKit"));
 const SosMedContent = lazy(() => import("./pages/sosmed/SosMedContent"));
+const SosMedArtDirector = lazy(() => import("./pages/sosmed/SosMedArtDirector"));
 const TeamChat = lazy(() => import("./pages/TeamChat"));
 const UniversityDatabase = lazy(() => import("./pages/UniversityDatabase"));
 const AIFollowUpAssistant = lazy(() => import("./pages/AIFollowUpAssistant"));
@@ -157,6 +158,7 @@ function Router() {
         <Route path={"/SosMed"} component={SosMedHome} />
         <Route path={"/sosmed/brand-kit"} component={SosMedBrandKit} />
         <Route path={"/sosmed/content"} component={SosMedContent} />
+        <Route path={"/sosmed/art-director"} component={SosMedArtDirector} />
         {/* Legacy dormant CRM pages — retained until later phases replace them. */}
         <Route path={"/crm/legacy"} component={CounselorCRM} />
         <Route path={"/crm/lead/:id"} component={StudentProfile360} />

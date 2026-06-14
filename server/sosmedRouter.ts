@@ -48,6 +48,35 @@ function defaultLayers(headline: string, subheadline: string, kit: any): Layer[]
   ];
 }
 
+/** Vision-analyze a reference image (via DeepInfra) into reusable style cues. */
+async function analyzeReferenceStyle(base64: string, mime: string): Promise<string> {
+  const key = process.env.DEEPINFRA_API_KEY;
+  if (!key) return "";
+  const model = process.env.DEEPINFRA_VISION_MODEL || "meta-llama/Llama-3.2-90B-Vision-Instruct";
+  try {
+    const res = await fetch("https://api.deepinfra.com/v1/openai/chat/completions", {
+      method: "POST",
+      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        model,
+        max_tokens: 400,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: "Describe the visual DESIGN STYLE of this social-media image so it can be replicated: colour palette, mood, lighting, composition/layout, photography vs illustration, and typography vibe. Give 4-6 concise lines of reusable style cues only." },
+            { type: "image_url", image_url: { url: `data:${mime};base64,${base64}` } },
+          ],
+        }],
+      }),
+    });
+    if (!res.ok) return "";
+    const j: any = await res.json().catch(() => ({}));
+    return j?.choices?.[0]?.message?.content || "";
+  } catch {
+    return "";
+  }
+}
+
 /** Generate just the background image (no baked text) via FLUX, served via /files. */
 async function renderBackground(prompt: string): Promise<{ url: string | null; error?: string }> {
   try {
@@ -150,6 +179,7 @@ export const sosmedRouter = router({
         dontList: z.string().max(4000).nullable().optional(),
         contentAngles: z.string().max(8000).nullable().optional(),
         hashtags: z.string().max(2000).nullable().optional(),
+        visualStyle: z.string().max(4000).nullable().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -165,6 +195,47 @@ export const sosmedRouter = router({
         await db.update(brandKit).set(patch).where(eq(brandKit.id, existing.id));
       }
       return { ok: true };
+    }),
+
+  /** Art Director chat — brief the designer, upload references, evolve the Visual Style. */
+  artDirectorChat: protectedProcedure
+    .input(z.object({
+      message: z.string().max(1000).optional(),
+      referenceBase64: z.string().optional(),
+      referenceMime: z.string().max(100).optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      assertSosmed(ctx.user);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const [kit] = await db.select().from(brandKit).limit(1);
+      let refAnalysis = "";
+      if (input.referenceBase64) refAnalysis = await analyzeReferenceStyle(input.referenceBase64, input.referenceMime || "image/png");
+      if (!input.message && !refAnalysis) {
+        return { reply: "Add a note or upload a reference image to get started.", visualStyle: kit?.visualStyle || "", referenceAnalyzed: false };
+      }
+      const system =
+        "You are the Art Director for SpecTa Education's social media (an Indonesian study-abroad consultancy). " +
+        "You maintain a concise VISUAL STYLE guide that the image generator follows. Given the current style, the user's " +
+        "instruction, and any reference-image analysis, update the guide. Return STRICT JSON: " +
+        '{ "reply": a friendly 1-2 sentence response to the user, ' +
+        '"visualStyle": the full updated visual-style guide — concise (4-8 lines) reusable cues only: colour palette, mood, ' +
+        "lighting, composition/layout, photography-vs-illustration, typography vibe. Keep it authentic and brand-appropriate. }";
+      const res = await invokeLLM({
+        model: "deepseek-v4-flash",
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: JSON.stringify({ currentVisualStyle: kit?.visualStyle || "", instruction: input.message || "", referenceAnalysis: refAnalysis }) },
+        ],
+      });
+      const content = res.choices?.[0]?.message?.content;
+      let parsed: any = {};
+      try { parsed = JSON.parse(typeof content === "string" ? content : "{}"); } catch { /* keep */ }
+      const visualStyle = typeof parsed.visualStyle === "string" ? parsed.visualStyle : (kit?.visualStyle || "");
+      if (kit) await db.update(brandKit).set({ visualStyle }).where(eq(brandKit.id, kit.id));
+      else await db.insert(brandKit).values({ visualStyle } as any);
+      return { reply: typeof parsed.reply === "string" ? parsed.reply : "Updated the visual style.", visualStyle, referenceAnalyzed: !!refAnalysis };
     }),
 
   /** Suggest post ideas from the Brand Kit (angles + offers). */
@@ -246,8 +317,9 @@ export const sosmedRouter = router({
       // Generate the background only; text + logo become editable layers the
       // team styles + exports in the studio. Best-effort (needs DEEPINFRA key).
       let imageError: string | null = null;
+      const styleSuffix = kit?.visualStyle ? ` Visual style: ${kit.visualStyle}` : "";
       for (const s of slides) {
-        const r = await renderBackground(s.imagePrompt);
+        const r = await renderBackground(s.imagePrompt + styleSuffix);
         s.backgroundUrl = r.url;
         s.imageUrl = r.url; // thumbnail = background
         s.layers = defaultLayers(s.headline, s.subheadline, kit);
@@ -362,7 +434,8 @@ export const sosmedRouter = router({
       if (input.prompt !== undefined) s.imagePrompt = input.prompt;
       if (input.headline !== undefined) s.headline = input.headline;
       if (input.subheadline !== undefined) s.subheadline = input.subheadline;
-      const r = await renderBackground(s.imagePrompt);
+      const [kitR] = await db.select({ visualStyle: brandKit.visualStyle }).from(brandKit).limit(1);
+      const r = await renderBackground(s.imagePrompt + (kitR?.visualStyle ? ` Visual style: ${kitR.visualStyle}` : ""));
       s.backgroundUrl = r.url;
       s.imageUrl = r.url;
       await db.update(sosmedContent).set({ slides: JSON.stringify(slides) }).where(eq(sosmedContent.id, input.id));
