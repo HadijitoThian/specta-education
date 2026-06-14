@@ -2,12 +2,15 @@
  * Content Studio (Phase 2). Brief → AI generates an on-brand caption + hashtags
  * + branded slide image(s). Drafts grid + detail view. (Editing comes in Phase 3.)
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { SosMedShell, sosmedInput } from "./SosMedShell";
 
 const PINK = "#E91E8C";
 const CORAL = "#FF6B4A";
+const FONTS = ["Poppins", "Montserrat", "Oswald", "Playfair Display", "Lora", "Inter", "Bebas Neue", "Anton"];
+const PREVIEW = 380; // px; canvas exports at 1080
+const SCALE = PREVIEW / 1080;
 
 export default function SosMedContent() {
   const utils = trpc.useUtils();
@@ -98,7 +101,47 @@ export default function SosMedContent() {
   );
 }
 
-type EditSlide = { headline: string; subheadline: string; imagePrompt: string; imageUrl?: string | null };
+type Layer = {
+  id: string; kind: "text" | "logo"; role?: string; text?: string;
+  x: number; y: number; width?: number;
+  fontFamily?: string; fontSize?: number; color?: string; weight?: number;
+  align?: "left" | "center" | "right"; logoVariant?: "color" | "white"; logoWidth?: number;
+};
+type EditSlide = { headline: string; subheadline: string; imagePrompt: string; imageUrl?: string | null; backgroundUrl?: string | null; layers?: Layer[] };
+
+function loadImg(src: string): Promise<HTMLImageElement> {
+  return new Promise((res, rej) => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => res(i); i.onerror = rej; i.src = src; });
+}
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
+  const words = String(text).split(/\s+/); const lines: string[] = []; let line = "";
+  for (const w of words) { const t = line ? `${line} ${w}` : w; if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t; }
+  if (line) lines.push(line); return lines;
+}
+async function exportSlideToPng(slide: EditSlide, kit: any, filename: string) {
+  const C = 1080; const cv = document.createElement("canvas"); cv.width = C; cv.height = C;
+  const ctx = cv.getContext("2d")!;
+  const bgSrc = slide.backgroundUrl || slide.imageUrl;
+  if (bgSrc) {
+    try { const bg = await loadImg(bgSrc); const r = Math.max(C / bg.width, C / bg.height); const w = bg.width * r, h = bg.height * r; ctx.drawImage(bg, (C - w) / 2, (C - h) / 2, w, h); }
+    catch { ctx.fillStyle = "#222"; ctx.fillRect(0, 0, C, C); }
+  } else { ctx.fillStyle = "#222"; ctx.fillRect(0, 0, C, C); }
+  try { await (document as any).fonts?.ready; } catch { /* ignore */ }
+  for (const L of slide.layers || []) {
+    if (L.kind === "logo") {
+      const url = L.logoVariant === "white" ? kit?.logoWhiteUrl : kit?.logoUrl;
+      if (url) { try { const lg = await loadImg(url); const lw = L.logoWidth || 230; const lh = lg.height * (lw / lg.width); ctx.drawImage(lg, L.x * C, L.y * C, lw, lh); } catch { /* skip */ } }
+    } else if (L.kind === "text" && L.text) {
+      const size = L.fontSize || 48; ctx.font = `${L.weight || 700} ${size}px "${L.fontFamily || "Poppins"}"`;
+      ctx.fillStyle = L.color || "#fff"; ctx.textAlign = (L.align || "left") as CanvasTextAlign; ctx.textBaseline = "top";
+      ctx.shadowColor = "rgba(0,0,0,0.45)"; ctx.shadowBlur = size * 0.16; ctx.shadowOffsetY = 2;
+      const maxW = (L.width || 0.8) * C; const lines = wrapText(ctx, L.text, maxW); const lh = size * 1.16;
+      const tx = L.align === "center" ? L.x * C + maxW / 2 : L.align === "right" ? L.x * C + maxW : L.x * C;
+      lines.forEach((ln, i) => ctx.fillText(ln, tx, L.y * C + i * lh));
+      ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    }
+  }
+  await new Promise<void>(res => cv.toBlob(b => { if (b) { const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = filename; a.click(); URL.revokeObjectURL(u); } res(); }, "image/png"));
+}
 
 function DraftDetail({ id, onClose, onDeleted }: { id: number; onClose: () => void; onDeleted: () => void }) {
   const utils = trpc.useUtils();
@@ -129,20 +172,51 @@ function DraftDetail({ id, onClose, onDeleted }: { id: number; onClose: () => vo
   const regen = trpc.sosmed.regenerateImage.useMutation();
   const chatEdit = trpc.sosmed.chatEditContent.useMutation();
 
-  const setSlide = (i: number, k: keyof EditSlide, v: string) => setSlides(s => s.map((sl, j) => (j === i ? { ...sl, [k]: v } : sl)));
   const copy = (text: string, what: string) => { navigator.clipboard.writeText(text); setCopied(what); setTimeout(() => setCopied(null), 1500); };
+
+  const kitQ = trpc.sosmed.getBrandKit.useQuery(undefined, { retry: false });
+  const kit = kitQ.data;
+  const swatches = [kit?.primaryColor, kit?.secondaryColor, kit?.accentColor, "#ffffff", "#000000"].filter(Boolean) as string[];
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [selId, setSelId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const dragRef = useRef<{ id: string; ox: number; oy: number } | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+
+  const active: EditSlide | undefined = slides[activeIdx];
+  const updateLayers = (fn: (ls: Layer[]) => Layer[]) =>
+    setSlides(s => s.map((sl, j) => (j === activeIdx ? { ...sl, layers: fn(sl.layers || []) } : sl)));
+  const patchLayer = (lyrId: string, patch: Partial<Layer>) => updateLayers(ls => ls.map(l => (l.id === lyrId ? { ...l, ...patch } : l)));
+  const addTextLayer = () => { const nid = `t${Date.now()}`; updateLayers(ls => [...ls, { id: nid, kind: "text", text: "New text", x: 0.1, y: 0.1, width: 0.8, fontFamily: kit?.fontHeading || "Poppins", fontSize: 48, color: "#ffffff", weight: 700, align: "left" }]); setSelId(nid); };
+  const selLayer = (active?.layers || []).find(l => l.id === selId) || null;
+
+  const startDrag = (e: React.PointerEvent, l: Layer) => {
+    e.stopPropagation(); setSelId(l.id);
+    if (!stageRef.current) return;
+    const r = stageRef.current.getBoundingClientRect();
+    dragRef.current = { id: l.id, ox: (e.clientX - r.left) / r.width - l.x, oy: (e.clientY - r.top) / r.height - l.y };
+  };
+  const onStageMove = (e: React.PointerEvent) => {
+    if (!dragRef.current || !stageRef.current) return;
+    const r = stageRef.current.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width - dragRef.current.ox;
+    const y = (e.clientY - r.top) / r.height - dragRef.current.oy;
+    patchLayer(dragRef.current.id, { x: Math.max(0, Math.min(0.98, x)), y: Math.max(0, Math.min(0.98, y)) });
+  };
 
   const doSave = () => { setMsg(null); save.mutate({ id, caption, hashtags, slides }); };
 
   const doRegen = async (i: number) => {
     setRegenIdx(i); setMsg(null);
     try {
-      const r = await regen.mutateAsync({ id, slideIndex: i, prompt: slides[i].imagePrompt, headline: slides[i].headline, subheadline: slides[i].subheadline });
-      setSlides(s => s.map((sl, j) => (j === i ? { ...sl, imageUrl: r.imageUrl } : sl)));
+      const r = await regen.mutateAsync({ id, slideIndex: i, prompt: slides[i].imagePrompt });
+      setSlides(s => s.map((sl, j) => (j === i ? { ...sl, imageUrl: r.imageUrl, backgroundUrl: r.imageUrl } : sl)));
       if (r.error) setMsg(`Slide ${i + 1}: ${r.error}`);
       refreshList();
     } catch (e: any) { setMsg(e.message); } finally { setRegenIdx(null); }
   };
+
+  const doExport = async () => { if (!active) return; setExporting(true); try { await exportSlideToPng(active, kit, `specta-slide-${activeIdx + 1}.png`); } catch (e: any) { setMsg(e.message); } finally { setExporting(false); } };
 
   const sendChat = async () => {
     const text = chatInput.trim();
@@ -171,33 +245,104 @@ function DraftDetail({ id, onClose, onDeleted }: { id: number; onClose: () => vo
         {msg && <div className="mt-2 text-sm text-pink-700">{msg}</div>}
 
         {q.isLoading ? <div className="text-slate-400 mt-4">Loading…</div> : !q.data ? <div className="text-slate-500 mt-4">Not found.</div> : (
-          <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left: slides + copy editor */}
-            <div className="lg:col-span-2 space-y-5">
-              <div className="flex gap-4 overflow-auto pb-2">
-                {slides.map((s, i) => (
-                  <div key={i} className="shrink-0 w-52">
-                    <div className="aspect-square bg-slate-100 rounded-lg overflow-hidden flex items-center justify-center relative">
-                      {s.imageUrl ? <img src={s.imageUrl} alt="" className="w-full h-full object-cover" /> : <span className="text-slate-300 text-xs px-2 text-center">no image</span>}
-                      {regenIdx === i && <div className="absolute inset-0 bg-white/70 flex items-center justify-center text-xs text-slate-600">Regenerating…</div>}
+          <div className="mt-4 grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
+            {/* Left: canvas preview + slide tabs + export */}
+            <div>
+              {slides.length > 1 && (
+                <div className="flex gap-1 mb-2">
+                  {slides.map((_, i) => (
+                    <button key={i} onClick={() => { setActiveIdx(i); setSelId(null); }} className={`text-xs px-2 py-1 rounded ${i === activeIdx ? "text-white" : "bg-slate-100 text-slate-500"}`} style={i === activeIdx ? { background: PINK } : undefined}>Slide {i + 1}</button>
+                  ))}
+                </div>
+              )}
+              <div
+                ref={stageRef}
+                onPointerMove={onStageMove}
+                onPointerUp={() => (dragRef.current = null)}
+                onPointerLeave={() => (dragRef.current = null)}
+                onClick={() => setSelId(null)}
+                className="relative bg-slate-200 rounded-lg overflow-hidden select-none"
+                style={{ width: PREVIEW, height: PREVIEW }}
+              >
+                {(active?.backgroundUrl || active?.imageUrl) && <img src={(active.backgroundUrl || active.imageUrl) as string} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />}
+                {regenIdx === activeIdx && <div className="absolute inset-0 bg-white/70 flex items-center justify-center text-sm text-slate-600 z-20">Regenerating…</div>}
+                {(active?.layers || []).map(l => {
+                  const sel = l.id === selId;
+                  if (l.kind === "logo") {
+                    const url = l.logoVariant === "white" ? kit?.logoWhiteUrl : kit?.logoUrl;
+                    return (
+                      <img key={l.id} src={url || ""} alt="logo" onPointerDown={e => startDrag(e, l)}
+                        className={`absolute object-contain cursor-move ${sel ? "ring-2 ring-pink-500" : ""}`}
+                        style={{ left: l.x * PREVIEW, top: l.y * PREVIEW, width: (l.logoWidth || 230) * SCALE }} draggable={false} />
+                    );
+                  }
+                  return (
+                    <div key={l.id} onPointerDown={e => startDrag(e, l)}
+                      className={`absolute cursor-move ${sel ? "ring-2 ring-pink-500" : ""}`}
+                      style={{
+                        left: l.x * PREVIEW, top: l.y * PREVIEW, width: (l.width || 0.8) * PREVIEW,
+                        fontFamily: `"${l.fontFamily || "Poppins"}"`, fontSize: (l.fontSize || 48) * SCALE,
+                        color: l.color || "#fff", fontWeight: l.weight || 700, textAlign: l.align || "left",
+                        lineHeight: 1.16, textShadow: "0 2px 8px rgba(0,0,0,0.45)", whiteSpace: "pre-wrap", wordBreak: "break-word",
+                      }}>
+                      {l.text}
                     </div>
-                    <input value={s.headline} onChange={e => setSlide(i, "headline", e.target.value)} className={`${sosmedInput} mt-2`} placeholder="Headline" />
-                    <input value={s.subheadline} onChange={e => setSlide(i, "subheadline", e.target.value)} className={`${sosmedInput} mt-1`} placeholder="Subheadline" />
-                    <textarea value={s.imagePrompt} onChange={e => setSlide(i, "imagePrompt", e.target.value)} rows={2} className={`${sosmedInput} mt-1 text-xs`} placeholder="Image prompt" />
-                    <div className="flex items-center justify-between mt-1">
-                      <button onClick={() => doRegen(i)} disabled={regenIdx !== null} className="text-xs text-purple-700 hover:underline disabled:opacity-50">↻ Regenerate</button>
-                      {s.imageUrl && <a href={s.imageUrl} download={`specta-slide-${i + 1}.png`} className="text-xs text-pink-600 hover:underline">⬇ Download</a>}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <button onClick={addTextLayer} className="text-xs px-2 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-50">+ Text</button>
+                <button onClick={() => doRegen(activeIdx)} disabled={regenIdx !== null} className="text-xs px-2 py-1 rounded border border-purple-300 text-purple-700 hover:bg-purple-50 disabled:opacity-50">↻ Regenerate image</button>
+                <button onClick={doExport} disabled={exporting} className="text-xs px-2 py-1 rounded text-white disabled:opacity-50" style={{ background: PINK }}>{exporting ? "Exporting…" : "⬇ Download PNG"}</button>
               </div>
 
+              {/* Layer toolbar */}
+              {selLayer && selLayer.kind === "text" && (
+                <div className="mt-3 border border-slate-200 rounded-lg p-3 space-y-2 text-sm">
+                  <textarea value={selLayer.text || ""} onChange={e => patchLayer(selLayer.id, { text: e.target.value })} rows={2} className={sosmedInput} />
+                  <div className="flex gap-2">
+                    <select value={selLayer.fontFamily} onChange={e => patchLayer(selLayer.id, { fontFamily: e.target.value })} className={`${sosmedInput} text-xs`}>
+                      {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
+                    </select>
+                    <input type="number" value={selLayer.fontSize} onChange={e => patchLayer(selLayer.id, { fontSize: Number(e.target.value) })} className={`${sosmedInput} w-20 text-xs`} title="Font size" />
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input type="color" value={selLayer.color || "#ffffff"} onChange={e => patchLayer(selLayer.id, { color: e.target.value })} className="h-8 w-10 rounded border" />
+                    {swatches.map(c => <button key={c} onClick={() => patchLayer(selLayer.id, { color: c })} className="w-6 h-6 rounded-full border border-slate-200" style={{ background: c }} title={c} />)}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {(["left", "center", "right"] as const).map(a => (
+                      <button key={a} onClick={() => patchLayer(selLayer.id, { align: a })} className={`text-xs px-2 py-1 rounded border ${selLayer.align === a ? "border-pink-400 text-pink-700" : "border-slate-300 text-slate-500"}`}>{a}</button>
+                    ))}
+                    {[400, 600, 700, 800].map(w => (
+                      <button key={w} onClick={() => patchLayer(selLayer.id, { weight: w })} className={`text-xs px-2 py-1 rounded border ${selLayer.weight === w ? "border-pink-400 text-pink-700" : "border-slate-300 text-slate-500"}`}>{w}</button>
+                    ))}
+                    <button onClick={() => { updateLayers(ls => ls.filter(x => x.id !== selLayer.id)); setSelId(null); }} className="text-xs text-red-500 hover:underline ml-auto">Delete</button>
+                  </div>
+                </div>
+              )}
+              {selLayer && selLayer.kind === "logo" && (
+                <div className="mt-3 border border-slate-200 rounded-lg p-3 space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500">Logo:</span>
+                    {(["color", "white"] as const).map(v => (
+                      <button key={v} onClick={() => patchLayer(selLayer.id, { logoVariant: v })} className={`text-xs px-2 py-1 rounded border ${selLayer.logoVariant === v ? "border-pink-400 text-pink-700" : "border-slate-300 text-slate-500"}`}>{v}</button>
+                    ))}
+                    <input type="number" value={selLayer.logoWidth || 230} onChange={e => patchLayer(selLayer.id, { logoWidth: Number(e.target.value) })} className={`${sosmedInput} w-20 text-xs`} title="Logo width" />
+                  </div>
+                </div>
+              )}
+              <div className="text-[11px] text-slate-400 mt-2">Click a layer to edit; drag to move. The PNG exports at 1080×1080.</div>
+            </div>
+
+            {/* Right: copy + chat */}
+            <div className="space-y-4">
               <div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Caption</span>
                   <button onClick={() => copy(caption, "cap")} className="text-xs text-pink-600 hover:underline">{copied === "cap" ? "Copied ✓" : "Copy"}</button>
                 </div>
-                <textarea value={caption} onChange={e => setCaption(e.target.value)} rows={6} className={`${sosmedInput} mt-1`} />
+                <textarea value={caption} onChange={e => setCaption(e.target.value)} rows={5} className={`${sosmedInput} mt-1`} />
               </div>
               <div>
                 <div className="flex items-center justify-between">
@@ -212,25 +357,24 @@ function DraftDetail({ id, onClose, onDeleted }: { id: number; onClose: () => vo
                 <button onClick={() => approve.mutate({ id, status: "approved" })} disabled={approve.isPending} className="px-4 py-2 rounded-lg text-sm font-medium border border-emerald-300 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">Approve</button>
                 <button onClick={() => { if (confirm("Delete this draft?")) del.mutate({ id }); }} className="text-sm text-red-500 hover:underline ml-auto">Delete</button>
               </div>
-            </div>
 
-            {/* Right: agent chat */}
-            <div className="border border-slate-200 rounded-xl p-3 flex flex-col h-[28rem]">
-              <div className="text-sm font-semibold text-slate-800 mb-2">Ask the agent</div>
-              <div className="flex-1 overflow-auto space-y-2 text-sm">
-                {chat.length === 0 && <div className="text-xs text-slate-400">e.g. "make the caption shorter", "more playful tone", "add a stronger CTA", "translate caption fully to Indonesian".</div>}
-                {chat.map((m, i) => (
-                  <div key={i} className={`flex ${m.role === "you" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[85%] rounded-2xl px-3 py-1.5 ${m.role === "you" ? "text-white" : "bg-slate-100 text-slate-700"}`} style={m.role === "you" ? { background: CORAL } : undefined}>{m.text}</div>
-                  </div>
-                ))}
-                {chatEdit.isPending && <div className="text-xs text-slate-400">thinking…</div>}
+              {/* Agent chat */}
+              <div className="border border-slate-200 rounded-xl p-3 flex flex-col h-72">
+                <div className="text-sm font-semibold text-slate-800 mb-2">Ask the agent (copy)</div>
+                <div className="flex-1 overflow-auto space-y-2 text-sm">
+                  {chat.length === 0 && <div className="text-xs text-slate-400">e.g. "shorter caption", "more playful", "stronger CTA", "fully Indonesian".</div>}
+                  {chat.map((m, i) => (
+                    <div key={i} className={`flex ${m.role === "you" ? "justify-end" : "justify-start"}`}>
+                      <div className={`max-w-[85%] rounded-2xl px-3 py-1.5 ${m.role === "you" ? "text-white" : "bg-slate-100 text-slate-700"}`} style={m.role === "you" ? { background: CORAL } : undefined}>{m.text}</div>
+                    </div>
+                  ))}
+                  {chatEdit.isPending && <div className="text-xs text-slate-400">thinking…</div>}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") sendChat(); }} placeholder="Tell the agent what to change…" className={sosmedInput} />
+                  <button onClick={sendChat} disabled={chatEdit.isPending || !chatInput.trim()} className="px-3 py-2 rounded-lg text-white text-sm shrink-0 disabled:opacity-50" style={{ background: PINK }}>Send</button>
+                </div>
               </div>
-              <div className="flex gap-2 mt-2">
-                <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") sendChat(); }} placeholder="Tell the agent what to change…" className={sosmedInput} />
-                <button onClick={sendChat} disabled={chatEdit.isPending || !chatInput.trim()} className="px-3 py-2 rounded-lg text-white text-sm shrink-0 disabled:opacity-50" style={{ background: PINK }}>Send</button>
-              </div>
-              <div className="text-[11px] text-slate-400 mt-1">Chat edits the copy. Use ↻ Regenerate for images.</div>
             </div>
           </div>
         )}

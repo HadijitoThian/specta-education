@@ -18,11 +18,45 @@ import { composeInstagramImage } from "./imageCompositor";
 import { storagePut } from "./storage";
 import { ENV } from "./_core/env";
 
-type Slide = { headline: string; subheadline: string; imagePrompt: string; imageUrl?: string | null };
+type Layer = {
+  id: string;
+  kind: "text" | "logo";
+  role?: string;
+  text?: string;
+  x: number; y: number; width?: number;
+  fontFamily?: string; fontSize?: number; color?: string; weight?: number;
+  align?: "left" | "center" | "right";
+  logoVariant?: "color" | "white"; logoWidth?: number;
+};
+type Slide = { headline: string; subheadline: string; imagePrompt: string; imageUrl?: string | null; backgroundUrl?: string | null; layers?: Layer[] };
 
 function parseSlides(raw: string | null): Slide[] {
   if (!raw) return [];
   try { const v = JSON.parse(raw); return Array.isArray(v) ? v : []; } catch { return []; }
+}
+
+let _lid = 0;
+const lid = () => `l${Date.now().toString(36)}${(_lid++).toString(36)}`;
+
+/** Default editable layers for a freshly generated slide (logo + headline + subheadline). */
+function defaultLayers(headline: string, subheadline: string, kit: any): Layer[] {
+  const font = kit?.fontHeading || "Poppins";
+  return [
+    { id: lid(), kind: "logo", role: "logo", x: 0.045, y: 0.045, logoVariant: "color", logoWidth: 230 },
+    { id: lid(), kind: "text", role: "headline", text: headline || "Headline", x: 0.06, y: 0.70, width: 0.88, fontFamily: font, fontSize: 70, color: "#ffffff", weight: 800, align: "left" },
+    { id: lid(), kind: "text", role: "subheadline", text: subheadline || "", x: 0.06, y: 0.855, width: 0.88, fontFamily: kit?.fontBody || font, fontSize: 32, color: "#ffffff", weight: 500, align: "left" },
+  ];
+}
+
+/** Generate just the background image (no baked text) via FLUX, served via /files. */
+async function renderBackground(prompt: string): Promise<{ url: string | null; error?: string }> {
+  try {
+    const bg = await generateImage({ prompt, width: 1024, height: 1024 });
+    const key = r2KeyFromUrl(bg.url || "");
+    return { url: key ? `/files/${key}` : bg.url || null };
+  } catch (e: any) {
+    return { url: null, error: e?.message || "image generation failed" };
+  }
 }
 
 /** R2 object key from a storagePut URL (the part after the host). */
@@ -209,11 +243,14 @@ export const sosmedRouter = router({
         imageUrl: null,
       }));
 
-      // Best-effort branded images (works once DEEPINFRA_API_KEY is set).
+      // Generate the background only; text + logo become editable layers the
+      // team styles + exports in the studio. Best-effort (needs DEEPINFRA key).
       let imageError: string | null = null;
       for (const s of slides) {
-        const r = await renderSlideImage(s.imagePrompt, s.headline, s.subheadline, kit);
-        s.imageUrl = r.url;
+        const r = await renderBackground(s.imagePrompt);
+        s.backgroundUrl = r.url;
+        s.imageUrl = r.url; // thumbnail = background
+        s.layers = defaultLayers(s.headline, s.subheadline, kit);
         if (r.error && !imageError) imageError = r.error;
       }
 
@@ -278,6 +315,8 @@ export const sosmedRouter = router({
         subheadline: z.string().max(200),
         imagePrompt: z.string().max(800),
         imageUrl: z.string().nullable().optional(),
+        backgroundUrl: z.string().nullable().optional(),
+        layers: z.array(z.any()).optional(),
       })).optional(),
     }))
     .mutation(async ({ input, ctx }) => {
@@ -323,11 +362,11 @@ export const sosmedRouter = router({
       if (input.prompt !== undefined) s.imagePrompt = input.prompt;
       if (input.headline !== undefined) s.headline = input.headline;
       if (input.subheadline !== undefined) s.subheadline = input.subheadline;
-      const [kit] = await db.select().from(brandKit).limit(1);
-      const r = await renderSlideImage(s.imagePrompt, s.headline, s.subheadline, kit);
+      const r = await renderBackground(s.imagePrompt);
+      s.backgroundUrl = r.url;
       s.imageUrl = r.url;
       await db.update(sosmedContent).set({ slides: JSON.stringify(slides) }).where(eq(sosmedContent.id, input.id));
-      return { imageUrl: r.url, error: r.error ?? null };
+      return { imageUrl: r.url, backgroundUrl: r.url, error: r.error ?? null };
     }),
 
   /** Brief the agent in chat — it edits the copy (caption/hashtags/slide text). */
@@ -375,6 +414,15 @@ export const sosmedRouter = router({
             if (typeof ps?.subheadline === "string") slides[i].subheadline = ps.subheadline;
           }
         });
+      }
+      // Keep the on-image text layers in sync with the edited copy.
+      for (const s of slides) {
+        if (Array.isArray(s.layers)) {
+          for (const L of s.layers) {
+            if (L.role === "headline") L.text = s.headline;
+            else if (L.role === "subheadline") L.text = s.subheadline;
+          }
+        }
       }
       await db.update(sosmedContent).set({ caption: newCaption, hashtags: newHashtags, slides: JSON.stringify(slides) }).where(eq(sosmedContent.id, input.id));
       return { reply: typeof parsed.reply === "string" ? parsed.reply : "Updated.", caption: newCaption, hashtags: newHashtags, slides };
