@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { fireConversion } from "@/lib/googleAds";
 
 export default function IeltsMockSuccess() {
   const params = new URLSearchParams(window.location.search);
   const token = params.get("attempt") ?? "";
 
   const [pollCount, setPollCount] = useState(0);
+  const firedRef = useRef(false);
 
   const attemptQuery = trpc.ielts.getAttempt.useQuery(
     { token },
@@ -23,6 +25,16 @@ export default function IeltsMockSuccess() {
   useEffect(() => {
     if (attemptQuery.isFetched) setPollCount(n => n + 1);
   }, [attemptQuery.isFetched]);
+
+  // Fire a Google Ads "purchase" conversion once payment is confirmed
+  // (dormant unless VITE_GOOGLE_ADS_ID + PURCHASE_LABEL are set).
+  useEffect(() => {
+    const status = attemptQuery.data?.attempt?.status;
+    if (status && status !== "awaiting_payment" && !firedRef.current) {
+      firedRef.current = true;
+      fireConversion("purchase", { value: 79000, currency: "IDR", transactionId: token });
+    }
+  }, [attemptQuery.data?.attempt?.status, token]);
 
   if (!token) {
     return (

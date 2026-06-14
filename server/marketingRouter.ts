@@ -24,6 +24,7 @@ import {
   createAdCampaign,
   updateAdCampaign,
   deleteAdCampaign,
+  replaceMonthlySpend,
 } from "./db";
 import { generateCampaign, campaignToCsv, type GeneratedCampaign } from "./adsCopilot";
 import { generatePerformanceDigest, runGeoMonitor, analyzeContentGaps } from "./growthInsights";
@@ -180,6 +181,40 @@ export const marketingRouter = router({
       requireAdmin(ctx);
       await deleteMarketingSpend(input.id);
       return { success: true };
+    }),
+
+  /**
+   * Import a Google Ads performance export (parsed client-side into rows).
+   * Replaces all google spend for the month so re-imports don't duplicate.
+   * Campaign names are slugified to match the utm_campaign on the ad URLs.
+   */
+  importGoogleAdsSpend: protectedProcedure
+    .input(z.object({
+      month: z.string().regex(/^\d{4}-\d{2}$/),
+      currency: z.string().max(8).optional(),
+      rows: z.array(z.object({
+        campaign: z.string().max(160).optional(),
+        amount: z.number().nonnegative(),
+        clicks: z.number().int().nonnegative().optional(),
+        impressions: z.number().int().nonnegative().optional(),
+      })).min(1),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      const slug = (s?: string) => (s || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const rows = input.rows.map(r => ({
+        source: "google",
+        medium: "cpc",
+        campaign: r.campaign ? slug(r.campaign) || null : null,
+        periodMonth: input.month,
+        amount: String(r.amount) as any,
+        currency: input.currency || "IDR",
+        clicks: r.clicks ?? null,
+        impressions: r.impressions ?? null,
+        notes: "Imported from Google Ads",
+      }));
+      const count = await replaceMonthlySpend("google", input.month, rows as any);
+      return { count };
     }),
 
   // ── AI Google Ads Co-pilot (Phase B) ─────────────────────────────────────────

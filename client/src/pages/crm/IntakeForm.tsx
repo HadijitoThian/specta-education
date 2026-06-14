@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { useRoute } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { fireConversion } from "@/lib/googleAds";
 
 const PINK = "#E91E8C";
 const PURPLE = "#9C27B0";
@@ -48,6 +49,8 @@ export default function IntakeForm() {
         intakeDate: f.intakeDate || undefined,
       });
       setDone({ counselorName: res.counselorName, duplicate: res.duplicate, journeyToken: res.journeyToken });
+      // Google Ads "lead" conversion for a genuinely new student (dormant unless env set).
+      if (!res.duplicate) fireConversion("lead");
     } catch (e: any) {
       setErr(e?.message || "Something went wrong. Please try again.");
     }

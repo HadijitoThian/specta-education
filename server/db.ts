@@ -476,6 +476,15 @@ export async function deleteMarketingSpend(id: number): Promise<void> {
   await db.delete(marketingSpend).where(eq(marketingSpend.id, id));
 }
 
+/** Replace all spend rows for a given source+month (used by the Google Ads import). */
+export async function replaceMonthlySpend(source: string, month: string, rows: InsertMarketingSpend[]): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  await db.delete(marketingSpend).where(and(eq(marketingSpend.source, source), eq(marketingSpend.periodMonth, month)));
+  if (rows.length) await db.insert(marketingSpend).values(rows);
+  return rows.length;
+}
+
 export async function createLead(data: InsertLead): Promise<Lead | null> {
   const db = await getDb();
   if (!db) return null;

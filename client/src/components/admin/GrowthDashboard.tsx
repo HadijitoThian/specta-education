@@ -29,6 +29,37 @@ const rp = (n: number | null | undefined) =>
   n == null ? "—" : "Rp " + Math.round(n).toLocaleString("id-ID");
 const pct = (n: number) => (n * 100).toFixed(1) + "%";
 
+interface ParsedSpendRow { campaign?: string; amount: number; clicks?: number; impressions?: number }
+
+/** Parse a pasted Google Ads report (CSV or tab-separated) into spend rows. */
+function parseGoogleAds(text: string): ParsedSpendRow[] {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (!lines.length) return [];
+  const delim = lines.some(l => l.includes("\t")) ? "\t" : ",";
+  const split = (l: string) => l.split(delim).map(c => c.trim().replace(/^"|"$/g, ""));
+  let headerIdx = lines.findIndex(l => /campaign/i.test(l) && /(cost|spend|clicks|impr)/i.test(l));
+  if (headerIdx < 0) headerIdx = 0;
+  const header = split(lines[headerIdx]).map(h => h.toLowerCase());
+  const col = (...names: string[]) => header.findIndex(h => names.some(n => h.includes(n)));
+  const ci = { campaign: col("campaign"), cost: col("cost", "spend"), clicks: col("click"), impr: col("impr") };
+  const num = (s?: string) => { const d = (s || "").replace(/[^0-9]/g, ""); return d ? parseInt(d, 10) : 0; };
+  const out: ParsedSpendRow[] = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const cells = split(lines[i]);
+    const campRaw = ci.campaign >= 0 ? cells[ci.campaign] : "";
+    if (/^total|^---/i.test(campRaw || "")) continue;
+    const amount = ci.cost >= 0 ? num(cells[ci.cost]) : 0;
+    if (!amount && !campRaw) continue;
+    out.push({
+      campaign: campRaw || undefined,
+      amount,
+      clicks: ci.clicks >= 0 ? (num(cells[ci.clicks]) || undefined) : undefined,
+      impressions: ci.impr >= 0 ? (num(cells[ci.impr]) || undefined) : undefined,
+    });
+  }
+  return out.filter(r => r.amount > 0 || r.campaign);
+}
+
 export default function GrowthDashboard() {
   const months = useMemo(monthOptions, []);
   const thisMonth = months[1]?.value || "";
@@ -58,6 +89,19 @@ export default function GrowthDashboard() {
     onSuccess: () => { toast.success("Spend removed"); invalidate(); },
     onError: (e) => toast.error(e.message),
   });
+
+  // Google Ads import
+  const [importText, setImportText] = useState("");
+  const parsedImport = useMemo(() => parseGoogleAds(importText), [importText]);
+  const importGoogle = trpc.marketing.importGoogleAdsSpend.useMutation({
+    onSuccess: (r) => { toast.success(`Imported ${r.count} campaign(s) from Google Ads`); invalidate(); setImportText(""); },
+    onError: (e) => toast.error(e.message),
+  });
+  const handleImport = () => {
+    if (!month) { toast.error("Pick a specific month first"); return; }
+    if (!parsedImport.length) { toast.error("Nothing to import — paste your Google Ads report"); return; }
+    importGoogle.mutate({ month, rows: parsedImport });
+  };
 
   const handleAdd = () => {
     const amt = parseFloat(amount);
@@ -196,6 +240,42 @@ export default function GrowthDashboard() {
           <p className="text-xs text-gray-400">
             Tip: tag your ad links with <code>utm_source</code>, <code>utm_campaign</code> (Google Ads adds <code>gclid</code> automatically). Match the <em>Source</em> / <em>Campaign</em> here to those tags so cost-per-enrollment lines up.
           </p>
+        </CardContent>
+      </Card>
+
+      {/* Import from Google Ads */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm flex items-center gap-2">
+            <DollarSign className="w-4 h-4 text-blue-600" /> Import from Google Ads {month ? `· ${months.find(m => m.value === month)?.label}` : "(pick a month first)"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-gray-500">
+            In Google Ads → <strong>Campaigns</strong>, select the month, then <strong>Download</strong> the report (CSV). Open it and paste the contents below — we read Campaign, Cost, Clicks &amp; Impressions automatically. Re-importing replaces this month's Google spend (no duplicates).
+          </p>
+          <textarea
+            value={importText}
+            onChange={e => setImportText(e.target.value)}
+            rows={6}
+            placeholder={"Paste your Google Ads report here (CSV or tab-separated).\nExample:\nCampaign, Cost, Clicks, Impr.\nielts-mock-test, 250000, 180, 9000"}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
+          />
+          {parsedImport.length > 0 && (
+            <div className="border rounded-lg divide-y text-sm">
+              <div className="px-3 py-1.5 bg-gray-50 text-xs font-medium text-gray-500">{parsedImport.length} campaign(s) detected — preview</div>
+              {parsedImport.slice(0, 10).map((r, i) => (
+                <div key={i} className="flex justify-between px-3 py-1.5">
+                  <span>{r.campaign || "(unnamed)"}</span>
+                  <span className="text-gray-500">{rp(r.amount)}{r.clicks ? ` · ${r.clicks} clicks` : ""}{r.impressions ? ` · ${r.impressions} impr` : ""}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <Button onClick={handleImport} disabled={importGoogle.isPending || !parsedImport.length} className="bg-blue-600 hover:bg-blue-700">
+            {importGoogle.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4 mr-1" /> Import {parsedImport.length || ""} campaign(s)</>}
+          </Button>
+          <p className="text-xs text-gray-400">Amounts are read as whole IDR. Campaign names are matched to your ad URLs' <code>utm_campaign</code> automatically.</p>
         </CardContent>
       </Card>
     </div>
