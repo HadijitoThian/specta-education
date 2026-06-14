@@ -5,6 +5,7 @@ import {
   conversations, InsertConversation, Conversation,
   messages, InsertMessage, Message,
   leads, InsertLead, Lead,
+  marketingSpend, InsertMarketingSpend, MarketingSpend,
   documents, InsertDocument, Document,
   applications, InsertApplication, Application,
   applicationNotes, InsertApplicationNote, ApplicationNote,
@@ -269,6 +270,110 @@ export async function getMessagesByConversationId(conversationId: number): Promi
 }
 
 // Lead functions
+// ── Marketing / Growth (Phase A) ─────────────────────────────────────────────
+/**
+ * Idempotent, additive schema guard run at startup. Ensures the attribution
+ * columns + marketing_spend table exist BEFORE any lead insert references them,
+ * so a code deploy can never outrun the migration and break lead capture.
+ */
+export async function ensureMarketingSchema(): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    const cols = await db.execute(sql`
+      SELECT COLUMN_NAME FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'leads'
+    `);
+    const rows: any[] = Array.isArray((cols as any)[0]) ? (cols as any)[0] : (cols as any);
+    const have = new Set((rows || []).map((r: any) => r.COLUMN_NAME));
+    const needed: Array<[string, string]> = [
+      ["utmSource", "VARCHAR(120) NULL"],
+      ["utmMedium", "VARCHAR(120) NULL"],
+      ["utmCampaign", "VARCHAR(160) NULL"],
+      ["utmTerm", "VARCHAR(160) NULL"],
+      ["utmContent", "VARCHAR(160) NULL"],
+      ["gclid", "VARCHAR(255) NULL"],
+      ["landingPage", "VARCHAR(512) NULL"],
+      ["attributionReferrer", "VARCHAR(512) NULL"],
+    ];
+    for (const [name, type] of needed) {
+      if (!have.has(name)) {
+        await db.execute(sql.raw(`ALTER TABLE leads ADD COLUMN \`${name}\` ${type}`));
+        console.log(`[Growth] added leads.${name}`);
+      }
+    }
+    await db.execute(sql.raw(`
+      CREATE TABLE IF NOT EXISTS marketing_spend (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        source VARCHAR(120) NOT NULL,
+        campaign VARCHAR(160) NULL,
+        medium VARCHAR(120) NULL,
+        periodMonth VARCHAR(7) NOT NULL,
+        amount DECIMAL(14,2) NOT NULL,
+        currency VARCHAR(8) NOT NULL DEFAULT 'IDR',
+        clicks INT NULL,
+        impressions INT NULL,
+        notes TEXT NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `));
+  } catch (e) {
+    console.error("[Growth] ensureMarketingSchema failed:", (e as Error).message);
+  }
+}
+
+
+/** Lead rows trimmed to the fields the attribution report needs. */
+export async function getLeadsForAttribution(opts: { month?: string } = {}): Promise<Array<{
+  id: number; createdAt: Date; source: string | null; status: string; pipelineStage: string;
+  utmSource: string | null; utmMedium: string | null; utmCampaign: string | null; gclid: string | null;
+}>> {
+  const db = await getDb();
+  if (!db) return [];
+  let q = db.select({
+    id: leads.id, createdAt: leads.createdAt, source: leads.source, status: leads.status,
+    pipelineStage: leads.pipelineStage, utmSource: leads.utmSource, utmMedium: leads.utmMedium,
+    utmCampaign: leads.utmCampaign, gclid: leads.gclid,
+  }).from(leads);
+  if (opts.month) {
+    // month = "YYYY-MM": filter createdAt within that calendar month.
+    const start = new Date(`${opts.month}-01T00:00:00Z`);
+    const end = new Date(start); end.setUTCMonth(end.getUTCMonth() + 1);
+    q = q.where(and(gte(leads.createdAt, start), lt(leads.createdAt, end))) as typeof q;
+  }
+  return q as any;
+}
+
+export async function listMarketingSpend(month?: string): Promise<MarketingSpend[]> {
+  const db = await getDb();
+  if (!db) return [];
+  let q = db.select().from(marketingSpend);
+  if (month) q = q.where(eq(marketingSpend.periodMonth, month)) as typeof q;
+  return (await q.orderBy(desc(marketingSpend.periodMonth))) as MarketingSpend[];
+}
+
+export async function createMarketingSpend(data: InsertMarketingSpend): Promise<MarketingSpend | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const r = await db.insert(marketingSpend).values(data);
+  const id = (r as any)[0].insertId;
+  const [row] = await db.select().from(marketingSpend).where(eq(marketingSpend.id, id)).limit(1);
+  return row || null;
+}
+
+export async function updateMarketingSpend(id: number, data: Partial<InsertMarketingSpend>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(marketingSpend).set(data).where(eq(marketingSpend.id, id));
+}
+
+export async function deleteMarketingSpend(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(marketingSpend).where(eq(marketingSpend.id, id));
+}
+
 export async function createLead(data: InsertLead): Promise<Lead | null> {
   const db = await getDb();
   if (!db) return null;

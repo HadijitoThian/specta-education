@@ -1,0 +1,176 @@
+/**
+ * Marketing / Growth router (Phase A) — mounted as `marketing`.
+ *
+ * Closes the loop between ad spend → leads → enrolled students:
+ *  - attributionReport: groups leads by channel + campaign, with funnel counts
+ *    (leads → consultations → enrolled) and, when spend is entered, cost-per-lead
+ *    and cost-per-enrollment.
+ *  - spend CRUD: manual monthly ad-spend entry (Google Ads API sync is later).
+ *
+ * Admin-only. All numbers are derived from first-touch attribution captured on
+ * the lead at creation (see server/attribution.ts).
+ */
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { router, protectedProcedure } from "./_core/trpc";
+import {
+  getLeadsForAttribution,
+  listMarketingSpend,
+  createMarketingSpend,
+  updateMarketingSpend,
+  deleteMarketingSpend,
+} from "./db";
+
+// Stages that count as "reached a consultation" (everything past new_lead, on-pipeline).
+const POST_CONSULT = new Set([
+  "consultation", "ielts_prep", "shortlist", "application", "offer", "visa", "pre_departure", "enrolled",
+]);
+
+function classify(l: { utmSource: string | null; gclid: string | null }): string {
+  if (l.utmSource) return l.utmSource.toLowerCase();
+  if (l.gclid) return "google";
+  return "organic/direct";
+}
+
+function requireAdmin(ctx: any) {
+  if (ctx.user?.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+}
+
+export const marketingRouter = router({
+  /** Conversion + ROI report grouped by channel/campaign. */
+  attributionReport: protectedProcedure
+    .input(z.object({ month: z.string().regex(/^\d{4}-\d{2}$/).optional() }).optional())
+    .query(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      const month = input?.month;
+      const [leads, spend] = await Promise.all([
+        getLeadsForAttribution({ month }),
+        listMarketingSpend(month),
+      ]);
+
+      type Row = {
+        channel: string; campaign: string;
+        leads: number; consultations: number; enrolled: number;
+        spend: number; clicks: number; impressions: number;
+      };
+      const groups = new Map<string, Row>();
+      const keyOf = (c: string, cam: string) => `${c}||${cam}`;
+      const ensure = (channel: string, campaign: string): Row => {
+        const k = keyOf(channel, campaign);
+        let g = groups.get(k);
+        if (!g) { g = { channel, campaign, leads: 0, consultations: 0, enrolled: 0, spend: 0, clicks: 0, impressions: 0 }; groups.set(k, g); }
+        return g;
+      };
+
+      for (const l of leads) {
+        const channel = classify(l);
+        const campaign = (l.utmCampaign || "(none)").toLowerCase();
+        const g = ensure(channel, campaign);
+        g.leads += 1;
+        if (POST_CONSULT.has(l.pipelineStage)) g.consultations += 1;
+        if (l.pipelineStage === "enrolled") g.enrolled += 1;
+      }
+
+      // Attach spend to its matching group (exact source+campaign, or source-level → "(none)").
+      for (const s of spend) {
+        const channel = s.source.toLowerCase();
+        const campaign = (s.campaign || "(none)").toLowerCase();
+        const g = ensure(channel, campaign);
+        g.spend += Number(s.amount || 0);
+        g.clicks += s.clicks || 0;
+        g.impressions += s.impressions || 0;
+      }
+
+      const rows = Array.from(groups.values()).map(g => ({
+        ...g,
+        convRate: g.leads ? g.enrolled / g.leads : 0,
+        cpl: g.leads && g.spend ? g.spend / g.leads : null,
+        cpa: g.enrolled && g.spend ? g.spend / g.enrolled : null,
+        ctr: g.impressions && g.clicks ? g.clicks / g.impressions : null,
+      })).sort((a, b) => b.spend - a.spend || b.leads - a.leads);
+
+      const totals = rows.reduce((t, r) => ({
+        leads: t.leads + r.leads, consultations: t.consultations + r.consultations,
+        enrolled: t.enrolled + r.enrolled, spend: t.spend + r.spend,
+        clicks: t.clicks + r.clicks, impressions: t.impressions + r.impressions,
+      }), { leads: 0, consultations: 0, enrolled: 0, spend: 0, clicks: 0, impressions: 0 });
+
+      return {
+        month: month || "all",
+        rows,
+        totals: {
+          ...totals,
+          convRate: totals.leads ? totals.enrolled / totals.leads : 0,
+          cpl: totals.leads && totals.spend ? totals.spend / totals.leads : null,
+          cpa: totals.enrolled && totals.spend ? totals.spend / totals.enrolled : null,
+        },
+      };
+    }),
+
+  // ── Ad-spend entry ─────────────────────────────────────────────────────────
+  listSpend: protectedProcedure
+    .input(z.object({ month: z.string().regex(/^\d{4}-\d{2}$/).optional() }).optional())
+    .query(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      return listMarketingSpend(input?.month);
+    }),
+
+  addSpend: protectedProcedure
+    .input(z.object({
+      source: z.string().min(1).max(120),
+      campaign: z.string().max(160).optional(),
+      medium: z.string().max(120).optional(),
+      periodMonth: z.string().regex(/^\d{4}-\d{2}$/),
+      amount: z.number().nonnegative(),
+      currency: z.string().max(8).optional(),
+      clicks: z.number().int().nonnegative().optional(),
+      impressions: z.number().int().nonnegative().optional(),
+      notes: z.string().max(2000).optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      return createMarketingSpend({
+        source: input.source.trim().toLowerCase(),
+        campaign: input.campaign?.trim() || null,
+        medium: input.medium?.trim() || null,
+        periodMonth: input.periodMonth,
+        amount: String(input.amount) as any,
+        currency: input.currency || "IDR",
+        clicks: input.clicks ?? null,
+        impressions: input.impressions ?? null,
+        notes: input.notes?.trim() || null,
+      });
+    }),
+
+  updateSpend: protectedProcedure
+    .input(z.object({
+      id: z.number(),
+      source: z.string().min(1).max(120).optional(),
+      campaign: z.string().max(160).nullable().optional(),
+      medium: z.string().max(120).nullable().optional(),
+      periodMonth: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+      amount: z.number().nonnegative().optional(),
+      currency: z.string().max(8).optional(),
+      clicks: z.number().int().nonnegative().nullable().optional(),
+      impressions: z.number().int().nonnegative().nullable().optional(),
+      notes: z.string().max(2000).nullable().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      const { id, amount, source, ...rest } = input;
+      await updateMarketingSpend(id, {
+        ...rest,
+        ...(source ? { source: source.trim().toLowerCase() } : {}),
+        ...(amount !== undefined ? { amount: String(amount) as any } : {}),
+      } as any);
+      return { success: true };
+    }),
+
+  deleteSpend: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      await deleteMarketingSpend(input.id);
+      return { success: true };
+    }),
+});

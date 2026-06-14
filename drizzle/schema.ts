@@ -136,11 +136,45 @@ export const leads = mysqlTable("leads", {
   source: varchar("source", { length: 50 }).default("chatbot"),
   isAnonymous: boolean("isAnonymous").default(false),
   isAssigned: int("isAssigned").default(0).notNull(), // 1 = already assigned to counselor, prevents re-processing
+  // --- Marketing attribution (Growth Phase A) ---
+  // First-touch campaign data, captured from a first-party cookie at lead
+  // creation. Lets us tie a paying student back to the ad/keyword that won them.
+  utmSource: varchar("utmSource", { length: 120 }),
+  utmMedium: varchar("utmMedium", { length: 120 }),
+  utmCampaign: varchar("utmCampaign", { length: 160 }),
+  utmTerm: varchar("utmTerm", { length: 160 }),
+  utmContent: varchar("utmContent", { length: 160 }),
+  gclid: varchar("gclid", { length: 255 }),      // Google Ads click id
+  landingPage: varchar("landingPage", { length: 512 }),
+  attributionReferrer: varchar("attributionReferrer", { length: 512 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
 export type Lead = typeof leads.$inferSelect;
+
+/**
+ * Marketing spend (Growth Phase A). Manually entered ad spend per
+ * campaign/source/month so the conversion dashboard can compute cost-per-lead
+ * and cost-per-enrollment. (Google Ads API auto-sync is a later phase.)
+ */
+export const marketingSpend = mysqlTable("marketing_spend", {
+  id: int("id").autoincrement().primaryKey(),
+  source: varchar("source", { length: 120 }).notNull(),   // e.g. "google", "instagram"
+  campaign: varchar("campaign", { length: 160 }),          // matches utmCampaign; null = source total
+  medium: varchar("medium", { length: 120 }),              // e.g. "cpc"
+  periodMonth: varchar("periodMonth", { length: 7 }).notNull(), // "YYYY-MM"
+  amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 8 }).default("IDR").notNull(),
+  clicks: int("clicks"),        // optional, for CTR/CPC if entered
+  impressions: int("impressions"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MarketingSpend = typeof marketingSpend.$inferSelect;
+export type InsertMarketingSpend = typeof marketingSpend.$inferInsert;
 export type InsertLead = typeof leads.$inferInsert;
 
 /**

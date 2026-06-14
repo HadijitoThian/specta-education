@@ -1,11 +1,12 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Route, Switch, Redirect } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { MascotAgentProvider } from "./contexts/MascotAgentContext";
 import { useVisitorTracking } from "./hooks/useVisitorTracking";
+import { captureAttribution } from "./lib/attribution";
 
 // ── Critical path: eagerly loaded (homepage + 404) ───────────────────────────
 // These are the only pages loaded on initial visit. Keep this list minimal.
@@ -98,6 +99,8 @@ function PageLoader() {
 function Router() {
   // Track real visitor behavior on every page
   useVisitorTracking();
+  // Lock in first-touch marketing attribution (UTM / gclid) on first landing.
+  useEffect(() => { captureAttribution(); }, []);
 
   return (
     <Suspense fallback={<PageLoader />}>

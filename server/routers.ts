@@ -229,10 +229,12 @@ import { crmStudentsRouter } from "./crmStudentsRouter";
 import { crmReportsRouter } from "./crmReportsRouter";
 import { crmCockpitRouter } from "./crmCockpitRouter";
 import { crmIntakeRouter } from "./crmIntakeRouter";
+import { marketingRouter } from "./marketingRouter";
 import { crmJourneyRouter } from "./crmJourneyRouter";
 import { sosmedRouter } from "./sosmedRouter";
 import { startCrmReportScheduler } from "./crmReportScheduler";
 import { startArticleProducerScheduler } from "./articleProducer";
+import { parseAttribution } from "./attribution";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail, sendParentProgressEmail } from "./email";
 import crypto from "crypto";
 import { createProTestInvoice, verifyWebhookToken, generateExternalId, getProTestPrice, getProTestDiscountPrice } from "./xenditService";
@@ -369,7 +371,7 @@ export const appRouter = router({
           content: z.string()
         }))
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { sessionId, message, conversationHistory, language } = input;
 
         let conversation = await getConversationBySessionId(sessionId);
@@ -435,7 +437,8 @@ export const appRouter = router({
                   studentPhone: contactInfo.phone,
                   preferredCountry: contactInfo.country || undefined,
                   studyLevel: contactInfo.studyLevel || undefined,
-                  status: "new"
+                  status: "new",
+                  ...parseAttribution(ctx),
                 });
 
                 if (lead) {
@@ -566,7 +569,7 @@ export const appRouter = router({
         phone: z.string().optional(),
         isAnonymous: z.boolean().optional()
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { sessionId, name, phone, isAnonymous } = input;
 
         // Get or create conversation
@@ -599,7 +602,8 @@ export const appRouter = router({
           studentPhone: phone || null,
           isAnonymous: isAnonymous || false,
           source: "chatbot",
-          status: "new"
+          status: "new",
+          ...parseAttribution(ctx),
         });
 
         // Send email notification (non-blocking)
@@ -7671,6 +7675,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
           studentPhone: input.phone,
           source: input.referralCode ? `referral:${input.referralCode}` : "self_register",
           status: "new",
+          ...parseAttribution(ctx),
         });
         if (!lead) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create account" });
         // Create student portal account
@@ -7956,6 +7961,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
   reports: crmReportsRouter,
   cockpit: crmCockpitRouter,
   intake: crmIntakeRouter,
+  marketing: marketingRouter,
   journey: crmJourneyRouter,
   sosmed: sosmedRouter,
 });
@@ -7979,6 +7985,10 @@ startArticleProducerScheduler();
 seedUniversitiesIfEmpty().then(r => {
   if (r.seeded) console.log(`[Universities] Seeded ${r.count} universities`);
 }).catch(e => console.error('[Universities] Seed error:', e));
+
+// Growth Phase A: ensure attribution columns + marketing_spend table exist
+// (idempotent) so a deploy never outruns the migration and breaks lead capture.
+import("./db").then(m => m.ensureMarketingSchema()).catch(e => console.error('[Growth] schema ensure error:', e));
 
 // ==================== SIMULATOR AI HELPERS ====================
 

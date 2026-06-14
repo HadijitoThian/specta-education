@@ -11,14 +11,15 @@
  * Producer) plus a quick link to the IELTS Mock Test admin. Rebuild other tools
  * here only when they're actually needed.
  */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Loader2, LogOut, Home, Sparkles, FileText } from "lucide-react";
+import { Loader2, LogOut, Home, Sparkles, FileText, TrendingUp } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { getLoginUrl } from "@/const";
 import BlogManager from "@/components/admin/BlogManager";
+import GrowthDashboard from "@/components/admin/GrowthDashboard";
 
 export default function AdminDashboard() {
   useEffect(() => {
@@ -27,6 +28,7 @@ export default function AdminDashboard() {
 
   const { user, loading, isAuthenticated, logout } = useAuth();
   const isAdmin = user?.role === "admin";
+  const [tab, setTab] = useState<"blog" | "growth">("blog");
 
   if (loading) {
     return (
@@ -95,13 +97,17 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      {/* Body — Blog Manager (incl. GEO Article Producer) */}
+      {/* Body */}
       <main className="container py-8">
-        <div className="flex items-center gap-2 mb-6 text-sm text-muted-foreground">
-          <FileText className="w-4 h-4" />
-          <span>Publishing console — manage blog articles and produce SEO/GEO content.</span>
+        <div className="flex gap-2 mb-6">
+          <Button variant={tab === "blog" ? "default" : "outline"} size="sm" onClick={() => setTab("blog")}>
+            <FileText className="w-4 h-4 mr-2" /> Blog &amp; Articles
+          </Button>
+          <Button variant={tab === "growth" ? "default" : "outline"} size="sm" onClick={() => setTab("growth")}>
+            <TrendingUp className="w-4 h-4 mr-2" /> Growth &amp; Conversion
+          </Button>
         </div>
-        <BlogManager />
+        {tab === "blog" ? <BlogManager /> : <GrowthDashboard />}
       </main>
     </div>
   );

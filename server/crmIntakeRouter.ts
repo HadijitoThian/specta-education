@@ -17,6 +17,7 @@ import { leads, users, crmActivityTimeline } from "../drizzle/schema";
 import { sendEmail } from "./email";
 import { ENV } from "./_core/env";
 import { distributeOne } from "./leadDistribution";
+import { parseAttribution } from "./attribution";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -63,7 +64,7 @@ export const crmIntakeRouter = router({
         intakeDate: z.string().max(100).optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const counselor = await resolveCounselor(input.token);
@@ -113,6 +114,7 @@ export const crmIntakeRouter = router({
         pipelineStage: "new_lead",
         source: "intake_form",
         journeyToken,
+        ...parseAttribution(ctx),
       });
       const id = (res as any)[0]?.insertId as number;
       await db.insert(crmActivityTimeline).values({
