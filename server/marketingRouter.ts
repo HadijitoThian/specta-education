@@ -19,7 +19,13 @@ import {
   createMarketingSpend,
   updateMarketingSpend,
   deleteMarketingSpend,
+  listAdCampaigns,
+  getAdCampaign,
+  createAdCampaign,
+  updateAdCampaign,
+  deleteAdCampaign,
 } from "./db";
+import { generateCampaign, campaignToCsv, type GeneratedCampaign } from "./adsCopilot";
 
 // Stages that count as "reached a consultation" (everything past new_lead, on-pipeline).
 const POST_CONSULT = new Set([
@@ -171,6 +177,71 @@ export const marketingRouter = router({
     .mutation(async ({ input, ctx }) => {
       requireAdmin(ctx);
       await deleteMarketingSpend(input.id);
+      return { success: true };
+    }),
+
+  // ── AI Google Ads Co-pilot (Phase B) ─────────────────────────────────────────
+  /** Generate a full campaign from a brief and save it as a draft. */
+  generateCampaign: protectedProcedure
+    .input(z.object({
+      product: z.string().min(1).max(120),
+      goal: z.string().max(255).optional(),
+      landingPath: z.string().max(255).optional(),
+      dailyBudget: z.number().nonnegative().optional(),
+      language: z.string().max(120).optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      let gen: GeneratedCampaign;
+      try {
+        gen = await generateCampaign(input);
+      } catch (e) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message });
+      }
+      const saved = await createAdCampaign({
+        name: gen.campaignName,
+        product: input.product.slice(0, 120),
+        goal: input.goal,
+        landingPath: input.landingPath || "/contact",
+        dailyBudget: String(input.dailyBudget ?? gen.dailyBudgetSuggested ?? 0) as any,
+        payload: gen as any,
+        status: "draft",
+        createdBy: ctx.user.id,
+      });
+      return saved;
+    }),
+
+  listCampaigns: protectedProcedure.query(async ({ ctx }) => {
+    requireAdmin(ctx);
+    return listAdCampaigns();
+  }),
+
+  getCampaign: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      const c = await getAdCampaign(input.id);
+      if (!c) throw new TRPCError({ code: "NOT_FOUND" });
+      return c;
+    }),
+
+  /** Return the Google Ads Editor CSV text for a saved campaign. */
+  exportCampaignCsv: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      const c = await getAdCampaign(input.id);
+      if (!c) throw new TRPCError({ code: "NOT_FOUND" });
+      const csv = campaignToCsv(c.payload as unknown as GeneratedCampaign, c.name);
+      await updateAdCampaign(c.id, { status: "exported" });
+      return { csv, filename: `${c.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.csv` };
+    }),
+
+  deleteCampaign: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      await deleteAdCampaign(input.id);
       return { success: true };
     }),
 });

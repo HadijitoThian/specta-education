@@ -6,6 +6,7 @@ import {
   messages, InsertMessage, Message,
   leads, InsertLead, Lead,
   marketingSpend, InsertMarketingSpend, MarketingSpend,
+  adCampaigns, InsertAdCampaign, AdCampaign,
   documents, InsertDocument, Document,
   applications, InsertApplication, Application,
   applicationNotes, InsertApplicationNote, ApplicationNote,
@@ -318,9 +319,59 @@ export async function ensureMarketingSchema(): Promise<void> {
         updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `));
+    await db.execute(sql.raw(`
+      CREATE TABLE IF NOT EXISTS ad_campaigns (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(200) NOT NULL,
+        product VARCHAR(120) NULL,
+        goal VARCHAR(255) NULL,
+        landingPath VARCHAR(255) NULL,
+        dailyBudget DECIMAL(12,2) NULL,
+        currency VARCHAR(8) NOT NULL DEFAULT 'IDR',
+        payload JSON NOT NULL,
+        status ENUM('draft','exported','live','archived') NOT NULL DEFAULT 'draft',
+        createdBy INT NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `));
   } catch (e) {
     console.error("[Growth] ensureMarketingSchema failed:", (e as Error).message);
   }
+}
+
+// ── Ad campaigns (Phase B) ───────────────────────────────────────────────────
+export async function listAdCampaigns(): Promise<AdCampaign[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return (await db.select().from(adCampaigns).orderBy(desc(adCampaigns.createdAt))) as AdCampaign[];
+}
+
+export async function getAdCampaign(id: number): Promise<AdCampaign | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(adCampaigns).where(eq(adCampaigns.id, id)).limit(1);
+  return row || null;
+}
+
+export async function createAdCampaign(data: InsertAdCampaign): Promise<AdCampaign | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const r = await db.insert(adCampaigns).values(data);
+  const id = (r as any)[0].insertId;
+  return getAdCampaign(id);
+}
+
+export async function updateAdCampaign(id: number, data: Partial<InsertAdCampaign>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(adCampaigns).set(data).where(eq(adCampaigns.id, id));
+}
+
+export async function deleteAdCampaign(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(adCampaigns).where(eq(adCampaigns.id, id));
 }
 
 

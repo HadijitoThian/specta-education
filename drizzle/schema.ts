@@ -175,6 +175,30 @@ export const marketingSpend = mysqlTable("marketing_spend", {
 
 export type MarketingSpend = typeof marketingSpend.$inferSelect;
 export type InsertMarketingSpend = typeof marketingSpend.$inferInsert;
+
+/**
+ * AI-generated Google Ads campaigns (Growth Phase B). The full structure
+ * (ad groups, keywords, RSA copy, negatives, extensions, landing-page copy)
+ * is stored as JSON so it can be reviewed, edited, and exported to a Google
+ * Ads Editor CSV. UTM-tagged final URLs tie back to the Phase A attribution.
+ */
+export const adCampaigns = mysqlTable("ad_campaigns", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  product: varchar("product", { length: 120 }),     // e.g. "ielts", "scholarships"
+  goal: varchar("goal", { length: 255 }),
+  landingPath: varchar("landingPath", { length: 255 }), // e.g. "/ielts"
+  dailyBudget: decimal("dailyBudget", { precision: 12, scale: 2 }),
+  currency: varchar("currency", { length: 8 }).default("IDR").notNull(),
+  payload: json("payload").notNull(),               // full generated structure
+  status: mysqlEnum("status", ["draft", "exported", "live", "archived"]).default("draft").notNull(),
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AdCampaign = typeof adCampaigns.$inferSelect;
+export type InsertAdCampaign = typeof adCampaigns.$inferInsert;
 export type InsertLead = typeof leads.$inferInsert;
 
 /**
