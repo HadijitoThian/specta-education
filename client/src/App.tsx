@@ -68,6 +68,7 @@ const TeamChat = lazy(() => import("./pages/TeamChat"));
 const UniversityDatabase = lazy(() => import("./pages/UniversityDatabase"));
 const AIFollowUpAssistant = lazy(() => import("./pages/AIFollowUpAssistant"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const AdminDashboardLegacy = lazy(() => import("./pages/AdminDashboardLegacy"));
 const AgentCommandCenter = lazy(() => import("./pages/AgentCommandCenter"));
 const SocialMediaManager = lazy(() => import("./pages/SocialMediaManager"));
 const AdsAgent = lazy(() => import("./pages/AdsAgent"));
@@ -171,6 +172,7 @@ function Router() {
         <Route path={"/student/dashboard"} component={StudentPortalDashboard} />
         {/* ── Admin ── */}
         <Route path={"/admin"} component={AdminDashboard} />
+        <Route path={"/admin/legacy"} component={AdminDashboardLegacy} />
         <Route path={"/admin/agents"} component={AgentCommandCenter} />
         <Route path={"/admin/social-media"} component={SocialMediaManager} />
         <Route path={"/admin/ads-agent"} component={AdsAgent} />
