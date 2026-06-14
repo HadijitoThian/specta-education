@@ -108,6 +108,10 @@ export async function getDb() {
     try {
       _pool = mysql.createPool({
         uri: process.env.DATABASE_URL,
+        // utf8mb4 so 4-byte characters (emojis 🎯) save correctly — social
+        // captions are full of them. Without this the connection defaults to
+        // 3-byte utf8 and rejects emoji inserts.
+        charset: "utf8mb4",
         waitForConnections: true,
         connectionLimit: 10,
         queueLimit: 0,

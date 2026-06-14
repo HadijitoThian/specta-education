@@ -19,13 +19,15 @@ CREATE TABLE IF NOT EXISTS sosmed_content (
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_created (createdAt)
-)`;
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`;
 
 (async () => {
-  const c = await mysql.createConnection(process.env.DATABASE_URL);
+  const c = await mysql.createConnection({ uri: process.env.DATABASE_URL, charset: "utf8mb4" });
   await c.query(SQL);
+  // Ensure emojis work even if the table pre-existed with a narrower charset.
+  await c.query("ALTER TABLE sosmed_content CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
   await c.end();
-  console.log("Done — sosmed_content ready. SosMed Phase 2 table created.");
+  console.log("Done — sosmed_content ready (utf8mb4). SosMed Phase 2 table ready.");
 })().catch(e => {
   console.error("Migration failed:", e.message);
   process.exit(1);
