@@ -45,6 +45,7 @@ function defaultLayers(headline: string, subheadline: string, kit: any): Layer[]
     { id: lid(), kind: "logo", role: "logo", x: 0.045, y: 0.045, logoVariant: "color", logoWidth: 230 },
     { id: lid(), kind: "text", role: "headline", text: headline || "Headline", x: 0.06, y: 0.70, width: 0.88, fontFamily: font, fontSize: 70, color: "#ffffff", weight: 800, align: "left" },
     { id: lid(), kind: "text", role: "subheadline", text: subheadline || "", x: 0.06, y: 0.855, width: 0.88, fontFamily: kit?.fontBody || font, fontSize: 32, color: "#ffffff", weight: 500, align: "left" },
+    { id: lid(), kind: "text", role: "footer", text: `© ${new Date().getFullYear()} ${kit?.brandName || "SpecTa Education"} · spectaeducation.com · @spectaeducation`, x: 0.06, y: 0.95, width: 0.88, fontFamily: kit?.fontBody || font, fontSize: 20, color: "#ffffff", weight: 400, align: "left" },
   ];
 }
 

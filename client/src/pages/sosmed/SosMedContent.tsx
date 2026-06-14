@@ -180,6 +180,7 @@ function DraftDetail({ id, onClose, onDeleted }: { id: number; onClose: () => vo
   const [activeIdx, setActiveIdx] = useState(0);
   const [selId, setSelId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [history, setHistory] = useState<EditSlide[][]>([]);
   const dragRef = useRef<{ id: string; ox: number; oy: number } | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
 
@@ -187,11 +188,15 @@ function DraftDetail({ id, onClose, onDeleted }: { id: number; onClose: () => vo
   const updateLayers = (fn: (ls: Layer[]) => Layer[]) =>
     setSlides(s => s.map((sl, j) => (j === activeIdx ? { ...sl, layers: fn(sl.layers || []) } : sl)));
   const patchLayer = (lyrId: string, patch: Partial<Layer>) => updateLayers(ls => ls.map(l => (l.id === lyrId ? { ...l, ...patch } : l)));
-  const addTextLayer = () => { const nid = `t${Date.now()}`; updateLayers(ls => [...ls, { id: nid, kind: "text", text: "New text", x: 0.1, y: 0.1, width: 0.8, fontFamily: kit?.fontHeading || "Poppins", fontSize: 48, color: "#ffffff", weight: 700, align: "left" }]); setSelId(nid); };
+  const cloneSlides = (ss: EditSlide[]) => ss.map(s => ({ ...s, layers: (s.layers || []).map(l => ({ ...l })) }));
+  const snapshot = () => setHistory(h => [...h.slice(-29), cloneSlides(slides)]);
+  const undo = () => setHistory(h => { if (!h.length) return h; setSlides(h[h.length - 1]); setSelId(null); return h.slice(0, -1); });
+  const removeLayer = (lyrId: string) => { snapshot(); updateLayers(ls => ls.filter(l => l.id !== lyrId)); setSelId(s => (s === lyrId ? null : s)); };
+  const addTextLayer = () => { snapshot(); const nid = `t${Date.now()}`; updateLayers(ls => [...ls, { id: nid, kind: "text", text: "New text", x: 0.1, y: 0.1, width: 0.8, fontFamily: kit?.fontHeading || "Poppins", fontSize: 48, color: "#ffffff", weight: 700, align: "left" }]); setSelId(nid); };
   const selLayer = (active?.layers || []).find(l => l.id === selId) || null;
 
   const startDrag = (e: React.PointerEvent, l: Layer) => {
-    e.stopPropagation(); setSelId(l.id);
+    e.stopPropagation(); setSelId(l.id); snapshot();
     if (!stageRef.current) return;
     const r = stageRef.current.getBoundingClientRect();
     dragRef.current = { id: l.id, ox: (e.clientX - r.left) / r.width - l.x, oy: (e.clientY - r.top) / r.height - l.y };
@@ -292,8 +297,25 @@ function DraftDetail({ id, onClose, onDeleted }: { id: number; onClose: () => vo
               </div>
               <div className="flex flex-wrap gap-2 mt-2">
                 <button onClick={addTextLayer} className="text-xs px-2 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-50">+ Text</button>
+                <button onClick={undo} disabled={history.length === 0} className="text-xs px-2 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-50 disabled:opacity-40">↶ Undo</button>
                 <button onClick={() => doRegen(activeIdx)} disabled={regenIdx !== null} className="text-xs px-2 py-1 rounded border border-purple-300 text-purple-700 hover:bg-purple-50 disabled:opacity-50">↻ Regenerate image</button>
                 <button onClick={doExport} disabled={exporting} className="text-xs px-2 py-1 rounded text-white disabled:opacity-50" style={{ background: PINK }}>{exporting ? "Exporting…" : "⬇ Download PNG"}</button>
+              </div>
+
+              {/* Layers list — select / delete any element */}
+              <div className="mt-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Layers</div>
+                <div className="space-y-1">
+                  {(active?.layers || []).length === 0 && <div className="text-xs text-slate-400">No layers.</div>}
+                  {(active?.layers || []).map(l => (
+                    <div key={l.id} className={`flex items-center justify-between text-xs px-2 py-1 rounded ${l.id === selId ? "bg-pink-50" : "bg-slate-50"}`}>
+                      <button onClick={() => setSelId(l.id)} className="truncate text-left flex-1 text-slate-600">
+                        {l.kind === "logo" ? "🅛 Logo" : (l.text?.trim() || "(empty text)").slice(0, 32)}
+                      </button>
+                      <button onClick={() => removeLayer(l.id)} className="text-slate-400 hover:text-red-500 ml-2 shrink-0" title="Delete layer">✕</button>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Layer toolbar */}
@@ -317,7 +339,7 @@ function DraftDetail({ id, onClose, onDeleted }: { id: number; onClose: () => vo
                     {[400, 600, 700, 800].map(w => (
                       <button key={w} onClick={() => patchLayer(selLayer.id, { weight: w })} className={`text-xs px-2 py-1 rounded border ${selLayer.weight === w ? "border-pink-400 text-pink-700" : "border-slate-300 text-slate-500"}`}>{w}</button>
                     ))}
-                    <button onClick={() => { updateLayers(ls => ls.filter(x => x.id !== selLayer.id)); setSelId(null); }} className="text-xs text-red-500 hover:underline ml-auto">Delete</button>
+                    <button onClick={() => removeLayer(selLayer.id)} className="text-xs text-red-500 hover:underline ml-auto">Delete</button>
                   </div>
                 </div>
               )}
