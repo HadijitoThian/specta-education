@@ -7,6 +7,8 @@ import {
   leads, InsertLead, Lead,
   marketingSpend, InsertMarketingSpend, MarketingSpend,
   adCampaigns, InsertAdCampaign, AdCampaign,
+  growthDigests, InsertGrowthDigest, GrowthDigest,
+  geoSnapshots, InsertGeoSnapshot, GeoSnapshot,
   documents, InsertDocument, Document,
   applications, InsertApplication, Application,
   applicationNotes, InsertApplicationNote, ApplicationNote,
@@ -335,9 +337,58 @@ export async function ensureMarketingSchema(): Promise<void> {
         updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `));
+    await db.execute(sql.raw(`
+      CREATE TABLE IF NOT EXISTS growth_digests (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        periodLabel VARCHAR(40) NOT NULL,
+        summary TEXT NOT NULL,
+        recommendations JSON NULL,
+        metrics JSON NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `));
+    await db.execute(sql.raw(`
+      CREATE TABLE IF NOT EXISTS geo_snapshots (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        query VARCHAR(255) NOT NULL,
+        mentioned TINYINT(1) NOT NULL DEFAULT 0,
+        rankPosition INT NULL,
+        competitors JSON NULL,
+        model VARCHAR(80) NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `));
   } catch (e) {
     console.error("[Growth] ensureMarketingSchema failed:", (e as Error).message);
   }
+}
+
+// ── Growth digests + GEO snapshots (Phase C) ─────────────────────────────────
+export async function createGrowthDigest(data: InsertGrowthDigest): Promise<GrowthDigest | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const r = await db.insert(growthDigests).values(data);
+  const id = (r as any)[0].insertId;
+  const [row] = await db.select().from(growthDigests).where(eq(growthDigests.id, id)).limit(1);
+  return row || null;
+}
+
+export async function listGrowthDigests(limit = 12): Promise<GrowthDigest[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return (await db.select().from(growthDigests).orderBy(desc(growthDigests.createdAt)).limit(limit)) as GrowthDigest[];
+}
+
+export async function insertGeoSnapshots(rows: InsertGeoSnapshot[]): Promise<void> {
+  const db = await getDb();
+  if (!db || !rows.length) return;
+  await db.insert(geoSnapshots).values(rows);
+}
+
+export async function listGeoSnapshots(limit = 200): Promise<GeoSnapshot[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return (await db.select().from(geoSnapshots).orderBy(desc(geoSnapshots.createdAt)).limit(limit)) as GeoSnapshot[];
 }
 
 // ── Ad campaigns (Phase B) ───────────────────────────────────────────────────

@@ -199,6 +199,39 @@ export const adCampaigns = mysqlTable("ad_campaigns", {
 
 export type AdCampaign = typeof adCampaigns.$inferSelect;
 export type InsertAdCampaign = typeof adCampaigns.$inferInsert;
+
+/**
+ * Weekly AI performance digests (Growth Phase C). The analyst reads the
+ * conversion + spend data and writes a plain-language "what's working / do this
+ * next" summary, stored here so the owner can review past weeks.
+ */
+export const growthDigests = mysqlTable("growth_digests", {
+  id: int("id").autoincrement().primaryKey(),
+  periodLabel: varchar("periodLabel", { length: 40 }).notNull(),
+  summary: text("summary").notNull(),
+  recommendations: json("recommendations"),  // string[]
+  metrics: json("metrics"),                   // snapshot of the numbers used
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type GrowthDigest = typeof growthDigests.$inferSelect;
+export type InsertGrowthDigest = typeof growthDigests.$inferInsert;
+
+/**
+ * GEO visibility snapshots (Growth Phase C). We periodically ask our AI model
+ * common buyer questions and record whether SpecTa is named and which
+ * competitors show up — a directional "are we visible to AI assistants" signal.
+ */
+export const geoSnapshots = mysqlTable("geo_snapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  query: varchar("query", { length: 255 }).notNull(),
+  mentioned: boolean("mentioned").default(false).notNull(),
+  rankPosition: int("rankPosition"),          // 1-based position if listed, else null
+  competitors: json("competitors"),           // string[]
+  model: varchar("model", { length: 80 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type GeoSnapshot = typeof geoSnapshots.$inferSelect;
+export type InsertGeoSnapshot = typeof geoSnapshots.$inferInsert;
 export type InsertLead = typeof leads.$inferInsert;
 
 /**

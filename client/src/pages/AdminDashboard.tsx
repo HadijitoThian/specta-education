@@ -13,7 +13,7 @@
  */
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Loader2, LogOut, Home, Sparkles, FileText, TrendingUp, Megaphone } from "lucide-react";
+import { Loader2, LogOut, Home, Sparkles, FileText, TrendingUp, Megaphone, Brain } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import { getLoginUrl } from "@/const";
 import BlogManager from "@/components/admin/BlogManager";
 import GrowthDashboard from "@/components/admin/GrowthDashboard";
 import AdsCopilot from "@/components/admin/AdsCopilot";
+import GrowthInsights from "@/components/admin/GrowthInsights";
 
 export default function AdminDashboard() {
   useEffect(() => {
@@ -29,7 +30,7 @@ export default function AdminDashboard() {
 
   const { user, loading, isAuthenticated, logout } = useAuth();
   const isAdmin = user?.role === "admin";
-  const [tab, setTab] = useState<"blog" | "growth" | "ads">("blog");
+  const [tab, setTab] = useState<"blog" | "growth" | "ads" | "insights">("blog");
 
   if (loading) {
     return (
@@ -110,8 +111,11 @@ export default function AdminDashboard() {
           <Button variant={tab === "ads" ? "default" : "outline"} size="sm" onClick={() => setTab("ads")}>
             <Megaphone className="w-4 h-4 mr-2" /> Ads Co-pilot
           </Button>
+          <Button variant={tab === "insights" ? "default" : "outline"} size="sm" onClick={() => setTab("insights")}>
+            <Brain className="w-4 h-4 mr-2" /> Insights
+          </Button>
         </div>
-        {tab === "blog" ? <BlogManager /> : tab === "growth" ? <GrowthDashboard /> : <AdsCopilot />}
+        {tab === "blog" ? <BlogManager /> : tab === "growth" ? <GrowthDashboard /> : tab === "ads" ? <AdsCopilot /> : <GrowthInsights />}
       </main>
     </div>
   );

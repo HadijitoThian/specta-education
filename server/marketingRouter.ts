@@ -26,6 +26,8 @@ import {
   deleteAdCampaign,
 } from "./db";
 import { generateCampaign, campaignToCsv, type GeneratedCampaign } from "./adsCopilot";
+import { generatePerformanceDigest, runGeoMonitor, analyzeContentGaps } from "./growthInsights";
+import { listGrowthDigests, listGeoSnapshots } from "./db";
 
 // Stages that count as "reached a consultation" (everything past new_lead, on-pipeline).
 const POST_CONSULT = new Set([
@@ -244,4 +246,34 @@ export const marketingRouter = router({
       await deleteAdCampaign(input.id);
       return { success: true };
     }),
+
+  // ── Growth Intelligence (Phase C) ────────────────────────────────────────────
+  /** Generate (and save) an AI performance digest for the current month. */
+  generateDigest: protectedProcedure.mutation(async ({ ctx }) => {
+    requireAdmin(ctx);
+    try { return await generatePerformanceDigest(); }
+    catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
+  }),
+  listDigests: protectedProcedure.query(async ({ ctx }) => {
+    requireAdmin(ctx);
+    return listGrowthDigests(12);
+  }),
+
+  /** Run the GEO visibility monitor now. */
+  runGeoMonitor: protectedProcedure.mutation(async ({ ctx }) => {
+    requireAdmin(ctx);
+    try { return await runGeoMonitor(); }
+    catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
+  }),
+  geoSnapshots: protectedProcedure.query(async ({ ctx }) => {
+    requireAdmin(ctx);
+    return listGeoSnapshots(200);
+  }),
+
+  /** AI content-gap analysis (ephemeral) — feed results to blog.produceArticle. */
+  contentGaps: protectedProcedure.mutation(async ({ ctx }) => {
+    requireAdmin(ctx);
+    try { return await analyzeContentGaps(); }
+    catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
+  }),
 });

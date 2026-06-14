@@ -234,6 +234,7 @@ import { crmJourneyRouter } from "./crmJourneyRouter";
 import { sosmedRouter } from "./sosmedRouter";
 import { startCrmReportScheduler } from "./crmReportScheduler";
 import { startArticleProducerScheduler } from "./articleProducer";
+import { startGrowthInsightsScheduler } from "./growthInsights";
 import { parseAttribution } from "./attribution";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail, sendParentProgressEmail } from "./email";
 import crypto from "crypto";
@@ -7980,6 +7981,10 @@ startCrmReportScheduler();
 // Article Producer scheduler (SEO/GEO): weekly review-ready blog drafts.
 // OFF unless ARTICLE_PRODUCER_ENABLED=true (no token spend until opted in).
 startArticleProducerScheduler();
+
+// Growth Intelligence scheduler: weekly performance digest + GEO monitor.
+// OFF unless GROWTH_INSIGHTS_ENABLED=true.
+startGrowthInsightsScheduler();
 
 // Auto-seed universities on startup
 seedUniversitiesIfEmpty().then(r => {
