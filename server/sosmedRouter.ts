@@ -435,10 +435,13 @@ export const sosmedRouter = router({
       if (input.prompt !== undefined) s.imagePrompt = input.prompt;
       if (input.headline !== undefined) s.headline = input.headline;
       if (input.subheadline !== undefined) s.subheadline = input.subheadline;
-      const [kitR] = await db.select({ visualStyle: brandKit.visualStyle }).from(brandKit).limit(1);
-      const r = await renderBackground(s.imagePrompt + (kitR?.visualStyle ? ` Visual style: ${kitR.visualStyle}` : ""));
+      const [kit] = await db.select().from(brandKit).limit(1);
+      const r = await renderBackground(s.imagePrompt + (kit?.visualStyle ? ` Visual style: ${kit.visualStyle}` : ""));
       s.backgroundUrl = r.url;
       s.imageUrl = r.url;
+      // Upgrade pre-editor drafts: if this slide has no editable layers yet,
+      // seed the default text/logo layers so the studio can edit it.
+      if (!s.layers || s.layers.length === 0) s.layers = defaultLayers(s.headline, s.subheadline, kit);
       await db.update(sosmedContent).set({ slides: JSON.stringify(slides) }).where(eq(sosmedContent.id, input.id));
       return { imageUrl: r.url, backgroundUrl: r.url, error: r.error ?? null };
     }),
