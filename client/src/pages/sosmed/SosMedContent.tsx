@@ -2,7 +2,7 @@
  * Content Studio (Phase 2). Brief → AI generates an on-brand caption + hashtags
  * + branded slide image(s). Drafts grid + detail view. (Editing comes in Phase 3.)
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { SosMedShell, sosmedInput } from "./SosMedShell";
 
@@ -98,61 +98,142 @@ export default function SosMedContent() {
   );
 }
 
+type EditSlide = { headline: string; subheadline: string; imagePrompt: string; imageUrl?: string | null };
+
 function DraftDetail({ id, onClose, onDeleted }: { id: number; onClose: () => void; onDeleted: () => void }) {
+  const utils = trpc.useUtils();
   const q = trpc.sosmed.getContent.useQuery({ id });
-  const del = trpc.sosmed.deleteContent.useMutation({ onSuccess: onDeleted });
+  const [caption, setCaption] = useState("");
+  const [hashtags, setHashtags] = useState("");
+  const [slides, setSlides] = useState<EditSlide[]>([]);
+  const [status, setStatus] = useState("draft");
+  const [chat, setChat] = useState<{ role: "you" | "agent"; text: string }[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [regenIdx, setRegenIdx] = useState<number | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (q.data) {
+      setCaption(q.data.caption || "");
+      setHashtags(q.data.hashtags || "");
+      setSlides(q.data.slidesParsed as EditSlide[]);
+      setStatus(q.data.status);
+    }
+  }, [q.data?.id]);
+
+  const refreshList = () => utils.sosmed.listContent.invalidate();
+  const save = trpc.sosmed.updateContent.useMutation({ onSuccess: () => { setMsg("Saved ✓"); refreshList(); }, onError: e => setMsg(e.message) });
+  const del = trpc.sosmed.deleteContent.useMutation({ onSuccess: onDeleted });
+  const approve = trpc.sosmed.setStatus.useMutation({ onSuccess: () => { setStatus("approved"); setMsg("Approved ✓"); refreshList(); } });
+  const regen = trpc.sosmed.regenerateImage.useMutation();
+  const chatEdit = trpc.sosmed.chatEditContent.useMutation();
+
+  const setSlide = (i: number, k: keyof EditSlide, v: string) => setSlides(s => s.map((sl, j) => (j === i ? { ...sl, [k]: v } : sl)));
   const copy = (text: string, what: string) => { navigator.clipboard.writeText(text); setCopied(what); setTimeout(() => setCopied(null), 1500); };
+
+  const doSave = () => { setMsg(null); save.mutate({ id, caption, hashtags, slides }); };
+
+  const doRegen = async (i: number) => {
+    setRegenIdx(i); setMsg(null);
+    try {
+      const r = await regen.mutateAsync({ id, slideIndex: i, prompt: slides[i].imagePrompt, headline: slides[i].headline, subheadline: slides[i].subheadline });
+      setSlides(s => s.map((sl, j) => (j === i ? { ...sl, imageUrl: r.imageUrl } : sl)));
+      if (r.error) setMsg(`Slide ${i + 1}: ${r.error}`);
+      refreshList();
+    } catch (e: any) { setMsg(e.message); } finally { setRegenIdx(null); }
+  };
+
+  const sendChat = async () => {
+    const text = chatInput.trim();
+    if (!text) return;
+    setChatInput("");
+    setChat(c => [...c, { role: "you", text }]);
+    try {
+      const r = await chatEdit.mutateAsync({ id, message: text });
+      setCaption(r.caption || "");
+      setHashtags(r.hashtags || "");
+      setSlides(prev => prev.map((sl, i) => (r.slides[i] ? { ...sl, headline: r.slides[i].headline, subheadline: r.slides[i].subheadline } : sl)));
+      setChat(c => [...c, { role: "agent", text: r.reply }]);
+      refreshList();
+    } catch (e: any) {
+      setChat(c => [...c, { role: "agent", text: "Sorry — " + e.message }]);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-start justify-center p-4 z-50 overflow-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl max-w-2xl w-full my-8 p-6" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl max-w-4xl w-full my-8 p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <div className="font-semibold text-slate-800">Draft</div>
+          <div className="font-semibold text-slate-800">Edit draft <span className="text-xs font-normal text-slate-400">· {status}</span></div>
           <button onClick={onClose} className="text-sm text-slate-500 hover:underline">Close</button>
         </div>
-        {q.isLoading ? <div className="text-slate-400 mt-4">Loading…</div> : q.data ? (
-          <div className="mt-4">
-            {/* Slides */}
-            <div className="flex gap-3 overflow-auto pb-2">
-              {q.data.slidesParsed.map((s, i) => (
-                <div key={i} className="shrink-0 w-48">
-                  <div className="aspect-square bg-slate-100 rounded-lg overflow-hidden flex items-center justify-center">
-                    {s.imageUrl ? <img src={s.imageUrl} alt="" className="w-full h-full object-cover" /> : <span className="text-slate-300 text-xs px-2 text-center">{s.headline || "no image"}</span>}
+        {msg && <div className="mt-2 text-sm text-pink-700">{msg}</div>}
+
+        {q.isLoading ? <div className="text-slate-400 mt-4">Loading…</div> : !q.data ? <div className="text-slate-500 mt-4">Not found.</div> : (
+          <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left: slides + copy editor */}
+            <div className="lg:col-span-2 space-y-5">
+              <div className="flex gap-4 overflow-auto pb-2">
+                {slides.map((s, i) => (
+                  <div key={i} className="shrink-0 w-52">
+                    <div className="aspect-square bg-slate-100 rounded-lg overflow-hidden flex items-center justify-center relative">
+                      {s.imageUrl ? <img src={s.imageUrl} alt="" className="w-full h-full object-cover" /> : <span className="text-slate-300 text-xs px-2 text-center">no image</span>}
+                      {regenIdx === i && <div className="absolute inset-0 bg-white/70 flex items-center justify-center text-xs text-slate-600">Regenerating…</div>}
+                    </div>
+                    <input value={s.headline} onChange={e => setSlide(i, "headline", e.target.value)} className={`${sosmedInput} mt-2`} placeholder="Headline" />
+                    <input value={s.subheadline} onChange={e => setSlide(i, "subheadline", e.target.value)} className={`${sosmedInput} mt-1`} placeholder="Subheadline" />
+                    <textarea value={s.imagePrompt} onChange={e => setSlide(i, "imagePrompt", e.target.value)} rows={2} className={`${sosmedInput} mt-1 text-xs`} placeholder="Image prompt" />
+                    <div className="flex items-center justify-between mt-1">
+                      <button onClick={() => doRegen(i)} disabled={regenIdx !== null} className="text-xs text-purple-700 hover:underline disabled:opacity-50">↻ Regenerate</button>
+                      {s.imageUrl && <a href={s.imageUrl} download={`specta-slide-${i + 1}.png`} className="text-xs text-pink-600 hover:underline">⬇ Download</a>}
+                    </div>
                   </div>
-                  <div className="text-xs font-medium text-slate-700 mt-1">{s.headline}</div>
-                  <div className="text-[11px] text-slate-400">{s.subheadline}</div>
-                  {s.imageUrl && (
-                    <a href={s.imageUrl} download={`specta-slide-${i + 1}.png`} className="inline-block mt-1 text-xs text-pink-600 hover:underline">⬇ Download</a>
-                  )}
+                ))}
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Caption</span>
+                  <button onClick={() => copy(caption, "cap")} className="text-xs text-pink-600 hover:underline">{copied === "cap" ? "Copied ✓" : "Copy"}</button>
                 </div>
-              ))}
-            </div>
-
-            {/* Caption */}
-            <div className="mt-4">
-              <div className="flex items-center justify-between">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Caption</div>
-                <button onClick={() => copy(q.data!.caption || "", "caption")} className="text-xs text-pink-600 hover:underline">{copied === "caption" ? "Copied ✓" : "Copy"}</button>
+                <textarea value={caption} onChange={e => setCaption(e.target.value)} rows={6} className={`${sosmedInput} mt-1`} />
               </div>
-              <div className="text-sm text-slate-700 whitespace-pre-wrap mt-1 bg-slate-50 rounded-lg p-3">{q.data.caption}</div>
-            </div>
-
-            {/* Hashtags */}
-            <div className="mt-3">
-              <div className="flex items-center justify-between">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Hashtags</div>
-                <button onClick={() => copy(q.data!.hashtags || "", "tags")} className="text-xs text-pink-600 hover:underline">{copied === "tags" ? "Copied ✓" : "Copy"}</button>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Hashtags</span>
+                  <button onClick={() => copy(hashtags, "tags")} className="text-xs text-pink-600 hover:underline">{copied === "tags" ? "Copied ✓" : "Copy"}</button>
+                </div>
+                <textarea value={hashtags} onChange={e => setHashtags(e.target.value)} rows={2} className={`${sosmedInput} mt-1`} />
               </div>
-              <div className="text-sm text-slate-500 mt-1">{q.data.hashtags}</div>
+
+              <div className="flex flex-wrap gap-2 items-center">
+                <button onClick={doSave} disabled={save.isPending} className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-60" style={{ background: PINK }}>{save.isPending ? "Saving…" : "Save"}</button>
+                <button onClick={() => approve.mutate({ id, status: "approved" })} disabled={approve.isPending} className="px-4 py-2 rounded-lg text-sm font-medium border border-emerald-300 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">Approve</button>
+                <button onClick={() => { if (confirm("Delete this draft?")) del.mutate({ id }); }} className="text-sm text-red-500 hover:underline ml-auto">Delete</button>
+              </div>
             </div>
 
-            <div className="mt-5 flex justify-between items-center">
-              <div className="text-xs text-slate-400">Editing & scheduling come in the next phases.</div>
-              <button onClick={() => { if (confirm("Delete this draft?")) del.mutate({ id }); }} className="text-sm text-red-500 hover:underline">Delete</button>
+            {/* Right: agent chat */}
+            <div className="border border-slate-200 rounded-xl p-3 flex flex-col h-[28rem]">
+              <div className="text-sm font-semibold text-slate-800 mb-2">Ask the agent</div>
+              <div className="flex-1 overflow-auto space-y-2 text-sm">
+                {chat.length === 0 && <div className="text-xs text-slate-400">e.g. "make the caption shorter", "more playful tone", "add a stronger CTA", "translate caption fully to Indonesian".</div>}
+                {chat.map((m, i) => (
+                  <div key={i} className={`flex ${m.role === "you" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[85%] rounded-2xl px-3 py-1.5 ${m.role === "you" ? "text-white" : "bg-slate-100 text-slate-700"}`} style={m.role === "you" ? { background: CORAL } : undefined}>{m.text}</div>
+                  </div>
+                ))}
+                {chatEdit.isPending && <div className="text-xs text-slate-400">thinking…</div>}
+              </div>
+              <div className="flex gap-2 mt-2">
+                <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") sendChat(); }} placeholder="Tell the agent what to change…" className={sosmedInput} />
+                <button onClick={sendChat} disabled={chatEdit.isPending || !chatInput.trim()} className="px-3 py-2 rounded-lg text-white text-sm shrink-0 disabled:opacity-50" style={{ background: PINK }}>Send</button>
+              </div>
+              <div className="text-[11px] text-slate-400 mt-1">Chat edits the copy. Use ↻ Regenerate for images.</div>
             </div>
           </div>
-        ) : <div className="text-slate-500 mt-4">Not found.</div>}
+        )}
       </div>
     </div>
   );

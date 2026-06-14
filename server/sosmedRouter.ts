@@ -34,6 +34,38 @@ function appBase(): string {
   return /^https?:\/\//i.test(b) ? b : `https://${b}`;
 }
 
+/** Generate one branded slide image (FLUX background + text/logo compositor),
+ *  served via the /files proxy. Best-effort; returns { url, error }. */
+async function renderSlideImage(
+  prompt: string,
+  headline: string,
+  subheadline: string,
+  kit: { logoUrl?: string | null; logoWhiteUrl?: string | null } | undefined
+): Promise<{ url: string | null; error?: string }> {
+  try {
+    const bg = await generateImage({ prompt, width: 1024, height: 1024 });
+    const bgUrl = bg.url || "";
+    const bgKey = r2KeyFromUrl(bgUrl);
+    let url = bgKey ? `/files/${bgKey}` : bgUrl;
+    try {
+      const comp = await composeInstagramImage({
+        backgroundUrl: bgKey ? `${appBase()}/files/${bgKey}` : bgUrl,
+        headline,
+        subheadline,
+        logoUrl: kit?.logoUrl || undefined,
+        logoWhiteUrl: kit?.logoWhiteUrl || undefined,
+      });
+      if (comp.success && comp.imageBuffer) {
+        const put = await storagePut(`sosmed/${nanoid(10)}.png`, comp.imageBuffer, "image/png");
+        url = `/files/${put.key}`;
+      }
+    } catch { /* fall back to raw background via proxy */ }
+    return { url };
+  } catch (e: any) {
+    return { url: null, error: e?.message || "image generation failed" };
+  }
+}
+
 function isOwner(u: { role: string; crmRole: string | null }) {
   return u.role === "admin" || u.crmRole === "owner";
 }
@@ -180,30 +212,9 @@ export const sosmedRouter = router({
       // Best-effort branded images (works once DEEPINFRA_API_KEY is set).
       let imageError: string | null = null;
       for (const s of slides) {
-        try {
-          const bg = await generateImage({ prompt: s.imagePrompt, width: 1024, height: 1024 });
-          const bgUrl = bg.url || "";
-          const bgKey = r2KeyFromUrl(bgUrl);
-          // Serve via the same-origin /files proxy (the R2 public URL isn't exposed).
-          let imageUrl = bgKey ? `/files/${bgKey}` : bgUrl;
-          try {
-            const comp = await composeInstagramImage({
-              backgroundUrl: bgKey ? `${appBase()}/files/${bgKey}` : bgUrl,
-              headline: s.headline,
-              subheadline: s.subheadline,
-              logoUrl: kit?.logoUrl || undefined,
-              logoWhiteUrl: kit?.logoWhiteUrl || undefined,
-            });
-            if (comp.success && comp.imageBuffer) {
-              const put = await storagePut(`sosmed/${nanoid(10)}.png`, comp.imageBuffer, "image/png");
-              imageUrl = `/files/${put.key}`;
-            }
-          } catch { /* fall back to raw background (via proxy) */ }
-          s.imageUrl = imageUrl;
-        } catch (e: any) {
-          s.imageUrl = null;
-          if (!imageError) imageError = e?.message || "image generation failed";
-        }
+        const r = await renderSlideImage(s.imagePrompt, s.headline, s.subheadline, kit);
+        s.imageUrl = r.url;
+        if (r.error && !imageError) imageError = r.error;
       }
 
       const r = await db.insert(sosmedContent).values({
@@ -254,5 +265,118 @@ export const sosmedRouter = router({
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       await db.delete(sosmedContent).where(eq(sosmedContent.id, input.id));
       return { ok: true };
+    }),
+
+  /** Save manual edits to a draft (caption / hashtags / slide text). */
+  updateContent: protectedProcedure
+    .input(z.object({
+      id: z.number().int(),
+      caption: z.string().max(8000).optional(),
+      hashtags: z.string().max(2000).optional(),
+      slides: z.array(z.object({
+        headline: z.string().max(120),
+        subheadline: z.string().max(200),
+        imagePrompt: z.string().max(800),
+        imageUrl: z.string().nullable().optional(),
+      })).optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      assertSosmed(ctx.user);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const patch: Record<string, unknown> = {};
+      if (input.caption !== undefined) patch.caption = input.caption;
+      if (input.hashtags !== undefined) patch.hashtags = input.hashtags;
+      if (input.slides !== undefined) patch.slides = JSON.stringify(input.slides);
+      if (Object.keys(patch).length) await db.update(sosmedContent).set(patch).where(eq(sosmedContent.id, input.id));
+      return { ok: true };
+    }),
+
+  setStatus: protectedProcedure
+    .input(z.object({ id: z.number().int(), status: z.enum(["draft", "approved", "scheduled", "posted"]) }))
+    .mutation(async ({ input, ctx }) => {
+      assertSosmed(ctx.user);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.update(sosmedContent).set({ status: input.status }).where(eq(sosmedContent.id, input.id));
+      return { ok: true };
+    }),
+
+  /** Regenerate the image for one slide (optionally with new prompt/text). */
+  regenerateImage: protectedProcedure
+    .input(z.object({
+      id: z.number().int(),
+      slideIndex: z.number().int().min(0),
+      prompt: z.string().max(800).optional(),
+      headline: z.string().max(120).optional(),
+      subheadline: z.string().max(200).optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      assertSosmed(ctx.user);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const [row] = await db.select().from(sosmedContent).where(eq(sosmedContent.id, input.id)).limit(1);
+      if (!row) throw new TRPCError({ code: "NOT_FOUND" });
+      const slides = parseSlides(row.slides);
+      const s = slides[input.slideIndex];
+      if (!s) throw new TRPCError({ code: "BAD_REQUEST", message: "No such slide" });
+      if (input.prompt !== undefined) s.imagePrompt = input.prompt;
+      if (input.headline !== undefined) s.headline = input.headline;
+      if (input.subheadline !== undefined) s.subheadline = input.subheadline;
+      const [kit] = await db.select().from(brandKit).limit(1);
+      const r = await renderSlideImage(s.imagePrompt, s.headline, s.subheadline, kit);
+      s.imageUrl = r.url;
+      await db.update(sosmedContent).set({ slides: JSON.stringify(slides) }).where(eq(sosmedContent.id, input.id));
+      return { imageUrl: r.url, error: r.error ?? null };
+    }),
+
+  /** Brief the agent in chat — it edits the copy (caption/hashtags/slide text). */
+  chatEditContent: protectedProcedure
+    .input(z.object({ id: z.number().int(), message: z.string().min(1).max(1000) }))
+    .mutation(async ({ input, ctx }) => {
+      assertSosmed(ctx.user);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const [row] = await db.select().from(sosmedContent).where(eq(sosmedContent.id, input.id)).limit(1);
+      if (!row) throw new TRPCError({ code: "NOT_FOUND" });
+      const [kit] = await db.select().from(brandKit).limit(1);
+      const slides = parseSlides(row.slides);
+
+      const system =
+        `You are the content editor for ${kit?.brandName || "SpecTa Education"}'s social team. ` +
+        `TONE: ${kit?.toneOfVoice || "warm, professional, bilingual ID/EN"}. ` +
+        `Given the CURRENT draft and the user's instruction, apply it and return STRICT JSON: ` +
+        `{ "reply": short note on what you changed (1 sentence), ` +
+        `"caption": the full updated caption, "hashtags": updated hashtags, ` +
+        `"slides": array (same length, ${slides.length}) of { "headline", "subheadline" } updated as needed }. ` +
+        `Only change what the instruction asks; keep everything else. If they ask about images, say so in "reply" ` +
+        `(you can't change images here) and leave slide text as-is. Return ONLY JSON.`;
+      const res = await invokeLLM({
+        model: "deepseek-v4-flash",
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: JSON.stringify({
+            instruction: input.message,
+            current: { caption: row.caption, hashtags: row.hashtags, slides: slides.map(s => ({ headline: s.headline, subheadline: s.subheadline })) },
+          }) },
+        ],
+      });
+      const content = res.choices?.[0]?.message?.content;
+      let parsed: any = {};
+      try { parsed = JSON.parse(typeof content === "string" ? content : "{}"); } catch { /* keep */ }
+
+      const newCaption = typeof parsed.caption === "string" ? parsed.caption : row.caption;
+      const newHashtags = typeof parsed.hashtags === "string" ? parsed.hashtags : row.hashtags;
+      if (Array.isArray(parsed.slides)) {
+        parsed.slides.forEach((ps: any, i: number) => {
+          if (slides[i]) {
+            if (typeof ps?.headline === "string") slides[i].headline = ps.headline;
+            if (typeof ps?.subheadline === "string") slides[i].subheadline = ps.subheadline;
+          }
+        });
+      }
+      await db.update(sosmedContent).set({ caption: newCaption, hashtags: newHashtags, slides: JSON.stringify(slides) }).where(eq(sosmedContent.id, input.id));
+      return { reply: typeof parsed.reply === "string" ? parsed.reply : "Updated.", caption: newCaption, hashtags: newHashtags, slides };
     }),
 });
