@@ -23,6 +23,7 @@ export const users = mysqlTable("users", {
     "ielts_instructor",
     "visa_specialist",
     "front_desk",
+    "marketing",
   ]).default("none").notNull(),
   office: mysqlEnum("office", ["kelapa_gading", "pik", "gading_serpong"]),
   phone: varchar("phone", { length: 50 }),
@@ -1587,6 +1588,31 @@ export const crmParentReports = mysqlTable("crm_parent_reports", {
 });
 export type CrmParentReport = typeof crmParentReports.$inferSelect;
 export type InsertCrmParentReport = typeof crmParentReports.$inferInsert;
+
+/**
+ * Social Media — Brand Kit (Phase 1). A single editable row that every content
+ * agent reads so output stays on-brand. Marketing team edits it in /sosmed.
+ */
+export const brandKit = mysqlTable("brand_kit", {
+  id: int("id").autoincrement().primaryKey(),
+  brandName: varchar("brandName", { length: 160 }).default("SpecTa Education").notNull(),
+  logoUrl: varchar("logoUrl", { length: 500 }),
+  primaryColor: varchar("primaryColor", { length: 16 }).default("#E91E8C").notNull(),
+  secondaryColor: varchar("secondaryColor", { length: 16 }).default("#9C27B0").notNull(),
+  accentColor: varchar("accentColor", { length: 16 }).default("#FF6B4A").notNull(),
+  fontHeading: varchar("fontHeading", { length: 80 }).default("Poppins").notNull(),
+  fontBody: varchar("fontBody", { length: 80 }).default("Poppins").notNull(),
+  toneOfVoice: text("toneOfVoice"),
+  targetAudience: text("targetAudience"),
+  keyOffers: text("keyOffers"),
+  doList: text("doList"),
+  dontList: text("dontList"),
+  contentAngles: text("contentAngles"),
+  hashtags: text("hashtags"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type BrandKit = typeof brandKit.$inferSelect;
+export type InsertBrandKit = typeof brandKit.$inferInsert;
 
 /**
  * CRM Notifications — in-app alerts for counselors

@@ -230,6 +230,7 @@ import { crmReportsRouter } from "./crmReportsRouter";
 import { crmCockpitRouter } from "./crmCockpitRouter";
 import { crmIntakeRouter } from "./crmIntakeRouter";
 import { crmJourneyRouter } from "./crmJourneyRouter";
+import { sosmedRouter } from "./sosmedRouter";
 import { startCrmReportScheduler } from "./crmReportScheduler";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail, sendParentProgressEmail } from "./email";
 import crypto from "crypto";
@@ -7925,6 +7926,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
   cockpit: crmCockpitRouter,
   intake: crmIntakeRouter,
   journey: crmJourneyRouter,
+  sosmed: sosmedRouter,
 });
 export type AppRouter = typeof appRouter;
 // Agents disabled — the background scheduler (lead/CRM/SEO/social/GM agents)

@@ -22,7 +22,7 @@ function isOwner(u: { role: string; crmRole: string | null }) {
   return u.role === "admin" || u.crmRole === "owner";
 }
 function assertCrm(u: { role: string; crmRole: string | null; crmActive: boolean }) {
-  const ok = isOwner(u) || (u.crmRole !== "none" && u.crmActive);
+  const ok = isOwner(u) || (u.crmRole !== "none" && u.crmRole !== "marketing" && u.crmActive);
   if (!ok) throw new TRPCError({ code: "FORBIDDEN", message: "CRM access required." });
 }
 

@@ -54,6 +54,7 @@ const CRM_ROLES = [
   "ielts_instructor",
   "visa_specialist",
   "front_desk",
+  "marketing",
 ] as const;
 const OFFICES = ["kelapa_gading", "pik", "gading_serpong"] as const;
 
@@ -77,7 +78,7 @@ export const crmTeamRouter = router({
   me: protectedProcedure.query(async ({ ctx }) => {
     const u = ctx.user;
     const owner = isOwnerLevel(u);
-    const canAccess = owner || (u.crmRole !== "none" && u.crmActive);
+    const canAccess = owner || (u.crmRole !== "none" && u.crmRole !== "marketing" && u.crmActive);
     return {
       id: u.id,
       name: u.name,

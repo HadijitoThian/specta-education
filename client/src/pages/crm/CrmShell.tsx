@@ -17,6 +17,7 @@ const ROLE_LABEL: Record<string, string> = {
   ielts_instructor: "IELTS Instructor",
   visa_specialist: "Visa Specialist",
   front_desk: "Front Desk",
+  marketing: "Marketing",
   none: "—",
 };
 
@@ -161,6 +162,7 @@ export const CRM_ROLE_OPTIONS = [
   { value: "ielts_instructor", label: "IELTS Instructor" },
   { value: "visa_specialist", label: "Visa Specialist" },
   { value: "front_desk", label: "Front Desk" },
+  { value: "marketing", label: "Marketing (Social Media studio only)" },
   { value: "owner", label: "Owner (full access)" },
 ];
 export { ROLE_LABEL };

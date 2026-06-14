@@ -44,7 +44,7 @@ const STAGE_LABEL: Record<string, string> = {
 };
 
 function assertCrm(u: { role: string; crmRole: string | null; crmActive: boolean }) {
-  const ok = u.role === "admin" || u.crmRole === "owner" || (u.crmRole !== "none" && u.crmActive);
+  const ok = u.role === "admin" || u.crmRole === "owner" || (u.crmRole !== "none" && u.crmRole !== "marketing" && u.crmActive);
   if (!ok) throw new TRPCError({ code: "FORBIDDEN", message: "CRM access required." });
 }
 
