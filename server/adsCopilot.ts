@@ -68,82 +68,53 @@ async function readBrandKit() {
   }
 }
 
-const SCHEMA = {
-  type: "json_schema" as const,
-  json_schema: {
-    name: "google_ads_campaign",
-    strict: true,
-    schema: {
-      type: "object",
-      properties: {
-        campaignName: { type: "string" },
-        dailyBudgetSuggested: { type: "number" },
-        adGroups: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              name: { type: "string" },
-              keywords: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    text: { type: "string" },
-                    matchType: { type: "string", enum: ["broad", "phrase", "exact"] },
-                  },
-                  required: ["text", "matchType"],
-                  additionalProperties: false,
-                },
-              },
-            },
-            required: ["name", "keywords"],
-            additionalProperties: false,
-          },
-        },
-        negativeKeywords: { type: "array", items: { type: "string" } },
-        responsiveSearchAd: {
-          type: "object",
-          properties: {
-            headlines: { type: "array", items: { type: "string" } },
-            descriptions: { type: "array", items: { type: "string" } },
-            path1: { type: "string" },
-            path2: { type: "string" },
-          },
-          required: ["headlines", "descriptions", "path1", "path2"],
-          additionalProperties: false,
-        },
-        sitelinks: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              text: { type: "string" },
-              url: { type: "string" },
-              description: { type: "string" },
-            },
-            required: ["text", "url", "description"],
-            additionalProperties: false,
-          },
-        },
-        callouts: { type: "array", items: { type: "string" } },
-        landingCopy: {
-          type: "object",
-          properties: {
-            heroHeadline: { type: "string" },
-            subheadline: { type: "string" },
-            bullets: { type: "array", items: { type: "string" } },
-            cta: { type: "string" },
-          },
-          required: ["heroHeadline", "subheadline", "bullets", "cta"],
-          additionalProperties: false,
-        },
-      },
-      required: ["campaignName", "dailyBudgetSuggested", "adGroups", "negativeKeywords", "responsiveSearchAd", "sitelinks", "callouts", "landingCopy"],
-      additionalProperties: false,
+
+const clip = (s: any, n: number) => (typeof s === "string" ? s : String(s ?? "")).trim().slice(0, n);
+const arr = (v: any): any[] => (Array.isArray(v) ? v : []);
+
+/** Coerce whatever the model returned into a safe GeneratedCampaign shape. */
+function normalizeCampaign(p: any, fallbackName: string): Omit<GeneratedCampaign, "finalUrlBase"> {
+  p = p && typeof p === "object" ? p : {};
+  const rsaRaw = p.responsiveSearchAd || p.rsa || p.ad || {};
+
+  const adGroups = arr(p.adGroups || p.ad_groups).map((g: any) => ({
+    name: clip(g?.name || g?.adGroup || "Ad group", 120),
+    keywords: arr(g?.keywords).map((k: any) => {
+      const text = typeof k === "string" ? k : (k?.text || k?.keyword || "");
+      let mt = String((typeof k === "object" && (k?.matchType || k?.match)) || "phrase").toLowerCase();
+      if (!["broad", "phrase", "exact"].includes(mt)) mt = "phrase";
+      return { text: clip(text, 80), matchType: mt as "broad" | "phrase" | "exact" };
+    }).filter(k => k.text),
+  })).filter(g => g.keywords.length);
+
+  const headlines = Array.from(new Set(arr(rsaRaw.headlines || rsaRaw.headline).map((h: any) => clip(h, 30)).filter(Boolean))).slice(0, 15);
+  const descriptions = Array.from(new Set(arr(rsaRaw.descriptions || rsaRaw.description).map((d: any) => clip(d, 90)).filter(Boolean))).slice(0, 4);
+
+  return {
+    campaignName: clip(p.campaignName || p.name || fallbackName, 180) || fallbackName,
+    dailyBudgetSuggested: Number(p.dailyBudgetSuggested || p.dailyBudget || p.budget || 0) || 0,
+    adGroups,
+    negativeKeywords: arr(p.negativeKeywords || p.negatives).map((n: any) => clip(typeof n === "string" ? n : n?.text, 80)).filter(Boolean),
+    responsiveSearchAd: {
+      headlines,
+      descriptions,
+      path1: clip(rsaRaw.path1 || "", 15).replace(/\s+/g, ""),
+      path2: clip(rsaRaw.path2 || "", 15).replace(/\s+/g, ""),
     },
-  },
-};
+    sitelinks: arr(p.sitelinks).map((s: any) => ({
+      text: clip(s?.text || s?.title, 25),
+      url: clip(s?.url || s?.link || "/", 200),
+      description: clip(s?.description || "", 120),
+    })).filter(s => s.text),
+    callouts: arr(p.callouts).map((c: any) => clip(typeof c === "string" ? c : c?.text, 25)).filter(Boolean),
+    landingCopy: {
+      heroHeadline: clip(p.landingCopy?.heroHeadline || p.landingCopy?.headline || "", 120),
+      subheadline: clip(p.landingCopy?.subheadline || p.landingCopy?.subtitle || "", 300),
+      bullets: arr(p.landingCopy?.bullets).map((b: any) => clip(typeof b === "string" ? b : b?.text, 160)).filter(Boolean),
+      cta: clip(p.landingCopy?.cta || "Book a free consultation", 60),
+    },
+  };
+}
 
 /** Generate a full campaign for a brief. Does NOT save — caller persists. */
 export async function generateCampaign(brief: CampaignBrief): Promise<GeneratedCampaign> {
@@ -182,22 +153,44 @@ Primary goal: ${brief.goal || "get free-consultation leads (WhatsApp / form)"}
 Landing page path: ${landingPath}
 ${brief.dailyBudget ? `Daily budget hint: Rp ${brief.dailyBudget}` : "Suggest a sensible daily budget in IDR for the Indonesian market."}
 
-Return the campaign JSON.`,
+Return ONLY a JSON object with EXACTLY this shape (no markdown, no commentary):
+{
+  "campaignName": "string",
+  "dailyBudgetSuggested": 100000,
+  "adGroups": [{ "name": "string", "keywords": [{ "text": "string", "matchType": "phrase" }] }],
+  "negativeKeywords": ["string"],
+  "responsiveSearchAd": { "headlines": ["string (<=30 chars)"], "descriptions": ["string (<=90 chars)"], "path1": "string", "path2": "string" },
+  "sitelinks": [{ "text": "string", "url": "/path", "description": "string" }],
+  "callouts": ["string"],
+  "landingCopy": { "heroHeadline": "string", "subheadline": "string", "bullets": ["string"], "cta": "string" }
+}`,
       },
     ],
-    response_format: SCHEMA,
+    response_format: { type: "json_object" },
   });
 
   const text = res.choices?.[0]?.message?.content as string | undefined;
   if (!text) throw new Error("Campaign generation returned no content");
-  const gen = JSON.parse(text) as Omit<GeneratedCampaign, "finalUrlBase">;
 
-  // Enforce character limits defensively (truncate, drop empties, dedupe).
-  const clip = (s: string, n: number) => (s || "").trim().slice(0, n);
-  gen.responsiveSearchAd.headlines = Array.from(new Set((gen.responsiveSearchAd.headlines || []).map(h => clip(h, 30)).filter(Boolean))).slice(0, 15);
-  gen.responsiveSearchAd.descriptions = Array.from(new Set((gen.responsiveSearchAd.descriptions || []).map(d => clip(d, 90)).filter(Boolean))).slice(0, 4);
-  gen.responsiveSearchAd.path1 = clip(gen.responsiveSearchAd.path1 || "", 15).replace(/\s+/g, "");
-  gen.responsiveSearchAd.path2 = clip(gen.responsiveSearchAd.path2 || "", 15).replace(/\s+/g, "");
+  let parsed: any;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    // Some models wrap JSON in prose or code fences — extract the object.
+    const m = text.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error("AI did not return valid JSON — please try again.");
+    parsed = JSON.parse(m[0]);
+  }
+  // Some models nest the result under a wrapper key.
+  if (parsed && !parsed.responsiveSearchAd && !parsed.adGroups) {
+    const inner = parsed.campaign || parsed.data || parsed.result;
+    if (inner && typeof inner === "object") parsed = inner;
+  }
+
+  const gen = normalizeCampaign(parsed, brief.product);
+  if (!gen.responsiveSearchAd.headlines.length || !gen.adGroups.length) {
+    throw new Error("AI returned an incomplete campaign — please try again.");
+  }
 
   const campaignSlug = slugCampaign(gen.campaignName || brief.product);
   const finalUrlBase = `${BASE_URL}${landingPath}?utm_source=google&utm_medium=cpc&utm_campaign=${campaignSlug}`;
