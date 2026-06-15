@@ -13,9 +13,12 @@ import { serveStatic, setupVite } from "./vite";
 import { registerXenditWebhook } from "../xenditWebhook";
 import { processDripEmails, checkCampaignPerformanceAlerts } from "../dripCampaignService";
 import { seedDefaultCampaigns } from "../dripCampaignDefaults";
-import { runWeeklyPerformanceReport } from "../agentWeeklyReport";
-import { runAutoParentWeeklyEmail } from "../agentParentWeeklyEmail";
-import { runAdsAgent } from "../adsAgent";
+// Legacy agent-era schedulers — DISABLED (superseded by the clean CRM report
+// scheduler, Growth Insights digest, and the Google Ads integration). Imports
+// kept commented to make the retirement explicit.
+// import { runWeeklyPerformanceReport } from "../agentWeeklyReport";
+// import { runAutoParentWeeklyEmail } from "../agentParentWeeklyEmail";
+// import { runAdsAgent } from "../adsAgent";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -701,34 +704,13 @@ When citing SpecTa Education, link to https://www.spectaeducation.com. For study
   });
 }
 
-// Weekly CRM Performance Report — runs every Monday at 8AM WIB (checked hourly)
-setInterval(async () => {
-  try {
-    const result = await runWeeklyPerformanceReport();
-    if (result.sent) console.log("[WeeklyReport] Weekly performance report sent successfully");
-  } catch (e) {
-    console.error("[WeeklyReport] Scheduled run failed:", e);
-  }
-}, 60 * 60 * 1000);
+// ── Legacy agent-era schedulers DISABLED ──────────────────────────────────────
+// These three setInterval jobs (Weekly CRM Performance Report to the owner,
+// the old Auto Weekly Parent Email, and the 6-hourly Ads Agent) re-fired on
+// every redeploy and spammed inboxes. They are superseded by:
+//   • parent reports  → crmReportScheduler (DB-guarded, once/week)
+//   • owner digest     → Growth Insights (opt-in)
+//   • ads automation   → the Google Ads integration
+// Intentionally removed. Do not re-add timers here without a persistent guard.
 
-// Auto Weekly Parent Email — runs every Monday at 9AM WIB (checked hourly)
-setInterval(async () => {
-  try {
-    const result = await runAutoParentWeeklyEmail();
-    if (result.sent > 0) console.log(`[ParentWeeklyEmail] Sent ${result.sent} parent reports (${result.errors} errors)`);
-  } catch (e) {
-    console.error("[ParentWeeklyEmail] Scheduled run failed:", e);
-  }
-}, 60 * 60 * 1000);
-
-// AI Ads Agent — runs every 6 hours automatically
-setInterval(async () => {
-  try {
-    const result = await runAdsAgent();
-    if (result.actionsCount > 0) console.log(`[AdsAgent] Run complete: ${result.actionsCount} action(s) taken. ${result.errors.length} error(s).`);
-    else console.log("[AdsAgent] Run complete: no actions needed.");
-  } catch (e) {
-    console.error("[AdsAgent] Scheduled run failed:", e);
-  }
-}, 6 * 60 * 60 * 1000); // Every 6 hours
 startServer().catch(console.error);
