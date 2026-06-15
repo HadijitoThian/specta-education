@@ -235,7 +235,7 @@ import { sosmedRouter } from "./sosmedRouter";
 import { startCrmReportScheduler } from "./crmReportScheduler";
 import { startArticleProducerScheduler } from "./articleProducer";
 import { startGrowthInsightsScheduler } from "./growthInsights";
-import { startGoogleAdsScheduler } from "./googleAdsApi";
+import { startGoogleAdsScheduler, startGoogleAdsOptimizer } from "./googleAdsApi";
 import { parseAttribution } from "./attribution";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail, sendParentProgressEmail } from "./email";
 import crypto from "crypto";
@@ -7990,6 +7990,10 @@ startGrowthInsightsScheduler();
 // Google Ads live API: daily performance auto-sync. Dormant unless the
 // GOOGLE_ADS_* credentials are set.
 startGoogleAdsScheduler();
+
+// Google Ads AI optimizer (Advisor): daily suggestions emailed for approval.
+// OFF unless GOOGLE_ADS_OPTIMIZER_ENABLED=true.
+startGoogleAdsOptimizer();
 
 // Auto-seed universities on startup
 seedUniversitiesIfEmpty().then(r => {

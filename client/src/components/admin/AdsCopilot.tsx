@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Megaphone, Loader2, Download, Trash2, ArrowLeft, Plus, Copy } from "lucide-react";
+import { Megaphone, Loader2, Download, Trash2, ArrowLeft, Plus, Copy, Lightbulb, Check } from "lucide-react";
 
 const LANDING_PAGES = [
   { path: "/ielts", label: "IELTS Preparation" },
@@ -47,6 +47,13 @@ export default function AdsCopilot() {
     onError: (e) => toast.error(e.message),
   });
   const gAds = trpc.marketing.googleAdsStatus.useQuery(undefined, { retry: false });
+  const recs = trpc.marketing.adsRecommendations.useQuery(undefined, {
+    enabled: false, retry: false,
+  });
+  const applyRec = trpc.marketing.adsApplyRecommendation.useMutation({
+    onSuccess: () => { toast.success("Applied ✓"); recs.refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
   const pushLive = trpc.marketing.googleAdsPush.useMutation({
     onSuccess: () => toast.success("Pushed to Google Ads as a PAUSED campaign — review & enable it there."),
     onError: (e) => toast.error(e.message),
@@ -223,6 +230,44 @@ export default function AdsCopilot() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* AI Recommendations (Advisor — D3) */}
+      {gAds.data?.configured && gAds.data.ok && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center justify-between">
+              <span className="flex items-center gap-2"><Lightbulb className="w-4 h-4 text-amber-500" /> AI Recommendations</span>
+              <Button size="sm" variant="outline" onClick={() => recs.refetch()} disabled={recs.isFetching}>
+                {recs.isFetching ? <Loader2 className="w-4 h-4 animate-spin" /> : "Get suggestions"}
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {recs.data === undefined ? (
+              <p className="text-sm text-gray-500">Click <em>Get suggestions</em> — AI reviews the last 30 days and proposes pauses/budget changes (you approve each).</p>
+            ) : recs.data.length === 0 ? (
+              <p className="text-sm text-gray-500">No changes recommended right now — nothing is clearly wasting money. Check back as data grows.</p>
+            ) : (
+              <div className="space-y-2">
+                {recs.data.map((r: any, i: number) => (
+                  <div key={i} className="flex items-start justify-between gap-3 border rounded-lg px-3 py-2">
+                    <div>
+                      <div className="font-medium text-sm">{r.title}</div>
+                      <div className="text-xs text-gray-500">{r.reason}</div>
+                    </div>
+                    <Button size="sm" variant="outline" className="text-emerald-700 border-emerald-300"
+                      disabled={applyRec.isPending}
+                      onClick={() => applyRec.mutate({ type: r.type, resourceName: r.resourceName, amountMicros: r.amountMicros })}>
+                      {applyRec.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4 mr-1" /> Approve</>}
+                    </Button>
+                  </div>
+                ))}
+                <p className="text-xs text-gray-400">Advisor mode — nothing changes until you click Approve. Daily email suggestions: set GOOGLE_ADS_OPTIMIZER_ENABLED=true.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader><CardTitle className="text-sm">Saved campaigns</CardTitle></CardHeader>

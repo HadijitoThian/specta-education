@@ -19,6 +19,7 @@
  */
 import { replaceMonthlySpend } from "./db";
 import type { AdCampaign } from "../drizzle/schema";
+import { notifyOwner } from "./_core/notification";
 
 // Google retires old API versions periodically. Override with the
 // GOOGLE_ADS_API_VERSION env var (e.g. "v21") if Google returns a 404.
@@ -231,6 +232,135 @@ export async function pushCampaignLive(campaign: AdCampaign): Promise<{ campaign
   }
 
   return { campaignResourceName: campaignRN };
+}
+
+// ── D3: AI optimizer (Advisor mode — suggests, you approve) ──────────────────
+export interface AdRec {
+  type: "pause_keyword" | "scale_budget";
+  resourceName: string;
+  title: string;
+  reason: string;
+  amountMicros?: string;       // for scale_budget
+}
+
+/**
+ * Read the last 30 days and return recommended changes — never applies them.
+ * Guardrails: waste threshold (default Rp50k) and the daily budget cap.
+ */
+export async function getRecommendations(): Promise<AdRec[]> {
+  const env = readEnv();
+  if (!env) throw new Error("Google Ads not configured");
+  const threshold = Number(process.env.GOOGLE_ADS_WASTE_THRESHOLD_IDR || 50000);
+  const recs: AdRec[] = [];
+
+  // 1) Wasteful keywords: spent >= threshold with zero conversions.
+  const kw = await search(env, `
+    SELECT campaign.name, ad_group_criterion.keyword.text, ad_group_criterion.resource_name,
+           metrics.cost_micros, metrics.clicks, metrics.conversions
+    FROM keyword_view
+    WHERE segments.date DURING LAST_30_DAYS AND ad_group_criterion.status = 'ENABLED'
+  `);
+  const km = new Map<string, { text: string; campaign: string; cost: number; clicks: number; conv: number }>();
+  for (const r of kw) {
+    const rn = r.adGroupCriterion?.resourceName;
+    if (!rn) continue;
+    const cur = km.get(rn) || { text: r.adGroupCriterion?.keyword?.text || "", campaign: r.campaign?.name || "", cost: 0, clicks: 0, conv: 0 };
+    cur.cost += Number(r.metrics?.costMicros || 0) / 1e6;
+    cur.clicks += Number(r.metrics?.clicks || 0);
+    cur.conv += Number(r.metrics?.conversions || 0);
+    km.set(rn, cur);
+  }
+  for (const [rn, v] of Array.from(km.entries())) {
+    if (v.cost >= threshold && v.conv === 0 && v.clicks >= 5) {
+      recs.push({
+        type: "pause_keyword", resourceName: rn,
+        title: `Pause keyword "${v.text}"`,
+        reason: `Spent Rp${Math.round(v.cost).toLocaleString("id-ID")} over ${v.clicks} clicks with 0 conversions (last 30 days) in "${v.campaign}".`,
+      });
+    }
+  }
+
+  // 2) Scale winners: campaigns with conversions, bump budget +20% within cap.
+  const camps = await search(env, `
+    SELECT campaign.name, campaign_budget.resource_name, campaign_budget.amount_micros,
+           metrics.cost_micros, metrics.conversions
+    FROM campaign
+    WHERE segments.date DURING LAST_30_DAYS AND campaign.status = 'ENABLED'
+  `);
+  const cm = new Map<string, { name: string; budgetMicros: number; cost: number; conv: number }>();
+  for (const r of camps) {
+    const rn = r.campaignBudget?.resourceName;
+    if (!rn) continue;
+    const cur = cm.get(rn) || { name: r.campaign?.name || "", budgetMicros: Number(r.campaignBudget?.amountMicros || 0), cost: 0, conv: 0 };
+    cur.cost += Number(r.metrics?.costMicros || 0) / 1e6;
+    cur.conv += Number(r.metrics?.conversions || 0);
+    cm.set(rn, cur);
+  }
+  const capMicros = env.dailyCapIdr ? env.dailyCapIdr * 1e6 : undefined;
+  for (const [rn, v] of Array.from(cm.entries())) {
+    if (v.conv >= 1 && v.budgetMicros > 0) {
+      let next = Math.round(v.budgetMicros * 1.2);
+      if (capMicros && next > capMicros) next = capMicros;
+      if (next > v.budgetMicros) {
+        recs.push({
+          type: "scale_budget", resourceName: rn, amountMicros: String(next),
+          title: `Scale "${v.name}" budget +20%`,
+          reason: `${v.conv} conversion(s) in 30 days — raise daily budget to Rp${Math.round(next / 1e6).toLocaleString("id-ID")}${capMicros && next === capMicros ? " (your cap)" : ""}.`,
+        });
+      }
+    }
+  }
+  return recs;
+}
+
+/** Apply one approved recommendation (Advisor mode action). */
+export async function applyRecommendation(rec: { type: AdRec["type"]; resourceName: string; amountMicros?: string }): Promise<{ ok: true }> {
+  const env = readEnv();
+  if (!env) throw new Error("Google Ads not configured");
+  if (rec.type === "pause_keyword") {
+    await mutate(env, "adGroupCriteria", [{ update: { resourceName: rec.resourceName, status: "PAUSED" }, updateMask: "status" }]);
+  } else if (rec.type === "scale_budget") {
+    if (!rec.amountMicros) throw new Error("Missing budget amount");
+    await mutate(env, "campaignBudgets", [{ update: { resourceName: rec.resourceName, amountMicros: rec.amountMicros }, updateMask: "amount_micros" }]);
+  }
+  return { ok: true };
+}
+
+// ── D3 Advisor scheduler: daily email of suggestions (you approve in-app) ─────
+let optStarted = false;
+let lastOptDay = "";
+
+async function optTick() {
+  if (!isGoogleAdsConfigured() || process.env.GOOGLE_ADS_OPTIMIZER_ENABLED !== "true") return;
+  const now = new Date(Date.now() + 7 * 60 * 60 * 1000); // WIB
+  const day = now.toISOString().slice(0, 10);
+  if (now.getUTCHours() < 7 || lastOptDay === day) return; // once daily, after ~07:00 WIB
+  lastOptDay = day;
+  try {
+    const recs = await getRecommendations();
+    if (recs.length) {
+      await notifyOwner({
+        title: `Google Ads — ${recs.length} optimization suggestion(s)`,
+        content: recs.map((r, i) => `${i + 1}. ${r.title}\n   ${r.reason}`).join("\n\n") +
+          `\n\nReview & approve in /admin → Ads Co-pilot → AI Recommendations.`,
+      });
+      console.log(`[GoogleAds] advisor emailed ${recs.length} suggestion(s)`);
+    }
+  } catch (e) {
+    console.error("[GoogleAds] advisor failed:", (e as Error).message);
+  }
+}
+
+export function startGoogleAdsOptimizer() {
+  if (optStarted) return;
+  if (!isGoogleAdsConfigured() || process.env.GOOGLE_ADS_OPTIMIZER_ENABLED !== "true") {
+    console.log("[GoogleAds] optimizer (Advisor) off — set GOOGLE_ADS_OPTIMIZER_ENABLED=true to enable daily suggestions.");
+    return;
+  }
+  optStarted = true;
+  console.log("[GoogleAds] optimizer (Advisor) on — daily suggestions emailed for your approval.");
+  setInterval(() => { void optTick(); }, 60 * 60 * 1000);
+  setTimeout(() => { void optTick(); }, 120 * 1000);
 }
 
 // ── Daily auto-sync scheduler (only runs when credentials exist) ──────────────

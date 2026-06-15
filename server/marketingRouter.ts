@@ -29,7 +29,7 @@ import {
 import { generateCampaign, campaignToCsv, type GeneratedCampaign } from "./adsCopilot";
 import { generatePerformanceDigest, runGeoMonitor, analyzeContentGaps } from "./growthInsights";
 import { listGrowthDigests, listGeoSnapshots } from "./db";
-import { isGoogleAdsConfigured, getStatus as googleAdsStatus, syncPerformance, pushCampaignLive } from "./googleAdsApi";
+import { isGoogleAdsConfigured, getStatus as googleAdsStatus, syncPerformance, pushCampaignLive, getRecommendations, applyRecommendation } from "./googleAdsApi";
 
 // Stages that count as "reached a consultation" (everything past new_lead, on-pipeline).
 const POST_CONSULT = new Set([
@@ -338,6 +338,27 @@ export const marketingRouter = router({
       const c = await getAdCampaign(input.id);
       if (!c) throw new TRPCError({ code: "NOT_FOUND" });
       try { return await pushCampaignLive(c); }
+      catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
+    }),
+
+  /** D3 Advisor: AI optimization suggestions (read-only — you approve each). */
+  adsRecommendations: protectedProcedure.query(async ({ ctx }) => {
+    requireAdmin(ctx);
+    if (!isGoogleAdsConfigured()) return [];
+    try { return await getRecommendations(); }
+    catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
+  }),
+
+  /** D3 Advisor: apply one approved suggestion. */
+  adsApplyRecommendation: protectedProcedure
+    .input(z.object({
+      type: z.enum(["pause_keyword", "scale_budget"]),
+      resourceName: z.string(),
+      amountMicros: z.string().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      try { return await applyRecommendation(input); }
       catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
     }),
 });
