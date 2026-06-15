@@ -29,6 +29,7 @@ import {
 import { generateCampaign, campaignToCsv, type GeneratedCampaign } from "./adsCopilot";
 import { generatePerformanceDigest, runGeoMonitor, analyzeContentGaps } from "./growthInsights";
 import { listGrowthDigests, listGeoSnapshots } from "./db";
+import { isGoogleAdsConfigured, getStatus as googleAdsStatus, syncPerformance, pushCampaignLive } from "./googleAdsApi";
 
 // Stages that count as "reached a consultation" (everything past new_lead, on-pipeline).
 const POST_CONSULT = new Set([
@@ -311,4 +312,32 @@ export const marketingRouter = router({
     try { return await analyzeContentGaps(); }
     catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
   }),
+
+  // ── Google Ads live API (Phase D) ────────────────────────────────────────────
+  /** Connection status — tells the UI whether credentials are set + working. */
+  googleAdsStatus: protectedProcedure.query(async ({ ctx }) => {
+    requireAdmin(ctx);
+    if (!isGoogleAdsConfigured()) return { configured: false as const };
+    return googleAdsStatus();
+  }),
+
+  /** D1: pull real spend/clicks/impressions for a month from Google Ads. */
+  googleAdsSync: protectedProcedure
+    .input(z.object({ month: z.string().regex(/^\d{4}-\d{2}$/) }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      try { return { count: await syncPerformance(input.month) }; }
+      catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
+    }),
+
+  /** D2: push a saved Co-pilot campaign live (created PAUSED for review). */
+  googleAdsPush: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      const c = await getAdCampaign(input.id);
+      if (!c) throw new TRPCError({ code: "NOT_FOUND" });
+      try { return await pushCampaignLive(c); }
+      catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
+    }),
 });

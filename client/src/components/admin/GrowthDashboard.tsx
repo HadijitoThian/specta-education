@@ -90,6 +90,13 @@ export default function GrowthDashboard() {
     onError: (e) => toast.error(e.message),
   });
 
+  // Google Ads live API (dormant until credentials are set)
+  const gAds = trpc.marketing.googleAdsStatus.useQuery(undefined, { retry: false });
+  const gAdsSync = trpc.marketing.googleAdsSync.useMutation({
+    onSuccess: (r) => { toast.success(`Synced ${r.count} campaign(s) from Google Ads`); invalidate(); },
+    onError: (e) => toast.error(e.message),
+  });
+
   // Google Ads import
   const [importText, setImportText] = useState("");
   const parsedImport = useMemo(() => parseGoogleAds(importText), [importText]);
@@ -243,7 +250,26 @@ export default function GrowthDashboard() {
         </CardContent>
       </Card>
 
-      {/* Import from Google Ads */}
+      {/* Google Ads live connection (Phase D) */}
+      {gAds.data?.configured && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center justify-between">
+              <span className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-blue-600" /> Google Ads — live sync</span>
+              <Button size="sm" variant="outline" onClick={() => month ? gAdsSync.mutate({ month }) : toast.error("Pick a month")} disabled={gAdsSync.isPending}>
+                {gAdsSync.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sync now"}
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {gAds.data.ok
+              ? <p className="text-sm text-green-700">✓ Connected{gAds.data.accountName ? ` to ${gAds.data.accountName}` : ""}. Spend, clicks &amp; impressions auto-sync daily — no manual paste needed.</p>
+              : <p className="text-sm text-red-600">Credentials set but connection failed: {gAds.data.error}</p>}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Import from Google Ads (manual fallback) */}
       <Card>
         <CardHeader>
           <CardTitle className="text-sm flex items-center gap-2">

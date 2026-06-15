@@ -46,6 +46,11 @@ export default function AdsCopilot() {
     onSuccess: () => { toast.success("Deleted"); utils.marketing.listCampaigns.invalidate(); setOpenId(null); },
     onError: (e) => toast.error(e.message),
   });
+  const gAds = trpc.marketing.googleAdsStatus.useQuery(undefined, { retry: false });
+  const pushLive = trpc.marketing.googleAdsPush.useMutation({
+    onSuccess: () => toast.success("Pushed to Google Ads as a PAUSED campaign — review & enable it there."),
+    onError: (e) => toast.error(e.message),
+  });
   const exportCsv = trpc.marketing.exportCampaignCsv.useMutation({
     onSuccess: ({ csv, filename }) => {
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -78,6 +83,11 @@ export default function AdsCopilot() {
               <Button size="sm" variant="outline" onClick={() => exportCsv.mutate({ id: c.id })} disabled={exportCsv.isPending}>
                 {exportCsv.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Download className="w-4 h-4 mr-1" /> Download CSV</>}
               </Button>
+              {gAds.data?.configured && gAds.data.ok && (
+                <Button size="sm" onClick={() => { if (confirm("Create this campaign in Google Ads? It will be PAUSED so you can review before it spends.")) pushLive.mutate({ id: c.id }); }} disabled={pushLive.isPending} className="bg-indigo-600 hover:bg-indigo-700">
+                  {pushLive.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Push live (paused)"}
+                </Button>
+              )}
               <Button size="sm" variant="outline" className="text-red-500" onClick={() => { if (confirm("Delete this campaign?")) del.mutate({ id: c.id }); }}>
                 <Trash2 className="w-4 h-4" />
               </Button>
