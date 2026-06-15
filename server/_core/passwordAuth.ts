@@ -227,6 +227,7 @@ export function registerPasswordAuthRoutes(app: Express) {
           email: user.email,
           name: user.name,
           role: user.role,
+          crmRole: user.crmRole,
         },
       });
     } catch (error) {

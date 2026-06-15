@@ -19,14 +19,24 @@ export default function Login() {
         credentials: "same-origin",
         body: JSON.stringify({ email, password }),
       });
+      const data = await res.json().catch(() => ({} as any));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         setError(data.error ?? "Login failed");
         return;
       }
-      // Honour ?next=… (e.g. returning to a free-access redeem link).
+      // Honour ?next=… (e.g. returning to a free-access redeem link),
+      // otherwise send the user straight to the right dashboard for their role.
       const next = new URLSearchParams(window.location.search).get("next");
-      const dest = next && next.startsWith("/") ? next : "/";
+      let dest = "/";
+      if (next && next.startsWith("/")) {
+        dest = next;
+      } else {
+        const role = data?.user?.role;
+        const crmRole = data?.user?.crmRole;
+        if (crmRole === "marketing") dest = "/sosmed";          // marketing team → Social Studio
+        else if (role === "admin" || (crmRole && crmRole !== "none")) dest = "/crm"; // CRM team → CRM
+        else dest = "/";                                         // ordinary users → homepage
+      }
       // Hard navigate so tRPC `auth.me` re-fetches with the new cookie.
       window.location.href = dest;
     } catch (err) {
