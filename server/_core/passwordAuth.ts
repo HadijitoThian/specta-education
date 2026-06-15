@@ -109,75 +109,16 @@ async function sendResetEmail(toEmail: string, resetUrl: string): Promise<void> 
 
 export function registerPasswordAuthRoutes(app: Express) {
   /**
-   * POST /api/auth/signup
+   * POST /api/auth/signup — DISABLED.
+   *
+   * SpecTa dashboards (CRM, Social Studio, Admin) are internal-only. There is no
+   * public self-registration; accounts are created by an administrator from
+   * /crm → Team. This endpoint is kept as a hard 403 so nothing can self-enrol.
    */
-  app.post("/api/auth/signup", async (req: Request, res: Response) => {
-    try {
-      const email = typeof req.body?.email === "string" ? req.body.email : "";
-      const password =
-        typeof req.body?.password === "string" ? req.body.password : "";
-      const name =
-        typeof req.body?.name === "string" ? req.body.name.trim() : "";
-
-      if (!EMAIL_RE.test(email)) {
-        return res.status(400).json({ error: "Invalid email address" });
-      }
-      if (password.length < PASSWORD_MIN_LENGTH) {
-        return res.status(400).json({
-          error: `Password must be at least ${PASSWORD_MIN_LENGTH} characters`,
-        });
-      }
-
-      const emailLower = normalizeEmail(email);
-      const existing = await findUserByEmail(emailLower);
-      if (existing) {
-        return res
-          .status(409)
-          .json({ error: "An account with this email already exists" });
-      }
-
-      const db = await getDb();
-      if (!db) {
-        return res.status(500).json({ error: "Database unavailable" });
-      }
-
-      const passwordHash = await bcrypt.hash(password, 12);
-      const openId = `email:${nanoid(20)}`;
-      const isOwner =
-        ENV.ownerEmail &&
-        emailLower === ENV.ownerEmail.toLowerCase();
-
-      const insertValues: InsertUser = {
-        openId,
-        name: name || null,
-        email: emailLower,
-        emailLower,
-        passwordHash,
-        loginMethod: "password",
-        role: isOwner ? "admin" : "user",
-        lastSignedIn: new Date(),
-      };
-
-      await db.insert(users).values(insertValues);
-
-      await setSessionCookie(req, res, {
-        openId,
-        name: name || "",
-        email: emailLower,
-      });
-
-      return res.status(200).json({
-        user: {
-          openId,
-          email: emailLower,
-          name: name || "",
-          role: isOwner ? "admin" : "user",
-        },
-      });
-    } catch (error) {
-      console.error("[Auth] Signup failed:", error);
-      return res.status(500).json({ error: "Signup failed" });
-    }
+  app.post("/api/auth/signup", (_req: Request, res: Response) => {
+    return res.status(403).json({
+      error: "Sign-ups are disabled. Accounts are created by an administrator.",
+    });
   });
 
   /**

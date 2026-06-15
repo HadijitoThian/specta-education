@@ -102,12 +102,9 @@ export default function Login() {
           <Link href="/forgot-password" className="text-blue-600 hover:underline">
             Forgot your password?
           </Link>
-          <div>
-            New here?{" "}
-            <Link href="/signup" className="text-blue-600 hover:underline">
-              Create an account
-            </Link>
-          </div>
+          <p className="text-xs text-gray-400">
+            Internal access only. Accounts are created by an administrator.
+          </p>
         </div>
       </div>
     </div>

@@ -44,7 +44,6 @@ const SimulatorReport = lazy(() => import("./pages/SimulatorReport"));
 const AIAnswers = lazy(() => import("./pages/AIAnswers"));
 const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
 const Login = lazy(() => import("./pages/Login"));
-const Signup = lazy(() => import("./pages/Signup"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 // Staff / Admin routes (heavy — definitely lazy)
@@ -106,7 +105,8 @@ function Router() {
       <Switch>
         {/* ── Auth ── */}
         <Route path={"/login"} component={Login} />
-        <Route path={"/signup"} component={Signup} />
+        {/* Public sign-up retired — dashboards are internal-only. */}
+        <Route path={"/signup"}>{() => <Redirect to="/login" />}</Route>
         <Route path={"/forgot-password"} component={ForgotPassword} />
         <Route path={"/reset-password"} component={ResetPassword} />
 
