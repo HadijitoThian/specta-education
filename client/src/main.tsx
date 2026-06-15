@@ -38,11 +38,13 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   const path = window.location.pathname;
 
-  // CRM/staff routes use staff_token JWT — redirect to staff login page, NOT Manus OAuth
-  if (path.startsWith("/crm") || path.startsWith("/staff")) {
-    // Don't redirect if already on staff-login to prevent redirect loops
-    if (path === "/staff-login") return;
-    window.location.href = "/staff-login";
+  // CRM shows its own inline sign-in form — never redirect away from it.
+  if (path.startsWith("/crm")) return;
+
+  // Legacy /staff routes → the single team sign-in page (/login).
+  if (path.startsWith("/staff")) {
+    if (path === "/login") return;
+    window.location.href = "/login";
     return;
   }
 

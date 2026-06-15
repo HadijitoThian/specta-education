@@ -48,7 +48,6 @@ const Signup = lazy(() => import("./pages/Signup"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 // Staff / Admin routes (heavy — definitely lazy)
-const StaffLogin = lazy(() => import("./pages/StaffLogin"));
 const StaffDashboard = lazy(() => import("./pages/StaffDashboard"));
 const CounselorCRM = lazy(() => import("./pages/CounselorCRM"));
 const StudentProfile360 = lazy(() => import("./pages/StudentProfile360"));
@@ -145,7 +144,8 @@ function Router() {
         <Route path={"/faq"} component={AIAnswers} />
         <Route path={"/unsubscribe"} component={Unsubscribe} />
         {/* ── Staff / CRM ── */}
-        <Route path={"/staff-login"} component={StaffLogin} />
+        {/* Old staff login retired — everyone uses /login now. */}
+        <Route path={"/staff-login"}>{() => <Redirect to="/login" />}</Route>
         <Route path={"/staff-dashboard"} component={StaffDashboard} />
         <Route path={"/crm"} component={CrmHome} />
         <Route path={"/crm/team"} component={CrmTeam} />
