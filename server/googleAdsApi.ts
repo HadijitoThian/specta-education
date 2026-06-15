@@ -174,7 +174,9 @@ export async function pushCampaignLive(campaign: AdCampaign): Promise<{ campaign
   // 2) Campaign (PAUSED, Search, manual CPC, search network only)
   const campaignRes = await mutate(env, "campaigns", [{
     create: {
-      name: `${campaign.name} ${new Date().toISOString().slice(0, 10)}`,
+      // Unique suffix (date + time + random) so re-pushes never collide with
+      // an existing paused/active campaign (DUPLICATE_CAMPAIGN_NAME).
+      name: `${campaign.name} ${new Date().toISOString().slice(0, 16).replace("T", " ")} #${Math.random().toString(36).slice(2, 6)}`,
       status: "PAUSED",
       advertisingChannelType: "SEARCH",
       manualCpc: { enhancedCpcEnabled: false },
