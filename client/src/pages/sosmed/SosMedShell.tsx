@@ -2,14 +2,13 @@
  * Social Media workspace shell (/sosmed) — Phase 1. Access: site admin, CRM
  * "owner", or "marketing" team members. Provides the sidebar + access gate.
  */
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 const CORAL = "#FF6B4A";
 const PINK = "#E91E8C";
-const PURPLE = "#9C27B0";
 
 type NavItem = { label: string; href: string; soon?: boolean };
 const NAV: NavItem[] = [
@@ -31,6 +30,65 @@ function Centered({ children }: { children: ReactNode }) {
 export const sosmedInput =
   "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300";
 
+/** Inline sign-in shown right on /sosmed when the user isn't logged in. */
+function SosMedLogin() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setError(d.error ?? "Invalid email or password");
+        return;
+      }
+      window.location.href = "/sosmed";
+    } catch {
+      setError("Network error — please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Centered>
+      <div className="w-14 h-14 mx-auto mb-3 rounded-full flex items-center justify-center" style={{ background: `${PINK}1a` }}>
+        <span className="text-2xl">🎨</span>
+      </div>
+      <h1 className="text-xl font-bold text-slate-800 mb-1">Social Studio Sign In</h1>
+      <p className="text-sm text-slate-500 mb-5">Sign in to the SpecTa marketing studio.</p>
+      <form onSubmit={onSubmit} className="space-y-3 text-left">
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1">Email</label>
+          <input type="email" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className={sosmedInput} />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1">Password</label>
+          <input type="password" required autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} className={sosmedInput} />
+        </div>
+        {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</div>}
+        <button type="submit" disabled={submitting} className="w-full px-4 py-2.5 rounded-lg text-white text-sm font-semibold disabled:opacity-60" style={{ background: PINK }}>
+          {submitting ? "Signing in…" : "Sign In"}
+        </button>
+      </form>
+      <div className="mt-4 text-xs text-center">
+        <Link href="/forgot-password" className="text-pink-600 hover:underline">Forgot your password?</Link>
+      </div>
+    </Centered>
+  );
+}
+
 export function SosMedShell({ active, children }: { active: string; children: ReactNode }) {
   const [, setLocation] = useLocation();
   const { logout, loading: authLoading, isAuthenticated } = useAuth();
@@ -39,12 +97,7 @@ export function SosMedShell({ active, children }: { active: string; children: Re
   if (authLoading || meQuery.isLoading) return <Centered>Loading…</Centered>;
 
   if (!isAuthenticated) {
-    return (
-      <Centered>
-        <h1 className="text-xl font-semibold mb-2">Please sign in</h1>
-        <a href="/login" className="inline-block px-4 py-2 rounded-lg text-white font-medium" style={{ background: PURPLE }}>Go to sign in</a>
-      </Centered>
-    );
+    return <SosMedLogin />;
   }
 
   const me = meQuery.data;

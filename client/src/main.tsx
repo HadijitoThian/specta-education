@@ -38,8 +38,8 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   const path = window.location.pathname;
 
-  // CRM shows its own inline sign-in form — never redirect away from it.
-  if (path.startsWith("/crm")) return;
+  // CRM and Social Studio show their own inline sign-in forms — never redirect.
+  if (path.startsWith("/crm") || path.startsWith("/sosmed") || path.startsWith("/SosMed")) return;
 
   // Legacy /staff routes → the single team sign-in page (/login).
   if (path.startsWith("/staff")) {
