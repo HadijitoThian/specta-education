@@ -20,7 +20,9 @@
 import { replaceMonthlySpend } from "./db";
 import type { AdCampaign } from "../drizzle/schema";
 
-const API_VERSION = "v17";
+// Google retires old API versions periodically. Override with the
+// GOOGLE_ADS_API_VERSION env var (e.g. "v21") if Google returns a 404.
+const API_VERSION = process.env.GOOGLE_ADS_API_VERSION || "v21";
 const BASE = `https://googleads.googleapis.com/${API_VERSION}`;
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 
