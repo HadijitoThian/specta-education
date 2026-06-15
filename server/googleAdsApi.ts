@@ -180,6 +180,8 @@ export async function pushCampaignLive(campaign: AdCampaign): Promise<{ campaign
       manualCpc: { enhancedCpcEnabled: false },
       campaignBudget: budgetRN,
       networkSettings: { targetGoogleSearch: true, targetSearchNetwork: false, targetContentNetwork: false, targetPartnerSearchNetwork: false },
+      // Required by Google Ads API v21+ (EU political-ads disclosure).
+      containsEuPoliticalAdvertising: "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
     },
   }]);
   const campaignRN = campaignRes.results[0].resourceName;
