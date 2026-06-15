@@ -45,6 +45,26 @@ export default function CrmStudents() {
     mineOnly: mineOnly || undefined,
   });
 
+  const archive = trpc.students.archive.useMutation({
+    onSuccess: () => list.refetch(),
+    onError: e => alert(e.message),
+  });
+  const restore = trpc.students.restore.useMutation({
+    onSuccess: () => list.refetch(),
+    onError: e => alert(e.message),
+  });
+  const onArchive = (e: React.MouseEvent, id: number, name: string) => {
+    e.stopPropagation();
+    const reason = window.prompt(`Archive "${name}" as not a prospect?\n\nThey'll be hidden from the list (kept in the CRM, restorable). The owner is notified.\n\nReason (optional):`);
+    if (reason === null) return; // cancelled
+    archive.mutate({ id, reason: reason.trim() || undefined });
+  };
+  const onRestore = (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
+    restore.mutate({ id });
+  };
+  const viewingInactive = stage === "inactive";
+
   return (
     <CrmShell active="/crm/students">
       <div className="flex items-center justify-between">
@@ -99,11 +119,12 @@ export default function CrmStudents() {
               <th className="px-4 py-3">Counselor</th>
               <th className="px-4 py-3">Goal</th>
               <th className="px-4 py-3">Last activity</th>
+              <th className="px-4 py-3 text-right"></th>
             </tr>
           </thead>
           <tbody>
-            {list.isLoading && <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">Loading…</td></tr>}
-            {list.data?.length === 0 && <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">No students yet — add your first one.</td></tr>}
+            {list.isLoading && <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400">Loading…</td></tr>}
+            {list.data?.length === 0 && <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400">No students yet — add your first one.</td></tr>}
             {list.data?.map(s => (
               <tr key={s.id} onClick={() => setLocation(`/crm/students/${s.id}`)} className="border-t border-slate-100 hover:bg-slate-50 cursor-pointer">
                 <td className="px-4 py-3">
@@ -116,6 +137,26 @@ export default function CrmStudents() {
                   {s.preferredCountry || "—"}{s.programInterest ? ` · ${s.programInterest}` : ""}
                 </td>
                 <td className="px-4 py-3 text-slate-500">{timeAgo(s.lastActivityAt)}</td>
+                <td className="px-4 py-3 text-right whitespace-nowrap">
+                  {viewingInactive ? (
+                    <button
+                      onClick={e => onRestore(e, s.id)}
+                      disabled={restore.isPending}
+                      className="text-xs font-medium text-purple-600 hover:text-purple-800 disabled:opacity-50"
+                    >
+                      Restore
+                    </button>
+                  ) : (
+                    <button
+                      onClick={e => onArchive(e, s.id, s.studentName)}
+                      disabled={archive.isPending}
+                      className="text-xs font-medium text-slate-400 hover:text-red-600 disabled:opacity-50"
+                      title="Archive — not a prospect"
+                    >
+                      Archive
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

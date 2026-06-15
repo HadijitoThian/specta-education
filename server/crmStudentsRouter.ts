@@ -18,6 +18,7 @@ import { getDb } from "./db";
 import { storagePut } from "./storage";
 import { distributeUnassigned } from "./leadDistribution";
 import { invokeLLM } from "./_core/llm";
+import { notifyOwner } from "./_core/notification";
 import { sendWhatsAppText, whatsappConfigured, getBotConversation } from "./whatsappGateway";
 import {
   leads,
@@ -100,6 +101,9 @@ export const crmStudentsRouter = router({
       const f = input ?? {};
       const conds: any[] = [];
       if (f.stage) conds.push(eq(leads.pipelineStage, f.stage));
+      // Hide archived ("inactive") students from the default list — they only
+      // appear when you explicitly filter to the Inactive stage.
+      else conds.push(ne(leads.pipelineStage, "inactive"));
       if (f.office) conds.push(eq(leads.office, f.office));
       if (f.mineOnly) conds.push(eq(leads.assignedCounselorId, ctx.user.id));
       if (f.search && f.search.trim()) {
@@ -269,6 +273,58 @@ export const crmStudentsRouter = router({
         db, input.id, "stage_change",
         `Stage → ${STAGE_LABEL[input.stage]}`, ctx.user.email, input.note?.trim() || null
       );
+      return { ok: true };
+    }),
+
+  /**
+   * Archive a student the counselor judges not a real prospect. This is a SOFT
+   * delete: the record moves to the "inactive" stage (dropping off the main
+   * list) but all data + marketing attribution is preserved and it can be
+   * restored. The owner is notified whenever anyone but the owner archives.
+   */
+  archive: protectedProcedure
+    .input(z.object({ id: z.number().int(), reason: z.string().max(500).optional() }))
+    .mutation(async ({ input, ctx }) => {
+      assertCrm(ctx.user);
+      const db = await db_();
+      const [student] = await db
+        .select({ name: leads.studentName, phone: leads.studentPhone, stage: leads.pipelineStage })
+        .from(leads).where(eq(leads.id, input.id)).limit(1);
+      if (!student) throw new TRPCError({ code: "NOT_FOUND" });
+
+      await db.update(leads).set({ pipelineStage: "inactive" }).where(eq(leads.id, input.id));
+      const reason = input.reason?.trim() || "No reason given";
+      await logActivity(
+        db, input.id, "note",
+        "Archived — marked not a prospect",
+        ctx.user.email,
+        `By ${ctx.user.name || ctx.user.email}. Reason: ${reason}`
+      );
+
+      // Notify the owner unless the owner is the one archiving.
+      const isOwner = ctx.user.role === "admin" || ctx.user.crmRole === "owner";
+      if (!isOwner) {
+        await notifyOwner({
+          title: `Student archived: ${student.name}`,
+          content:
+            `${ctx.user.name || ctx.user.email} archived a student as "not a prospect".\n\n` +
+            `Student: ${student.name}${student.phone ? ` (${student.phone})` : ""}\n` +
+            `Was at stage: ${STAGE_LABEL[student.stage] || student.stage}\n` +
+            `Reason: ${reason}\n\n` +
+            `It's hidden from the active list but kept in the CRM (filter "Inactive" to view/restore).`,
+        }).catch(e => console.warn("[CRM] archive owner-notify failed:", e));
+      }
+      return { ok: true };
+    }),
+
+  /** Restore an archived student back into the pipeline. */
+  restore: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(async ({ input, ctx }) => {
+      assertCrm(ctx.user);
+      const db = await db_();
+      await db.update(leads).set({ pipelineStage: "new_lead" }).where(eq(leads.id, input.id));
+      await logActivity(db, input.id, "note", "Restored to the pipeline", ctx.user.email);
       return { ok: true };
     }),
 
