@@ -7995,6 +7995,9 @@ seedUniversitiesIfEmpty().then(r => {
 // (idempotent) so a deploy never outruns the migration and breaks lead capture.
 import("./db").then(m => m.ensureMarketingSchema()).catch(e => console.error('[Growth] schema ensure error:', e));
 
+// Ensure the office enum includes all branches (adds Singkawang) before use.
+import("./db").then(m => m.ensureOfficeEnum()).catch(e => console.error('[CRM] office enum ensure error:', e));
+
 // ==================== SIMULATOR AI HELPERS ====================
 
 interface GenerateScenarioParams {

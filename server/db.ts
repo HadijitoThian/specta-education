@@ -273,6 +273,24 @@ export async function getMessagesByConversationId(conversationId: number): Promi
 }
 
 // Lead functions
+/**
+ * Idempotent guard that ensures the `office` enum on leads + users includes all
+ * current branches (adds Singkawang). Appending an enum value in MySQL is a
+ * fast metadata-only change, safe to run on every boot, so a deploy can never
+ * outrun the migration and reject a 'singkawang' insert/select.
+ */
+export async function ensureOfficeEnum(): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const enumDef = "ENUM('kelapa_gading','pik','gading_serpong','singkawang')";
+  try {
+    await db.execute(sql.raw(`ALTER TABLE leads MODIFY COLUMN office ${enumDef} NULL`));
+    await db.execute(sql.raw(`ALTER TABLE users MODIFY COLUMN office ${enumDef} NULL`));
+  } catch (e) {
+    console.error("[CRM] ensureOfficeEnum failed:", (e as Error).message);
+  }
+}
+
 // ── Marketing / Growth (Phase A) ─────────────────────────────────────────────
 /**
  * Idempotent, additive schema guard run at startup. Ensures the attribution

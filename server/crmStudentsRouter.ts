@@ -32,7 +32,7 @@ const STAGES = [
   "new_lead", "consultation", "ielts_prep", "shortlist", "application",
   "offer", "visa", "pre_departure", "enrolled", "inactive",
 ] as const;
-const OFFICES = ["kelapa_gading", "pik", "gading_serpong"] as const;
+const OFFICES = ["kelapa_gading", "pik", "gading_serpong", "singkawang"] as const;
 const ACTIVITY_TYPES = [
   "call", "whatsapp", "meeting", "email", "note",
   "document", "stage_change", "application", "offer", "visa", "other",

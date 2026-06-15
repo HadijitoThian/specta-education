@@ -12,9 +12,9 @@ import { getDb } from "./db";
 import { leads, users, crmActivityTimeline } from "../drizzle/schema";
 import { sendEmail } from "./email";
 
-const OFFICE_ORDER = ["kelapa_gading", "pik", "gading_serpong"];
+const OFFICE_ORDER = ["kelapa_gading", "pik", "gading_serpong", "singkawang"];
 const OFFICE_LABEL: Record<string, string> = {
-  kelapa_gading: "Kelapa Gading", pik: "PIK", gading_serpong: "Gading Serpong",
+  kelapa_gading: "Kelapa Gading", pik: "PIK", gading_serpong: "Gading Serpong", singkawang: "Singkawang",
 };
 
 type Counsellor = { id: number; name: string | null; email: string | null; office: string | null };

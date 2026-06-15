@@ -25,7 +25,7 @@ export const users = mysqlTable("users", {
     "front_desk",
     "marketing",
   ]).default("none").notNull(),
-  office: mysqlEnum("office", ["kelapa_gading", "pik", "gading_serpong"]),
+  office: mysqlEnum("office", ["kelapa_gading", "pik", "gading_serpong", "singkawang"]),
   phone: varchar("phone", { length: 50 }),
   jobTitle: varchar("jobTitle", { length: 120 }),
   crmActive: boolean("crmActive").default(true).notNull(),
@@ -125,7 +125,7 @@ export const leads = mysqlTable("leads", {
     "inactive",
   ]).default("new_lead").notNull(),
   assignedCounselorId: int("assignedCounselorId"), // references users.id (single login)
-  office: mysqlEnum("office", ["kelapa_gading", "pik", "gading_serpong"]),
+  office: mysqlEnum("office", ["kelapa_gading", "pik", "gading_serpong", "singkawang"]),
   // Passwordless "My Journey" link token for the student (no login).
   journeyToken: varchar("journeyToken", { length: 32 }),
   status: mysqlEnum("status", ["new", "contacted", "qualified", "converted", "closed"]).default("new").notNull(),

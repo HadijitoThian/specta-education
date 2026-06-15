@@ -56,7 +56,7 @@ const CRM_ROLES = [
   "front_desk",
   "marketing",
 ] as const;
-const OFFICES = ["kelapa_gading", "pik", "gading_serpong"] as const;
+const OFFICES = ["kelapa_gading", "pik", "gading_serpong", "singkawang"] as const;
 
 /** Owner-level access = site admin OR explicit crmRole "owner". */
 function isOwnerLevel(u: { role: string; crmRole: string | null }): boolean {

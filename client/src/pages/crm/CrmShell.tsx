@@ -156,6 +156,7 @@ export const CRM_OFFICES = [
   { value: "kelapa_gading", label: "Kelapa Gading (HO)" },
   { value: "pik", label: "Pantai Indah Kapuk" },
   { value: "gading_serpong", label: "Gading Serpong" },
+  { value: "singkawang", label: "Singkawang" },
 ];
 export const CRM_ROLE_OPTIONS = [
   { value: "counselor", label: "Counselor" },
