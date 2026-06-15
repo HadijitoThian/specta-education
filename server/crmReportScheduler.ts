@@ -11,10 +11,11 @@
  * (generate skips existing rows; sent rows aren't re-sent).
  */
 import { wibNow, currentReportWeek, generateDraftsForWeek, sendDueForWeek } from "./crmParentReports";
+import { getSchedulerState, setSchedulerState } from "./db";
 
 let started = false;
-let lastGenWeek = "";
-let lastSendWeek = "";
+const GEN_KEY = "parent_reports_gen";
+const SEND_KEY = "parent_reports_send";
 
 async function tick() {
   try {
@@ -23,15 +24,16 @@ async function tick() {
     const hour = now.getUTCHours();
     const week = currentReportWeek();
 
-    if (day === 0 && hour >= 18 && lastGenWeek !== week) {
+    // Persistent guards (DB-backed) so a server restart can't re-fire the job.
+    if (day === 0 && hour >= 18 && (await getSchedulerState(GEN_KEY)) !== week) {
+      await setSchedulerState(GEN_KEY, week); // claim first → no double-run if a 2nd boot races
       const r = await generateDraftsForWeek(week);
-      lastGenWeek = week;
       console.log(`[ParentReports] auto-generated drafts for week ${week}:`, r);
     }
 
-    if (day === 1 && hour >= 9 && lastSendWeek !== week) {
+    if (day === 1 && hour >= 9 && (await getSchedulerState(SEND_KEY)) !== week) {
+      await setSchedulerState(SEND_KEY, week); // claim before sending → restarts won't re-send
       const r = await sendDueForWeek(week);
-      lastSendWeek = week;
       console.log(`[ParentReports] auto-sent reports for week ${week}:`, r);
     }
   } catch (e) {

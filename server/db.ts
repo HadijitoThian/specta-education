@@ -366,6 +366,13 @@ export async function ensureMarketingSchema(): Promise<void> {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `));
     await db.execute(sql.raw(`
+      CREATE TABLE IF NOT EXISTS scheduler_state (
+        jobKey VARCHAR(64) PRIMARY KEY,
+        value VARCHAR(64) NOT NULL,
+        updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `));
+    await db.execute(sql.raw(`
       CREATE TABLE IF NOT EXISTS geo_snapshots (
         id INT AUTO_INCREMENT PRIMARY KEY,
         query VARCHAR(255) NOT NULL,
@@ -379,6 +386,32 @@ export async function ensureMarketingSchema(): Promise<void> {
   } catch (e) {
     console.error("[Growth] ensureMarketingSchema failed:", (e as Error).message);
   }
+}
+
+/**
+ * Persistent scheduler markers — so a server restart can't re-trigger a
+ * once-per-week/day job (e.g. the Monday parent-report send). Survives the
+ * frequent redeploys that reset in-memory guards.
+ */
+export async function getSchedulerState(jobKey: string): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  try {
+    const rows: any = await db.execute(sql`SELECT value FROM scheduler_state WHERE jobKey = ${jobKey} LIMIT 1`);
+    const list: any[] = Array.isArray(rows[0]) ? rows[0] : rows;
+    return list?.[0]?.value ?? null;
+  } catch { return null; }
+}
+
+export async function setSchedulerState(jobKey: string, value: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.execute(sql`
+      INSERT INTO scheduler_state (jobKey, value) VALUES (${jobKey}, ${value})
+      ON DUPLICATE KEY UPDATE value = ${value}
+    `);
+  } catch (e) { console.error("[Scheduler] setState failed:", (e as Error).message); }
 }
 
 // ── Growth digests + GEO snapshots (Phase C) ─────────────────────────────────
