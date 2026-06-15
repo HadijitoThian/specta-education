@@ -2250,15 +2250,24 @@ export async function listPublishedBlogPosts(options: {
   const enriched = await Promise.all(posts.map(async (post) => {
     let categoryName: string | undefined;
     if (post.categoryId) {
-      const [cat] = await db.select().from(blogCategories).where(eq(blogCategories.id, post.categoryId));
-      categoryName = cat?.name;
+      // Select only the columns we use — avoids errors if the table is missing
+      // optional columns (e.g. description/createdAt) on older schemas.
+      try {
+        const [cat] = await db
+          .select({ id: blogCategories.id, name: blogCategories.name })
+          .from(blogCategories)
+          .where(eq(blogCategories.id, post.categoryId));
+        categoryName = cat?.name;
+      } catch { /* category lookup is non-critical */ }
     }
-    const postTagRows = await db.select({ tagId: blogPostTags.tagId }).from(blogPostTags).where(eq(blogPostTags.postId, post.id));
     const tags: string[] = [];
-    for (const pt of postTagRows) {
-      const [tag] = await db.select().from(blogTags).where(eq(blogTags.id, pt.tagId));
-      if (tag) tags.push(tag.name);
-    }
+    try {
+      const postTagRows = await db.select({ tagId: blogPostTags.tagId }).from(blogPostTags).where(eq(blogPostTags.postId, post.id));
+      for (const pt of postTagRows) {
+        const [tag] = await db.select({ name: blogTags.name }).from(blogTags).where(eq(blogTags.id, pt.tagId));
+        if (tag) tags.push(tag.name);
+      }
+    } catch { /* tags are non-critical */ }
     return { ...post, categoryName, tags };
   }));
 
