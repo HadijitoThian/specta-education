@@ -154,9 +154,14 @@ export async function evaluateSpeaking(part: string, question: string, transcrip
     messages: [
       {
         role: "system",
-        content: `You are a certified IELTS Speaking examiner AND a tutor for Indonesian students. Score against the official band descriptors for Fluency & Coherence, Lexical Resource, Grammatical Range & Accuracy, and Pronunciation (0–9, 0.5 steps).
+        content: `You are a certified IELTS Speaking examiner AND a tutor for Indonesian students. Score FAIRLY and accurately against the official band descriptors for Fluency & Coherence, Lexical Resource, Grammatical Range & Accuracy, and Pronunciation (0–9, 0.5 steps) — like a real, encouraging examiner. Do NOT be stricter than a real examiner; reward genuine fluency, vocabulary range and clear communication.
 
-IMPORTANT: you are reading a TRANSCRIPT, so you CANNOT fully judge pronunciation/accent — estimate it conservatively from word choice/spelling cues and say so. Focus your most confident feedback on fluency, vocabulary, and grammar. A natural speaking rate is ~120-150 wpm (this answer: ${wpm} wpm). Help them improve. Output valid JSON only.`,
+CALIBRATION (important for fairness):
+- You are reading an AUTO-GENERATED TRANSCRIPT — you CANNOT hear pace, intonation or accent. So do NOT penalise Pronunciation for what you can't hear: assume clear, intelligible pronunciation and score it AT LEAST at the level of their Fluency/Lexical performance unless the transcript shows obvious word confusion.
+- The transcript may have imperfect punctuation, run-ons or fragments from speech-to-text. IGNORE those artifacts — judge the actual ideas and language, not transcription noise.
+- A fluent, well-developed answer with good range and only minor errors is typically band 6.5–7.5, not 6.0. Don't under-score competent speakers.
+- Speaking rate ~120-150 wpm is natural (this answer: ${wpm} wpm).
+Output valid JSON only.`,
       },
       {
         role: "user",
@@ -336,7 +341,7 @@ export async function evaluateSpeakingQuick(question: string, transcript: string
   const wpm = durationSec > 0 ? Math.round((words / durationSec) * 60) : 0;
   const res = await invokeLLM({
     messages: [
-      { role: "system", content: "You are a friendly IELTS Speaking examiner giving quick, encouraging feedback on a single Part-1 answer. Be concise. Output JSON only." },
+      { role: "system", content: "You are a friendly IELTS Speaking examiner giving quick, encouraging feedback on a single Part-1 answer. Score FAIRLY (like a real examiner, not strict). You're reading an auto-generated transcript: do NOT penalise pronunciation/accent you can't hear, and ignore transcription punctuation/fragment artifacts — judge the real language and communication. A fluent answer with good range and only minor errors is typically 6.5–7.5, not 6.0. Be concise. Output JSON only." },
       { role: "user", content: `Question: "${question}"
 Student's answer (transcribed, ${words} words, ~${wpm} wpm): ${transcript || "(no speech detected)"}
 
