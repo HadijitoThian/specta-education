@@ -216,25 +216,25 @@ export async function generateWritingTask(taskType: "task1" | "task2"): Promise<
     return { taskType, prompt: String(p.prompt || "") };
   }
 
-  // Task 1 — self-contained, data presented as a table (no missing image).
+  // Task 1 — the AI returns ONLY the data; the prompt wording is built in code,
+  // so it can never reference a chart that isn't shown.
   const res = await invokeLLM({
     messages: [
-      { role: "system", content: "You are an IELTS Academic Writing Task 1 author. The task MUST be fully self-contained: present the data as a TABLE with REAL, realistic numbers the student can describe. Never reference an image/graph that isn't provided — say 'The table below shows…'. Output JSON only." },
-      { role: "user", content: `Create one IELTS Academic Writing Task 1 based on a data table (4-6 columns, 3-6 rows). Use realistic figures.
-Return JSON:
-{
-  "prompt": "The table below shows <what>. Summarise the information by selecting and reporting the main features, and make comparisons where relevant. You should spend about 20 minutes on this task. Write at least 150 words.",
-  "table": { "title": "short title", "unit": "e.g. %, millions, USD", "columns": ["col1","col2",...], "rows": [["r1c1","r1c2",...], ...] }
-}` },
+      { role: "system", content: "You generate the DATA for an IELTS Academic Writing Task 1 table. Return ONLY a JSON data table with REAL, realistic numbers. Do NOT write any task wording. Output JSON only." },
+      { role: "user", content: `Generate one realistic IELTS Task 1 data table (4-6 columns, 3-6 rows) on a common topic (e.g. population, energy, spending, transport, employment).
+Return JSON: { "subject": "what the data shows, e.g. 'the percentage of households with internet access in four countries between 2000 and 2020'", "title": "short table caption", "unit": "e.g. %, millions, USD", "columns": ["col1","col2",...], "rows": [["r1c1","r1c2",...], ...] }` },
     ],
     response_format: { type: "json_object" },
   });
   const p = parseJsonLoose(llmText(res));
-  const t = p.table || {};
-  const columns = strArr(t.columns);
-  const rows = (Array.isArray(t.rows) ? t.rows : []).map((r: any) => (Array.isArray(r) ? r.map((c: any) => String(c)) : [])).filter((r: any[]) => r.length);
-  const table = columns.length && rows.length ? { title: String(t.title || "Data"), unit: t.unit ? String(t.unit) : undefined, columns, rows } : undefined;
-  return { taskType, prompt: String(p.prompt || ""), table };
+  const columns = strArr(p.columns);
+  const rows = (Array.isArray(p.rows) ? p.rows : []).map((r: any) => (Array.isArray(r) ? r.map((c: any) => String(c)) : [])).filter((r: any[]) => r.length);
+  if (!columns.length || !rows.length) throw new Error("Could not generate the task — please try again.");
+
+  const subject = String(p.subject || p.title || "the data in the table below");
+  const prompt = `The table below shows ${subject}.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.\n\nYou should spend about 20 minutes on this task. Write at least 150 words.`;
+  const table = { title: String(p.title || "Data"), unit: p.unit ? String(p.unit) : undefined, columns, rows };
+  return { taskType, prompt, table };
 }
 
 export async function generateSpeakingQuestions(part: "part1" | "part2" | "part3"): Promise<{ part: string; topic?: string; questions: string[] }> {
