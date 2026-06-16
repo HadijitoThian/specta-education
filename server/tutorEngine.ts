@@ -48,13 +48,12 @@ export interface WritingFeedback {
 
 export async function evaluateWriting(taskType: string, prompt: string, essay: string): Promise<WritingFeedback> {
   const wordCount = (essay.trim().match(/\S+/g) || []).length;
+  // CALL 1 — compact grading JSON (NO model rewrite, so the JSON can't truncate).
   const res = await invokeLLM({
     messages: [
       {
         role: "system",
-        content: `You are a certified IELTS Writing examiner AND a supportive tutor for Indonesian students. Score strictly against the official IELTS band descriptors for the four criteria (Task Response, Coherence & Cohesion, Lexical Resource, Grammatical Range & Accuracy). Bands are 0–9 in 0.5 steps; overall is the average rounded to the nearest 0.5.
-
-Your goal is to help the student IMPROVE, not just grade. Be specific and kind. Explanations may use simple Indonesian where helpful, but corrections/model answer stay in English. Output valid JSON only.`,
+        content: `You are a certified IELTS Writing examiner AND a supportive tutor for Indonesian students. Score strictly against the official IELTS band descriptors for the four criteria (Task Response, Coherence & Cohesion, Lexical Resource, Grammatical Range & Accuracy). Bands are 0–9 in 0.5 steps; overall is the average rounded to the nearest 0.5. Be specific and kind. Output valid JSON only — no markdown, no prose outside the JSON.`,
       },
       {
         role: "user",
@@ -66,31 +65,29 @@ ${prompt}
 STUDENT'S ANSWER (${wordCount} words):
 ${essay}
 
-Return ONLY this JSON:
+Return ONLY this JSON (keep comments short):
 {
   "overallBand": 6.5,
   "criteria": {
-    "taskResponse": { "band": 6.5, "comment": "1-2 sentences" },
-    "coherenceCohesion": { "band": 6, "comment": "..." },
-    "lexicalResource": { "band": 6.5, "comment": "..." },
-    "grammaticalRange": { "band": 6, "comment": "..." }
+    "taskResponse": { "band": 6.5, "comment": "1 sentence" },
+    "coherenceCohesion": { "band": 6, "comment": "1 sentence" },
+    "lexicalResource": { "band": 6.5, "comment": "1 sentence" },
+    "grammaticalRange": { "band": 6, "comment": "1 sentence" }
   },
-  "corrections": [
-    { "original": "exact phrase from their text", "fix": "corrected version", "explanation": "why (the rule), one line", "type": "grammar|vocabulary|cohesion|task|spelling" }
-  ],
-  "modelAnswer": "A full rewrite of THEIR essay at ~band 8, keeping their ideas but upgrading structure, cohesion, vocabulary and grammar.",
-  "strengths": ["2-3 genuine strengths"],
-  "improvements": ["3-5 prioritized, concrete next steps — most impactful first"],
-  "drills": [ { "focus": "their weakest criterion", "instruction": "a short targeted exercise they can do now" } ]
+  "corrections": [ { "original": "phrase from their text", "fix": "corrected", "explanation": "one line", "type": "grammar|vocabulary|cohesion|task|spelling" } ],
+  "strengths": ["2-3 short strengths"],
+  "improvements": ["3-5 short prioritized next steps"],
+  "drills": [ { "focus": "weakest criterion", "instruction": "a short exercise" } ]
 }
-Provide 6-12 of the most useful corrections.`,
+Provide 6-10 corrections.`,
       },
     ],
     response_format: { type: "json_object" },
-    max_tokens: 4000, // the model-answer rewrite is long — avoid truncated JSON
+    max_tokens: 2000,
   });
 
-  const p = parseJsonLoose(llmText(res));
+  const raw = llmText(res);
+  const p = parseJsonLoose(raw);
   const c = p.criteria || p.scores || {};
   const taskResponse = crit(pick(c, ["taskResponse", "task_response", "taskAchievement", "task_achievement", "tr"]));
   const coherenceCohesion = crit(pick(c, ["coherenceCohesion", "coherence_cohesion", "coherenceAndCohesion", "cc"]));
@@ -99,7 +96,25 @@ Provide 6-12 of the most useful corrections.`,
   const bands = [taskResponse.band, coherenceCohesion.band, lexicalResource.band, grammaticalRange.band].filter(b => b > 0);
   let overall = clampBand(p.overallBand ?? p.overall ?? p.band ?? 0);
   if (!overall && bands.length) overall = clampBand(bands.reduce((a, b) => a + b, 0) / bands.length);
-  if (!overall && !bands.length) throw new Error("Penilaian gagal diproses — silakan coba lagi.");
+  if (!overall && !bands.length) {
+    console.error("[Tutor] writing grade parse failed. Raw:", raw.slice(0, 600));
+    throw new Error("Penilaian gagal diproses — silakan coba lagi.");
+  }
+
+  // CALL 2 — the model rewrite as PLAIN TEXT (large but no JSON to break).
+  // Best-effort: if it fails, the rest of the feedback still shows.
+  let modelAnswer = "";
+  try {
+    const mres = await invokeLLM({
+      messages: [
+        { role: "system", content: "You are an IELTS examiner. Rewrite the student's essay at ~band 8, keeping their ideas but improving structure, cohesion, vocabulary and grammar. Output ONLY the rewritten essay as plain prose." },
+        { role: "user", content: `TASK:\n${prompt}\n\nSTUDENT ESSAY:\n${essay}\n\nRewrite at band 8:` },
+      ],
+      max_tokens: 1200,
+    });
+    modelAnswer = llmText(mres).trim();
+  } catch (e) { console.warn("[Tutor] model-answer gen failed:", (e as Error).message); }
+
   return {
     overallBand: overall,
     criteria: { taskResponse, coherenceCohesion, lexicalResource, grammaticalRange },
@@ -107,7 +122,7 @@ Provide 6-12 of the most useful corrections.`,
       original: String(x?.original || ""), fix: String(x?.fix || ""),
       explanation: String(x?.explanation || ""), type: String(x?.type || "grammar"),
     })).filter((x: any) => x.original || x.fix),
-    modelAnswer: String(p.modelAnswer || ""),
+    modelAnswer,
     strengths: strArr(p.strengths),
     improvements: strArr(p.improvements),
     drills: (Array.isArray(p.drills) ? p.drills : []).slice(0, 5).map((d: any) => ({ focus: String(d?.focus || ""), instruction: String(d?.instruction || "") })),
@@ -165,18 +180,17 @@ Return ONLY this JSON:
     "grammarErrors": [ { "error": "what they said", "fix": "correct form" } ]
   },
   "corrections": [ { "original": "phrase they used", "fix": "better version", "explanation": "one line" } ],
-  "modelAnswer": "A band-8 example answer to the SAME question.",
-  "upgradedAnswer": "THEIR answer rewritten at a higher band, keeping their content but improving fluency, vocab and grammar.",
   "improvements": ["3-5 prioritized next steps"],
   "tips": ["2-4 concrete fluency/pronunciation tips for an Indonesian speaker"]
 }`,
       },
     ],
     response_format: { type: "json_object" },
-    max_tokens: 3000,
+    max_tokens: 1800,
   });
 
-  const p = parseJsonLoose(llmText(res));
+  const raw = llmText(res);
+  const p = parseJsonLoose(raw);
   const c = p.criteria || p.scores || {};
   const o = p.observations || {};
   const fluencyCoherence = crit(pick(c, ["fluencyCoherence", "fluency_coherence", "fluencyAndCoherence", "fc"]));
@@ -186,7 +200,28 @@ Return ONLY this JSON:
   const sBands = [fluencyCoherence.band, lexicalResource.band, grammaticalRange.band, pronunciation.band].filter(b => b > 0);
   let sOverall = clampBand(p.overallBand ?? p.overall ?? p.band ?? 0);
   if (!sOverall && sBands.length) sOverall = clampBand(sBands.reduce((a, b) => a + b, 0) / sBands.length);
-  if (!sOverall && !sBands.length) throw new Error("Penilaian gagal diproses — silakan coba lagi.");
+  if (!sOverall && !sBands.length) {
+    console.error("[Tutor] speaking grade parse failed. Raw:", raw.slice(0, 600));
+    throw new Error("Penilaian gagal diproses — silakan coba lagi.");
+  }
+
+  // Model + upgraded answers as plain text (best-effort, no JSON to break).
+  let modelAnswer = "", upgradedAnswer = "";
+  try {
+    const mres = await invokeLLM({
+      messages: [
+        { role: "system", content: "You are an IELTS speaking examiner. Output ONLY two clearly labelled plain-text answers." },
+        { role: "user", content: `Question: "${question}"\nStudent said: "${transcript || "(no speech)"}"\n\nWrite:\nMODEL: a natural band-8 answer to the question.\nUPGRADED: the student's own answer rewritten at a higher band (keep their content).` },
+      ],
+      max_tokens: 900,
+    });
+    const txt = llmText(mres);
+    const mm = txt.match(/MODEL:\s*([\s\S]*?)(?:\n\s*UPGRADED:|$)/i);
+    const um = txt.match(/UPGRADED:\s*([\s\S]*)$/i);
+    modelAnswer = (mm?.[1] || "").trim();
+    upgradedAnswer = (um?.[1] || "").trim();
+  } catch (e) { console.warn("[Tutor] speaking model/upgraded gen failed:", (e as Error).message); }
+
   return {
     overallBand: sOverall,
     criteria: { fluencyCoherence, lexicalResource, grammaticalRange, pronunciation },
@@ -197,8 +232,8 @@ Return ONLY this JSON:
       speakingRateWpm: wpm,
     },
     corrections: (Array.isArray(p.corrections) ? p.corrections : []).slice(0, 15).map((x: any) => ({ original: String(x?.original || ""), fix: String(x?.fix || ""), explanation: String(x?.explanation || "") })),
-    modelAnswer: String(p.modelAnswer || ""),
-    upgradedAnswer: String(p.upgradedAnswer || ""),
+    modelAnswer,
+    upgradedAnswer,
     improvements: strArr(p.improvements),
     tips: strArr(p.tips),
   };
