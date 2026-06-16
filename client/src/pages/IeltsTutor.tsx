@@ -17,10 +17,12 @@ const IMG_STUDENTS = "/files/migrated/QxFYGzgmpzrKbZOs.jpg";
 const IMG_MASCOT = "/files/migrated/saxLOcubreWkfnzl.png";
 // AI-generated (DeepInfra) landing imagery; falls back to the students photo
 // until the server has generated them (~1 min after deploy).
-const GEN_HERO = "/files/tutor/landing/hero.jpg";
-const GEN_WRITING = "/files/tutor/landing/writing.jpg";
-const GEN_SPEAKING = "/files/tutor/landing/speaking.jpg";
-const GEN_COMMUNITY = "/files/tutor/landing/community.jpg";
+// ?v= cache-buster: avoids browsers serving a stale 404 cached before the
+// server finished generating the images (bump when regenerating).
+const GEN_HERO = "/files/tutor/landing/hero.jpg?v=1";
+const GEN_WRITING = "/files/tutor/landing/writing.jpg?v=1";
+const GEN_SPEAKING = "/files/tutor/landing/speaking.jpg?v=1";
+const GEN_COMMUNITY = "/files/tutor/landing/community.jpg?v=1";
 const onImgErr = (e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.onerror = null; e.currentTarget.src = IMG_STUDENTS; };
 
 const PLANS = [
