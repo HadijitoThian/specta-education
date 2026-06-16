@@ -231,6 +231,7 @@ import { crmCockpitRouter } from "./crmCockpitRouter";
 import { crmIntakeRouter } from "./crmIntakeRouter";
 import { marketingRouter } from "./marketingRouter";
 import { tutorRouter } from "./tutorRouter";
+import { startTutorImages } from "./tutorImages";
 import { crmJourneyRouter } from "./crmJourneyRouter";
 import { sosmedRouter } from "./sosmedRouter";
 import { startCrmReportScheduler } from "./crmReportScheduler";
@@ -7996,6 +7997,9 @@ startGoogleAdsScheduler();
 // Google Ads AI optimizer (Advisor): daily suggestions emailed for approval.
 // OFF unless GOOGLE_ADS_OPTIMIZER_ENABLED=true.
 startGoogleAdsOptimizer();
+
+// AI Tutor landing imagery — generate once via DeepInfra (idempotent).
+startTutorImages();
 
 // Auto-seed universities on startup
 seedUniversitiesIfEmpty().then(r => {

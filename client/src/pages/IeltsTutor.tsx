@@ -14,8 +14,14 @@ const PURPLE = "#9C27B0";
 const CORAL = "#FF6B4A";
 const LOGO = "https://www.spectaeducation.com/files/migrated/QxrYSewOYzAuPIEN.jpeg";
 const IMG_STUDENTS = "/files/migrated/QxFYGzgmpzrKbZOs.jpg";
-const IMG_OFFICE = "/files/migrated/XFSKFfBDnwuNIcYC.jpg";
 const IMG_MASCOT = "/files/migrated/saxLOcubreWkfnzl.png";
+// AI-generated (DeepInfra) landing imagery; falls back to the students photo
+// until the server has generated them (~1 min after deploy).
+const GEN_HERO = "/files/tutor/landing/hero.jpg";
+const GEN_WRITING = "/files/tutor/landing/writing.jpg";
+const GEN_SPEAKING = "/files/tutor/landing/speaking.jpg";
+const GEN_COMMUNITY = "/files/tutor/landing/community.jpg";
+const onImgErr = (e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.onerror = null; e.currentTarget.src = IMG_STUDENTS; };
 
 const PLANS = [
   { id: "m1", label: "1 Month", price: "Rp 149.000", per: "Rp 149k/mo" },
@@ -128,7 +134,7 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
         {/* Hero image band */}
         <div className="max-w-6xl mx-auto px-4 pb-12">
           <div className="relative rounded-3xl overflow-hidden h-52 lg:h-72 shadow-md">
-            <img src={IMG_STUDENTS} alt="Students improving their English with SpecTa" className="w-full h-full object-cover" />
+            <img src={GEN_HERO} onError={onImgErr} alt="Student practising English for IELTS with SpecTa" className="w-full h-full object-cover" />
             <div className="absolute inset-0" style={{ background: `linear-gradient(90deg, ${PURPLE}cc, transparent 60%)` }} />
             <div className="absolute inset-0 flex items-center">
               <p className="text-white font-bold text-xl lg:text-2xl px-6 lg:px-10 max-w-md">Join thousands of Indonesian students reaching their target band.</p>
@@ -140,7 +146,7 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
       {/* Trust bar */}
       <section className="border-y border-slate-100 bg-slate-50">
         <div className="max-w-6xl mx-auto px-4 py-5 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-          {[["Since 2005", "Trusted consultant"], ["1000+", "Students helped"], ["200+", "Scholarships"], ["4.9★", "Rating"]].map(([a, b]) => (
+          {[["Since 2005", "Trusted consultant"], ["10,000+", "Students trained"], ["200+", "Scholarships"], ["4.9★", "Rating"]].map(([a, b]) => (
             <div key={a}><div className="text-2xl font-extrabold" style={{ color: PURPLE }}>{a}</div><div className="text-xs text-slate-500">{b}</div></div>
           ))}
         </div>
@@ -170,31 +176,37 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
 
       {/* Feature deep-dives */}
       <section className="max-w-5xl mx-auto px-4 py-14 grid md:grid-cols-2 gap-6">
-        <div className={`${card} p-7`}>
-          <div className="text-4xl">✍️</div>
-          <h3 className="text-xl font-bold mt-2">Writing Coach</h3>
-          <p className="text-slate-600 mt-1">Write Task 1 or Task 2 — scored like a real examiner.</p>
-          <ul className="mt-3 space-y-1.5 text-sm text-slate-700">
-            {["Band across the 4 official IELTS criteria", "Sentence-by-sentence corrections: what's wrong & how to fix it", "A band-8 model answer built from your own essay", "A practice plan targeting your weaknesses"].map(x => <li key={x} className="flex gap-2"><span style={{ color: PINK }}>✓</span>{x}</li>)}
-          </ul>
+        <div className={`${card} overflow-hidden`}>
+          <img src={GEN_WRITING} onError={onImgErr} alt="Writing practice" className="w-full h-40 object-cover" />
+          <div className="p-7">
+            <div className="text-4xl">✍️</div>
+            <h3 className="text-xl font-bold mt-2">Writing Coach</h3>
+            <p className="text-slate-600 mt-1">Write Task 1 or Task 2 — scored like a real examiner.</p>
+            <ul className="mt-3 space-y-1.5 text-sm text-slate-700">
+              {["Band across the 4 official IELTS criteria", "Sentence-by-sentence corrections: what's wrong & how to fix it", "A band-8 model answer built from your own essay", "A practice plan targeting your weaknesses"].map(x => <li key={x} className="flex gap-2"><span style={{ color: PINK }}>✓</span>{x}</li>)}
+            </ul>
+          </div>
         </div>
-        <div className={`${card} p-7`}>
-          <div className="text-4xl">🎤</div>
-          <h3 className="text-xl font-bold mt-2">Speaking Partner</h3>
-          <p className="text-slate-600 mt-1">An AI examiner asks, you answer out loud — scored instantly.</p>
-          <ul className="mt-3 space-y-1.5 text-sm text-slate-700">
-            {["Part 1, 2 & 3 questions like the real test", "Band for fluency, vocabulary, grammar & pronunciation", "Filler-word & speaking-rate analysis", "A model answer + your own answer, upgraded"].map(x => <li key={x} className="flex gap-2"><span style={{ color: PINK }}>✓</span>{x}</li>)}
-          </ul>
+        <div className={`${card} overflow-hidden`}>
+          <img src={GEN_SPEAKING} onError={onImgErr} alt="Speaking practice" className="w-full h-40 object-cover" />
+          <div className="p-7">
+            <div className="text-4xl">🎤</div>
+            <h3 className="text-xl font-bold mt-2">Speaking Partner</h3>
+            <p className="text-slate-600 mt-1">An AI examiner asks, you answer out loud — scored instantly.</p>
+            <ul className="mt-3 space-y-1.5 text-sm text-slate-700">
+              {["Part 1, 2 & 3 questions like the real test", "Band for fluency, vocabulary, grammar & pronunciation", "Filler-word & speaking-rate analysis", "A model answer + your own answer, upgraded"].map(x => <li key={x} className="flex gap-2"><span style={{ color: PINK }}>✓</span>{x}</li>)}
+            </ul>
+          </div>
         </div>
       </section>
 
       {/* Credibility band with photo */}
       <section className="bg-slate-50 border-y border-slate-100">
         <div className="max-w-5xl mx-auto px-4 py-12 grid md:grid-cols-2 gap-8 items-center">
-          <div className="rounded-2xl overflow-hidden h-56 shadow-sm"><img src={IMG_OFFICE} alt="SpecTa Education — study abroad consultant in Jakarta" className="w-full h-full object-cover" /></div>
+          <div className="rounded-2xl overflow-hidden h-56 shadow-sm"><img src={GEN_COMMUNITY} onError={onImgErr} alt="Indonesian students succeeding with SpecTa" className="w-full h-full object-cover" /></div>
           <div>
             <h2 className="text-2xl font-bold">Backed by SpecTa Education</h2>
-            <p className="text-slate-600 mt-2">We've guided Indonesian students into universities abroad since 2005 — 1000+ students placed and 200+ scholarships won. The same expertise now powers your AI tutor.</p>
+            <p className="text-slate-600 mt-2">We've helped Indonesian students master English and study abroad since 2005 — <strong>10,000+ students trained</strong> and 200+ scholarships won. The same expertise now powers your AI tutor.</p>
             <button onClick={() => goForm("signup")} className="mt-4 px-5 py-2.5 rounded-lg text-white font-semibold" style={{ background: PURPLE }}>Start Free</button>
           </div>
         </div>
