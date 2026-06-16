@@ -21,6 +21,26 @@ class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
+  componentDidCatch(error: Error) {
+    // Stale chunk after a redeploy → reload once to fetch fresh assets instead
+    // of showing the public an error. Guarded against an infinite reload loop.
+    const msg = `${error?.message || ""} ${error?.name || ""}`;
+    const isStaleChunk =
+      /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|ChunkLoadError/i.test(
+        msg
+      );
+    if (isStaleChunk) {
+      try {
+        const KEY = "chunk-reload-ts";
+        const last = Number(sessionStorage.getItem(KEY) || "0");
+        if (Date.now() - last > 10000) {
+          sessionStorage.setItem(KEY, String(Date.now()));
+          window.location.reload();
+        }
+      } catch { /* ignore */ }
+    }
+  }
+
   render() {
     if (this.state.hasError) {
       return (

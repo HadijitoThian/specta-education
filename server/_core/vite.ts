@@ -70,11 +70,18 @@ export function serveStatic(app: Express) {
     lastModified: false,
   }));
 
-  // Other static files (images, fonts, favicon) get 7-day cache
+  // Other static files (images, fonts, favicon) get 7-day cache.
+  // `index: false` so a request to "/" does NOT get index.html served (and
+  // cached) from here — it must fall through to the catch-all below, which
+  // serves index.html with a no-cache header. Caching index.html is what
+  // causes "Failed to fetch dynamically imported module" after a redeploy:
+  // the browser keeps an old index.html that references chunk hashes that no
+  // longer exist on the server.
   app.use(express.static(distPath, {
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
     etag: true,
     lastModified: true,
+    index: false,
   }));
 
   // fall through to index.html if the file doesn't exist
@@ -83,6 +90,11 @@ export function serveStatic(app: Express) {
     const indexPath = path.resolve(distPath, "index.html");
     let html = fs.readFileSync(indexPath, "utf-8");
     html = await injectSeoMetaAsync(html, req.originalUrl);
-    res.status(200).set({ "Content-Type": "text/html" }).end(html);
+    res.status(200).set({
+      "Content-Type": "text/html",
+      // Always revalidate index.html so clients pick up new asset hashes
+      // immediately after a deploy (the hashed /assets stay immutably cached).
+      "Cache-Control": "no-cache, must-revalidate",
+    }).end(html);
   });
 }

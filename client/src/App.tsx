@@ -1,6 +1,6 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, type ComponentType } from "react";
 import { Route, Switch, Redirect } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -13,75 +13,118 @@ import { captureAttribution } from "./lib/attribution";
 import Home from "./pages/Home";
 import NotFound from "@/pages/NotFound";
 
+// ── Stale-chunk recovery ──────────────────────────────────────────────────────
+// After a new deploy, the hashed chunk filenames change. A browser that loaded
+// the OLD index.html will request a chunk (e.g. IELTS-<oldhash>.js) that no
+// longer exists → "Failed to fetch dynamically imported module". Instead of
+// showing an error, transparently reload ONCE to pull the fresh index.html.
+// A sessionStorage timestamp guards against an infinite reload loop.
+function reloadOnceForStaleChunk(): boolean {
+  try {
+    const KEY = "chunk-reload-ts";
+    const last = Number(sessionStorage.getItem(KEY) || "0");
+    if (Date.now() - last > 10000) {
+      sessionStorage.setItem(KEY, String(Date.now()));
+      window.location.reload();
+      return true;
+    }
+  } catch { /* sessionStorage may be unavailable */ }
+  return false;
+}
+
+function lazyWithReload(factory: () => Promise<{ default: ComponentType<any> }>) {
+  return lazy(async () => {
+    try {
+      return await factory();
+    } catch (err) {
+      // Likely a stale chunk after a redeploy — reload to fetch new assets.
+      if (reloadOnceForStaleChunk()) {
+        // Return a never-resolving promise so React keeps the fallback up
+        // until the reload navigates away (avoids flashing the error screen).
+        return new Promise<{ default: ComponentType<any> }>(() => {});
+      }
+      throw err;
+    }
+  });
+}
+
+// Vite also emits this when its preload helper fails to load a chunk.
+if (typeof window !== "undefined") {
+  window.addEventListener("vite:preloadError", (e) => {
+    e.preventDefault();
+    reloadOnceForStaleChunk();
+  });
+}
+
 // ── All other pages: lazy loaded (code-split into separate chunks) ────────────
 // Each lazy() call creates a separate JS chunk that is only downloaded when
 // the user navigates to that route. This dramatically reduces initial bundle size.
-const About = lazy(() => import("./pages/About"));
-const IELTS = lazy(() => import("./pages/IELTS"));
-const IELTSPractice = lazy(() => import("./pages/IELTSPractice"));
-const IeltsTutor = lazy(() => import("./pages/IeltsTutor"));
-const Destinations = lazy(() => import("./pages/Destinations"));
-const CountryPage = lazy(() => import("./pages/CountryPage"));
-const Malaysia = lazy(() => import("./pages/Malaysia"));
-const Articles = lazy(() => import("./pages/Articles"));
-const Contact = lazy(() => import("./pages/Contact"));
-const Compare = lazy(() => import("./pages/Compare"));
-const Apply = lazy(() => import("./pages/Apply"));
-const BookConsultation = lazy(() => import("./pages/BookConsultation"));
-const TrackApplication = lazy(() => import("./pages/TrackApplication"));
-const MyJourney = lazy(() => import("./pages/MyJourney"));
-const Scholarships = lazy(() => import("./pages/Scholarships"));
-const Play = lazy(() => import("./pages/Play"));
-const Quiz = lazy(() => import("./pages/Quiz"));
-const Persona = lazy(() => import("./pages/Persona"));
-const AptitudeTest = lazy(() => import("./pages/AptitudeTest"));
-const AptitudeTestPro = lazy(() => import("./pages/AptitudeTestPro"));
-const ProPaymentSuccess = lazy(() => import("./pages/ProPaymentSuccess"));
-const Blog = lazy(() => import("./pages/Blog"));
-const BlogPost = lazy(() => import("./pages/BlogPost"));
-const Simulator = lazy(() => import("./pages/Simulator"));
-const SimulatorExperience = lazy(() => import("./pages/SimulatorExperience"));
-const SimulatorReport = lazy(() => import("./pages/SimulatorReport"));
-const AIAnswers = lazy(() => import("./pages/AIAnswers"));
-const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
-const Login = lazy(() => import("./pages/Login"));
-const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const About = lazyWithReload(() => import("./pages/About"));
+const IELTS = lazyWithReload(() => import("./pages/IELTS"));
+const IELTSPractice = lazyWithReload(() => import("./pages/IELTSPractice"));
+const IeltsTutor = lazyWithReload(() => import("./pages/IeltsTutor"));
+const Destinations = lazyWithReload(() => import("./pages/Destinations"));
+const CountryPage = lazyWithReload(() => import("./pages/CountryPage"));
+const Malaysia = lazyWithReload(() => import("./pages/Malaysia"));
+const Articles = lazyWithReload(() => import("./pages/Articles"));
+const Contact = lazyWithReload(() => import("./pages/Contact"));
+const Compare = lazyWithReload(() => import("./pages/Compare"));
+const Apply = lazyWithReload(() => import("./pages/Apply"));
+const BookConsultation = lazyWithReload(() => import("./pages/BookConsultation"));
+const TrackApplication = lazyWithReload(() => import("./pages/TrackApplication"));
+const MyJourney = lazyWithReload(() => import("./pages/MyJourney"));
+const Scholarships = lazyWithReload(() => import("./pages/Scholarships"));
+const Play = lazyWithReload(() => import("./pages/Play"));
+const Quiz = lazyWithReload(() => import("./pages/Quiz"));
+const Persona = lazyWithReload(() => import("./pages/Persona"));
+const AptitudeTest = lazyWithReload(() => import("./pages/AptitudeTest"));
+const AptitudeTestPro = lazyWithReload(() => import("./pages/AptitudeTestPro"));
+const ProPaymentSuccess = lazyWithReload(() => import("./pages/ProPaymentSuccess"));
+const Blog = lazyWithReload(() => import("./pages/Blog"));
+const BlogPost = lazyWithReload(() => import("./pages/BlogPost"));
+const Simulator = lazyWithReload(() => import("./pages/Simulator"));
+const SimulatorExperience = lazyWithReload(() => import("./pages/SimulatorExperience"));
+const SimulatorReport = lazyWithReload(() => import("./pages/SimulatorReport"));
+const AIAnswers = lazyWithReload(() => import("./pages/AIAnswers"));
+const Unsubscribe = lazyWithReload(() => import("./pages/Unsubscribe"));
+const Login = lazyWithReload(() => import("./pages/Login"));
+const ForgotPassword = lazyWithReload(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazyWithReload(() => import("./pages/ResetPassword"));
 // Staff / Admin routes (heavy — definitely lazy)
-const StaffDashboard = lazy(() => import("./pages/StaffDashboard"));
-const CounselorCRM = lazy(() => import("./pages/CounselorCRM"));
-const StudentProfile360 = lazy(() => import("./pages/StudentProfile360"));
+const StaffDashboard = lazyWithReload(() => import("./pages/StaffDashboard"));
+const CounselorCRM = lazyWithReload(() => import("./pages/CounselorCRM"));
+const StudentProfile360 = lazyWithReload(() => import("./pages/StudentProfile360"));
 // New clean CRM (Phase 1+) — replaces the dormant CounselorCRM workspace.
-const CrmHome = lazy(() => import("./pages/crm/CrmHome"));
-const CrmTeam = lazy(() => import("./pages/crm/CrmTeam"));
-const CrmStudents = lazy(() => import("./pages/crm/CrmStudents"));
-const CrmStudentProfile = lazy(() => import("./pages/crm/CrmStudentProfile"));
-const CrmReports = lazy(() => import("./pages/crm/CrmReports"));
-const CrmCockpit = lazy(() => import("./pages/crm/CrmCockpit"));
-const IntakeForm = lazy(() => import("./pages/crm/IntakeForm"));
-const StudentJourney = lazy(() => import("./pages/crm/StudentJourney"));
-const SosMedHome = lazy(() => import("./pages/sosmed/SosMedHome"));
-const SosMedBrandKit = lazy(() => import("./pages/sosmed/SosMedBrandKit"));
-const SosMedContent = lazy(() => import("./pages/sosmed/SosMedContent"));
-const SosMedArtDirector = lazy(() => import("./pages/sosmed/SosMedArtDirector"));
-const TeamChat = lazy(() => import("./pages/TeamChat"));
-const UniversityDatabase = lazy(() => import("./pages/UniversityDatabase"));
-const AIFollowUpAssistant = lazy(() => import("./pages/AIFollowUpAssistant"));
-const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
-const AdminDashboardLegacy = lazy(() => import("./pages/AdminDashboardLegacy"));
-const AgentCommandCenter = lazy(() => import("./pages/AgentCommandCenter"));
-const SocialMediaManager = lazy(() => import("./pages/SocialMediaManager"));
-const AdsAgent = lazy(() => import("./pages/AdsAgent"));
-const AdminIeltsTests = lazy(() => import("./pages/AdminIeltsTests"));
-const IeltsMockTest = lazy(() => import("./pages/IeltsMockTest"));
-const IeltsFreeRedeem = lazy(() => import("./pages/IeltsFreeRedeem"));
-const IeltsMockSuccess = lazy(() => import("./pages/IeltsMockSuccess"));
-const IeltsMockTake = lazy(() => import("./pages/IeltsMockTake"));
-const IeltsMockReport = lazy(() => import("./pages/IeltsMockReport"));
+const CrmHome = lazyWithReload(() => import("./pages/crm/CrmHome"));
+const CrmTeam = lazyWithReload(() => import("./pages/crm/CrmTeam"));
+const CrmStudents = lazyWithReload(() => import("./pages/crm/CrmStudents"));
+const CrmStudentProfile = lazyWithReload(() => import("./pages/crm/CrmStudentProfile"));
+const CrmReports = lazyWithReload(() => import("./pages/crm/CrmReports"));
+const CrmCockpit = lazyWithReload(() => import("./pages/crm/CrmCockpit"));
+const IntakeForm = lazyWithReload(() => import("./pages/crm/IntakeForm"));
+const StudentJourney = lazyWithReload(() => import("./pages/crm/StudentJourney"));
+const SosMedHome = lazyWithReload(() => import("./pages/sosmed/SosMedHome"));
+const SosMedBrandKit = lazyWithReload(() => import("./pages/sosmed/SosMedBrandKit"));
+const SosMedContent = lazyWithReload(() => import("./pages/sosmed/SosMedContent"));
+const SosMedArtDirector = lazyWithReload(() => import("./pages/sosmed/SosMedArtDirector"));
+const TeamChat = lazyWithReload(() => import("./pages/TeamChat"));
+const UniversityDatabase = lazyWithReload(() => import("./pages/UniversityDatabase"));
+const AIFollowUpAssistant = lazyWithReload(() => import("./pages/AIFollowUpAssistant"));
+const AdminDashboard = lazyWithReload(() => import("./pages/AdminDashboard"));
+const AdminDashboardLegacy = lazyWithReload(() => import("./pages/AdminDashboardLegacy"));
+const AgentCommandCenter = lazyWithReload(() => import("./pages/AgentCommandCenter"));
+const SocialMediaManager = lazyWithReload(() => import("./pages/SocialMediaManager"));
+const AdsAgent = lazyWithReload(() => import("./pages/AdsAgent"));
+const AdminIeltsTests = lazyWithReload(() => import("./pages/AdminIeltsTests"));
+const IeltsMockTest = lazyWithReload(() => import("./pages/IeltsMockTest"));
+const IeltsFreeRedeem = lazyWithReload(() => import("./pages/IeltsFreeRedeem"));
+const IeltsMockSuccess = lazyWithReload(() => import("./pages/IeltsMockSuccess"));
+const IeltsMockTake = lazyWithReload(() => import("./pages/IeltsMockTake"));
+const IeltsMockReport = lazyWithReload(() => import("./pages/IeltsMockReport"));
 // Student portal
-const StudentPortalLogin = lazy(() => import("./pages/StudentPortalLogin"));
-const StudentPortalRegister = lazy(() => import("./pages/StudentPortalRegister"));
-const StudentPortalDashboard = lazy(() => import("./pages/StudentPortalDashboard"));
+const StudentPortalLogin = lazyWithReload(() => import("./pages/StudentPortalLogin"));
+const StudentPortalRegister = lazyWithReload(() => import("./pages/StudentPortalRegister"));
+const StudentPortalDashboard = lazyWithReload(() => import("./pages/StudentPortalDashboard"));
 
 // ── Minimal loading fallback ──────────────────────────────────────────────────
 // Intentionally lightweight: no spinner library, just a plain div.
