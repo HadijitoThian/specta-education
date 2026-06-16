@@ -45,8 +45,13 @@ function requireLead(leadId: number | null): number {
   return leadId;
 }
 
+/** Testing override — set TUTOR_FREE_TESTING=true in Railway for unlimited free
+ *  access during QA. REMOVE it before launch so the paywall is enforced. */
+const FREE_TESTING = () => process.env.TUTOR_FREE_TESTING === "true";
+
 /** Gate a practice: active subscription → unlimited; else allow the free taster. */
 async function gate(leadId: number, skill: "speaking" | "writing"): Promise<{ isFree: boolean }> {
+  if (FREE_TESTING()) return { isFree: true };
   const sub = await getActiveTutorSubscription(leadId);
   if (sub) return { isFree: false };
   const used = await countTutorSessions(leadId, skill);
@@ -69,10 +74,14 @@ export const tutorRouter = router({
       countTutorSessions(leadId, "writing"),
       countTutorSessions(leadId, "speaking"),
     ]);
+    const testing = FREE_TESTING();
     return {
       loggedIn: true as const,
+      testing,
       subscription: sub ? { plan: sub.plan, expiresAt: sub.expiresAt } : null,
-      freeRemaining: { writing: Math.max(0, FREE_LIMIT - writingUsed), speaking: Math.max(0, FREE_LIMIT - speakingUsed) },
+      freeRemaining: testing
+        ? { writing: 999, speaking: 999 }
+        : { writing: Math.max(0, FREE_LIMIT - writingUsed), speaking: Math.max(0, FREE_LIMIT - speakingUsed) },
     };
   }),
 
