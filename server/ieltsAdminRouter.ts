@@ -691,6 +691,34 @@ export const ieltsAdminRouter = router({
       };
     }),
 
+  /**
+   * Create a shareable free-access link for the AI IELTS Tutor. Returns a
+   * signed URL that anyone can open: they create/sign in to a free student
+   * account and are granted an active tutor subscription for `days`. Reusable
+   * until the link itself expires. Admin-only.
+   */
+  createTutorFreePass: protectedProcedure
+    .input(z.object({ days: z.number().int().min(1).max(90).default(7) }))
+    .mutation(async ({ input, ctx }) => {
+      assertAdmin(ctx);
+      const { SignJWT } = await import("jose");
+      const { ENV } = await import("./_core/env");
+      // The link is valid for redemption for `days` (and the granted access is
+      // also `days`). Give the link itself a generous window so it can be
+      // shared with a cohort over time.
+      const linkValidSec = Math.floor(Date.now() / 1000) + Math.max(input.days, 30) * 86400;
+      const token = await new SignJWT({ purpose: "tutor-free-pass", days: input.days })
+        .setProtectedHeader({ alg: "HS256" })
+        .setExpirationTime(linkValidSec)
+        .sign(new TextEncoder().encode(ENV.cookieSecret));
+      const base = ENV.appUrl.replace(/\/+$/, "");
+      return {
+        url: `${base}/ielts/tutor/redeem/${token}`,
+        days: input.days,
+        linkExpiresAt: new Date(linkValidSec * 1000).toISOString(),
+      };
+    }),
+
   /** Live status of the most recent (re)generation for a test code. */
   generationStatus: protectedProcedure
     .input(z.object({ code: z.string().min(1) }))

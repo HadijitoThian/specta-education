@@ -52,6 +52,33 @@ function CriteriaRow({ label, c }: { label: string; c: any }) {
 export default function IeltsTutor() {
   const utils = trpc.useUtils();
   const status = trpc.tutor.status.useQuery(undefined, { retry: false });
+  const claimedRef = useRef(false);
+
+  // Auto-claim an admin-issued free-access link once the student is signed in.
+  // IeltsTutorRedeem stashes the token in sessionStorage and forwards here; the
+  // student may need to sign up / log in first (AuthGate), then this fires.
+  const redeem = trpc.tutor.redeemFreePass.useMutation({
+    onSuccess: (d: any) => {
+      utils.tutor.status.invalidate();
+      if (!d?.alreadyActive) {
+        alert("🎉 Free AI Tutor access activated! Enjoy unlimited Writing & Speaking practice.");
+      }
+    },
+    onError: (e: any) => alert(e?.message || "This free-access link is invalid or has expired."),
+  });
+
+  useEffect(() => {
+    if (status.data?.loggedIn && !claimedRef.current) {
+      let token: string | null = null;
+      try { token = sessionStorage.getItem("tutor_free_pass"); } catch { /* ignore */ }
+      if (token) {
+        claimedRef.current = true;
+        try { sessionStorage.removeItem("tutor_free_pass"); } catch { /* ignore */ }
+        redeem.mutate({ token });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status.data?.loggedIn]);
 
   if (status.isLoading) return <div className="min-h-screen grid place-items-center text-slate-400">Loading…</div>;
   if (!status.data?.loggedIn) return <AuthGate onAuthed={() => utils.tutor.status.invalidate()} />;
@@ -306,7 +333,7 @@ function TutorApp({ status }: { status: any }) {
           <div className="flex items-center gap-3 text-sm">
             <a href="https://www.spectaeducation.com" className="hidden sm:inline text-slate-400 hover:text-slate-700">← Main site</a>
             {sub
-              ? <span className="text-green-700 font-medium">✓ {sub.plan === "w2" ? "2 Minggu" : "1 Bulan"}</span>
+              ? <span className="text-green-700 font-medium">✓ {sub.isFree ? "Free trial" : sub.plan === "w2" ? "2 Minggu" : "1 Bulan"}</span>
               : <span className="text-slate-500">Free trial</span>}
             <button onClick={() => logout.mutate()} className="text-slate-500 hover:text-slate-700 underline">Keluar</button>
           </div>

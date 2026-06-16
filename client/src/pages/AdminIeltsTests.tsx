@@ -142,6 +142,27 @@ export default function AdminIeltsTests() {
     onError: e => alert(`Failed: ${e.message}`),
   });
 
+  const createTutorFreePassMut = trpc.admin.ielts.createTutorFreePass.useMutation({
+    onSuccess: data => {
+      navigator.clipboard?.writeText(data.url).catch(() => {});
+      alert(
+        `AI Tutor free link created (${data.days} days of access).\n\nCopied to clipboard:\n${data.url}\n\nShare it with anyone — they create a free student account and instantly get unlimited Writing & Speaking practice for ${data.days} days. Reusable until ${new Date(data.linkExpiresAt).toLocaleDateString()}.`
+      );
+    },
+    onError: e => alert(`Failed: ${e.message}`),
+  });
+
+  const handleCreateTutorFreeLink = () => {
+    const raw = window.prompt("AI Tutor free access — how many days? (7, 14, or 30)", "7");
+    if (raw === null) return;
+    const days = parseInt(raw, 10);
+    if (!Number.isFinite(days) || days < 1 || days > 90) {
+      alert("Please enter a number of days between 1 and 90.");
+      return;
+    }
+    createTutorFreePassMut.mutate({ days });
+  };
+
   const fixQ2731Mut = trpc.admin.ielts.fixReadingResearcherMatching.useMutation({
     onSuccess: data => {
       utils.admin.ielts.list.invalidate();
@@ -224,7 +245,15 @@ export default function AdminIeltsTests() {
               className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white text-sm font-medium px-4 py-2 rounded-lg"
               title="Create a shareable free-access link (Academic, valid 30 days)"
             >
-              {createFreePassMut.isPending ? "Creating…" : "🎟 Create free link"}
+              {createFreePassMut.isPending ? "Creating…" : "🎟 Mock Test free link"}
+            </button>
+            <button
+              onClick={handleCreateTutorFreeLink}
+              disabled={createTutorFreePassMut.isPending}
+              className="bg-pink-600 hover:bg-pink-700 disabled:bg-pink-300 text-white text-sm font-medium px-4 py-2 rounded-lg"
+              title="Create a shareable AI Tutor free-access link (you choose the number of days)"
+            >
+              {createTutorFreePassMut.isPending ? "Creating…" : "✨ AI Tutor free link"}
             </button>
             <button
               onClick={() => setShowImport(s => !s)}

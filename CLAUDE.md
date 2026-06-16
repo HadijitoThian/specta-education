@@ -168,6 +168,13 @@ Mock Test. **Subscription**, billed via Xendit.
 - **Landing images:** `server/tutorImages.ts` (FLUX-1.1-pro, generated once to fixed
   R2 keys `tutor/landing/*.jpg`).
 - Surfaced in the **Ads Co-pilot** landing-page dropdown (`/ielts/tutor`).
+- **Admin free links** (mirrors Mock Test free pass): `/admin/ielts-tests` →
+  "✨ AI Tutor free link" button (`admin.ielts.createTutorFreePass`, pick days)
+  → signed `tutor-free-pass` JWT link `/ielts/tutor/redeem/<token>`. Opening it
+  stashes the token, sends the user to `/ielts/tutor` to make a free account,
+  then `tutor.redeemFreePass` grants an active free subscription
+  (`xenditInvoiceId="FREE-…"`, shown as "Free trial" in the header). Reusable
+  until the link expires.
 
 ## 5. Site / nav / pages
 

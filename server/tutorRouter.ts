@@ -12,6 +12,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { jwtVerify } from "jose";
 import { parse as parseCookies } from "cookie";
+import { nanoid } from "nanoid";
 
 import { router, publicProcedure } from "./_core/trpc";
 import {
@@ -82,7 +83,9 @@ export const tutorRouter = router({
     return {
       loggedIn: true as const,
       testing,
-      subscription: sub ? { plan: sub.plan, expiresAt: sub.expiresAt } : null,
+      subscription: sub
+        ? { plan: sub.plan, expiresAt: sub.expiresAt, isFree: String(sub.xenditInvoiceId || "").startsWith("FREE") }
+        : null,
       freeRemaining: testing
         ? { writing: 999, speaking: 999 }
         : { writing: Math.max(0, FREE_LIMIT - writingUsed), speaking: Math.max(0, FREE_LIMIT - speakingUsed) },
@@ -135,6 +138,53 @@ export const tutorRouter = router({
       } catch (e) {
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message });
       }
+    }),
+
+  /** Redeem an admin-issued free-access link → grants a free subscription for
+   *  the signed-in student. The token is a signed JWT (purpose "tutor-free-pass"
+   *  with `days`). Reusable until the link expires; each student gets their own. */
+  redeemFreePass: publicProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .mutation(async ({ input, ctx }) => {
+      const leadId = requireLead(await resolveLead(ctx));
+
+      // Verify the signed link.
+      let days = 7;
+      try {
+        const { payload } = await jwtVerify(
+          input.token,
+          new TextEncoder().encode(ENV.cookieSecret),
+        );
+        if ((payload as any)?.purpose !== "tutor-free-pass") {
+          throw new Error("bad purpose");
+        }
+        const d = Number((payload as any).days);
+        if (Number.isFinite(d) && d >= 1 && d <= 90) days = Math.floor(d);
+      } catch {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "This free-access link is invalid or has expired." });
+      }
+
+      // If they already have active access, don't stack — just report it.
+      const existing = await getActiveTutorSubscription(leadId);
+      if (existing) {
+        return { alreadyActive: true as const, expiresAt: existing.expiresAt };
+      }
+
+      const startsAt = new Date();
+      const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+      // plan is a required enum; "w2" is the closest bucket. The UI shows
+      // "Free trial" (not the plan name) because xenditInvoiceId starts FREE-.
+      await createTutorSubscription({
+        leadId,
+        plan: "w2",
+        status: "active",
+        amount: "0" as any,
+        currency: "IDR",
+        xenditInvoiceId: `FREE-${nanoid(10)}`,
+        startsAt,
+        expiresAt,
+      });
+      return { alreadyActive: false as const, expiresAt };
     }),
 
   // ── Content ──
