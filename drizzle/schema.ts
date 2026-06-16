@@ -232,6 +232,48 @@ export const geoSnapshots = mysqlTable("geo_snapshots", {
 });
 export type GeoSnapshot = typeof geoSnapshots.$inferSelect;
 export type InsertGeoSnapshot = typeof geoSnapshots.$inferInsert;
+
+/**
+ * AI IELTS Tutor — paid subscriptions (1 / 3 / 6 months). Tied to a student
+ * (leads.id). Active while expiresAt is in the future.
+ */
+export const tutorSubscriptions = mysqlTable("tutor_subscriptions", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  plan: mysqlEnum("plan", ["m1", "m3", "m6"]).notNull(),
+  status: mysqlEnum("status", ["pending", "active", "expired", "cancelled"]).default("pending").notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }),
+  currency: varchar("currency", { length: 8 }).default("IDR").notNull(),
+  xenditInvoiceId: varchar("xenditInvoiceId", { length: 120 }),
+  startsAt: timestamp("startsAt"),
+  expiresAt: timestamp("expiresAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type TutorSubscription = typeof tutorSubscriptions.$inferSelect;
+export type InsertTutorSubscription = typeof tutorSubscriptions.$inferInsert;
+
+/**
+ * AI IELTS Tutor — one practice + feedback session (a writing eval or a
+ * speaking eval). scores/feedback hold the full structured tutor output.
+ */
+export const tutorSessions = mysqlTable("tutor_sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  skill: mysqlEnum("skill", ["speaking", "writing"]).notNull(),
+  taskType: varchar("taskType", { length: 40 }),     // e.g. "task2", "part2"
+  prompt: text("prompt"),                             // the question/task shown
+  response: text("response"),                         // essay text or speaking transcript
+  audioUrl: varchar("audioUrl", { length: 512 }),     // speaking recording (R2)
+  durationSec: int("durationSec"),
+  overallBand: decimal("overallBand", { precision: 3, scale: 1 }),
+  scores: json("scores"),                             // per-criterion bands
+  feedback: json("feedback"),                         // corrections, model answer, drills…
+  isFree: boolean("isFree").default(false).notNull(), // counted against the free taster
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type TutorSession = typeof tutorSessions.$inferSelect;
+export type InsertTutorSession = typeof tutorSessions.$inferInsert;
 export type InsertLead = typeof leads.$inferInsert;
 
 /**

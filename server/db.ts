@@ -9,6 +9,8 @@ import {
   adCampaigns, InsertAdCampaign, AdCampaign,
   growthDigests, InsertGrowthDigest, GrowthDigest,
   geoSnapshots, InsertGeoSnapshot, GeoSnapshot,
+  tutorSubscriptions, InsertTutorSubscription, TutorSubscription,
+  tutorSessions, InsertTutorSession, TutorSession,
   documents, InsertDocument, Document,
   applications, InsertApplication, Application,
   applicationNotes, InsertApplicationNote, ApplicationNote,
@@ -373,6 +375,40 @@ export async function ensureMarketingSchema(): Promise<void> {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `));
     await db.execute(sql.raw(`
+      CREATE TABLE IF NOT EXISTS tutor_subscriptions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        leadId INT NOT NULL,
+        plan ENUM('m1','m3','m6') NOT NULL,
+        status ENUM('pending','active','expired','cancelled') NOT NULL DEFAULT 'pending',
+        amount DECIMAL(12,2) NULL,
+        currency VARCHAR(8) NOT NULL DEFAULT 'IDR',
+        xenditInvoiceId VARCHAR(120) NULL,
+        startsAt TIMESTAMP NULL,
+        expiresAt TIMESTAMP NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_lead (leadId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `));
+    await db.execute(sql.raw(`
+      CREATE TABLE IF NOT EXISTS tutor_sessions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        leadId INT NOT NULL,
+        skill ENUM('speaking','writing') NOT NULL,
+        taskType VARCHAR(40) NULL,
+        prompt TEXT NULL,
+        response TEXT NULL,
+        audioUrl VARCHAR(512) NULL,
+        durationSec INT NULL,
+        overallBand DECIMAL(3,1) NULL,
+        scores JSON NULL,
+        feedback JSON NULL,
+        isFree TINYINT(1) NOT NULL DEFAULT 0,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_lead_skill (leadId, skill)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `));
+    await db.execute(sql.raw(`
       CREATE TABLE IF NOT EXISTS geo_snapshots (
         id INT AUTO_INCREMENT PRIMARY KEY,
         query VARCHAR(255) NOT NULL,
@@ -476,6 +512,67 @@ export async function deleteAdCampaign(id: number): Promise<void> {
   await db.delete(adCampaigns).where(eq(adCampaigns.id, id));
 }
 
+// ── AI IELTS Tutor ───────────────────────────────────────────────────────────
+export async function getActiveTutorSubscription(leadId: number): Promise<TutorSubscription | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(tutorSubscriptions)
+    .where(and(eq(tutorSubscriptions.leadId, leadId), eq(tutorSubscriptions.status, "active"), gte(tutorSubscriptions.expiresAt, new Date())))
+    .orderBy(desc(tutorSubscriptions.expiresAt)).limit(1);
+  return row || null;
+}
+
+export async function createTutorSubscription(data: InsertTutorSubscription): Promise<TutorSubscription | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const r = await db.insert(tutorSubscriptions).values(data);
+  const id = (r as any)[0].insertId;
+  const [row] = await db.select().from(tutorSubscriptions).where(eq(tutorSubscriptions.id, id)).limit(1);
+  return row || null;
+}
+
+export async function updateTutorSubscription(id: number, data: Partial<InsertTutorSubscription>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(tutorSubscriptions).set(data).where(eq(tutorSubscriptions.id, id));
+}
+
+export async function getTutorSubscriptionByInvoice(invoiceId: string): Promise<TutorSubscription | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(tutorSubscriptions).where(eq(tutorSubscriptions.xenditInvoiceId, invoiceId)).limit(1);
+  return row || null;
+}
+
+export async function countTutorSessions(leadId: number, skill: "speaking" | "writing"): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const [r] = await db.select({ c: sql<number>`COUNT(*)` }).from(tutorSessions)
+    .where(and(eq(tutorSessions.leadId, leadId), eq(tutorSessions.skill, skill)));
+  return Number(r?.c ?? 0);
+}
+
+export async function createTutorSession(data: InsertTutorSession): Promise<TutorSession | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const r = await db.insert(tutorSessions).values(data);
+  const id = (r as any)[0].insertId;
+  const [row] = await db.select().from(tutorSessions).where(eq(tutorSessions.id, id)).limit(1);
+  return row || null;
+}
+
+export async function listTutorSessions(leadId: number, limit = 50): Promise<TutorSession[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return (await db.select().from(tutorSessions).where(eq(tutorSessions.leadId, leadId)).orderBy(desc(tutorSessions.createdAt)).limit(limit)) as TutorSession[];
+}
+
+export async function getTutorSession(id: number, leadId: number): Promise<TutorSession | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(tutorSessions).where(and(eq(tutorSessions.id, id), eq(tutorSessions.leadId, leadId))).limit(1);
+  return row || null;
+}
 
 /** Lead rows trimmed to the fields the attribution report needs. */
 export async function getLeadsForAttribution(opts: { month?: string } = {}): Promise<Array<{

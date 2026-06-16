@@ -230,6 +230,7 @@ import { crmReportsRouter } from "./crmReportsRouter";
 import { crmCockpitRouter } from "./crmCockpitRouter";
 import { crmIntakeRouter } from "./crmIntakeRouter";
 import { marketingRouter } from "./marketingRouter";
+import { tutorRouter } from "./tutorRouter";
 import { crmJourneyRouter } from "./crmJourneyRouter";
 import { sosmedRouter } from "./sosmedRouter";
 import { startCrmReportScheduler } from "./crmReportScheduler";
@@ -7964,6 +7965,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
   cockpit: crmCockpitRouter,
   intake: crmIntakeRouter,
   marketing: marketingRouter,
+  tutor: tutorRouter,
   journey: crmJourneyRouter,
   sosmed: sosmedRouter,
 });
