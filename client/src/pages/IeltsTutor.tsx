@@ -212,6 +212,22 @@ function PricingBanner({ free }: { free: any }) {
 }
 
 // ── Writing Coach ─────────────────────────────────────────────────────────────
+/** Free, client-side examiner voice via the browser's Web Speech API. */
+function speakExaminer(text: string) {
+  try {
+    const synth = window.speechSynthesis;
+    if (!synth) { alert("Browser kamu belum mendukung suara otomatis. Baca pertanyaannya ya."); return; }
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "en-GB";
+    u.rate = 0.95;
+    const voices = synth.getVoices();
+    const v = voices.find(x => /en-GB/i.test(x.lang)) || voices.find(x => /en-US/i.test(x.lang)) || voices.find(x => /^en/i.test(x.lang));
+    if (v) u.voice = v;
+    synth.speak(u);
+  } catch { /* ignore */ }
+}
+
 function tableToText(t: any): string {
   if (!t) return "";
   const head = t.columns.join(" | ");
@@ -351,7 +367,6 @@ function SpeakingPartner({ onBack }: { onBack: () => void }) {
   const startRef = useRef(0);
 
   const genQ = trpc.tutor.speakingQuestions.useMutation({ onSuccess: d => setQuestion(d.questions[0] || "") });
-  const examiner = trpc.tutor.examinerAudio.useMutation({ onSuccess: d => new Audio(d.url).play().catch(() => {}) });
   const evalS = trpc.tutor.evaluateSpeaking.useMutation({
     onSuccess: d => { setFb(d.feedback); setTranscript(d.transcript); },
     onError: e => { if (e.data?.code === "FORBIDDEN") setPaywall(true); else alert(e.message); },
@@ -399,7 +414,7 @@ function SpeakingPartner({ onBack }: { onBack: () => void }) {
         {question && (
           <div className="bg-slate-50 rounded-lg p-3">
             <div className="text-sm text-slate-800 whitespace-pre-wrap">{question}</div>
-            <button onClick={() => examiner.mutate({ text: question })} disabled={examiner.isPending} className="mt-2 text-xs px-2 py-1 rounded border border-slate-300">🔊 Dengar penguji</button>
+            <button onClick={() => speakExaminer(question)} className="mt-2 text-xs px-2 py-1 rounded border border-slate-300">🔊 Dengar penguji</button>
           </div>
         )}
       </div>
