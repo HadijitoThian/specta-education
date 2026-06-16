@@ -326,7 +326,7 @@ function SessionView({ id, onBack }: { id: number; onBack: () => void }) {
     return <div className="py-12 text-center"><button onClick={onBack} className="text-sm text-slate-500">← Kembali</button><div className="text-slate-500 mt-3">Sesi ini tidak bisa dibuka.</div></div>;
   }
   if (s.skill === "writing") return <WritingResult fb={s.feedback} onAgain={onBack} onBack={onBack} />;
-  return <SpeakingResult fb={s.feedback} transcript={s.response || ""} onAgain={onBack} onBack={onBack} />;
+  return <SpeakingResult fb={s.feedback} transcript={s.response || ""} audioUrl={s.audioUrl || undefined} onAgain={onBack} onBack={onBack} />;
 }
 
 function Home({ free, hasSub, onPick, onOpen }: { free: any; hasSub: boolean; onPick: (v: View) => void; onOpen: (id: number) => void }) {
@@ -669,6 +669,12 @@ function SpeakingTest() {
         </div>
       ) : (
         <div className="space-y-3">
+          {audio && (
+            <div className={`${card} p-4`}>
+              <div className="text-xs font-medium text-slate-500 mb-2">🔊 Dengar jawabanmu</div>
+              <audio controls src={audio.url} className="w-full" />
+            </div>
+          )}
           <div className={`${card} p-5`}>
             <div className="flex items-center gap-2"><Band value={qfb.band} /><span className="text-sm text-slate-500">estimasi jawaban ini</span></div>
             {!!qfb.fixes?.length && <div className="mt-3 space-y-2">{qfb.fixes.map((c: any, i: number) => <div key={i} className="text-sm"><span className="line-through text-red-500">{c.original}</span> → <span className="text-green-700 font-medium">{c.fix}</span></div>)}</div>}
@@ -726,7 +732,7 @@ function SpeakingPartner({ onBack }: { onBack: () => void }) {
   };
   const stopRec = () => { recRef.current?.stop(); setRecording(false); };
 
-  if (fb) return <SpeakingResult fb={fb} transcript={transcript} onAgain={() => { setFb(null); setAudio(null); setQuestion(""); }} onBack={onBack} />;
+  if (fb) return <SpeakingResult fb={fb} transcript={transcript} audioUrl={audio?.url} onAgain={() => { setFb(null); setAudio(null); setQuestion(""); }} onBack={onBack} />;
 
   return (
     <div className="space-y-4">
@@ -776,7 +782,7 @@ function SpeakingPartner({ onBack }: { onBack: () => void }) {
   );
 }
 
-function SpeakingResult({ fb, transcript, onAgain, onBack }: { fb: any; transcript: string; onAgain: () => void; onBack: () => void }) {
+function SpeakingResult({ fb, transcript, audioUrl, onAgain, onBack }: { fb: any; transcript: string; audioUrl?: string; onAgain: () => void; onBack: () => void }) {
   const [showT, setShowT] = useState(false);
   return (
     <div className="space-y-4">
@@ -789,6 +795,12 @@ function SpeakingResult({ fb, transcript, onAgain, onBack }: { fb: any; transcri
           {fb.observations?.pauseCount != null && <> · {fb.observations.pauseCount} jeda{fb.observations.longPauseCount ? ` (${fb.observations.longPauseCount} jeda panjang)` : ""}</>}
         </div>
       </div>
+      {audioUrl && (
+        <div className={`${card} p-4`}>
+          <div className="text-xs font-medium text-slate-500 mb-2">🔊 Dengar rekamanmu</div>
+          <audio controls src={audioUrl} className="w-full" />
+        </div>
+      )}
       <div className={`${card} p-5`}>
         <h3 className="font-semibold text-slate-800 mb-1">Penilaian per Kriteria</h3>
         <CriteriaRow label="Fluency & Coherence" c={fb.criteria.fluencyCoherence} />

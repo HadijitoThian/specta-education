@@ -155,7 +155,7 @@ export const tutorRouter = router({
       try {
         const ext = (input.mimeType || "").includes("mp4") ? "mp4" : (input.mimeType || "").includes("wav") ? "wav" : "webm";
         const put = await storagePut(`tutor/speaking/${leadId}/${Date.now()}.${ext}`, buffer, input.mimeType || "audio/webm");
-        audioUrl = put.url;
+        audioUrl = `/files/${put.key}`; // proxy path so it plays back from history
       } catch { /* non-critical */ }
 
       const words = (transcript.match(/\S+/g) || []).length;
