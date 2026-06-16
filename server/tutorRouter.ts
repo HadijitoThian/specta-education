@@ -16,10 +16,11 @@ import { parse as parseCookies } from "cookie";
 import { router, publicProcedure } from "./_core/trpc";
 import {
   evaluateWriting, evaluateSpeaking, generateWritingTask, generateSpeakingQuestions,
+  generatePart1Test, evaluateSpeakingQuick, summarizePart1Test,
 } from "./tutorEngine";
 import {
   getActiveTutorSubscription, countTutorSessions, createTutorSession,
-  listTutorSessions, getTutorSession,
+  listTutorSessions, getTutorSession, updateTutorSession,
 } from "./db";
 import { transcribeAudioBuffer } from "./_core/voiceTranscription";
 import { synthesize } from "./_core/elevenlabs";
@@ -164,6 +165,66 @@ export const tutorRouter = router({
         overallBand: String(fb.overallBand) as any, scores: fb.criteria as any, feedback: fb as any, isFree,
       });
       return { sessionId: session?.id, transcript, feedback: fb };
+    }),
+
+  // ── Full Speaking Test — Part 1 (guided) ──
+  /** Start a Part-1 test: consumes one free speaking use, returns 7 questions. */
+  speakingTestStart: publicProcedure.mutation(async ({ ctx }) => {
+    const leadId = requireLead(await resolveLead(ctx));
+    const { isFree } = await gate(leadId, "speaking");
+    const { topic, questions } = await generatePart1Test();
+    const session = await createTutorSession({
+      leadId, skill: "speaking", taskType: "part1", prompt: topic,
+      feedback: { topic, questions, answers: [] } as any, isFree,
+    });
+    return { sessionId: session?.id, topic, questions };
+  }),
+
+  /** Evaluate one answer in a running test (not gated — the test was gated at start). */
+  speakingTestAnswer: publicProcedure
+    .input(z.object({
+      sessionId: z.number(),
+      index: z.number().int().min(0).max(20),
+      question: z.string().min(1).max(1200),
+      audioBase64: z.string().min(100),
+      mimeType: z.string().max(60).optional(),
+      durationSec: z.number().int().positive().max(600),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const leadId = requireLead(await resolveLead(ctx));
+      const session = await getTutorSession(input.sessionId, leadId);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const buffer = Buffer.from(input.audioBase64, "base64");
+      if (buffer.length > 20 * 1024 * 1024) throw new TRPCError({ code: "PAYLOAD_TOO_LARGE", message: "Recording too large." });
+      const tr = await transcribeAudioBuffer({ buffer, mimeType: input.mimeType || "audio/webm" });
+      if ("error" in tr) {
+        console.error("[Tutor] test transcription failed:", tr.error, tr.details);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Transcription failed: ${tr.error}${tr.details ? ` — ${tr.details}` : ""}` });
+      }
+      const transcript = (tr.text || "").trim();
+      const fb = await evaluateSpeakingQuick(input.question, transcript, input.durationSec);
+      return { transcript, ...fb };
+    }),
+
+  /** Finish the test: summarize all answers into a band + recurring mistakes + plan. */
+  speakingTestFinish: publicProcedure
+    .input(z.object({
+      sessionId: z.number(),
+      answers: z.array(z.object({ question: z.string(), transcript: z.string(), band: z.number() })).min(1),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const leadId = requireLead(await resolveLead(ctx));
+      const session = await getTutorSession(input.sessionId, leadId);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND" });
+      const topic = (session.feedback as any)?.topic || "Part 1";
+      const result = await summarizePart1Test(topic, input.answers);
+      await updateTutorSession(input.sessionId, {
+        overallBand: String(result.overallBand) as any,
+        scores: { overallBand: result.overallBand } as any,
+        feedback: { ...(session.feedback as any), answers: input.answers, ...result } as any,
+      });
+      return result;
     }),
 
   // ── History ──

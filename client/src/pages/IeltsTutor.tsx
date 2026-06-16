@@ -549,7 +549,141 @@ function TwoCol({ strengths, improvements }: { strengths: string[]; improvements
 }
 
 // ── Speaking Partner ──────────────────────────────────────────────────────────
+/** Guided full Part-1 test: 7 connected questions, per-answer feedback, summary. */
+function SpeakingTest() {
+  const [phase, setPhase] = useState<"intro" | "running" | "done">("intro");
+  const [test, setTest] = useState<{ sessionId: number; topic: string; questions: string[] } | null>(null);
+  const [idx, setIdx] = useState(0);
+  const [answers, setAnswers] = useState<any[]>([]);
+  const [recording, setRecording] = useState(false);
+  const [audio, setAudio] = useState<{ base64: string; mime: string; dur: number; url: string } | null>(null);
+  const [qfb, setQfb] = useState<any>(null);
+  const [transcript, setTranscript] = useState("");
+  const [summary, setSummary] = useState<any>(null);
+  const [paywall, setPaywall] = useState(false);
+  const recRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const startRef = useRef(0);
+
+  const start = trpc.tutor.speakingTestStart.useMutation({
+    onSuccess: d => { setTest({ sessionId: d.sessionId!, topic: d.topic, questions: d.questions }); setPhase("running"); setIdx(0); setAnswers([]); setQfb(null); setAudio(null); },
+    onError: e => { if (e.data?.code === "FORBIDDEN") setPaywall(true); else alert(e.message); },
+  });
+  const answer = trpc.tutor.speakingTestAnswer.useMutation({
+    onSuccess: d => { setQfb(d); setTranscript(d.transcript); },
+    onError: e => alert(e.message),
+  });
+  const finish = trpc.tutor.speakingTestFinish.useMutation({
+    onSuccess: d => { setSummary(d); setPhase("done"); },
+    onError: e => alert(e.message),
+  });
+
+  const question = test?.questions[idx] || "";
+  const total = test?.questions.length || 7;
+
+  // Auto-play the examiner ~2s after a new (unanswered) question appears.
+  useEffect(() => {
+    if (phase !== "running" || !question || qfb) return;
+    const t = setTimeout(() => speakExaminer(question), 2000);
+    return () => clearTimeout(t);
+  }, [phase, question, qfb]);
+
+  const startRec = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      chunksRef.current = [];
+      mr.ondataavailable = e => e.data.size && chunksRef.current.push(e.data);
+      mr.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" });
+        const dur = Math.max(1, Math.round((Date.now() - startRef.current) / 1000));
+        const reader = new FileReader();
+        reader.onloadend = () => setAudio({ base64: String(reader.result).split(",")[1] || "", mime: mr.mimeType || "audio/webm", dur, url: URL.createObjectURL(blob) });
+        reader.readAsDataURL(blob);
+        stream.getTracks().forEach(t => t.stop());
+      };
+      startRef.current = Date.now(); mr.start(); recRef.current = mr; setRecording(true);
+    } catch { alert("Tidak bisa mengakses mikrofon. Izinkan akses mic di browser."); }
+  };
+  const stopRec = () => { recRef.current?.stop(); setRecording(false); };
+
+  const next = () => {
+    if (!test || !qfb) return;
+    const updated = [...answers, { question, transcript, band: qfb.band, fixes: qfb.fixes, better: qfb.better, tip: qfb.tip }];
+    setAnswers(updated); setQfb(null); setAudio(null); setTranscript("");
+    if (idx + 1 >= total) {
+      finish.mutate({ sessionId: test.sessionId, answers: updated.map(a => ({ question: a.question, transcript: a.transcript, band: a.band })) });
+    } else { setIdx(idx + 1); }
+  };
+
+  if (paywall) return <Paywall skill="speaking" />;
+
+  if (phase === "intro") {
+    return (
+      <div className={`${card} p-6 text-center`}>
+        <div className="text-3xl">🎧</div>
+        <h3 className="font-bold text-lg mt-2">Tes Speaking — Part 1</h3>
+        <p className="text-sm text-slate-500 mt-1">Penguji AI menanyakan 7 pertanyaan tentang satu topik, persis seperti tes asli. Jawab lisan, dapat feedback tiap jawaban, lalu ringkasan band & cara memperbaiki di akhir.</p>
+        <button onClick={() => start.mutate()} disabled={start.isPending} className="mt-4 px-6 py-3 rounded-xl text-white font-semibold" style={{ background: PINK }}>{start.isPending ? "Menyiapkan…" : "Mulai Tes Part 1"}</button>
+      </div>
+    );
+  }
+
+  if (phase === "done" && summary) {
+    return (
+      <div className="space-y-4">
+        <div className={`${card} p-5 text-center`}>
+          <div className="text-sm text-slate-500">Estimasi Band Part 1</div>
+          <div className="text-5xl font-extrabold my-1" style={{ color: bandColor(summary.overallBand) }}>{summary.overallBand.toFixed(1)}</div>
+        </div>
+        {summary.summary && <div className={`${card} p-5 text-sm text-slate-700`}>{summary.summary}</div>}
+        {!!summary.recurringMistakes?.length && <div className={`${card} p-5`}><h3 className="font-semibold text-slate-800 mb-2">Kesalahan yang berulang</h3><ul className="list-disc ml-5 text-sm space-y-1">{summary.recurringMistakes.map((m: string, i: number) => <li key={i}>{m}</li>)}</ul></div>}
+        {!!summary.improvements?.length && <div className={`${card} p-5`}><h3 className="font-semibold mb-2" style={{ color: CORAL }}>Rencana latihan</h3><ul className="list-disc ml-5 text-sm space-y-1">{summary.improvements.map((m: string, i: number) => <li key={i}>{m}</li>)}</ul></div>}
+        <button onClick={() => { setPhase("intro"); setTest(null); setSummary(null); }} className="w-full py-2.5 rounded-lg text-white font-semibold" style={{ background: PURPLE }}>Tes Lagi</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between text-sm text-slate-500">
+        <span>Topik: <strong className="text-slate-700 capitalize">{test?.topic}</strong></span>
+        <span>Pertanyaan {idx + 1} / {total}</span>
+      </div>
+      <div className={`${card} p-5`}>
+        <div className="text-base text-slate-800">{question}</div>
+        <button onClick={() => speakExaminer(question)} className="mt-2 text-xs px-2 py-1 rounded border border-slate-300">🔊 Dengar penguji</button>
+      </div>
+
+      {!qfb ? (
+        <div className={`${card} p-5 text-center space-y-3`}>
+          {!recording
+            ? <button onClick={startRec} className="px-6 py-3 rounded-full text-white font-semibold" style={{ background: PINK }}>● Mulai Rekam</button>
+            : <button onClick={stopRec} className="px-6 py-3 rounded-full text-white font-semibold animate-pulse" style={{ background: CORAL }}>■ Berhenti Rekam</button>}
+          {audio && !recording && (
+            <div className="space-y-2">
+              <audio controls src={audio.url} className="mx-auto" />
+              <button onClick={() => test && answer.mutate({ sessionId: test.sessionId, index: idx, question, audioBase64: audio.base64, mimeType: audio.mime, durationSec: audio.dur })} disabled={answer.isPending} className="w-full py-2.5 rounded-lg text-white font-semibold disabled:opacity-60" style={{ background: PURPLE }}>{answer.isPending ? "Menilai…" : "Kirim Jawaban"}</button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className={`${card} p-5`}>
+            <div className="flex items-center gap-2"><Band value={qfb.band} /><span className="text-sm text-slate-500">estimasi jawaban ini</span></div>
+            {!!qfb.fixes?.length && <div className="mt-3 space-y-2">{qfb.fixes.map((c: any, i: number) => <div key={i} className="text-sm"><span className="line-through text-red-500">{c.original}</span> → <span className="text-green-700 font-medium">{c.fix}</span></div>)}</div>}
+            {qfb.better && <div className="mt-2 text-sm"><span className="text-slate-500">Contoh lebih baik: </span>{qfb.better}</div>}
+            {qfb.tip && <div className="mt-2 text-sm" style={{ color: CORAL }}>💡 {qfb.tip}</div>}
+          </div>
+          <button onClick={next} disabled={finish.isPending} className="w-full py-2.5 rounded-lg text-white font-semibold" style={{ background: PINK }}>{idx + 1 >= total ? (finish.isPending ? "Membuat ringkasan…" : "Selesai & Lihat Ringkasan") : "Pertanyaan Berikutnya →"}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SpeakingPartner({ onBack }: { onBack: () => void }) {
+  const [smode, setSmode] = useState<"quick" | "test">("quick");
   const [part, setPart] = useState<"part1" | "part2" | "part3">("part1");
   const [question, setQuestion] = useState("");
   const [recording, setRecording] = useState(false);
@@ -599,6 +733,12 @@ function SpeakingPartner({ onBack }: { onBack: () => void }) {
       <button onClick={onBack} className="text-sm text-slate-500">← Kembali</button>
       <h2 className="text-2xl font-bold text-slate-800">🎤 Speaking Partner</h2>
 
+      <div className="flex gap-2">
+        <button onClick={() => setSmode("quick")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${smode === "quick" ? "text-white" : "bg-slate-100 text-slate-600"}`} style={smode === "quick" ? { background: PINK } : {}}>Latihan Cepat</button>
+        <button onClick={() => setSmode("test")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${smode === "test" ? "text-white" : "bg-slate-100 text-slate-600"}`} style={smode === "test" ? { background: PINK } : {}}>Tes Lengkap (Part 1)</button>
+      </div>
+
+      {smode === "test" ? <SpeakingTest /> : <>
       <div className={`${card} p-5 space-y-3`}>
         <div className="flex gap-2">
           {(["part1", "part2", "part3"] as const).map(p => (
@@ -631,6 +771,7 @@ function SpeakingPartner({ onBack }: { onBack: () => void }) {
       )}
 
       {paywall && <Paywall skill="speaking" />}
+      </>}
     </div>
   );
 }

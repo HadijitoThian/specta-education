@@ -561,6 +561,12 @@ export async function createTutorSession(data: InsertTutorSession): Promise<Tuto
   return row || null;
 }
 
+export async function updateTutorSession(id: number, data: Partial<InsertTutorSession>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(tutorSessions).set(data).where(eq(tutorSessions.id, id));
+}
+
 export async function listTutorSessions(leadId: number, limit = 50): Promise<TutorSession[]> {
   const db = await getDb();
   if (!db) return [];

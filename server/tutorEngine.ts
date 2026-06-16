@@ -296,3 +296,84 @@ export async function generateSpeakingQuestions(part: "part1" | "part2" | "part3
   const p = parseJsonLoose(llmText(res));
   return { part, topic: p.topic ? String(p.topic) : undefined, questions: strArr(p.questions).slice(0, 6) };
 }
+
+// ── Full Speaking Test — Part 1 (guided, like the real exam) ─────────────────
+const PART1_TOPICS = [
+  "your hometown", "your work or studies", "your daily routine", "hobbies and free time",
+  "food and cooking", "music", "travel and holidays", "technology and mobile phones",
+  "weather and seasons", "reading and books", "sports and exercise", "friends",
+  "shopping", "your home", "nature and the outdoors", "art", "festivals and celebrations",
+  "transport", "the internet", "childhood",
+];
+
+/** Generate a fresh Part-1 set: a random topic + 7 connected questions. */
+export async function generatePart1Test(): Promise<{ topic: string; questions: string[] }> {
+  const seed = PART1_TOPICS[Math.floor(Math.random() * PART1_TOPICS.length)];
+  const res = await invokeLLM({
+    messages: [
+      { role: "system", content: "You are an IELTS Speaking Part 1 examiner. Produce natural, connected Part-1 questions like the real test. Output JSON only." },
+      { role: "user", content: `Create exactly 7 IELTS Speaking Part 1 questions about "${seed}" (and closely related sub-topics). They should feel like a real, flowing Part 1 — short, personal, everyday questions. Return {"topic":"${seed}","questions":["q1",...,"q7"]}` },
+    ],
+    response_format: { type: "json_object" },
+    max_tokens: 600,
+  });
+  const p = parseJsonLoose(llmText(res));
+  let questions = strArr(p.questions).slice(0, 7);
+  if (questions.length < 3) throw new Error("Could not generate questions — please try again.");
+  return { topic: String(p.topic || seed), questions };
+}
+
+export interface QuickSpeakingFeedback {
+  band: number;
+  fixes: Array<{ original: string; fix: string }>;
+  better: string;
+  tip: string;
+}
+
+/** Light, fast per-answer feedback for the guided test (one compact call). */
+export async function evaluateSpeakingQuick(question: string, transcript: string, durationSec: number): Promise<QuickSpeakingFeedback> {
+  const words = (transcript.trim().match(/\S+/g) || []).length;
+  const wpm = durationSec > 0 ? Math.round((words / durationSec) * 60) : 0;
+  const res = await invokeLLM({
+    messages: [
+      { role: "system", content: "You are a friendly IELTS Speaking examiner giving quick, encouraging feedback on a single Part-1 answer. Be concise. Output JSON only." },
+      { role: "user", content: `Question: "${question}"
+Student's answer (transcribed, ${words} words, ~${wpm} wpm): ${transcript || "(no speech detected)"}
+
+Return JSON: { "band": 6.0, "fixes": [ {"original":"what they said","fix":"better version"} ], "better": "one improved sample sentence answering the question", "tip": "one short tip" }
+Give 1-3 fixes max. Keep everything short.` },
+    ],
+    response_format: { type: "json_object" },
+    max_tokens: 600,
+  });
+  const p = parseJsonLoose(llmText(res));
+  return {
+    band: clampBand(p.band ?? p.overallBand ?? 0) || 5,
+    fixes: (Array.isArray(p.fixes) ? p.fixes : []).slice(0, 3).map((x: any) => ({ original: String(x?.original || ""), fix: String(x?.fix || "") })).filter((x: any) => x.fix),
+    better: String(p.better || ""),
+    tip: String(p.tip || ""),
+  };
+}
+
+/** Aggregate the whole Part-1 test into a band + recurring mistakes + plan. */
+export async function summarizePart1Test(topic: string, answers: Array<{ question: string; transcript: string; band: number }>): Promise<{ overallBand: number; summary: string; recurringMistakes: string[]; improvements: string[] }> {
+  const bands = answers.map(a => a.band).filter(b => b > 0);
+  const avg = bands.length ? clampBand(bands.reduce((s, b) => s + b, 0) / bands.length) : 5;
+  const transcriptBlock = answers.map((a, i) => `Q${i + 1}: ${a.question}\nA: ${a.transcript || "(no answer)"}`).join("\n\n");
+  let summary = "", recurringMistakes: string[] = [], improvements: string[] = [];
+  try {
+    const res = await invokeLLM({
+      messages: [
+        { role: "system", content: "You are an IELTS Speaking examiner summarising a student's whole Part 1 performance for a tutor report. Be specific and encouraging. Output JSON only." },
+        { role: "user", content: `Topic: ${topic}\nEstimated overall Part-1 band: ${avg}\n\nAll answers:\n${transcriptBlock}\n\nReturn JSON: { "summary": "2-3 sentence overall read of their Part-1 speaking", "recurringMistakes": ["patterns of errors across answers, e.g. tense, articles, fillers"], "improvements": ["3-5 prioritized practice steps"] }` },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 800,
+    });
+    const p = parseJsonLoose(llmText(res));
+    summary = String(p.summary || "");
+    recurringMistakes = strArr(p.recurringMistakes);
+    improvements = strArr(p.improvements);
+  } catch (e) { console.warn("[Tutor] part1 summary failed:", (e as Error).message); }
+  return { overallBand: avg, summary, recurringMistakes, improvements };
+}
