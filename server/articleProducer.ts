@@ -26,7 +26,6 @@ import {
   listBlogTags,
   createBlogTag,
   setPostTags,
-  listPublishedBlogPosts,
 } from "./db";
 
 const BASE_URL = "https://www.spectaeducation.com";
@@ -226,11 +225,23 @@ export async function produceArticle(opts: ProduceOptions) {
   return { ...post, tags: article.suggestedTags, url: `${BASE_URL}/blog/${slug}` };
 }
 
-/** Pick the next topic from the bank, rotating by how many posts already exist. */
+/**
+ * Pick the next topic NOT already covered by an existing post (any status,
+ * incl. drafts) — so we never regenerate something already written. Falls back
+ * to rotation only if every bank topic is already covered.
+ */
 export async function pickNextTopic(): Promise<{ topic: string; keyword: string }> {
   try {
-    const { total } = await listPublishedBlogPosts({ limit: 1 });
-    return ARTICLE_TOPIC_BANK[total % ARTICLE_TOPIC_BANK.length];
+    const { listBlogPosts } = await import("./db");
+    const { posts } = await listBlogPosts({ limit: 500 });
+    const usedKw = new Set(posts.map(p => (p.targetKeyword || "").toLowerCase().trim()).filter(Boolean));
+    const titles = posts.map(p => (p.title || "").toLowerCase());
+    const fresh = ARTICLE_TOPIC_BANK.find(t => {
+      const kw = t.keyword.toLowerCase().trim();
+      return !usedKw.has(kw) && !titles.some(ti => ti.includes(kw));
+    });
+    if (fresh) return fresh;
+    return ARTICLE_TOPIC_BANK[posts.length % ARTICLE_TOPIC_BANK.length];
   } catch {
     return ARTICLE_TOPIC_BANK[0];
   }
@@ -238,7 +249,7 @@ export async function pickNextTopic(): Promise<{ topic: string; keyword: string 
 
 // ── Weekly scheduler ─────────────────────────────────────────────────────────
 let started = false;
-let lastRunWeek = "";
+const SCHED_KEY = "article_producer_weekly";
 
 function isoWeek(d: Date): string {
   const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
@@ -249,15 +260,16 @@ function isoWeek(d: Date): string {
   return `${t.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
-/** Produce one DRAFT for the current week (idempotent per week, per process). */
+/** Produce one DRAFT for the current week. DB-guarded so restarts can't repeat. */
 export async function runScheduledProduction(): Promise<void> {
   const now = new Date(Date.now() + 7 * 60 * 60 * 1000); // WIB
-  const day = now.getUTCDay(); // 0=Sun
+  const day = now.getUTCDay(); // 0=Sun, 2=Tue
   const hour = now.getUTCHours();
   const week = isoWeek(now);
-  // Every Tuesday from 08:00 WIB, once per week.
-  if (day !== 2 || hour < 8 || lastRunWeek === week) return;
-  lastRunWeek = week;
+  if (day !== 2 || hour < 8) return; // Tuesday from 08:00 WIB
+  const { getSchedulerState, setSchedulerState } = await import("./db");
+  if ((await getSchedulerState(SCHED_KEY)) === week) return; // already ran this week
+  await setSchedulerState(SCHED_KEY, week); // claim BEFORE producing → no duplicates on restart
   try {
     const { topic, keyword } = await pickNextTopic();
     await produceArticle({ topic, targetKeyword: keyword, status: "draft" });
