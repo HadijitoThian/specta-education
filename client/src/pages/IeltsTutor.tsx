@@ -26,9 +26,8 @@ const GEN_COMMUNITY = "/files/tutor/landing/community.jpg?v=2";
 const onImgErr = (e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.onerror = null; e.currentTarget.src = IMG_STUDENTS; };
 
 const PLANS = [
-  { id: "m1", label: "1 Month", price: "Rp 149.000", per: "Rp 149k/mo" },
-  { id: "m3", label: "3 Months", price: "Rp 349.000", per: "Rp 116k/mo", tag: "Save 22%" },
-  { id: "m6", label: "6 Months", price: "Rp 599.000", per: "Rp 100k/mo", tag: "Best value" },
+  { id: "w2", label: "2 Weeks", price: "Rp 149.000", per: "Exam sprint" },
+  { id: "m1", label: "1 Month", price: "Rp 249.000", per: "Unlimited practice", tag: "Most popular" },
 ];
 
 const card = "bg-white rounded-2xl shadow-sm border border-slate-200";
@@ -229,9 +228,9 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
         <div className="max-w-5xl mx-auto px-4 py-16 scroll-mt-20">
           <h2 className="text-2xl lg:text-3xl font-bold text-center">Affordable pricing, maximum results</h2>
           <p className="text-center text-slate-500 mt-2">Start free. Subscribe for unlimited practice.</p>
-          <div className="grid md:grid-cols-3 gap-5 mt-8">
+          <div className="grid sm:grid-cols-2 gap-5 mt-8 max-w-2xl mx-auto">
             {PLANS.map(p => (
-              <div key={p.id} className={`${card} p-6 text-center relative`} style={p.tag === "Best value" ? { boxShadow: `0 0 0 2px ${PINK}` } as any : {}}>
+              <div key={p.id} className={`${card} p-6 text-center relative`} style={p.tag ? { boxShadow: `0 0 0 2px ${PINK}` } as any : {}}>
                 {p.tag && <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] font-semibold text-white px-3 py-0.5 rounded-full" style={{ background: PINK }}>{p.tag}</span>}
                 <div className="font-semibold text-slate-700">{p.label}</div>
                 <div className="text-3xl font-extrabold my-2">{p.price}</div>
@@ -239,7 +238,7 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
                 <ul className="text-sm text-slate-600 mt-4 space-y-1 text-left">
                   {["Unlimited Writing", "Unlimited Speaking", "Corrections + model answers", "Track your band"].map(x => <li key={x} className="flex gap-2"><span style={{ color: PINK }}>✓</span>{x}</li>)}
                 </ul>
-                <button onClick={() => goForm("signup")} className="w-full mt-5 py-2.5 rounded-lg text-white font-semibold" style={{ background: p.tag === "Best value" ? PINK : PURPLE }}>Start Free</button>
+                <button onClick={() => goForm("signup")} className="w-full mt-5 py-2.5 rounded-lg text-white font-semibold" style={{ background: p.tag ? PINK : PURPLE }}>Start Free</button>
               </div>
             ))}
           </div>
@@ -300,7 +299,7 @@ function TutorApp({ status }: { status: any }) {
           </button>
           <div className="flex items-center gap-3 text-sm">
             {sub
-              ? <span className="text-green-700 font-medium">✓ {sub.plan === "m1" ? "1 Bulan" : sub.plan === "m3" ? "3 Bulan" : "6 Bulan"}</span>
+              ? <span className="text-green-700 font-medium">✓ {sub.plan === "w2" ? "2 Minggu" : "1 Bulan"}</span>
               : <span className="text-slate-500">Free trial</span>}
             <button onClick={() => logout.mutate()} className="text-slate-500 hover:text-slate-700 underline">Keluar</button>
           </div>
@@ -375,7 +374,7 @@ function PricingBanner({ free }: { free: any }) {
     <div className="rounded-2xl p-5 text-white" style={{ background: `linear-gradient(120deg, ${PURPLE}, ${PINK})` }}>
       <div className="font-bold text-lg">Langganan untuk latihan tanpa batas</div>
       <div className="text-white/85 text-sm mt-0.5">Sisa gratis: {free.writing} writing · {free.speaking} speaking. Setelah itu, pilih paket:</div>
-      <div className="grid grid-cols-3 gap-2 mt-3">
+      <div className="grid grid-cols-2 gap-2 mt-3">
         {PLANS.map(p => (
           <div key={p.id} className="bg-white/15 rounded-xl p-3 text-center">
             <div className="text-xs">{p.label}</div>
@@ -854,7 +853,7 @@ function Paywall({ skill }: { skill: string }) {
     <div className="rounded-2xl p-5 text-white text-center" style={{ background: `linear-gradient(120deg, ${PURPLE}, ${PINK})` }}>
       <div className="font-bold text-lg">Jatah gratis {skill} sudah dipakai 🎉</div>
       <div className="text-white/85 text-sm mt-1">Langganan untuk latihan tanpa batas dengan feedback lengkap.</div>
-      <div className="grid grid-cols-3 gap-2 mt-3">
+      <div className="grid grid-cols-2 gap-2 mt-3">
         {PLANS.map(p => (
           <div key={p.id} className="bg-white/15 rounded-xl p-3"><div className="text-xs">{p.label}</div><div className="font-bold text-sm">{p.price}</div></div>
         ))}
