@@ -7,22 +7,25 @@ import { ENV } from "./_core/env";
 import { storagePut } from "./storage";
 import { getSchedulerState, setSchedulerState } from "./db";
 
-const MARKER = "tutor_landing_images_v1";
-const STYLE = ", professional photography, natural soft lighting, photorealistic, high detail, clean modern composition, vibrant but tasteful";
+const MARKER = "tutor_landing_images_v2";
+// Force the highest-quality model for landing imagery, regardless of any
+// global DEEPINFRA_IMAGE_MODEL override.
+const MODEL = "black-forest-labs/FLUX-1.1-pro";
+const STYLE = ", cinematic lifestyle photography, shot on 35mm, soft natural golden-hour light, shallow depth of field, vibrant rich colors, ultra realistic, sharp focus, high resolution, aspirational and uplifting mood, no text, no watermark, no logos";
 
 type ImgDef = { key: string; size: string; prompt: string };
 const IMAGES: ImgDef[] = [
-  { key: "tutor/landing/hero.jpg", size: "1024x576", prompt: "A cheerful young Indonesian university student studying English for the IELTS exam on a laptop at a tidy desk with notebooks and a coffee, confident smile, bright airy room, plenty of empty copy space on the right side" },
-  { key: "tutor/landing/writing.jpg", size: "768x768", prompt: "Close-up of a young student's hand writing an English essay neatly in a notebook with a pen beside an open laptop, focused warm study scene" },
-  { key: "tutor/landing/speaking.jpg", size: "768x768", prompt: "A young Indonesian student wearing headphones speaking into a laptop microphone while practicing English speaking, smiling and engaged, bright modern room" },
-  { key: "tutor/landing/community.jpg", size: "1024x576", prompt: "A diverse group of happy young Indonesian university students celebrating success together holding books and notebooks on a bright campus, warm friendly mood" },
+  { key: "tutor/landing/hero.jpg", size: "1024x576", prompt: "A confident, happy young Indonesian woman studying English for her IELTS exam on a laptop in a bright, stylish modern study space, headphones and notebooks on a clean desk, warm light streaming through a large window, genuine joyful smile, lots of empty negative space on the right side of the frame for text" },
+  { key: "tutor/landing/writing.jpg", size: "768x768", prompt: "Beautiful top-down flat-lay of writing an English essay by hand in a neat open notebook with an elegant pen, a laptop edge, a cup of coffee and a small plant on a clean light wooden desk, cozy aesthetic study scene" },
+  { key: "tutor/landing/speaking.jpg", size: "768x768", prompt: "A cheerful young Indonesian man wearing sleek modern headphones speaking confidently into a laptop, practicing English speaking, expressive and engaged, colorful bright contemporary room, energetic vibe" },
+  { key: "tutor/landing/community.jpg", size: "1024x576", prompt: "A vibrant, joyful group of diverse young Indonesian university students laughing together outdoors on a sunny green campus, holding books and notebooks, energetic and aspirational, bright airy atmosphere" },
 ];
 
 async function genBuffer(prompt: string, size: string): Promise<Buffer> {
   const res = await fetch("https://api.deepinfra.com/v1/openai/images/generations", {
     method: "POST",
     headers: { accept: "application/json", "content-type": "application/json", authorization: `Bearer ${ENV.deepinfraApiKey}` },
-    body: JSON.stringify({ model: ENV.deepinfraImageModel, prompt: prompt + STYLE, n: 1, size, response_format: "b64_json" }),
+    body: JSON.stringify({ model: MODEL, prompt: prompt + STYLE, n: 1, size, response_format: "b64_json" }),
   });
   if (!res.ok) throw new Error(`DeepInfra ${res.status}: ${(await res.text().catch(() => "")).slice(0, 200)}`);
   const data: any = await res.json();
