@@ -214,18 +214,32 @@ function PricingBanner({ free }: { free: any }) {
 // ── Writing Coach ─────────────────────────────────────────────────────────────
 /** Free, client-side examiner voice via the browser's Web Speech API. */
 function speakExaminer(text: string) {
-  try {
-    const synth = window.speechSynthesis;
-    if (!synth) { alert("Browser kamu belum mendukung suara otomatis. Baca pertanyaannya ya."); return; }
-    synth.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = "en-GB";
-    u.rate = 0.95;
-    const voices = synth.getVoices();
-    const v = voices.find(x => /en-GB/i.test(x.lang)) || voices.find(x => /en-US/i.test(x.lang)) || voices.find(x => /^en/i.test(x.lang));
-    if (v) u.voice = v;
-    synth.speak(u);
-  } catch { /* ignore */ }
+  const synth = window.speechSynthesis;
+  if (!synth) { alert("Browser kamu belum mendukung suara otomatis. Baca pertanyaannya ya."); return; }
+
+  const doSpeak = () => {
+    try {
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "en-GB";
+      u.rate = 0.95;
+      const voices = synth.getVoices();
+      const v = voices.find(x => /en-GB/i.test(x.lang)) || voices.find(x => /en-US/i.test(x.lang)) || voices.find(x => /^en/i.test(x.lang));
+      if (v) u.voice = v;
+      u.onerror = (e: any) => console.warn("[TTS] error", e?.error);
+      // Chrome quirk: a paused/idle engine can swallow the first utterance.
+      if (synth.paused) synth.resume();
+      synth.speak(u);
+    } catch (e) { console.warn("[TTS] speak failed", e); }
+  };
+
+  // Voices are often not loaded on the first interaction — speak once they are,
+  // with a timeout fallback in case the event never fires.
+  if (synth.getVoices().length > 0) { doSpeak(); return; }
+  let done = false;
+  const run = () => { if (done) return; done = true; doSpeak(); };
+  synth.addEventListener("voiceschanged", run, { once: true });
+  setTimeout(run, 400);
 }
 
 function tableToText(t: any): string {
