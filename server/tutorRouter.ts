@@ -114,8 +114,12 @@ export const tutorRouter = router({
         xenditInvoiceId: externalId,
       });
 
-      const successRedirectUrl = `${ENV.appUrl}/ielts/tutor?paid=1`;
-      const failureRedirectUrl = `${ENV.appUrl}/ielts/tutor?paid=0`;
+      // Xendit requires an ABSOLUTE URL. Fall back to the prod domain so we
+      // never redirect a paying customer to localhost if APP_URL is unset.
+      const base = ENV.appUrl?.replace(/\/+$/, "")
+        || "https://specta-education-production.up.railway.app";
+      const successRedirectUrl = `${base}/ielts/tutor?paid=1`;
+      const failureRedirectUrl = `${base}/ielts/tutor?paid=0`;
 
       try {
         const invoice = await createTutorInvoice({
