@@ -21,10 +21,13 @@ import {
 import {
   getActiveTutorSubscription, countTutorSessions, createTutorSession,
   listTutorSessions, getTutorSession, updateTutorSession,
+  getLeadById, createTutorSubscription,
 } from "./db";
 import { transcribeAudioBuffer } from "./_core/voiceTranscription";
 import { synthesize } from "./_core/elevenlabs";
 import { storagePut } from "./storage";
+import { ENV } from "./_core/env";
+import { TUTOR_PLANS, tutorExternalId, createTutorInvoice } from "./xenditService";
 
 const FREE_LIMIT = 1; // free evaluations per skill before a subscription is needed
 
@@ -85,6 +88,50 @@ export const tutorRouter = router({
         : { writing: Math.max(0, FREE_LIMIT - writingUsed), speaking: Math.max(0, FREE_LIMIT - speakingUsed) },
     };
   }),
+
+  // ── Payments (Xendit) ──
+  /** Create a Xendit invoice for a tutor subscription plan; returns the hosted invoice URL. */
+  createCheckout: publicProcedure
+    .input(z.object({ plan: z.enum(["w2", "m1"]) }))
+    .mutation(async ({ input, ctx }) => {
+      const leadId = requireLead(await resolveLead(ctx));
+      if (!ENV.xenditSecretKey) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Payments are not configured yet. Please contact support." });
+      }
+      const lead = await getLeadById(leadId);
+      if (!lead) throw new TRPCError({ code: "NOT_FOUND", message: "Account not found." });
+
+      const plan = TUTOR_PLANS[input.plan];
+      const externalId = tutorExternalId();
+
+      // Record a pending subscription keyed by the invoice external id.
+      await createTutorSubscription({
+        leadId,
+        plan: input.plan,
+        status: "pending",
+        amount: String(plan.amount) as any,
+        currency: "IDR",
+        xenditInvoiceId: externalId,
+      });
+
+      const successRedirectUrl = `${ENV.appUrl}/ielts/tutor?paid=1`;
+      const failureRedirectUrl = `${ENV.appUrl}/ielts/tutor?paid=0`;
+
+      try {
+        const invoice = await createTutorInvoice({
+          externalId,
+          plan: input.plan,
+          customerName: (lead as any).name || "Student",
+          customerEmail: (lead as any).email,
+          customerPhone: (lead as any).phone || undefined,
+          successRedirectUrl,
+          failureRedirectUrl,
+        });
+        return { invoiceUrl: invoice.invoice_url };
+      } catch (e) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message });
+      }
+    }),
 
   // ── Content ──
   writingTask: publicProcedure

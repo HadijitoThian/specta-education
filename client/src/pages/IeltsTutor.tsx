@@ -369,24 +369,41 @@ function Home({ free, hasSub, onPick, onOpen }: { free: any; hasSub: boolean; on
   );
 }
 
+function useTutorCheckout() {
+  const m = trpc.tutor.createCheckout.useMutation({
+    onSuccess: (d: any) => { if (d?.invoiceUrl) window.location.href = d.invoiceUrl; },
+    onError: (e: any) => alert(e?.message || "Gagal membuka pembayaran. Coba lagi ya."),
+  });
+  return {
+    checkout: (plan: "w2" | "m1") => m.mutate({ plan }),
+    pending: m.isPending,
+    pendingPlan: (m.variables as any)?.plan as ("w2" | "m1" | undefined),
+  };
+}
+
 function PricingBanner({ free }: { free: any }) {
+  const { checkout, pending, pendingPlan } = useTutorCheckout();
   return (
     <div className="rounded-2xl p-5 text-white" style={{ background: `linear-gradient(120deg, ${PURPLE}, ${PINK})` }}>
       <div className="font-bold text-lg">Langganan untuk latihan tanpa batas</div>
       <div className="text-white/85 text-sm mt-0.5">Sisa gratis: {free.writing} writing · {free.speaking} speaking. Setelah itu, pilih paket:</div>
       <div className="grid grid-cols-2 gap-2 mt-3">
         {PLANS.map(p => (
-          <div key={p.id} className="bg-white/15 rounded-xl p-3 text-center">
+          <button
+            key={p.id}
+            disabled={pending}
+            onClick={() => checkout(p.id as "w2" | "m1")}
+            className="bg-white/15 hover:bg-white/25 transition rounded-xl p-3 text-center disabled:opacity-60"
+          >
             <div className="text-xs">{p.label}</div>
             <div className="font-bold">{p.price}</div>
             <div className="text-[10px] text-white/80">{p.per}</div>
             {p.tag && <div className="text-[10px] mt-0.5 bg-white/25 rounded px-1 inline-block">{p.tag}</div>}
-          </div>
+            {pending && pendingPlan === p.id && <div className="text-[10px] mt-1">Membuka…</div>}
+          </button>
         ))}
       </div>
-      <button onClick={() => alert("Pembayaran langganan segera hadir — gunakan latihan gratismu dulu ya!")} className="mt-3 w-full bg-white rounded-lg py-2 text-sm font-semibold" style={{ color: PINK }}>
-        Pilih Paket
-      </button>
+      <div className="text-white/70 text-[11px] text-center mt-2">Pembayaran aman via Xendit (kartu, e-wallet, transfer bank)</div>
     </div>
   );
 }
@@ -849,16 +866,27 @@ function SpeakingResult({ fb, transcript, audioUrl, onAgain, onBack }: { fb: any
 }
 
 function Paywall({ skill }: { skill: string }) {
+  const { checkout, pending, pendingPlan } = useTutorCheckout();
   return (
     <div className="rounded-2xl p-5 text-white text-center" style={{ background: `linear-gradient(120deg, ${PURPLE}, ${PINK})` }}>
       <div className="font-bold text-lg">Jatah gratis {skill} sudah dipakai 🎉</div>
       <div className="text-white/85 text-sm mt-1">Langganan untuk latihan tanpa batas dengan feedback lengkap.</div>
       <div className="grid grid-cols-2 gap-2 mt-3">
         {PLANS.map(p => (
-          <div key={p.id} className="bg-white/15 rounded-xl p-3"><div className="text-xs">{p.label}</div><div className="font-bold text-sm">{p.price}</div></div>
+          <button
+            key={p.id}
+            disabled={pending}
+            onClick={() => checkout(p.id as "w2" | "m1")}
+            className="bg-white/15 hover:bg-white/25 transition rounded-xl p-3 disabled:opacity-60"
+          >
+            <div className="text-xs">{p.label}</div>
+            <div className="font-bold text-sm">{p.price}</div>
+            {p.tag && <div className="text-[10px] mt-0.5 bg-white/25 rounded px-1 inline-block">{p.tag}</div>}
+            {pending && pendingPlan === p.id && <div className="text-[10px] mt-1">Membuka…</div>}
+          </button>
         ))}
       </div>
-      <button onClick={() => alert("Pembayaran langganan segera hadir!")} className="mt-3 bg-white rounded-lg py-2 px-6 text-sm font-semibold" style={{ color: PINK }}>Pilih Paket</button>
+      <div className="text-white/70 text-[11px] mt-2">Pembayaran aman via Xendit</div>
     </div>
   );
 }

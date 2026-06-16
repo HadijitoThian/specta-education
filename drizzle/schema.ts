@@ -240,7 +240,7 @@ export type InsertGeoSnapshot = typeof geoSnapshots.$inferInsert;
 export const tutorSubscriptions = mysqlTable("tutor_subscriptions", {
   id: int("id").autoincrement().primaryKey(),
   leadId: int("leadId").notNull(),
-  plan: mysqlEnum("plan", ["m1", "m3", "m6"]).notNull(),
+  plan: mysqlEnum("plan", ["w2", "m1"]).notNull(),
   status: mysqlEnum("status", ["pending", "active", "expired", "cancelled"]).default("pending").notNull(),
   amount: decimal("amount", { precision: 12, scale: 2 }),
   currency: varchar("currency", { length: 8 }).default("IDR").notNull(),

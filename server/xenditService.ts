@@ -96,3 +96,50 @@ export function generateExternalId(): string {
   const random = crypto.randomBytes(4).toString("hex");
   return `TESBAKAT-PRO-${timestamp}-${random}`;
 }
+
+// ── AI IELTS Tutor subscriptions ─────────────────────────────────────────────
+export const TUTOR_PLANS = {
+  w2: { amount: 149000, days: 14, label: "AI IELTS Tutor — 2 Weeks (unlimited)" },
+  m1: { amount: 249000, days: 30, label: "AI IELTS Tutor — 1 Month (unlimited)" },
+} as const;
+export type TutorPlan = keyof typeof TUTOR_PLANS;
+
+export function tutorExternalId(): string {
+  return `TUTOR-${Date.now().toString(36)}-${crypto.randomBytes(4).toString("hex")}`;
+}
+export function isTutorExternalId(id: unknown): boolean {
+  return typeof id === "string" && id.startsWith("TUTOR-");
+}
+
+export async function createTutorInvoice(params: {
+  externalId: string; plan: TutorPlan; customerName: string; customerEmail: string;
+  customerPhone?: string; successRedirectUrl?: string; failureRedirectUrl?: string;
+}): Promise<XenditInvoiceResponse> {
+  const plan = TUTOR_PLANS[params.plan];
+  const body: Record<string, unknown> = {
+    external_id: params.externalId,
+    amount: plan.amount,
+    currency: "IDR",
+    description: plan.label,
+    customer: {
+      given_names: params.customerName || "Student",
+      email: params.customerEmail,
+      ...(params.customerPhone ? { mobile_number: params.customerPhone } : {}),
+    },
+    customer_notification_preference: { invoice_created: ["email"], invoice_paid: ["email"] },
+    invoice_duration: 86400,
+    ...(params.successRedirectUrl ? { success_redirect_url: params.successRedirectUrl } : {}),
+    ...(params.failureRedirectUrl ? { failure_redirect_url: params.failureRedirectUrl } : {}),
+  };
+  const response = await fetch(`${XENDIT_API_BASE}/v2/invoices`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Basic ${Buffer.from(ENV.xenditSecretKey + ":").toString("base64")}` },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    console.error("[Xendit] Tutor invoice creation failed:", response.status, error);
+    throw new Error(`Xendit invoice creation failed: ${response.status}`);
+  }
+  return response.json() as Promise<XenditInvoiceResponse>;
+}

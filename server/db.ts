@@ -378,7 +378,7 @@ export async function ensureMarketingSchema(): Promise<void> {
       CREATE TABLE IF NOT EXISTS tutor_subscriptions (
         id INT AUTO_INCREMENT PRIMARY KEY,
         leadId INT NOT NULL,
-        plan ENUM('m1','m3','m6') NOT NULL,
+        plan ENUM('w2','m1') NOT NULL,
         status ENUM('pending','active','expired','cancelled') NOT NULL DEFAULT 'pending',
         amount DECIMAL(12,2) NULL,
         currency VARCHAR(8) NOT NULL DEFAULT 'IDR',
@@ -390,6 +390,8 @@ export async function ensureMarketingSchema(): Promise<void> {
         INDEX idx_lead (leadId)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `));
+    // Migrate the plan enum on any pre-existing table (no rows yet pre-launch).
+    await db.execute(sql.raw(`ALTER TABLE tutor_subscriptions MODIFY COLUMN plan ENUM('w2','m1') NOT NULL`));
     await db.execute(sql.raw(`
       CREATE TABLE IF NOT EXISTS tutor_sessions (
         id INT AUTO_INCREMENT PRIMARY KEY,

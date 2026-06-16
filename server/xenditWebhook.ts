@@ -1,6 +1,6 @@
 import { Express, Request, Response } from "express";
-import { verifyWebhookToken } from "./xenditService";
-import { getAccessTokenByToken, createAccessTokens, getAptitudeProOrderByExternalId, updateAptitudeProOrderStatus } from "./db";
+import { verifyWebhookToken, isTutorExternalId, TUTOR_PLANS } from "./xenditService";
+import { getAccessTokenByToken, createAccessTokens, getAptitudeProOrderByExternalId, updateAptitudeProOrderStatus, getTutorSubscriptionByInvoice, updateTutorSubscription } from "./db";
 import { sendProAccessLinkEmail, sendPaymentConfirmationEmail } from "./resendService";
 import { notifyOwner } from "./_core/notification";
 import {
@@ -49,6 +49,43 @@ export function registerXenditWebhook(app: Express) {
           await markIeltsAttemptFailed(externalId);
         }
         return res.status(200).json({ received: true, ielts: true });
+      }
+
+      // Branch: AI IELTS Tutor subscriptions (TUTOR- prefix).
+      if (isTutorExternalId(externalId)) {
+        if (body.status === "PAID" || body.status === "SETTLED") {
+          const sub = await getTutorSubscriptionByInvoice(externalId);
+          if (!sub) {
+            console.error(`[Xendit Webhook][Tutor] Subscription not found: ${externalId}`);
+            return res.status(404).json({ error: "Subscription not found" });
+          }
+          if (sub.status === "active") {
+            return res.status(200).json({ received: true, tutor: true, already_processed: true });
+          }
+          const plan = TUTOR_PLANS[sub.plan as keyof typeof TUTOR_PLANS];
+          const days = plan?.days ?? 30;
+          const startsAt = new Date();
+          const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+          await updateTutorSubscription(sub.id, {
+            status: "active",
+            xenditInvoiceId: body.id || externalId,
+            startsAt,
+            expiresAt,
+          });
+          await notifyOwner({
+            title: `💎 New AI IELTS Tutor subscription: ${plan?.label || sub.plan}`,
+            content: `Lead #${sub.leadId} activated ${plan?.label || sub.plan}. Expires ${expiresAt.toISOString().slice(0, 10)}. Order: ${externalId}`,
+          });
+          console.log(`[Xendit Webhook][Tutor] Subscription activated: ${externalId}`);
+          return res.status(200).json({ received: true, tutor: true, success: true });
+        }
+        if (body.status === "EXPIRED" || body.status === "FAILED") {
+          const sub = await getTutorSubscriptionByInvoice(externalId);
+          if (sub && sub.status !== "active") {
+            await updateTutorSubscription(sub.id, { status: "cancelled" });
+          }
+        }
+        return res.status(200).json({ received: true, tutor: true });
       }
 
       // ----- Tes Bakat AI Pro purchases (existing path) -----
