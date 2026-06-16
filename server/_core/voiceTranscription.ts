@@ -138,92 +138,69 @@ export async function transcribeAudioBuffer(
   options: TranscribeBufferOptions
 ): Promise<TranscriptionResponse | TranscriptionError> {
   try {
-    if (!ENV.openAiApiKey) {
-      return {
-        error: "Voice transcription service is not configured",
-        code: "SERVICE_ERROR",
-        details: "OPENAI_API_KEY is not set",
-      };
-    }
-
     const audioBuffer = options.buffer;
     const mimeType = options.mimeType || "audio/webm";
 
     if (!audioBuffer || audioBuffer.length === 0) {
-      return {
-        error: "Empty audio file",
-        code: "INVALID_FORMAT",
-        details: "Audio buffer was empty (0 bytes)",
-      };
+      return { error: "Empty audio file", code: "INVALID_FORMAT", details: "Audio buffer was empty (0 bytes)" };
     }
-
-    // Check file size (16MB limit)
     const sizeMB = audioBuffer.length / (1024 * 1024);
-    if (sizeMB > 16) {
-      return {
-        error: "Audio file exceeds maximum size limit",
-        code: "FILE_TOO_LARGE",
-        details: `File size is ${sizeMB.toFixed(2)}MB, maximum allowed is 16MB`,
-      };
+    if (sizeMB > 25) {
+      return { error: "Audio file exceeds maximum size limit", code: "FILE_TOO_LARGE", details: `File size is ${sizeMB.toFixed(2)}MB, maximum allowed is 25MB` };
     }
 
-    // Step 3: Create FormData for multipart upload to Whisper API
-    const formData = new FormData();
+    // Providers in preference order. DeepInfra is funded + used elsewhere
+    // (images/vision), so try it first; OpenAI Whisper is the fallback.
+    type Provider = { name: string; url: string; key: string; model: string };
+    const providers: Provider[] = [];
+    if (ENV.deepinfraApiKey) providers.push({ name: "deepinfra", url: "https://api.deepinfra.com/v1/openai/audio/transcriptions", key: ENV.deepinfraApiKey, model: process.env.DEEPINFRA_WHISPER_MODEL || "openai/whisper-large-v3-turbo" });
+    if (ENV.openAiApiKey) providers.push({ name: "openai", url: "https://api.openai.com/v1/audio/transcriptions", key: ENV.openAiApiKey, model: "whisper-1" });
+    if (!providers.length) {
+      return { error: "Voice transcription service is not configured", code: "SERVICE_ERROR", details: "Set DEEPINFRA_API_KEY or OPENAI_API_KEY" };
+    }
 
-    // Whisper detects the audio format from the FILENAME EXTENSION, so the
-    // extension must be correct. Browser MediaRecorder reports MIME types like
-    // "audio/webm;codecs=opus" — strip codec params before mapping, and send
-    // the bare MIME type on the Blob too.
+    // Whisper detects the format from the filename extension; normalize the MIME.
     const baseMime = mimeType.split(";")[0].trim().toLowerCase();
     const filename = `audio.${getFileExtension(baseMime)}`;
-    const audioBlob = new Blob([new Uint8Array(audioBuffer)], { type: baseMime });
-    formData.append("file", audioBlob, filename);
-    
-    formData.append("model", "whisper-1");
-    formData.append("response_format", "verbose_json");
-    
-    // Add prompt - use custom prompt if provided, otherwise generate based on language
-    const prompt = options.prompt || (
-      options.language 
-        ? `Transcribe the user's voice to text, the user's working language is ${getLanguageName(options.language)}`
-        : "Transcribe the user's voice to text"
-    );
-    formData.append("prompt", prompt);
+    const prompt = options.prompt || (options.language ? `Transcribe the user's voice to text, the user's working language is ${getLanguageName(options.language)}` : "Transcribe the user's voice to text");
 
-    // Step 4: Call the OpenAI Whisper API.
-    const fullUrl = "https://api.openai.com/v1/audio/transcriptions";
+    const errors: string[] = [];
+    for (const provider of providers) {
+      try {
+        const formData = new FormData();
+        formData.append("file", new Blob([new Uint8Array(audioBuffer)], { type: baseMime }), filename);
+        formData.append("model", provider.model);
+        formData.append("response_format", "verbose_json");
+        formData.append("prompt", prompt);
 
-    const response = await fetch(fullUrl, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${ENV.openAiApiKey}`,
-        "Accept-Encoding": "identity",
-      },
-      body: formData,
-    });
+        const response = await fetch(provider.url, {
+          method: "POST",
+          headers: { authorization: `Bearer ${provider.key}`, "Accept-Encoding": "identity" },
+          body: formData,
+        });
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      return {
-        error: "Transcription service request failed",
-        code: "TRANSCRIPTION_FAILED",
-        details: `${response.status} ${response.statusText}${errorText ? `: ${errorText}` : ""}`
-      };
+        if (!response.ok) {
+          const t = await response.text().catch(() => "");
+          errors.push(`[${provider.name}] ${response.status} ${response.statusText}${t ? `: ${t.slice(0, 200)}` : ""}`);
+          continue; // try next provider
+        }
+
+        const data: any = await response.json();
+        const text = data?.text;
+        if (!text || typeof text !== "string") { errors.push(`[${provider.name}] no text in response`); continue; }
+        return {
+          task: "transcribe",
+          language: data.language || options.language || "en",
+          duration: Number(data.duration || 0),
+          segments: Array.isArray(data.segments) ? data.segments : [],
+          text,
+        } as WhisperResponse;
+      } catch (e) {
+        errors.push(`[${provider.name}] ${e instanceof Error ? e.message : "error"}`);
+      }
     }
 
-    // Step 5: Parse and return the transcription result
-    const whisperResponse = await response.json() as WhisperResponse;
-    
-    // Validate response structure
-    if (!whisperResponse.text || typeof whisperResponse.text !== 'string') {
-      return {
-        error: "Invalid transcription response",
-        code: "SERVICE_ERROR",
-        details: "Transcription service returned an invalid response format"
-      };
-    }
-
-    return whisperResponse; // Return native Whisper API response directly
+    return { error: "Transcription service request failed", code: "TRANSCRIPTION_FAILED", details: errors.join(" | ") };
 
   } catch (error) {
     // Handle unexpected errors

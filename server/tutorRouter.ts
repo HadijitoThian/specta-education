@@ -134,7 +134,10 @@ export const tutorRouter = router({
 
       // Transcribe
       const tr = await transcribeAudioBuffer({ buffer, mimeType: input.mimeType || "audio/webm" });
-      if ("error" in tr) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Transcription failed: ${tr.error}` });
+      if ("error" in tr) {
+        console.error("[Tutor] transcription failed:", tr.error, tr.details);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Transcription failed: ${tr.error}${tr.details ? ` — ${tr.details}` : ""}` });
+      }
       const transcript = (tr.text || "").trim();
 
       // Store the recording (best-effort)
