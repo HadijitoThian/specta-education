@@ -19,6 +19,7 @@ import NotFound from "@/pages/NotFound";
 const About = lazy(() => import("./pages/About"));
 const IELTS = lazy(() => import("./pages/IELTS"));
 const IELTSPractice = lazy(() => import("./pages/IELTSPractice"));
+const IeltsTutor = lazy(() => import("./pages/IeltsTutor"));
 const Destinations = lazy(() => import("./pages/Destinations"));
 const CountryPage = lazy(() => import("./pages/CountryPage"));
 const Malaysia = lazy(() => import("./pages/Malaysia"));
@@ -115,6 +116,7 @@ function Router() {
         <Route path={"/about"} component={About} />
         <Route path={"/ielts"} component={IELTS} />
         <Route path={"/ielts/practice"} component={IELTSPractice} />
+        <Route path={"/ielts/tutor"} component={IeltsTutor} />
         <Route path={"/destinations"} component={Destinations} />
         <Route path={"/destinations/:slug"} component={CountryPage} />
         <Route path={"/malaysia"} component={Malaysia} />
