@@ -13,11 +13,14 @@ const PINK = "#E91E8C";
 const PURPLE = "#9C27B0";
 const CORAL = "#FF6B4A";
 const LOGO = "https://www.spectaeducation.com/files/migrated/QxrYSewOYzAuPIEN.jpeg";
+const IMG_STUDENTS = "/files/migrated/QxFYGzgmpzrKbZOs.jpg";
+const IMG_OFFICE = "/files/migrated/XFSKFfBDnwuNIcYC.jpg";
+const IMG_MASCOT = "/files/migrated/saxLOcubreWkfnzl.png";
 
 const PLANS = [
-  { id: "m1", label: "1 Month", price: "Rp 149.000", per: "Rp 149rb/bln" },
-  { id: "m3", label: "3 Months", price: "Rp 349.000", per: "Rp 116rb/bln", tag: "Hemat 22%" },
-  { id: "m6", label: "6 Months", price: "Rp 599.000", per: "Rp 100rb/bln", tag: "Best value" },
+  { id: "m1", label: "1 Month", price: "Rp 149.000", per: "Rp 149k/mo" },
+  { id: "m3", label: "3 Months", price: "Rp 349.000", per: "Rp 116k/mo", tag: "Save 22%" },
+  { id: "m6", label: "6 Months", price: "Rp 599.000", per: "Rp 100k/mo", tag: "Best value" },
 ];
 
 const card = "bg-white rounded-2xl shadow-sm border border-slate-200";
@@ -62,8 +65,8 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
   const submit = (e: React.FormEvent) => {
     e.preventDefault(); setErr(null);
     if (mode === "signup") {
-      if (f.name.trim().length < 2) return setErr("Masukkan namamu.");
-      if (f.password.length < 8) return setErr("Password minimal 8 karakter.");
+      if (f.name.trim().length < 2) return setErr("Please enter your name.");
+      if (f.password.length < 8) return setErr("Password must be at least 8 characters.");
       register.mutate({ name: f.name, email: f.email, phone: f.phone || undefined, password: f.password });
     } else {
       login.mutate({ email: f.email, password: f.password });
@@ -75,23 +78,23 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
   const AuthCard = (
     <div id="daftar" className={`${card} p-6 scroll-mt-24`}>
       <div className="flex gap-2 mb-4">
-        <button onClick={() => setMode("signup")} className={`flex-1 py-2 rounded-lg text-sm font-semibold ${mode === "signup" ? "text-white" : "text-slate-600 bg-slate-100"}`} style={mode === "signup" ? { background: PINK } : {}}>Daftar Gratis</button>
-        <button onClick={() => setMode("login")} className={`flex-1 py-2 rounded-lg text-sm font-semibold ${mode === "login" ? "text-white" : "text-slate-600 bg-slate-100"}`} style={mode === "login" ? { background: PINK } : {}}>Masuk</button>
+        <button onClick={() => setMode("signup")} className={`flex-1 py-2 rounded-lg text-sm font-semibold ${mode === "signup" ? "text-white" : "text-slate-600 bg-slate-100"}`} style={mode === "signup" ? { background: PINK } : {}}>Sign up free</button>
+        <button onClick={() => setMode("login")} className={`flex-1 py-2 rounded-lg text-sm font-semibold ${mode === "login" ? "text-white" : "text-slate-600 bg-slate-100"}`} style={mode === "login" ? { background: PINK } : {}}>Log in</button>
       </div>
       <form onSubmit={submit} className="space-y-3">
         {mode === "signup" && (
           <>
-            <input className={inp} placeholder="Nama lengkap" value={f.name} onChange={e => set("name", e.target.value)} />
-            <input className={inp} placeholder="No. WhatsApp (opsional)" value={f.phone} onChange={e => set("phone", e.target.value)} />
+            <input className={inp} placeholder="Full name" value={f.name} onChange={e => set("name", e.target.value)} />
+            <input className={inp} placeholder="WhatsApp number (optional)" value={f.phone} onChange={e => set("phone", e.target.value)} />
           </>
         )}
         <input className={inp} type="email" placeholder="Email" value={f.email} onChange={e => set("email", e.target.value)} required />
-        <input className={inp} type="password" placeholder="Password (min 8 karakter)" value={f.password} onChange={e => set("password", e.target.value)} required />
+        <input className={inp} type="password" placeholder="Password (min 8 characters)" value={f.password} onChange={e => set("password", e.target.value)} required />
         {err && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</div>}
         <button type="submit" disabled={busy} className="w-full py-2.5 rounded-lg text-white font-semibold disabled:opacity-60" style={{ background: PINK }}>
-          {busy ? "Memproses…" : mode === "signup" ? "Mulai Gratis Sekarang" : "Masuk"}
+          {busy ? "Please wait…" : mode === "signup" ? "Start Free Now" : "Log in"}
         </button>
-        {mode === "signup" && <p className="text-[11px] text-center text-slate-400">Gratis 1 Writing + 1 Speaking. Tanpa kartu kredit.</p>}
+        {mode === "signup" && <p className="text-[11px] text-center text-slate-400">Free 1 Writing + 1 Speaking. No credit card.</p>}
       </form>
     </div>
   );
@@ -102,7 +105,7 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-slate-100">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2"><img src={LOGO} alt="SpecTa" className="h-8 object-contain" /><span className="font-bold">AI IELTS Tutor</span></div>
-          <button onClick={() => goForm("login")} className="text-sm font-medium text-slate-600 hover:text-slate-900">Masuk</button>
+          <button onClick={() => goForm("login")} className="text-sm font-medium text-slate-600 hover:text-slate-900">Log in</button>
         </div>
       </header>
 
@@ -111,23 +114,33 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
         <div className="absolute inset-0 -z-10" style={{ background: `radial-gradient(900px 400px at 80% -10%, ${PINK}22, transparent), radial-gradient(700px 400px at 0% 10%, ${PURPLE}1a, transparent)` }} />
         <div className="max-w-6xl mx-auto px-4 py-12 lg:py-16 grid lg:grid-cols-2 gap-10 items-center">
           <div>
-            <span className="inline-block text-xs font-semibold px-3 py-1 rounded-full" style={{ background: `${PINK}1a`, color: PINK }}>🎓 Guru IELTS pribadi berbasis AI</span>
-            <h1 className="text-4xl lg:text-5xl font-extrabold leading-tight mt-4">Naikkan Band <span style={{ color: PINK }}>IELTS</span>-mu, mulai hari ini.</h1>
-            <p className="text-lg text-slate-600 mt-4">Latihan <strong>Speaking</strong> & <strong>Writing</strong> kapan saja. AI menilai band-mu, menunjukkan <strong>kesalahanmu satu per satu</strong>, dan memberi <strong>contoh jawaban band tinggi</strong> — seperti punya guru IELTS pribadi 24 jam.</p>
+            <span className="inline-block text-xs font-semibold px-3 py-1 rounded-full" style={{ background: `${PINK}1a`, color: PINK }}>🎓 Your personal AI IELTS tutor</span>
+            <h1 className="text-4xl lg:text-5xl font-extrabold leading-tight mt-4">Raise your <span style={{ color: PINK }}>IELTS</span> band — starting today.</h1>
+            <p className="text-lg text-slate-600 mt-4">Practice <strong>Speaking</strong> & <strong>Writing</strong> anytime. The AI scores your band, shows you <strong>every mistake</strong>, and gives you a <strong>higher-band model answer</strong> — like having a private IELTS teacher 24/7.</p>
             <div className="flex flex-wrap gap-3 mt-6">
-              <button onClick={() => goForm("signup")} className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg" style={{ background: PINK }}>Coba Gratis Sekarang →</button>
-              <a href="#harga" className="px-6 py-3 rounded-xl font-semibold border border-slate-300">Lihat Harga</a>
+              <button onClick={() => goForm("signup")} className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg" style={{ background: PINK }}>Try Free Now →</button>
+              <a href="#pricing" className="px-6 py-3 rounded-xl font-semibold border border-slate-300">See Pricing</a>
             </div>
-            <p className="text-sm text-slate-500 mt-3">✅ Gratis 1 Writing + 1 Speaking · tanpa kartu kredit</p>
+            <p className="text-sm text-slate-500 mt-3">✅ Free 1 Writing + 1 Speaking · no credit card</p>
           </div>
           <div className="lg:pl-6">{AuthCard}</div>
+        </div>
+        {/* Hero image band */}
+        <div className="max-w-6xl mx-auto px-4 pb-12">
+          <div className="relative rounded-3xl overflow-hidden h-52 lg:h-72 shadow-md">
+            <img src={IMG_STUDENTS} alt="Students improving their English with SpecTa" className="w-full h-full object-cover" />
+            <div className="absolute inset-0" style={{ background: `linear-gradient(90deg, ${PURPLE}cc, transparent 60%)` }} />
+            <div className="absolute inset-0 flex items-center">
+              <p className="text-white font-bold text-xl lg:text-2xl px-6 lg:px-10 max-w-md">Join thousands of Indonesian students reaching their target band.</p>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Trust bar */}
       <section className="border-y border-slate-100 bg-slate-50">
         <div className="max-w-6xl mx-auto px-4 py-5 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-          {[["Sejak 2005", "Konsultan tepercaya"], ["1000+", "Pelajar terbantu"], ["200+", "Beasiswa"], ["4.9★", "Rating"]].map(([a, b]) => (
+          {[["Since 2005", "Trusted consultant"], ["1000+", "Students helped"], ["200+", "Scholarships"], ["4.9★", "Rating"]].map(([a, b]) => (
             <div key={a}><div className="text-2xl font-extrabold" style={{ color: PURPLE }}>{a}</div><div className="text-xs text-slate-500">{b}</div></div>
           ))}
         </div>
@@ -135,16 +148,16 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
 
       {/* Problem */}
       <section className="max-w-4xl mx-auto px-4 py-14 text-center">
-        <h2 className="text-2xl lg:text-3xl font-bold">Latihan IELTS sendiri itu sulit.</h2>
-        <p className="text-slate-600 mt-3">Kamu menulis esai tapi tidak tahu salahnya di mana. Kamu latihan speaking tapi tidak ada yang menilai. Les privat IELTS mahal (jutaan rupiah) dan jadwalnya kaku. <strong>AI Tutor menyelesaikan semuanya</strong> — feedback instan, kapan saja, dengan harga terjangkau.</p>
+        <h2 className="text-2xl lg:text-3xl font-bold">Studying for IELTS alone is hard.</h2>
+        <p className="text-slate-600 mt-3">You write essays but don't know what's wrong. You practice speaking but no one scores you. Private IELTS tutoring is expensive and rigid. <strong>AI Tutor fixes all of it</strong> — instant feedback, anytime, at an affordable price.</p>
       </section>
 
       {/* How it works */}
       <section className="bg-slate-50 border-y border-slate-100">
         <div className="max-w-5xl mx-auto px-4 py-14">
-          <h2 className="text-2xl lg:text-3xl font-bold text-center">Cara kerjanya — 3 langkah</h2>
+          <h2 className="text-2xl lg:text-3xl font-bold text-center">How it works — 3 steps</h2>
           <div className="grid md:grid-cols-3 gap-5 mt-8">
-            {[["1", "Latihan", "Tulis esai (Task 1/2) atau jawab pertanyaan speaking secara lisan."], ["2", "Dinilai AI", "Dapat estimasi band per 4 kriteria + koreksi setiap kesalahan."], ["3", "Perbaiki", "Lihat contoh jawaban band tinggi & rencana latihan. Ulangi, pantau progres."]].map(([n, t, d]) => (
+            {[["1", "Practice", "Write a Task 1/2 essay, or answer a speaking question out loud."], ["2", "AI scores it", "Get an estimated band across all 4 criteria + every mistake corrected."], ["3", "Improve", "See a higher-band model answer & a practice plan. Repeat, track your progress."]].map(([n, t, d]) => (
               <div key={n} className={`${card} p-6 text-center`}>
                 <div className="w-10 h-10 rounded-full mx-auto flex items-center justify-center text-white font-bold" style={{ background: PINK }}>{n}</div>
                 <h3 className="font-bold mt-3">{t}</h3>
@@ -160,77 +173,88 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
         <div className={`${card} p-7`}>
           <div className="text-4xl">✍️</div>
           <h3 className="text-xl font-bold mt-2">Writing Coach</h3>
-          <p className="text-slate-600 mt-1">Tulis Task 1 atau Task 2 — langsung dinilai seperti penguji asli.</p>
+          <p className="text-slate-600 mt-1">Write Task 1 or Task 2 — scored like a real examiner.</p>
           <ul className="mt-3 space-y-1.5 text-sm text-slate-700">
-            {["Band per 4 kriteria resmi IELTS", "Koreksi tiap kalimat: salahnya apa & perbaikannya", "Contoh jawaban band 8 dari esaimu sendiri", "Rencana latihan untuk kelemahanmu"].map(x => <li key={x} className="flex gap-2"><span style={{ color: PINK }}>✓</span>{x}</li>)}
+            {["Band across the 4 official IELTS criteria", "Sentence-by-sentence corrections: what's wrong & how to fix it", "A band-8 model answer built from your own essay", "A practice plan targeting your weaknesses"].map(x => <li key={x} className="flex gap-2"><span style={{ color: PINK }}>✓</span>{x}</li>)}
           </ul>
         </div>
         <div className={`${card} p-7`}>
           <div className="text-4xl">🎤</div>
           <h3 className="text-xl font-bold mt-2">Speaking Partner</h3>
-          <p className="text-slate-600 mt-1">Penguji AI bertanya, kamu jawab lisan — langsung dinilai.</p>
+          <p className="text-slate-600 mt-1">An AI examiner asks, you answer out loud — scored instantly.</p>
           <ul className="mt-3 space-y-1.5 text-sm text-slate-700">
-            {["Pertanyaan Part 1, 2 & 3 seperti tes asli", "Band fluency, vocabulary, grammar & pronunciation", "Deteksi filler words & kecepatan bicara", "Contoh jawaban + versi jawabanmu yang ditingkatkan"].map(x => <li key={x} className="flex gap-2"><span style={{ color: PINK }}>✓</span>{x}</li>)}
+            {["Part 1, 2 & 3 questions like the real test", "Band for fluency, vocabulary, grammar & pronunciation", "Filler-word & speaking-rate analysis", "A model answer + your own answer, upgraded"].map(x => <li key={x} className="flex gap-2"><span style={{ color: PINK }}>✓</span>{x}</li>)}
           </ul>
         </div>
       </section>
 
-      {/* Benefits */}
+      {/* Credibility band with photo */}
       <section className="bg-slate-50 border-y border-slate-100">
-        <div className="max-w-5xl mx-auto px-4 py-14">
-          <h2 className="text-2xl lg:text-3xl font-bold text-center">Kenapa AI Tutor SpecTa?</h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
-            {[["⚡", "Feedback instan", "Hasil dalam hitungan detik, bukan menunggu guru."], ["🕐", "24/7", "Latihan kapan pun kamu mau, sebanyak yang kamu mau."], ["💸", "Jauh lebih murah", "Sebagian kecil dari biaya les privat IELTS."], ["🎯", "Sesuai band descriptor", "Penilaian mengikuti kriteria resmi IELTS."], ["📈", "Pantau progres", "Lihat band-mu naik dari waktu ke waktu."], ["🇮🇩", "Untuk pelajar Indonesia", "Penjelasan dwibahasa, tips khusus."]].map(([i, t, d]) => (
-              <div key={t} className={`${card} p-5`}><div className="text-2xl">{i}</div><div className="font-semibold mt-1">{t}</div><div className="text-sm text-slate-500">{d}</div></div>
-            ))}
+        <div className="max-w-5xl mx-auto px-4 py-12 grid md:grid-cols-2 gap-8 items-center">
+          <div className="rounded-2xl overflow-hidden h-56 shadow-sm"><img src={IMG_OFFICE} alt="SpecTa Education — study abroad consultant in Jakarta" className="w-full h-full object-cover" /></div>
+          <div>
+            <h2 className="text-2xl font-bold">Backed by SpecTa Education</h2>
+            <p className="text-slate-600 mt-2">We've guided Indonesian students into universities abroad since 2005 — 1000+ students placed and 200+ scholarships won. The same expertise now powers your AI tutor.</p>
+            <button onClick={() => goForm("signup")} className="mt-4 px-5 py-2.5 rounded-lg text-white font-semibold" style={{ background: PURPLE }}>Start Free</button>
           </div>
+        </div>
+      </section>
+
+      {/* Benefits */}
+      <section className="max-w-5xl mx-auto px-4 py-14">
+        <h2 className="text-2xl lg:text-3xl font-bold text-center">Why SpecTa AI Tutor?</h2>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
+          {[["⚡", "Instant feedback", "Results in seconds, not waiting for a teacher."], ["🕐", "24/7", "Practice whenever you want, as much as you want."], ["💸", "Far cheaper", "A fraction of the cost of private IELTS tutoring."], ["🎯", "Band-descriptor accurate", "Scoring follows the official IELTS criteria."], ["📈", "Track progress", "Watch your band rise over time."], ["🇮🇩", "Built for Indonesians", "Clear explanations and targeted tips."]].map(([i, t, d]) => (
+            <div key={t} className={`${card} p-5`}><div className="text-2xl">{i}</div><div className="font-semibold mt-1">{t}</div><div className="text-sm text-slate-500">{d}</div></div>
+          ))}
         </div>
       </section>
 
       {/* Pricing */}
-      <section id="harga" className="max-w-5xl mx-auto px-4 py-16 scroll-mt-20">
-        <h2 className="text-2xl lg:text-3xl font-bold text-center">Harga terjangkau, hasil maksimal</h2>
-        <p className="text-center text-slate-500 mt-2">Mulai gratis. Langganan untuk latihan tanpa batas.</p>
-        <div className="grid md:grid-cols-3 gap-5 mt-8">
-          {PLANS.map(p => (
-            <div key={p.id} className={`${card} p-6 text-center relative ${p.tag === "Best value" ? "ring-2" : ""}`} style={p.tag === "Best value" ? { boxShadow: `0 0 0 2px ${PINK}` } as any : {}}>
-              {p.tag && <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] font-semibold text-white px-3 py-0.5 rounded-full" style={{ background: PINK }}>{p.tag}</span>}
-              <div className="font-semibold text-slate-700">{p.label}</div>
-              <div className="text-3xl font-extrabold my-2">{p.price}</div>
-              <div className="text-xs text-slate-500">{p.per}</div>
-              <ul className="text-sm text-slate-600 mt-4 space-y-1 text-left">
-                {["Writing tanpa batas", "Speaking tanpa batas", "Koreksi + contoh jawaban", "Pantau progres band"].map(x => <li key={x} className="flex gap-2"><span style={{ color: PINK }}>✓</span>{x}</li>)}
-              </ul>
-              <button onClick={() => goForm("signup")} className="w-full mt-5 py-2.5 rounded-lg text-white font-semibold" style={{ background: p.tag === "Best value" ? PINK : PURPLE }}>Mulai Gratis</button>
-            </div>
-          ))}
+      <section id="pricing" className="bg-slate-50 border-y border-slate-100">
+        <div className="max-w-5xl mx-auto px-4 py-16 scroll-mt-20">
+          <h2 className="text-2xl lg:text-3xl font-bold text-center">Affordable pricing, maximum results</h2>
+          <p className="text-center text-slate-500 mt-2">Start free. Subscribe for unlimited practice.</p>
+          <div className="grid md:grid-cols-3 gap-5 mt-8">
+            {PLANS.map(p => (
+              <div key={p.id} className={`${card} p-6 text-center relative`} style={p.tag === "Best value" ? { boxShadow: `0 0 0 2px ${PINK}` } as any : {}}>
+                {p.tag && <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] font-semibold text-white px-3 py-0.5 rounded-full" style={{ background: PINK }}>{p.tag}</span>}
+                <div className="font-semibold text-slate-700">{p.label}</div>
+                <div className="text-3xl font-extrabold my-2">{p.price}</div>
+                <div className="text-xs text-slate-500">{p.per}</div>
+                <ul className="text-sm text-slate-600 mt-4 space-y-1 text-left">
+                  {["Unlimited Writing", "Unlimited Speaking", "Corrections + model answers", "Track your band"].map(x => <li key={x} className="flex gap-2"><span style={{ color: PINK }}>✓</span>{x}</li>)}
+                </ul>
+                <button onClick={() => goForm("signup")} className="w-full mt-5 py-2.5 rounded-lg text-white font-semibold" style={{ background: p.tag === "Best value" ? PINK : PURPLE }}>Start Free</button>
+              </div>
+            ))}
+          </div>
+          <p className="text-center text-xs text-slate-400 mt-4">Try it free — no credit card. Pay only if you love it.</p>
         </div>
-        <p className="text-center text-xs text-slate-400 mt-4">Coba gratis dulu — tanpa kartu kredit. Bayar hanya kalau kamu suka.</p>
       </section>
 
       {/* FAQ */}
-      <section className="bg-slate-50 border-t border-slate-100">
-        <div className="max-w-3xl mx-auto px-4 py-14">
-          <h2 className="text-2xl font-bold text-center">Pertanyaan umum</h2>
-          <div className="mt-6 space-y-3">
-            {[
-              ["Apakah benar-benar gratis?", "Ya — kamu dapat 1 Writing + 1 Speaking gratis lengkap dengan penilaian & koreksi, tanpa kartu kredit. Langganan hanya kalau kamu mau lanjut."],
-              ["Seberapa akurat penilaiannya?", "AI menilai mengikuti band descriptor resmi IELTS untuk tiap kriteria. Ini estimasi yang sangat membantu untuk latihan, walau penilaian resmi tetap dari IELTS."],
-              ["Apakah cocok untuk pemula?", "Sangat cocok. Setiap koreksi disertai penjelasan, dan ada contoh jawaban band tinggi supaya kamu tahu targetnya."],
-              ["Butuh aplikasi?", "Tidak. Cukup buka di browser HP atau laptop. Untuk speaking, izinkan akses mikrofon."],
-            ].map(([q, a]) => (
-              <div key={q} className={`${card} p-4`}><div className="font-semibold">{q}</div><div className="text-sm text-slate-600 mt-1">{a}</div></div>
-            ))}
-          </div>
+      <section className="max-w-3xl mx-auto px-4 py-14">
+        <h2 className="text-2xl font-bold text-center">Frequently asked questions</h2>
+        <div className="mt-6 space-y-3">
+          {[
+            ["Is it really free?", "Yes — you get 1 full Writing + 1 Speaking evaluation free, with scoring and corrections, no credit card. Subscribe only if you want to keep going."],
+            ["How accurate is the scoring?", "The AI scores against the official IELTS band descriptors for each criterion. It's a very helpful estimate for practice, though official scores still come from IELTS."],
+            ["Is it good for beginners?", "Absolutely. Every correction comes with an explanation, and a high-band model answer shows you exactly what to aim for."],
+            ["Do I need an app?", "No. Just open it in your phone or laptop browser. For speaking, allow microphone access."],
+          ].map(([q, a]) => (
+            <div key={q} className={`${card} p-4`}><div className="font-semibold">{q}</div><div className="text-sm text-slate-600 mt-1">{a}</div></div>
+          ))}
         </div>
       </section>
 
       {/* Final CTA */}
-      <section className="text-white" style={{ background: `linear-gradient(120deg, ${PURPLE}, ${PINK})` }}>
-        <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-          <h2 className="text-3xl font-extrabold">Siap naikkan band IELTS-mu?</h2>
-          <p className="text-white/85 mt-2">Mulai gratis hari ini. Latihan pertama selesai dalam 5 menit.</p>
-          <button onClick={() => goForm("signup")} className="mt-6 bg-white rounded-xl px-8 py-3 font-bold" style={{ color: PINK }}>Mulai Gratis Sekarang →</button>
+      <section className="text-white relative overflow-hidden" style={{ background: `linear-gradient(120deg, ${PURPLE}, ${PINK})` }}>
+        <img src={IMG_MASCOT} alt="" className="hidden sm:block absolute right-6 bottom-0 h-40 opacity-90 pointer-events-none" />
+        <div className="max-w-3xl mx-auto px-4 py-16 text-center relative">
+          <h2 className="text-3xl font-extrabold">Ready to raise your IELTS band?</h2>
+          <p className="text-white/85 mt-2">Start free today. Your first practice takes 5 minutes.</p>
+          <button onClick={() => goForm("signup")} className="mt-6 bg-white rounded-xl px-8 py-3 font-bold" style={{ color: PINK }}>Start Free Now →</button>
         </div>
       </section>
 
