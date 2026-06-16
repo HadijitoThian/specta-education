@@ -195,18 +195,46 @@ Return ONLY this JSON:
 }
 
 // ── Content generators ───────────────────────────────────────────────────────
-export async function generateWritingTask(taskType: "task1" | "task2"): Promise<{ taskType: string; prompt: string }> {
+export interface WritingTask {
+  taskType: string;
+  prompt: string;
+  // Task 1 always ships its own data as a TABLE the UI renders — so the student
+  // actually has something to describe (no "graph below" with no graph).
+  table?: { title: string; unit?: string; columns: string[]; rows: string[][] };
+}
+
+export async function generateWritingTask(taskType: "task1" | "task2"): Promise<WritingTask> {
+  if (taskType === "task2") {
+    const res = await invokeLLM({
+      messages: [
+        { role: "system", content: "You are an IELTS content writer. Output JSON only." },
+        { role: "user", content: `Create one IELTS Writing Task 2 essay prompt (opinion/discussion/problem-solution) on a common topic. Return {"prompt":"full task wording incl. 'You should spend about 40 minutes on this task.' and 'Write at least 250 words.'"}` },
+      ],
+      response_format: { type: "json_object" },
+    });
+    const p = parseJsonLoose(llmText(res));
+    return { taskType, prompt: String(p.prompt || "") };
+  }
+
+  // Task 1 — self-contained, data presented as a table (no missing image).
   const res = await invokeLLM({
     messages: [
-      { role: "system", content: "You are an IELTS content writer. Produce one authentic Academic IELTS Writing task. Output JSON only." },
-      { role: "user", content: taskType === "task1"
-        ? `Create one IELTS Academic Writing Task 1 prompt (describe a chart/graph/process/map). Return {"prompt":"the full task wording, including 'You should spend about 20 minutes...' and 'Write at least 150 words.'"}`
-        : `Create one IELTS Writing Task 2 essay prompt (opinion/discussion/problem-solution) on a common, current topic. Return {"prompt":"the full task wording, including 'You should spend about 40 minutes...' and 'Write at least 250 words.'"}` },
+      { role: "system", content: "You are an IELTS Academic Writing Task 1 author. The task MUST be fully self-contained: present the data as a TABLE with REAL, realistic numbers the student can describe. Never reference an image/graph that isn't provided — say 'The table below shows…'. Output JSON only." },
+      { role: "user", content: `Create one IELTS Academic Writing Task 1 based on a data table (4-6 columns, 3-6 rows). Use realistic figures.
+Return JSON:
+{
+  "prompt": "The table below shows <what>. Summarise the information by selecting and reporting the main features, and make comparisons where relevant. You should spend about 20 minutes on this task. Write at least 150 words.",
+  "table": { "title": "short title", "unit": "e.g. %, millions, USD", "columns": ["col1","col2",...], "rows": [["r1c1","r1c2",...], ...] }
+}` },
     ],
     response_format: { type: "json_object" },
   });
   const p = parseJsonLoose(llmText(res));
-  return { taskType, prompt: String(p.prompt || "") };
+  const t = p.table || {};
+  const columns = strArr(t.columns);
+  const rows = (Array.isArray(t.rows) ? t.rows : []).map((r: any) => (Array.isArray(r) ? r.map((c: any) => String(c)) : [])).filter((r: any[]) => r.length);
+  const table = columns.length && rows.length ? { title: String(t.title || "Data"), unit: t.unit ? String(t.unit) : undefined, columns, rows } : undefined;
+  return { taskType, prompt: String(p.prompt || ""), table };
 }
 
 export async function generateSpeakingQuestions(part: "part1" | "part2" | "part3"): Promise<{ part: string; topic?: string; questions: string[] }> {

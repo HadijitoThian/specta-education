@@ -212,19 +212,28 @@ function PricingBanner({ free }: { free: any }) {
 }
 
 // ── Writing Coach ─────────────────────────────────────────────────────────────
+function tableToText(t: any): string {
+  if (!t) return "";
+  const head = t.columns.join(" | ");
+  const rows = t.rows.map((r: string[]) => r.join(" | ")).join("\n");
+  return `${t.title}${t.unit ? ` (${t.unit})` : ""}\n${head}\n${rows}`;
+}
+
 function WritingCoach({ onBack }: { onBack: () => void }) {
   const [taskType, setTaskType] = useState<"task1" | "task2">("task2");
   const [prompt, setPrompt] = useState("");
+  const [table, setTable] = useState<any>(null);
   const [essay, setEssay] = useState("");
   const [fb, setFb] = useState<any>(null);
   const [paywall, setPaywall] = useState(false);
 
-  const genTask = trpc.tutor.writingTask.useMutation({ onSuccess: d => setPrompt(d.prompt) });
+  const genTask = trpc.tutor.writingTask.useMutation({ onSuccess: d => { setPrompt(d.prompt); setTable((d as any).table || null); } });
   const evalW = trpc.tutor.evaluateWriting.useMutation({
     onSuccess: d => setFb(d.feedback),
     onError: e => { if (e.data?.code === "FORBIDDEN") setPaywall(true); else alert(e.message); },
   });
   const words = (essay.trim().match(/\S+/g) || []).length;
+  const fullPrompt = prompt + (table ? `\n\n[DATA TABLE]\n${tableToText(table)}` : "");
 
   if (fb) return <WritingResult fb={fb} onAgain={() => { setFb(null); setEssay(""); setPrompt(""); }} onBack={onBack} />;
 
@@ -238,15 +247,24 @@ function WritingCoach({ onBack }: { onBack: () => void }) {
           {(["task1", "task2"] as const).map(t => (
             <button key={t} onClick={() => setTaskType(t)} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${taskType === t ? "text-white" : "bg-slate-100 text-slate-600"}`} style={taskType === t ? { background: PURPLE } : {}}>{t === "task1" ? "Task 1" : "Task 2"}</button>
           ))}
-          <button onClick={() => genTask.mutate({ taskType })} disabled={genTask.isPending} className="ml-auto text-sm px-3 py-1.5 rounded-lg border border-slate-300">{genTask.isPending ? "…" : "🎲 Buat soal"}</button>
+          <button onClick={() => { setTable(null); genTask.mutate({ taskType }); }} disabled={genTask.isPending} className="ml-auto text-sm px-3 py-1.5 rounded-lg border border-slate-300">{genTask.isPending ? "…" : "🎲 Buat soal"}</button>
         </div>
-        <textarea className={inp} rows={prompt ? 4 : 2} placeholder="Tempel/ketik soal IELTS Writing di sini, atau klik 'Buat soal'." value={prompt} onChange={e => setPrompt(e.target.value)} />
+        <textarea className={inp} rows={prompt ? 4 : 2} placeholder="Tempel/ketik soal IELTS Writing di sini, atau klik 'Buat soal'." value={prompt} onChange={e => { setPrompt(e.target.value); setTable(null); }} />
+        {table && (
+          <div className="overflow-x-auto border border-slate-200 rounded-lg">
+            <div className="px-3 py-2 text-xs font-semibold text-slate-600 bg-slate-50">{table.title}{table.unit ? ` (${table.unit})` : ""}</div>
+            <table className="w-full text-sm">
+              <thead><tr className="bg-slate-50 border-y">{table.columns.map((c: string, i: number) => <th key={i} className="text-left px-3 py-1.5 font-medium text-slate-600">{c}</th>)}</tr></thead>
+              <tbody>{table.rows.map((r: string[], i: number) => <tr key={i} className="border-b last:border-0">{r.map((cell, j) => <td key={j} className="px-3 py-1.5">{cell}</td>)}</tr>)}</tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className={`${card} p-5 space-y-2`}>
         <div className="flex justify-between text-xs text-slate-500"><span>Jawabanmu</span><span>{words} kata (min {taskType === "task1" ? 150 : 250})</span></div>
         <textarea className={inp} rows={12} placeholder="Tulis esai-mu di sini…" value={essay} onChange={e => setEssay(e.target.value)} />
-        <button onClick={() => evalW.mutate({ taskType, prompt, essay })} disabled={evalW.isPending || words < 20 || !prompt} className="w-full py-2.5 rounded-lg text-white font-semibold disabled:opacity-60" style={{ background: PINK }}>
+        <button onClick={() => evalW.mutate({ taskType, prompt: fullPrompt, essay })} disabled={evalW.isPending || words < 20 || !prompt} className="w-full py-2.5 rounded-lg text-white font-semibold disabled:opacity-60" style={{ background: PINK }}>
           {evalW.isPending ? "Menilai…" : "Dapatkan Penilaian & Koreksi"}
         </button>
       </div>
