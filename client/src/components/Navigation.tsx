@@ -42,10 +42,31 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
           <button onClick={() => handleNavClick("/about")} className={`text-sm font-medium transition-colors ${isActive("about") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             About Us
           </button>
-          <button onClick={() => handleNavClick("/ielts")} className={`text-sm font-semibold transition-colors ${isActive("ielts") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
-            IELTS
-          </button>
-          
+          {/* IELTS Dropdown */}
+          <div className="relative group">
+            <button className={`text-sm font-semibold transition-colors flex items-center gap-1 ${isActive("ielts") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
+              IELTS
+              <ChevronDown className="w-3 h-3 transition-transform group-hover:rotate-180" />
+            </button>
+            <div className="absolute top-full left-0 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+              <div className="bg-white rounded-lg shadow-lg border border-border py-2 min-w-[260px]">
+                <button onClick={() => handleNavClick("/ielts")} className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
+                  📘 IELTS Courses & Overview
+                </button>
+                <div className="border-t border-border my-1"></div>
+                <button onClick={() => handleNavClick("/ielts/practice")} className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
+                  ⚡ AI Practice Test <span className="text-emerald-600 font-semibold">· Free</span>
+                </button>
+                <button onClick={() => handleNavClick("/ielts/mock-test")} className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
+                  📝 Full Mock Test <span className="text-muted-foreground/70">· Rp 79k</span>
+                </button>
+                <button onClick={() => handleNavClick("/ielts/tutor")} className="block w-full text-left px-4 py-2.5 text-sm font-medium text-pink-600 hover:text-pink-700 hover:bg-pink-50 transition-colors">
+                  ✨ AI IELTS Tutor <span className="text-[10px] align-top bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded-full">NEW</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Destinations Dropdown */}
           <div className="relative group">
             <button className={`text-sm font-medium transition-colors flex items-center gap-1 ${isActive("destinations") || isActive("malaysia") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
@@ -138,9 +159,21 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             <button onClick={() => handleNavClick("/about")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
               About Us
             </button>
-            <button onClick={() => handleNavClick("/ielts")} className="block w-full text-left text-sm font-semibold text-muted-foreground hover:text-primary">
-              IELTS
-            </button>
+            <div className="space-y-2">
+              <span className="block text-sm font-semibold text-foreground">IELTS</span>
+              <button onClick={() => handleNavClick("/ielts")} className="block w-full text-left text-sm text-muted-foreground hover:text-primary pl-4">
+                📘 Courses & Overview
+              </button>
+              <button onClick={() => handleNavClick("/ielts/practice")} className="block w-full text-left text-sm text-muted-foreground hover:text-primary pl-4">
+                ⚡ AI Practice Test · Free
+              </button>
+              <button onClick={() => handleNavClick("/ielts/mock-test")} className="block w-full text-left text-sm text-muted-foreground hover:text-primary pl-4">
+                📝 Full Mock Test · Rp 79k
+              </button>
+              <button onClick={() => handleNavClick("/ielts/tutor")} className="block w-full text-left text-sm font-medium text-pink-600 hover:text-pink-700 pl-4">
+                ✨ AI IELTS Tutor · NEW
+              </button>
+            </div>
             <div className="space-y-2">
               <span className="block text-sm font-medium text-foreground">Destinations</span>
               <button onClick={() => handleNavClick("/destinations")} className="block w-full text-left text-sm text-muted-foreground hover:text-primary pl-4">

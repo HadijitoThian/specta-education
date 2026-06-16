@@ -332,83 +332,110 @@ export default function IELTS() {
         </div>
       </section>
 
-      {/* IELTS Mock Test promo */}
-      <section className="py-12 px-4">
+      {/* Prepare with AI — three digital products (free practice → mock test → tutor) */}
+      <section className="py-16 px-4 bg-gradient-to-b from-white to-slate-50">
         <div className="container">
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
+            className="text-center mb-10"
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-700 via-indigo-700 to-purple-700 p-8 md:p-12 text-white shadow-xl"
           >
-            <div className="absolute -top-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
-            <div className="absolute -bottom-20 -left-10 w-72 h-72 bg-amber-400/10 rounded-full blur-3xl" />
-            <div className="relative grid lg:grid-cols-2 gap-8 items-center">
-              <div>
-                <div className="inline-flex items-center gap-2 bg-amber-400/20 text-amber-200 text-xs font-semibold px-3 py-1 rounded-full mb-4">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Try a full mock test before the real exam
-                </div>
-                <h2 className="text-3xl md:text-4xl font-extrabold leading-tight mb-3">
-                  Sit a full IELTS Mock Test.
-                  <br />
-                  Get your band score — today.
-                </h2>
-                <p className="text-white/85 text-base md:text-lg mb-6 max-w-xl">
-                  All four skills — Listening, Reading, Writing & Speaking —
-                  AI-graded against the official IELTS band rubric, with a
-                  personalised report emailed straight to you.
-                </p>
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-white/90 mb-7">
-                  <span className="inline-flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-emerald-300" /> All 4 skills (~2h 45m)</span>
-                  <span className="inline-flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-emerald-300" /> AI-graded to IELTS rubric</span>
-                  <span className="inline-flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-emerald-300" /> Branded PDF report by email</span>
-                </div>
-                <div className="flex flex-wrap items-center gap-4">
-                  <Link
-                    href="/ielts/mock-test"
-                    className="inline-flex items-center gap-2 bg-white text-blue-700 font-bold px-6 py-3 rounded-xl hover:bg-amber-50 transition shadow-lg"
-                  >
-                    Start your mock test
-                    <ArrowRight className="w-5 h-5" />
-                  </Link>
-                  <div className="text-white/90">
-                    <span className="text-2xl font-extrabold text-amber-300">Rp 79.000</span>
-                    <span className="text-sm text-white/70"> · one-off, no subscription</span>
-                  </div>
-                </div>
-              </div>
-              <div className="hidden lg:block">
-                <div className="bg-white/10 backdrop-blur rounded-2xl border border-white/20 p-6">
-                  <div className="text-xs uppercase tracking-wider text-white/70 mb-3">
-                    Your band-score report
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { label: "Listening", band: "7.5" },
-                      { label: "Reading", band: "7.0" },
-                      { label: "Writing", band: "6.5" },
-                      { label: "Speaking", band: "7.0" },
-                    ].map(s => (
-                      <div key={s.label} className="bg-white/10 rounded-xl px-4 py-3">
-                        <div className="text-xs text-white/70">{s.label}</div>
-                        <div className="text-2xl font-bold">{s.band}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 bg-amber-400/90 text-blue-900 rounded-xl px-4 py-3 flex items-center justify-between">
-                    <span className="text-sm font-semibold">Overall Band</span>
-                    <span className="text-3xl font-extrabold">7.0</span>
-                  </div>
-                  <p className="text-[11px] text-white/60 mt-3 leading-relaxed">
-                    Sample report. Not an official IELTS score; not affiliated
-                    with British Council, IDP, or Cambridge.
-                  </p>
-                </div>
-              </div>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-50 rounded-full text-purple-600 text-sm font-medium mb-4">
+              <Sparkles className="w-4 h-4" />
+              Prepare with AI — anytime, from home
             </div>
+            <h2 className="text-3xl md:text-4xl font-bold mb-3">Three ways to get exam-ready</h2>
+            <p className="text-gray-500 max-w-2xl mx-auto">
+              Start free, simulate the real exam, then practise unlimited with your own AI tutor.
+            </p>
           </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto items-stretch">
+            {/* 1 — Free AI Practice */}
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4 }}
+              className="flex flex-col rounded-3xl bg-white border border-gray-200 p-7 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all"
+            >
+              <div className="inline-flex w-fit items-center gap-1.5 bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full mb-4">FREE</div>
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mb-4 shadow-lg">
+                <Zap className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">AI Practice Test</h3>
+              <p className="text-gray-500 text-sm mb-5 flex-1">
+                Try a single skill — Reading, Writing, Listening or Speaking — with AI-generated
+                questions and an instant band estimate. No payment, no account.
+              </p>
+              <ul className="space-y-1.5 text-sm text-gray-600 mb-6">
+                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-emerald-500" /> Pick any one skill</li>
+                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-emerald-500" /> Instant AI feedback</li>
+              </ul>
+              <Link href="/ielts/practice" className="inline-flex items-center justify-center gap-2 w-full bg-emerald-600 text-white font-semibold px-5 py-3 rounded-xl hover:bg-emerald-700 transition">
+                Try a free question <ArrowRight className="w-4 h-4" />
+              </Link>
+            </motion.div>
+
+            {/* 2 — Paid full Mock Test */}
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: 0.1 }}
+              className="flex flex-col rounded-3xl bg-white border border-gray-200 p-7 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all"
+            >
+              <div className="inline-flex w-fit items-center gap-1.5 bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full mb-4">ONE-OFF · RP 79.000</div>
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center mb-4 shadow-lg">
+                <FileText className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Full Mock Test</h3>
+              <p className="text-gray-500 text-sm mb-5 flex-1">
+                Sit a complete 4-skill exam (~2h 45m), AI-graded against the IELTS band rubric,
+                with a branded PDF report emailed to you. No subscription.
+              </p>
+              <ul className="space-y-1.5 text-sm text-gray-600 mb-6">
+                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-blue-500" /> Listening · Reading · Writing · Speaking</li>
+                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-blue-500" /> Personalised band-score report</li>
+              </ul>
+              <Link href="/ielts/mock-test" className="inline-flex items-center justify-center gap-2 w-full bg-blue-700 text-white font-semibold px-5 py-3 rounded-xl hover:bg-blue-800 transition">
+                Start your mock test <ArrowRight className="w-4 h-4" />
+              </Link>
+            </motion.div>
+
+            {/* 3 — AI Tutor subscription (highlighted) */}
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+              className="relative flex flex-col rounded-3xl bg-gradient-to-br from-fuchsia-600 via-pink-600 to-purple-700 p-7 shadow-xl text-white ring-2 ring-pink-400"
+            >
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-400 text-purple-900 text-[11px] font-bold px-3 py-1 rounded-full shadow">MOST POPULAR</span>
+              <div className="inline-flex w-fit items-center gap-1.5 bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full mb-4">UNLIMITED · FROM RP 149.000</div>
+              <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center mb-4 shadow-lg">
+                <MessageCircle className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">AI IELTS Tutor</h3>
+              <p className="text-white/85 text-sm mb-5 flex-1">
+                Practise Writing & Speaking as much as you want, with instant feedback, band scores
+                and a guided full Speaking test. Your personal AI examiner, 24/7.
+              </p>
+              <ul className="space-y-1.5 text-sm text-white/90 mb-6">
+                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-amber-300" /> Unlimited Writing & Speaking feedback</li>
+                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-amber-300" /> 1 free try — no card needed</li>
+              </ul>
+              <Link href="/ielts/tutor" className="inline-flex items-center justify-center gap-2 w-full bg-white text-pink-700 font-bold px-5 py-3 rounded-xl hover:bg-amber-50 transition shadow-lg">
+                Meet your AI tutor <ArrowRight className="w-4 h-4" />
+              </Link>
+            </motion.div>
+          </div>
+
+          <p className="text-center text-[11px] text-gray-400 mt-6 max-w-2xl mx-auto leading-relaxed">
+            AI-graded estimates for practice purposes. Not official IELTS scores; not affiliated with
+            British Council, IDP, or Cambridge Assessment English.
+          </p>
         </div>
       </section>
 

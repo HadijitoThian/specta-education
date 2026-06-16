@@ -135,11 +135,54 @@ emailed take link IS the credential.
 test kept until new is ready); `normalizeQuestionType` coerces LLM types to the
 DB enum; per-skill retries + hard guard; `generationStatus` live banner in admin.
 
+## 4b. SECOND PAID PRODUCT — AI IELTS Tutor (subscription)
+
+A standalone paid **AI IELTS Tutor** at `/ielts/tutor` (`client/src/pages/IeltsTutor.tsx`).
+Unlimited **Writing + Speaking** coaching with instant AI feedback, band scores,
+model answers, and a guided full Speaking Part-1 test. Distinct from the one-off
+Mock Test. **Subscription**, billed via Xendit.
+
+- **Plans (2):** `w2` = 2 Weeks **Rp 149.000** (14 days), `m1` = 1 Month
+  **Rp 249.000** (30 days). Defined in `server/xenditService.ts` `TUTOR_PLANS`.
+  (Earlier 1/3/6-month idea dropped — "nobody takes 6 months to learn IELTS".)
+- **Auth = student portal** (NOT guest): students sign in via `student_portal_token`
+  cookie → `leads.id`. The tutor's own AuthGate uses `studentPortal.selfRegister`
+  / `studentPortal.login`. Every signup = a CRM lead (attribution funnel).
+- **Free taster:** 1 writing + 1 speaking eval, then paywall. Override env
+  `TUTOR_FREE_TESTING=true` bypasses the paywall for QA — **REMOVE before launch.**
+- **Server:** `server/tutorRouter.ts` (mounted `tutor`), `server/tutorEngine.ts`
+  (DeepSeek grading — fair, not strict; don't penalise pronunciation it can't hear),
+  `server/db.ts` tutor_subscriptions + tutor_sessions helpers. Schema:
+  `drizzle/schema.ts` tutorSubscriptions (plan enum `["w2","m1"]`) + tutorSessions.
+- **Speech/voice:** transcription via **DeepInfra Whisper** (`whisper-large-v3-turbo`,
+  `DEEPINFRA_API_KEY`) with OpenAI fallback; Whisper-timestamp **fluency metrics**
+  (`computeFluency`). Examiner voice = **free browser Web Speech API** TTS (auto-plays
+  ~2s after a question; "Dengar penguji" fallback button). Audio recordings stored
+  in R2, played back from history via `/files/<key>`.
+- **Payments:** `createCheckout` (tutorRouter) → `createTutorInvoice` (xenditService,
+  external_id prefix `TUTOR-`) → Xendit hosted invoice → webhook
+  (`server/xenditWebhook.ts` TUTOR- branch) activates the subscription:
+  `status="active"`, `startsAt=now`, `expiresAt=now+days`. Expiry enforced at read
+  time by `getActiveTutorSubscription` (`status=active AND expiresAt>=now`) — no cron.
+  Same `XENDIT_SECRET_KEY` + `XENDIT_WEBHOOK_TOKEN` as the Mock Test.
+- **Landing images:** `server/tutorImages.ts` (FLUX-1.1-pro, generated once to fixed
+  R2 keys `tutor/landing/*.jpg`).
+- Surfaced in the **Ads Co-pilot** landing-page dropdown (`/ielts/tutor`).
+
 ## 5. Site / nav / pages
 
-- Top-nav "IELTS" → `/ielts` (the restored IELTS study page, which now also has
-  a Mock Test promo section). Mock Test landing: `/ielts/mock-test`.
-- Homepage (`Home.tsx`) has a prominent IELTS Mock Test hero band.
+- **THREE AI-IELTS products** (a deliberate funnel — free → one-off → subscription):
+  1. `/ielts/practice` — **free** AI practice (one skill, name+email, no account).
+  2. `/ielts/mock-test` — **Rp 79k** one-off full 4-skill mock (guest checkout).
+  3. `/ielts/tutor` — **subscription** AI Tutor (student-portal account). See §4b.
+- Top-nav "IELTS" is a **dropdown**: Courses (`/ielts`) · AI Practice · Mock Test ·
+  AI Tutor (`Navigation.tsx`, desktop + mobile).
+- `/ielts` page has a **"Three ways to get exam-ready"** section presenting all
+  three products as cards (`IELTS.tsx` — replaced the old Mock-Test-only promo).
+- Homepage (`Home.tsx`) has the IELTS Mock Test hero band **plus** an AI Tutor
+  promo band below it (links to `/ielts/tutor` + `/ielts`).
+- Footer (`Footer.tsx`) Quick Links include Mock Test + AI IELTS Tutor.
+- Tutor landing logo + "← Main site" link → `https://www.spectaeducation.com`.
 - Removed: old external mock-test banner (linked to deprecated
   `mock-up.spectaeducation.com`), and the "IELTS Breakthrough self-study"
   section from the IELTS page.
@@ -202,3 +245,6 @@ DB enum; per-skill retries + hard guard; `generationStatus` live banner in admin
 - Optional cleanup: delete dormant agent code/routes; rename legacy
   `manus-runtime-user-info` localStorage key.
 - Build fresh agents (future).
+- **AI Tutor pre-launch:** remove `TUTOR_FREE_TESTING` from Railway (else paywall
+  is bypassed); confirm Xendit webhook URL covers `TUTOR-` invoices; verify one
+  real subscription purchase end-to-end.

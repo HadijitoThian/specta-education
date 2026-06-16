@@ -344,6 +344,46 @@ export default function Home() {
         </div>
       </section>
 
+      {/* AI IELTS Tutor promo band */}
+      <section className="pb-12">
+        <div className="container">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-fuchsia-600 via-pink-600 to-purple-700 p-8 md:p-10 text-white shadow-xl"
+          >
+            <div className="absolute -top-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+            <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="max-w-2xl">
+                <div className="inline-flex items-center gap-2 bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full mb-4">
+                  <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
+                  NEW · Your personal AI examiner
+                </div>
+                <h2 className="text-2xl md:text-3xl font-extrabold leading-tight mb-2">
+                  Practise IELTS Speaking & Writing — unlimited, with instant AI feedback.
+                </h2>
+                <p className="text-white/85 text-sm md:text-base">
+                  Get band scores, corrections and model answers 24/7. Try your first
+                  evaluation free — no card needed.
+                </p>
+              </div>
+              <div className="flex flex-col items-start md:items-end gap-3 shrink-0">
+                <Link
+                  href="/ielts/tutor"
+                  className="inline-flex items-center gap-2 bg-white text-pink-700 font-bold px-6 py-3 rounded-xl hover:bg-amber-50 transition shadow-lg"
+                >
+                  Meet your AI tutor
+                  <ChevronRight className="w-5 h-5" />
+                </Link>
+                <span className="text-white/80 text-sm">From <span className="font-extrabold text-amber-300">Rp 149.000</span> · or <Link href="/ielts" className="underline hover:text-white">see all IELTS tools</Link></span>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Stats Section with Counting Animation */}
       <section className="py-16 bg-muted/50">
         <div className="container">

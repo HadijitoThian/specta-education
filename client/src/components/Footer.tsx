@@ -31,6 +31,7 @@ export default function Footer() {
               <li><Link href="/about" className="hover:text-background transition-colors">About Us</Link></li>
               <li><Link href="/ielts" className="hover:text-background transition-colors">IELTS Preparation</Link></li>
               <li><Link href="/ielts/mock-test" className="hover:text-background transition-colors">IELTS Mock Test</Link></li>
+              <li><Link href="/ielts/tutor" className="hover:text-background transition-colors">✨ AI IELTS Tutor</Link></li>
               <li><Link href="/destinations" className="hover:text-background transition-colors">Destinations</Link></li>
               <li><Link href="/articles" className="hover:text-background transition-colors">Articles</Link></li>
               <li><Link href="/contact" className="hover:text-background transition-colors">Contact</Link></li>

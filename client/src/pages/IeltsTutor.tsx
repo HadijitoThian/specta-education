@@ -111,8 +111,14 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
       {/* Nav */}
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-slate-100">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2"><img src={LOGO} alt="SpecTa" className="h-8 object-contain" /><span className="font-bold">AI IELTS Tutor</span></div>
-          <button onClick={() => goForm("login")} className="text-sm font-medium text-slate-600 hover:text-slate-900">Log in</button>
+          <a href="https://www.spectaeducation.com" className="flex items-center gap-2" title="Back to SpecTa Education">
+            <img src={LOGO} alt="SpecTa Education" className="h-8 object-contain" />
+            <span className="font-bold">AI IELTS Tutor</span>
+          </a>
+          <div className="flex items-center gap-4">
+            <a href="https://www.spectaeducation.com" className="hidden sm:inline text-sm font-medium text-slate-500 hover:text-slate-900">← Main site</a>
+            <button onClick={() => goForm("login")} className="text-sm font-medium text-slate-600 hover:text-slate-900">Log in</button>
+          </div>
         </div>
       </header>
 
@@ -298,6 +304,7 @@ function TutorApp({ status }: { status: any }) {
             <span className="font-bold text-slate-800">AI IELTS Tutor</span>
           </button>
           <div className="flex items-center gap-3 text-sm">
+            <a href="https://www.spectaeducation.com" className="hidden sm:inline text-slate-400 hover:text-slate-700">← Main site</a>
             {sub
               ? <span className="text-green-700 font-medium">✓ {sub.plan === "w2" ? "2 Minggu" : "1 Bulan"}</span>
               : <span className="text-slate-500">Free trial</span>}
