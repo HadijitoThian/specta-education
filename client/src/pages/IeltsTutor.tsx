@@ -784,7 +784,10 @@ function SpeakingResult({ fb, transcript, onAgain, onBack }: { fb: any; transcri
       <div className={`${card} p-5 text-center`}>
         <div className="text-sm text-slate-500">Estimasi Band Keseluruhan</div>
         <div className="text-5xl font-extrabold my-1" style={{ color: bandColor(fb.overallBand) }}>{fb.overallBand.toFixed(1)}</div>
-        <div className="text-xs text-slate-400">Kecepatan bicara: {fb.observations?.speakingRateWpm} kata/menit</div>
+        <div className="text-xs text-slate-400">
+          Kecepatan bicara: {fb.observations?.speakingRateWpm} kata/menit
+          {fb.observations?.pauseCount != null && <> · {fb.observations.pauseCount} jeda{fb.observations.longPauseCount ? ` (${fb.observations.longPauseCount} jeda panjang)` : ""}</>}
+        </div>
       </div>
       <div className={`${card} p-5`}>
         <h3 className="font-semibold text-slate-800 mb-1">Penilaian per Kriteria</h3>

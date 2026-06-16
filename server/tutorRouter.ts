@@ -16,7 +16,7 @@ import { parse as parseCookies } from "cookie";
 import { router, publicProcedure } from "./_core/trpc";
 import {
   evaluateWriting, evaluateSpeaking, generateWritingTask, generateSpeakingQuestions,
-  generatePart1Test, evaluateSpeakingQuick, summarizePart1Test,
+  generatePart1Test, evaluateSpeakingQuick, summarizePart1Test, computeFluency,
 } from "./tutorEngine";
 import {
   getActiveTutorSubscription, countTutorSessions, createTutorSession,
@@ -158,7 +158,9 @@ export const tutorRouter = router({
         audioUrl = put.url;
       } catch { /* non-critical */ }
 
-      const fb = await evaluateSpeaking(input.part, input.question, transcript, input.durationSec);
+      const words = (transcript.match(/\S+/g) || []).length;
+      const metrics = computeFluency((tr as any).segments, input.durationSec, words);
+      const fb = await evaluateSpeaking(input.part, input.question, transcript, input.durationSec, metrics);
       const session = await createTutorSession({
         leadId, skill: "speaking", taskType: input.part, prompt: input.question,
         response: transcript, audioUrl, durationSec: input.durationSec,
@@ -203,7 +205,9 @@ export const tutorRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Transcription failed: ${tr.error}${tr.details ? ` — ${tr.details}` : ""}` });
       }
       const transcript = (tr.text || "").trim();
-      const fb = await evaluateSpeakingQuick(input.question, transcript, input.durationSec);
+      const words = (transcript.match(/\S+/g) || []).length;
+      const metrics = computeFluency((tr as any).segments, input.durationSec, words);
+      const fb = await evaluateSpeakingQuick(input.question, transcript, input.durationSec, metrics);
       return { transcript, ...fb };
     }),
 

@@ -29,6 +29,25 @@ const strArr = (a: any) => (Array.isArray(a) ? a.map((x: any) => String(x)).filt
 /** Pick the first present key from an object (tolerates snake_case / variants). */
 const pick = (obj: any, keys: string[]) => { for (const k of keys) if (obj && obj[k]) return obj[k]; return {}; };
 
+/** Objective fluency signals derived from Whisper segment timestamps. */
+export interface FluencyMetrics { wpm: number; pauseCount: number; longPauseCount: number; pausePct: number; hasTiming: boolean }
+export function computeFluency(segments: Array<{ start: number; end: number }> | undefined, durationSec: number, words: number): FluencyMetrics {
+  const wpm = durationSec > 0 ? Math.round((words / durationSec) * 60) : 0;
+  if (!segments || segments.length < 2) return { wpm, pauseCount: 0, longPauseCount: 0, pausePct: 0, hasTiming: false };
+  let pauseCount = 0, longPause = 0, totalPause = 0;
+  for (let i = 1; i < segments.length; i++) {
+    const gap = (segments[i].start ?? 0) - (segments[i - 1].end ?? 0);
+    if (gap > 0.7) { pauseCount++; totalPause += gap; if (gap > 2) longPause++; }
+  }
+  const total = durationSec || (segments[segments.length - 1].end ?? 0);
+  const pausePct = total > 0 ? Math.round((totalPause / total) * 100) : 0;
+  return { wpm, pauseCount, longPauseCount: longPause, pausePct, hasTiming: true };
+}
+function fluencyLine(m: FluencyMetrics | undefined, wpm: number): string {
+  if (m && m.hasTiming) return `OBJECTIVE TIMING measured from the actual audio: ~${m.wpm} words/min, ${m.pauseCount} noticeable pauses (${m.longPauseCount} long pauses over 2s), silence ≈ ${m.pausePct}% of the answer. Use these REAL signals to score Fluency & Coherence: smooth pacing with few long pauses = higher fluency; many long pauses/hesitations = lower. Don't guess fluency — use these numbers.`;
+  return `Approximate speaking rate: ~${wpm} words/min.`;
+}
+
 // ── Writing ──────────────────────────────────────────────────────────────────
 export interface WritingFeedback {
   overallBand: number;
@@ -139,7 +158,7 @@ export interface SpeakingFeedback {
     grammaticalRange: { band: number; comment: string };
     pronunciation: { band: number; comment: string };
   };
-  observations: { fillerWords: string[]; repetitions: string[]; grammarErrors: Array<{ error: string; fix: string }>; speakingRateWpm: number };
+  observations: { fillerWords: string[]; repetitions: string[]; grammarErrors: Array<{ error: string; fix: string }>; speakingRateWpm: number; pauseCount?: number; longPauseCount?: number };
   corrections: Array<{ original: string; fix: string; explanation: string }>;
   modelAnswer: string;
   upgradedAnswer: string;
@@ -147,7 +166,7 @@ export interface SpeakingFeedback {
   tips: string[];
 }
 
-export async function evaluateSpeaking(part: string, question: string, transcript: string, durationSec: number): Promise<SpeakingFeedback> {
+export async function evaluateSpeaking(part: string, question: string, transcript: string, durationSec: number, metrics?: FluencyMetrics): Promise<SpeakingFeedback> {
   const words = (transcript.trim().match(/\S+/g) || []).length;
   const wpm = durationSec > 0 ? Math.round((words / durationSec) * 60) : 0;
   const res = await invokeLLM({
@@ -169,6 +188,8 @@ Output valid JSON only.`,
 
 STUDENT'S SPOKEN ANSWER (transcribed, ${words} words, ${durationSec}s):
 ${transcript || "(no speech detected)"}
+
+${fluencyLine(metrics, wpm)}
 
 Return ONLY this JSON:
 {
@@ -235,6 +256,8 @@ Return ONLY this JSON:
       repetitions: strArr(o.repetitions),
       grammarErrors: (Array.isArray(o.grammarErrors) ? o.grammarErrors : []).slice(0, 12).map((g: any) => ({ error: String(g?.error || ""), fix: String(g?.fix || "") })),
       speakingRateWpm: wpm,
+      pauseCount: metrics?.hasTiming ? metrics.pauseCount : undefined,
+      longPauseCount: metrics?.hasTiming ? metrics.longPauseCount : undefined,
     },
     corrections: (Array.isArray(p.corrections) ? p.corrections : []).slice(0, 15).map((x: any) => ({ original: String(x?.original || ""), fix: String(x?.fix || ""), explanation: String(x?.explanation || "") })),
     modelAnswer,
@@ -336,14 +359,15 @@ export interface QuickSpeakingFeedback {
 }
 
 /** Light, fast per-answer feedback for the guided test (one compact call). */
-export async function evaluateSpeakingQuick(question: string, transcript: string, durationSec: number): Promise<QuickSpeakingFeedback> {
+export async function evaluateSpeakingQuick(question: string, transcript: string, durationSec: number, metrics?: FluencyMetrics): Promise<QuickSpeakingFeedback> {
   const words = (transcript.trim().match(/\S+/g) || []).length;
   const wpm = durationSec > 0 ? Math.round((words / durationSec) * 60) : 0;
   const res = await invokeLLM({
     messages: [
       { role: "system", content: "You are a friendly IELTS Speaking examiner giving quick, encouraging feedback on a single Part-1 answer. Score FAIRLY (like a real examiner, not strict). You're reading an auto-generated transcript: do NOT penalise pronunciation/accent you can't hear, and ignore transcription punctuation/fragment artifacts — judge the real language and communication. A fluent answer with good range and only minor errors is typically 6.5–7.5, not 6.0. Be concise. Output JSON only." },
       { role: "user", content: `Question: "${question}"
-Student's answer (transcribed, ${words} words, ~${wpm} wpm): ${transcript || "(no speech detected)"}
+Student's answer (transcribed, ${words} words): ${transcript || "(no speech detected)"}
+${fluencyLine(metrics, wpm)}
 
 Return JSON: { "band": 6.0, "fixes": [ {"original":"what they said","fix":"better version"} ], "better": "one improved sample sentence answering the question", "tip": "one short tip" }
 Give 1-3 fixes max. Keep everything short.` },
