@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { Megaphone, Loader2, Download, Trash2, ArrowLeft, Plus, Copy, Lightbulb, Check } from "lucide-react";
 
 const LANDING_PAGES = [
+  { path: "/ielts/tutor", label: "AI IELTS Tutor (product)" },
   { path: "/ielts", label: "IELTS Preparation" },
   { path: "/scholarships", label: "Scholarships" },
   { path: "/destinations", label: "Study Destinations" },
