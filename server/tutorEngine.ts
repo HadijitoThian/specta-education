@@ -26,6 +26,8 @@ const clampBand = (n: any): number => {
 };
 const crit = (c: any) => ({ band: clampBand(c?.band), comment: String(c?.comment || "") });
 const strArr = (a: any) => (Array.isArray(a) ? a.map((x: any) => String(x)).filter(Boolean) : []);
+/** Pick the first present key from an object (tolerates snake_case / variants). */
+const pick = (obj: any, keys: string[]) => { for (const k of keys) if (obj && obj[k]) return obj[k]; return {}; };
 
 // ── Writing ──────────────────────────────────────────────────────────────────
 export interface WritingFeedback {
@@ -85,18 +87,22 @@ Provide 6-12 of the most useful corrections.`,
       },
     ],
     response_format: { type: "json_object" },
+    max_tokens: 4000, // the model-answer rewrite is long — avoid truncated JSON
   });
 
   const p = parseJsonLoose(llmText(res));
-  const c = p.criteria || {};
+  const c = p.criteria || p.scores || {};
+  const taskResponse = crit(pick(c, ["taskResponse", "task_response", "taskAchievement", "task_achievement", "tr"]));
+  const coherenceCohesion = crit(pick(c, ["coherenceCohesion", "coherence_cohesion", "coherenceAndCohesion", "cc"]));
+  const lexicalResource = crit(pick(c, ["lexicalResource", "lexical_resource", "lexis", "lr"]));
+  const grammaticalRange = crit(pick(c, ["grammaticalRange", "grammatical_range", "grammaticalRangeAndAccuracy", "grammatical_range_and_accuracy", "gra"]));
+  const bands = [taskResponse.band, coherenceCohesion.band, lexicalResource.band, grammaticalRange.band].filter(b => b > 0);
+  let overall = clampBand(p.overallBand ?? p.overall ?? p.band ?? 0);
+  if (!overall && bands.length) overall = clampBand(bands.reduce((a, b) => a + b, 0) / bands.length);
+  if (!overall && !bands.length) throw new Error("Penilaian gagal diproses — silakan coba lagi.");
   return {
-    overallBand: clampBand(p.overallBand),
-    criteria: {
-      taskResponse: crit(c.taskResponse),
-      coherenceCohesion: crit(c.coherenceCohesion),
-      lexicalResource: crit(c.lexicalResource),
-      grammaticalRange: crit(c.grammaticalRange),
-    },
+    overallBand: overall,
+    criteria: { taskResponse, coherenceCohesion, lexicalResource, grammaticalRange },
     corrections: (Array.isArray(p.corrections) ? p.corrections : []).slice(0, 20).map((x: any) => ({
       original: String(x?.original || ""), fix: String(x?.fix || ""),
       explanation: String(x?.explanation || ""), type: String(x?.type || "grammar"),
@@ -167,19 +173,23 @@ Return ONLY this JSON:
       },
     ],
     response_format: { type: "json_object" },
+    max_tokens: 3000,
   });
 
   const p = parseJsonLoose(llmText(res));
-  const c = p.criteria || {};
+  const c = p.criteria || p.scores || {};
   const o = p.observations || {};
+  const fluencyCoherence = crit(pick(c, ["fluencyCoherence", "fluency_coherence", "fluencyAndCoherence", "fc"]));
+  const lexicalResource = crit(pick(c, ["lexicalResource", "lexical_resource", "lr"]));
+  const grammaticalRange = crit(pick(c, ["grammaticalRange", "grammatical_range", "grammaticalRangeAndAccuracy", "gra"]));
+  const pronunciation = crit(pick(c, ["pronunciation", "pron"]));
+  const sBands = [fluencyCoherence.band, lexicalResource.band, grammaticalRange.band, pronunciation.band].filter(b => b > 0);
+  let sOverall = clampBand(p.overallBand ?? p.overall ?? p.band ?? 0);
+  if (!sOverall && sBands.length) sOverall = clampBand(sBands.reduce((a, b) => a + b, 0) / sBands.length);
+  if (!sOverall && !sBands.length) throw new Error("Penilaian gagal diproses — silakan coba lagi.");
   return {
-    overallBand: clampBand(p.overallBand),
-    criteria: {
-      fluencyCoherence: crit(c.fluencyCoherence),
-      lexicalResource: crit(c.lexicalResource),
-      grammaticalRange: crit(c.grammaticalRange),
-      pronunciation: crit(c.pronunciation),
-    },
+    overallBand: sOverall,
+    criteria: { fluencyCoherence, lexicalResource, grammaticalRange, pronunciation },
     observations: {
       fillerWords: strArr(o.fillerWords),
       repetitions: strArr(o.repetitions),

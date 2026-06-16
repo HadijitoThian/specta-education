@@ -118,16 +118,18 @@ type View = "home" | "writing" | "speaking";
 function TutorApp({ status }: { status: any }) {
   const utils = trpc.useUtils();
   const [view, setView] = useState<View>("home");
+  const [openId, setOpenId] = useState<number | null>(null);
   const sub = status.subscription;
   const free = status.freeRemaining || { writing: 0, speaking: 0 };
 
   const logout = trpc.studentPortal.logout.useMutation({ onSuccess: () => window.location.reload() });
+  const goHome = () => { setOpenId(null); setView("home"); };
 
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
-          <button onClick={() => setView("home")} className="flex items-center gap-2">
+          <button onClick={goHome} className="flex items-center gap-2">
             <img src={LOGO} alt="SpecTa" className="h-8 object-contain" />
             <span className="font-bold text-slate-800">AI IELTS Tutor</span>
           </button>
@@ -141,15 +143,28 @@ function TutorApp({ status }: { status: any }) {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-6">
-        {view === "home" && <Home free={free} hasSub={!!sub} onPick={setView} />}
-        {view === "writing" && <WritingCoach onBack={() => { setView("home"); utils.tutor.status.invalidate(); }} />}
-        {view === "speaking" && <SpeakingPartner onBack={() => { setView("home"); utils.tutor.status.invalidate(); }} />}
+        {openId != null ? <SessionView id={openId} onBack={goHome} />
+          : view === "home" ? <Home free={free} hasSub={!!sub} onPick={setView} onOpen={setOpenId} />
+          : view === "writing" ? <WritingCoach onBack={() => { setView("home"); utils.tutor.status.invalidate(); }} />
+          : <SpeakingPartner onBack={() => { setView("home"); utils.tutor.status.invalidate(); }} />}
       </main>
     </div>
   );
 }
 
-function Home({ free, hasSub, onPick }: { free: any; hasSub: boolean; onPick: (v: View) => void }) {
+/** Reopen a past session from history, rendering its saved feedback. */
+function SessionView({ id, onBack }: { id: number; onBack: () => void }) {
+  const q = trpc.tutor.getSession.useQuery({ id });
+  if (q.isLoading) return <div className="text-center text-slate-400 py-12">Loading…</div>;
+  const s: any = q.data;
+  if (!s || !s.feedback) {
+    return <div className="py-12 text-center"><button onClick={onBack} className="text-sm text-slate-500">← Kembali</button><div className="text-slate-500 mt-3">Sesi ini tidak bisa dibuka.</div></div>;
+  }
+  if (s.skill === "writing") return <WritingResult fb={s.feedback} onAgain={onBack} onBack={onBack} />;
+  return <SpeakingResult fb={s.feedback} transcript={s.response || ""} onAgain={onBack} onBack={onBack} />;
+}
+
+function Home({ free, hasSub, onPick, onOpen }: { free: any; hasSub: boolean; onPick: (v: View) => void; onOpen: (id: number) => void }) {
   const history = trpc.tutor.listSessions.useQuery();
   return (
     <div className="space-y-6">
@@ -174,13 +189,14 @@ function Home({ free, hasSub, onPick }: { free: any; hasSub: boolean; onPick: (v
           <h3 className="font-semibold text-slate-800 mb-3">Riwayat Latihan</h3>
           <div className="divide-y">
             {history.data.map((s: any) => (
-              <div key={s.id} className="flex items-center justify-between py-2 text-sm">
+              <button key={s.id} onClick={() => onOpen(s.id)} className="w-full flex items-center justify-between py-2 text-sm text-left hover:bg-slate-50 rounded px-2 -mx-2">
                 <div>
                   <span className="font-medium capitalize">{s.skill === "writing" ? "✍️ Writing" : "🎤 Speaking"}</span>
                   <span className="text-slate-400"> · {new Date(s.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</span>
+                  <span className="text-slate-300"> · lihat →</span>
                 </div>
                 {s.overallBand != null && <Band value={Number(s.overallBand)} />}
-              </div>
+              </button>
             ))}
           </div>
         </div>
