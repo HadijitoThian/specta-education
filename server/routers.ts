@@ -7155,7 +7155,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
           httpOnly: true,
           secure: isSecure,
           sameSite: isSecure ? "none" : "lax",
-          maxAge: 60 * 60 * 24 * 30, // 30 days — stay logged in unless explicitly logged out
+          maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days in ms — stay logged in unless explicitly logged out
           path: "/",
         });
         return { success: true, leadId: account.leadId };
@@ -7688,6 +7688,25 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
         if (input.referralCode) {
           try { await markReferralSignedUp(input.email); } catch (e) { /* non-fatal */ }
         }
+        // Log the new student in immediately (set the session cookie) so the
+        // tutor / portal treats them as authenticated right after sign-up.
+        // Without this, "Sign up" appears to do nothing (the form re-renders).
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret");
+        const token = await new SignJWT({ sub: String(lead.id), leadId: lead.id, role: "student" })
+          .setProtectedHeader({ alg: "HS256" })
+          .setExpirationTime("30d")
+          .sign(secret);
+        const forwardedProto = ctx.req.headers["x-forwarded-proto"];
+        const isSecure = ctx.req.protocol === "https" ||
+          (Array.isArray(forwardedProto) ? forwardedProto : (forwardedProto || "").split(","))
+            .some((p: string) => p.trim().toLowerCase() === "https");
+        ctx.res.cookie("student_portal_token", token, {
+          httpOnly: true,
+          secure: isSecure,
+          sameSite: isSecure ? "none" : "lax",
+          maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days (milliseconds)
+          path: "/",
+        });
         return { success: true, leadId: lead.id };
       }),
 
