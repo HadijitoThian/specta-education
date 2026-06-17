@@ -252,6 +252,9 @@ Mock Test. **Subscription**, billed via Xendit.
 - Optional cleanup: delete dormant agent code/routes; rename legacy
   `manus-runtime-user-info` localStorage key.
 - Build fresh agents (future).
-- **AI Tutor pre-launch:** remove `TUTOR_FREE_TESTING` from Railway (else paywall
-  is bypassed); confirm Xendit webhook URL covers `TUTOR-` invoices; verify one
-  real subscription purchase end-to-end.
+- **AI Tutor launch:** the global free bypass `TUTOR_FREE_TESTING` is now
+  HARD-DISABLED in production (FREE_TESTING() returns false when
+  NODE_ENV=production), so the paywall is always live; the 1-try free taster
+  (FREE_LIMIT=1 Writing + 1 Speaking) is kept as the freemium funnel. Still
+  delete the `TUTOR_FREE_TESTING` Railway var to avoid confusion. Confirm the
+  Xendit webhook covers `TUTOR-` invoices; verify one real purchase end-to-end.

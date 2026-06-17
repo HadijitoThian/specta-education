@@ -50,9 +50,13 @@ function requireLead(leadId: number | null): number {
   return leadId;
 }
 
-/** Testing override — set TUTOR_FREE_TESTING=true in Railway for unlimited free
- *  access during QA. REMOVE it before launch so the paywall is enforced. */
-const FREE_TESTING = () => process.env.TUTOR_FREE_TESTING === "true";
+/** Testing override — set TUTOR_FREE_TESTING=true for unlimited free access
+ *  during local QA. HARD-DISABLED in production: even if the env var is left
+ *  set on Railway, the paywall is always enforced when NODE_ENV=production, so
+ *  the bypass can never accidentally ship live. The 1-try free taster below is
+ *  unaffected. */
+const FREE_TESTING = () =>
+  process.env.NODE_ENV !== "production" && process.env.TUTOR_FREE_TESTING === "true";
 
 /** Gate a practice: active subscription → unlimited; else allow the free taster. */
 async function gate(leadId: number, skill: "speaking" | "writing"): Promise<{ isFree: boolean }> {
