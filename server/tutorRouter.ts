@@ -310,17 +310,32 @@ export const tutorRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Transcription failed: ${tr.error}${tr.details ? ` — ${tr.details}` : ""}` });
       }
       const transcript = (tr.text || "").trim();
+
+      // Store the recording (best-effort) so the answer is replayable later in
+      // the end-of-test summary and in History.
+      let audioUrl: string | undefined;
+      try {
+        const ext = (input.mimeType || "").includes("mp4") ? "mp4" : (input.mimeType || "").includes("wav") ? "wav" : "webm";
+        const put = await storagePut(`tutor/speaking/${leadId}/${Date.now()}-q${input.index}.${ext}`, buffer, input.mimeType || "audio/webm");
+        audioUrl = `/files/${put.key}`;
+      } catch { /* non-critical */ }
+
       const words = (transcript.match(/\S+/g) || []).length;
       const metrics = computeFluency((tr as any).segments, input.durationSec, words);
       const fb = await evaluateSpeakingQuick(input.question, transcript, input.durationSec, metrics);
-      return { transcript, ...fb };
+      return { transcript, audioUrl, ...fb };
     }),
 
   /** Finish the test: summarize all answers into a band + recurring mistakes + plan. */
   speakingTestFinish: publicProcedure
     .input(z.object({
       sessionId: z.number(),
-      answers: z.array(z.object({ question: z.string(), transcript: z.string(), band: z.number() })).min(1),
+      answers: z.array(z.object({
+        question: z.string(),
+        transcript: z.string(),
+        band: z.number(),
+        audioUrl: z.string().optional(),
+      })).min(1),
     }))
     .mutation(async ({ input, ctx }) => {
       const leadId = requireLead(await resolveLead(ctx));

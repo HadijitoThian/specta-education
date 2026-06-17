@@ -167,6 +167,16 @@ Mock Test. **Subscription**, billed via Xendit.
   Same `XENDIT_SECRET_KEY` + `XENDIT_WEBHOOK_TOKEN` as the Mock Test.
 - **Landing images:** `server/tutorImages.ts` (FLUX-1.1-pro, generated once to fixed
   R2 keys `tutor/landing/*.jpg`).
+- **Recordings playback:** `RecordingPlayer` in IeltsTutor.tsx fixes MediaRecorder
+  WebM blobs (no duration metadata) by seeking-to-end on load so they play/seek.
+  Guided-test answers are persisted to R2 (`speakingTestAnswer` returns audioUrl,
+  `speakingTestFinish` stores it in feedback.answers) and replayable in the summary
+  and History (`SpeakingTestResult`). NOTE: guided-test history sessions store
+  `{topic, questions, answers}` — SessionView branches on `feedback.questions`.
+- **Conversion tracking:** `client/src/lib/googleAds.ts` `fireConversion`. Tutor fires
+  `lead` on signup (selfRegister) and `purchase` on a confirmed paid subscription
+  (IeltsTutor polls status after `?paid=1` then fires with the plan value). Dormant
+  until `VITE_GOOGLE_ADS_ID` + `VITE_GOOGLE_ADS_LEAD_LABEL`/`_PURCHASE_LABEL` are set.
 - Surfaced in the **Ads Co-pilot** landing-page dropdown (`/ielts/tutor`).
 - **Admin free links** (mirrors Mock Test free pass): `/admin/ielts-tests` →
   "✨ AI Tutor free link" button (`admin.ielts.createTutorFreePass`, pick days)

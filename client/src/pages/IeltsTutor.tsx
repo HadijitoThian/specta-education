@@ -8,6 +8,9 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { fireConversion } from "@/lib/googleAds";
+
+const PLAN_VALUE: Record<string, number> = { w2: 149000, m1: 249000 };
 
 const PINK = "#E91E8C";
 const PURPLE = "#9C27B0";
@@ -51,8 +54,36 @@ function CriteriaRow({ label, c }: { label: string; c: any }) {
 
 export default function IeltsTutor() {
   const utils = trpc.useUtils();
-  const status = trpc.tutor.status.useQuery(undefined, { retry: false });
   const claimedRef = useRef(false);
+  const convFiredRef = useRef(false);
+  const pollsRef = useRef(0);
+  // Returning from a Xendit payment lands on /ielts/tutor?paid=1. The webhook
+  // may take a moment to activate the subscription, so poll status briefly.
+  const justPaid = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("paid") === "1";
+
+  const status = trpc.tutor.status.useQuery(undefined, {
+    retry: false,
+    refetchInterval: q => {
+      if (!justPaid) return false;
+      const sub = (q.state.data as any)?.subscription;
+      if (sub && !sub.isFree) return false;          // confirmed paid
+      if (pollsRef.current++ > 20) return false;     // give up after ~50s
+      return 2500;
+    },
+  });
+
+  // Fire a Google Ads "purchase" conversion once a paid subscription is active
+  // (dormant unless VITE_GOOGLE_ADS_ID + PURCHASE_LABEL are set).
+  useEffect(() => {
+    const sub = (status.data as any)?.subscription;
+    if (justPaid && sub && !sub.isFree && !convFiredRef.current) {
+      convFiredRef.current = true;
+      fireConversion("purchase", { value: PLAN_VALUE[sub.plan] ?? 149000, currency: "IDR" });
+      // Clean the ?paid=1 off the URL so a refresh doesn't re-fire.
+      try { window.history.replaceState({}, "", "/ielts/tutor"); } catch { /* ignore */ }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status.data]);
 
   // Auto-claim an admin-issued free-access link once the student is signed in.
   // IeltsTutorRedeem stashes the token in sessionStorage and forwards here; the
@@ -92,7 +123,10 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
   const [err, setErr] = useState<string | null>(null);
   const set = (k: string, v: string) => setF(s => ({ ...s, [k]: v }));
 
-  const register = trpc.studentPortal.selfRegister.useMutation({ onSuccess: onAuthed, onError: e => setErr(e.message) });
+  const register = trpc.studentPortal.selfRegister.useMutation({
+    onSuccess: () => { fireConversion("lead"); onAuthed(); },
+    onError: e => setErr(e.message),
+  });
   const login = trpc.studentPortal.login.useMutation({ onSuccess: onAuthed, onError: e => setErr(e.message) });
   const busy = register.isPending || login.isPending;
 
@@ -359,6 +393,9 @@ function SessionView({ id, onBack }: { id: number; onBack: () => void }) {
     return <div className="py-12 text-center"><button onClick={onBack} className="text-sm text-slate-500">← Kembali</button><div className="text-slate-500 mt-3">Sesi ini tidak bisa dibuka.</div></div>;
   }
   if (s.skill === "writing") return <WritingResult fb={s.feedback} onAgain={onBack} onBack={onBack} />;
+  // Guided Part-1 test sessions store {topic, questions, answers, ...} — render
+  // the per-question test view (SpeakingResult expects per-criteria data instead).
+  if (Array.isArray(s.feedback?.questions)) return <SpeakingTestResult fb={s.feedback} onBack={onBack} />;
   return <SpeakingResult fb={s.feedback} transcript={s.response || ""} audioUrl={s.audioUrl || undefined} onAgain={onBack} onBack={onBack} />;
 }
 
@@ -685,10 +722,10 @@ function SpeakingTest() {
 
   const next = () => {
     if (!test || !qfb) return;
-    const updated = [...answers, { question, transcript, band: qfb.band, fixes: qfb.fixes, better: qfb.better, tip: qfb.tip }];
+    const updated = [...answers, { question, transcript, band: qfb.band, fixes: qfb.fixes, better: qfb.better, tip: qfb.tip, audioUrl: qfb.audioUrl }];
     setAnswers(updated); setQfb(null); setAudio(null); setTranscript("");
     if (idx + 1 >= total) {
-      finish.mutate({ sessionId: test.sessionId, answers: updated.map(a => ({ question: a.question, transcript: a.transcript, band: a.band })) });
+      finish.mutate({ sessionId: test.sessionId, answers: updated.map(a => ({ question: a.question, transcript: a.transcript, band: a.band, audioUrl: a.audioUrl })) });
     } else { setIdx(idx + 1); }
   };
 
@@ -715,7 +752,24 @@ function SpeakingTest() {
         {summary.summary && <div className={`${card} p-5 text-sm text-slate-700`}>{summary.summary}</div>}
         {!!summary.recurringMistakes?.length && <div className={`${card} p-5`}><h3 className="font-semibold text-slate-800 mb-2">Kesalahan yang berulang</h3><ul className="list-disc ml-5 text-sm space-y-1">{summary.recurringMistakes.map((m: string, i: number) => <li key={i}>{m}</li>)}</ul></div>}
         {!!summary.improvements?.length && <div className={`${card} p-5`}><h3 className="font-semibold mb-2" style={{ color: CORAL }}>Rencana latihan</h3><ul className="list-disc ml-5 text-sm space-y-1">{summary.improvements.map((m: string, i: number) => <li key={i}>{m}</li>)}</ul></div>}
-        <button onClick={() => { setPhase("intro"); setTest(null); setSummary(null); }} className="w-full py-2.5 rounded-lg text-white font-semibold" style={{ background: PURPLE }}>Tes Lagi</button>
+        {!!answers.length && (
+          <div className={`${card} p-5`}>
+            <h3 className="font-semibold text-slate-800 mb-3">Dengar jawabanmu per pertanyaan</h3>
+            <div className="space-y-4">
+              {answers.map((a, i) => (
+                <div key={i} className="border-b last:border-0 pb-3 last:pb-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="text-sm font-medium text-slate-700">{i + 1}. {a.question}</div>
+                    {a.band != null && <Band value={Number(a.band)} />}
+                  </div>
+                  {a.audioUrl && <div className="mt-2"><RecordingPlayer src={a.audioUrl} className="w-full" /></div>}
+                  {a.transcript && <p className="text-xs text-slate-500 mt-2 italic">"{a.transcript}"</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <button onClick={() => { setPhase("intro"); setTest(null); setSummary(null); setAnswers([]); }} className="w-full py-2.5 rounded-lg text-white font-semibold" style={{ background: PURPLE }}>Tes Lagi</button>
       </div>
     );
   }
@@ -854,6 +908,41 @@ function SpeakingPartner({ onBack }: { onBack: () => void }) {
 
       {paywall && <Paywall skill="speaking" />}
       </>}
+    </div>
+  );
+}
+
+/** History view for a guided Part-1 test session (feedback has questions/answers). */
+function SpeakingTestResult({ fb, onBack }: { fb: any; onBack: () => void }) {
+  const answers: any[] = Array.isArray(fb?.answers) ? fb.answers : [];
+  return (
+    <div className="space-y-4">
+      <button onClick={onBack} className="text-sm text-slate-500">← Kembali</button>
+      <div className={`${card} p-5 text-center`}>
+        <div className="text-sm text-slate-500">Estimasi Band Part 1</div>
+        <div className="text-5xl font-extrabold my-1" style={{ color: bandColor(Number(fb.overallBand)) }}>{Number(fb.overallBand).toFixed(1)}</div>
+        {fb.topic && <div className="text-xs text-slate-400 capitalize">Topik: {fb.topic}</div>}
+      </div>
+      {fb.summary && <div className={`${card} p-5 text-sm text-slate-700`}>{fb.summary}</div>}
+      {!!fb.recurringMistakes?.length && <div className={`${card} p-5`}><h3 className="font-semibold text-slate-800 mb-2">Kesalahan yang berulang</h3><ul className="list-disc ml-5 text-sm space-y-1">{fb.recurringMistakes.map((m: string, i: number) => <li key={i}>{m}</li>)}</ul></div>}
+      {!!fb.improvements?.length && <div className={`${card} p-5`}><h3 className="font-semibold mb-2" style={{ color: CORAL }}>Rencana latihan</h3><ul className="list-disc ml-5 text-sm space-y-1">{fb.improvements.map((m: string, i: number) => <li key={i}>{m}</li>)}</ul></div>}
+      {!!answers.length && (
+        <div className={`${card} p-5`}>
+          <h3 className="font-semibold text-slate-800 mb-3">Jawabanmu per pertanyaan</h3>
+          <div className="space-y-4">
+            {answers.map((a, i) => (
+              <div key={i} className="border-b last:border-0 pb-3 last:pb-0">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="text-sm font-medium text-slate-700">{i + 1}. {a.question}</div>
+                  {a.band != null && <Band value={Number(a.band)} />}
+                </div>
+                {a.audioUrl && <div className="mt-2"><RecordingPlayer src={a.audioUrl} className="w-full" /></div>}
+                {a.transcript && <p className="text-xs text-slate-500 mt-2 italic">"{a.transcript}"</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
