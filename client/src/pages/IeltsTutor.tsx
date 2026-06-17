@@ -598,6 +598,32 @@ function TwoCol({ strengths, improvements }: { strengths: string[]; improvements
   );
 }
 
+/**
+ * Audio player for recordings. MediaRecorder WebM blobs ship without duration
+ * metadata, so a plain <audio> shows "0:00 / 0:00" and Chrome refuses to
+ * play/seek. On load we force the browser to compute the real duration by
+ * seeking to the end once, then resetting to the start — after which it plays
+ * and the timeline works. Also applied to R2-served playback for safety.
+ */
+function RecordingPlayer({ src, className }: { src: string; className?: string }) {
+  const ref = useRef<HTMLAudioElement | null>(null);
+  const fixedRef = useRef(false);
+  const handleMeta = () => {
+    const el = ref.current;
+    if (!el || fixedRef.current) return;
+    if (el.duration === Infinity || isNaN(el.duration)) {
+      fixedRef.current = true;
+      const onTimeUpdate = () => {
+        el.removeEventListener("timeupdate", onTimeUpdate);
+        el.currentTime = 0;
+      };
+      el.addEventListener("timeupdate", onTimeUpdate);
+      el.currentTime = 1e101; // seek past the end → browser computes duration
+    }
+  };
+  return <audio ref={ref} controls src={src} preload="metadata" onLoadedMetadata={handleMeta} className={className} />;
+}
+
 // ── Speaking Partner ──────────────────────────────────────────────────────────
 /** Guided full Part-1 test: 7 connected questions, per-answer feedback, summary. */
 function SpeakingTest() {
@@ -712,7 +738,7 @@ function SpeakingTest() {
             : <button onClick={stopRec} className="px-6 py-3 rounded-full text-white font-semibold animate-pulse" style={{ background: CORAL }}>■ Berhenti Rekam</button>}
           {audio && !recording && (
             <div className="space-y-2">
-              <audio controls src={audio.url} className="mx-auto" />
+              <RecordingPlayer src={audio.url} className="mx-auto" />
               <button onClick={() => test && answer.mutate({ sessionId: test.sessionId, index: idx, question, audioBase64: audio.base64, mimeType: audio.mime, durationSec: audio.dur })} disabled={answer.isPending} className="w-full py-2.5 rounded-lg text-white font-semibold disabled:opacity-60" style={{ background: PURPLE }}>{answer.isPending ? "Menilai…" : "Kirim Jawaban"}</button>
             </div>
           )}
@@ -722,7 +748,7 @@ function SpeakingTest() {
           {audio && (
             <div className={`${card} p-4`}>
               <div className="text-xs font-medium text-slate-500 mb-2">🔊 Dengar jawabanmu</div>
-              <audio controls src={audio.url} className="w-full" />
+              <RecordingPlayer src={audio.url} className="w-full" />
             </div>
           )}
           <div className={`${card} p-5`}>
@@ -817,7 +843,7 @@ function SpeakingPartner({ onBack }: { onBack: () => void }) {
             : <button onClick={stopRec} className="px-6 py-3 rounded-full text-white font-semibold animate-pulse" style={{ background: CORAL }}>■ Berhenti Rekam</button>}
           {audio && !recording && (
             <div className="space-y-2">
-              <audio controls src={audio.url} className="mx-auto" />
+              <RecordingPlayer src={audio.url} className="mx-auto" />
               <button onClick={() => evalS.mutate({ part, question, audioBase64: audio.base64, mimeType: audio.mime, durationSec: audio.dur })} disabled={evalS.isPending} className="w-full py-2.5 rounded-lg text-white font-semibold disabled:opacity-60" style={{ background: PURPLE }}>
                 {evalS.isPending ? "Menilai…" : "Dapatkan Penilaian & Tips"}
               </button>
@@ -848,7 +874,7 @@ function SpeakingResult({ fb, transcript, audioUrl, onAgain, onBack }: { fb: any
       {audioUrl && (
         <div className={`${card} p-4`}>
           <div className="text-xs font-medium text-slate-500 mb-2">🔊 Dengar rekamanmu</div>
-          <audio controls src={audioUrl} className="w-full" />
+          <RecordingPlayer src={audioUrl} className="w-full" />
         </div>
       )}
       <div className={`${card} p-5`}>
