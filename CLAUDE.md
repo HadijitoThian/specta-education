@@ -173,6 +173,13 @@ Mock Test. **Subscription**, billed via Xendit.
   `speakingTestFinish` stores it in feedback.answers) and replayable in the summary
   and History (`SpeakingTestResult`). NOTE: guided-test history sessions store
   `{topic, questions, answers}` — SessionView branches on `feedback.questions`.
+- **Payment reminders (2 layers):** (A) Xendit invoice reminders are enabled on
+  tutor invoices (`invoice_reminder:["email"]`, 3-day window) for anyone who
+  reached a real invoice. (B) Our own free-trial nurture: `tutorReminderScheduler.ts`
+  emails students who tried the taster but never created an invoice and have no
+  active sub — at +1d and +3d, max 2, stop on subscribe. Per-lead dedupe in the
+  `tutor_reminders` table (created in ensureMarketingSchema); candidates via
+  `getTutorReminderCandidates()`, send via `sendTutorReminderEmail` (Resend).
 - **Conversion tracking:** `client/src/lib/googleAds.ts` `fireConversion`. Tutor fires
   `lead` on signup (selfRegister) and `purchase` on a confirmed paid subscription
   (IeltsTutor polls status after `?paid=1` then fires with the plan value). Dormant

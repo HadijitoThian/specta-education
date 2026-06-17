@@ -126,8 +126,8 @@ export async function createTutorInvoice(params: {
       email: params.customerEmail,
       ...(params.customerPhone ? { mobile_number: params.customerPhone } : {}),
     },
-    customer_notification_preference: { invoice_created: ["email"], invoice_paid: ["email"] },
-    invoice_duration: 86400,
+    customer_notification_preference: { invoice_created: ["email"], invoice_reminder: ["email"], invoice_paid: ["email"] },
+    invoice_duration: 259200, // 3 days — gives Xendit's reminder time to fire
     ...(params.successRedirectUrl ? { success_redirect_url: params.successRedirectUrl } : {}),
     ...(params.failureRedirectUrl ? { failure_redirect_url: params.failureRedirectUrl } : {}),
   };

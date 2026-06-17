@@ -235,6 +235,7 @@ import { startTutorImages } from "./tutorImages";
 import { crmJourneyRouter } from "./crmJourneyRouter";
 import { sosmedRouter } from "./sosmedRouter";
 import { startCrmReportScheduler } from "./crmReportScheduler";
+import { startTutorReminderScheduler } from "./tutorReminderScheduler";
 import { startArticleProducerScheduler } from "./articleProducer";
 import { startGrowthInsightsScheduler } from "./growthInsights";
 import { startGoogleAdsScheduler, startGoogleAdsOptimizer } from "./googleAdsApi";
@@ -8000,6 +8001,10 @@ void startAgentScheduler; // keep the import referenced (no-op)
 // CRM parent-report scheduler (NEW, separate from the disabled agents):
 // auto-drafts Sunday evening + auto-sends Monday 09:00 WIB.
 startCrmReportScheduler();
+
+// AI Tutor free-trial nurture: email reminders at +1d / +3d to students who
+// tried the taster but haven't subscribed (dedup via tutor_reminders table).
+startTutorReminderScheduler();
 
 // Article Producer scheduler (SEO/GEO): weekly review-ready blog drafts.
 // OFF unless ARTICLE_PRODUCER_ENABLED=true (no token spend until opted in).

@@ -411,6 +411,14 @@ export async function ensureMarketingSchema(): Promise<void> {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `));
     await db.execute(sql.raw(`
+      CREATE TABLE IF NOT EXISTS tutor_reminders (
+        leadId INT NOT NULL PRIMARY KEY,
+        remindersSent INT NOT NULL DEFAULT 0,
+        lastSentAt TIMESTAMP NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `));
+    await db.execute(sql.raw(`
       CREATE TABLE IF NOT EXISTS geo_snapshots (
         id INT AUTO_INCREMENT PRIMARY KEY,
         query VARCHAR(255) NOT NULL,
@@ -544,6 +552,56 @@ export async function getTutorSubscriptionByInvoice(invoiceId: string): Promise<
   if (!db) return null;
   const [row] = await db.select().from(tutorSubscriptions).where(eq(tutorSubscriptions.xenditInvoiceId, invoiceId)).limit(1);
   return row || null;
+}
+
+/**
+ * Candidates for a "your free trial is done — subscribe" nurture email:
+ * leads who tried the Tutor (have a session) but never created a paid Xendit
+ * invoice and have no currently-active access. People who reached a real Xendit
+ * invoice are handled by Xendit's own invoice reminders, so we exclude them
+ * here to avoid double-nudging. Returns the trial-start anchor + reminders sent.
+ */
+export async function getTutorReminderCandidates(): Promise<
+  Array<{ leadId: number; email: string; name: string | null; anchorAt: Date; remindersSent: number }>
+> {
+  const db = await getDb();
+  if (!db) return [];
+  const rows: any = await db.execute(sql`
+    SELECT l.id AS leadId, l.studentEmail AS email, l.studentName AS name,
+           MIN(ts.createdAt) AS anchorAt,
+           COALESCE(tr.remindersSent, 0) AS remindersSent
+    FROM leads l
+    JOIN tutor_sessions ts ON ts.leadId = l.id
+    LEFT JOIN tutor_reminders tr ON tr.leadId = l.id
+    WHERE l.studentEmail IS NOT NULL AND l.studentEmail <> ''
+      AND COALESCE(tr.remindersSent, 0) < 2
+      AND NOT EXISTS (
+        SELECT 1 FROM tutor_subscriptions s
+        WHERE s.leadId = l.id
+          AND ((s.status = 'active' AND s.expiresAt >= NOW())
+               OR (s.xenditInvoiceId IS NOT NULL AND s.xenditInvoiceId NOT LIKE 'FREE-%'))
+      )
+    GROUP BY l.id, l.studentEmail, l.studentName, tr.remindersSent
+  `);
+  const list: any[] = Array.isArray(rows[0]) ? rows[0] : rows;
+  return (list as any[]).map(r => ({
+    leadId: Number(r.leadId),
+    email: String(r.email),
+    name: r.name ?? null,
+    anchorAt: new Date(r.anchorAt),
+    remindersSent: Number(r.remindersSent ?? 0),
+  }));
+}
+
+/** Upsert the per-lead reminder counter after a nurture email is sent. */
+export async function recordTutorReminderSent(leadId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.execute(sql`
+    INSERT INTO tutor_reminders (leadId, remindersSent, lastSentAt)
+    VALUES (${leadId}, 1, NOW())
+    ON DUPLICATE KEY UPDATE remindersSent = remindersSent + 1, lastSentAt = NOW()
+  `);
 }
 
 export async function countTutorSessions(leadId: number, skill: "speaking" | "writing"): Promise<number> {
