@@ -244,7 +244,8 @@ import { parseAttribution } from "./attribution";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail, sendParentProgressEmail } from "./email";
 import crypto from "crypto";
 import { createProTestInvoice, verifyWebhookToken, generateExternalId, getProTestPrice, getProTestDiscountPrice } from "./xenditService";
-import { sendProAccessLinkEmail, sendPaymentConfirmationEmail } from "./resendService";
+import { sendProAccessLinkEmail, sendPaymentConfirmationEmail, sendPracticeFollowupEmail } from "./resendService";
+import { ENV } from "./_core/env";
 import { autoEnrollContact, processDripEmails, bulkEnrollAllLeads } from "./dripCampaignService";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
@@ -1191,6 +1192,20 @@ Return as JSON:
 
   admin: router({
     ielts: ieltsAdminRouter,
+
+    /** Send the IELTS-practice follow-up DRAFT to yourself (or a given email) for review. */
+    previewPracticeFollowup: protectedProcedure
+      .input(z.object({ to: z.string().email().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Admins only." });
+        }
+        const to = input.to || ctx.user.email;
+        if (!to) throw new TRPCError({ code: "BAD_REQUEST", message: "No email on your account — pass one explicitly." });
+        const ok = await sendPracticeFollowupEmail({ to, name: ctx.user.name || "there", appUrl: ENV.appUrl });
+        if (!ok) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Send failed — check Resend configuration." });
+        return { sent: true, to };
+      }),
 
     getLeads: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== 'admin' && ctx.user.role !== 'general_manager') {

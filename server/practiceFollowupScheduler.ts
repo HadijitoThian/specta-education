@@ -14,10 +14,36 @@ import { sendPracticeFollowupEmail } from "./resendService";
 
 let started = false;
 const BATCH_PER_TICK = 40; // ~40/hour drip
+// Bump this suffix to re-send the preview after editing the email template.
+const PREVIEW_KEY = "practice_followup_preview_v1";
+
+/**
+ * Email ONE copy of the draft to the owner (or PRACTICE_FOLLOWUP_PREVIEW_TO) so
+ * they can review before going live. Sends once per destination address
+ * (guarded in scheduler_state) — never touches real leads.
+ */
+async function maybeSendPreview() {
+  try {
+    if (!ENV.resendApiKey) return;
+    const to = process.env.PRACTICE_FOLLOWUP_PREVIEW_TO || ENV.ownerEmail;
+    if (!to) return;
+    const { getSchedulerState, setSchedulerState } = await import("./db");
+    if ((await getSchedulerState(PREVIEW_KEY)) === to.toLowerCase()) return;
+    const ok = await sendPracticeFollowupEmail({ to, name: "there", appUrl: ENV.appUrl });
+    if (ok) {
+      await setSchedulerState(PREVIEW_KEY, to.toLowerCase());
+      console.log(`[PracticeFollowup] preview draft emailed to ${to}`);
+    }
+  } catch (e) {
+    console.error("[PracticeFollowup] preview error:", e);
+  }
+}
 
 async function tick() {
   try {
     if (!ENV.resendApiKey) return;
+    // Opt-in: stays OFF until the owner reviews the draft and flips this on.
+    if (process.env.PRACTICE_FOLLOWUP_ENABLED !== "true") return;
     const candidates = await getPracticeFollowupCandidates(BATCH_PER_TICK);
     for (const c of candidates) {
       const ok = await sendPracticeFollowupEmail({ to: c.email, name: c.name, appUrl: ENV.appUrl });
@@ -32,7 +58,9 @@ async function tick() {
 export function startPracticeFollowupScheduler() {
   if (started) return;
   started = true;
-  console.log("[PracticeFollowup] scheduler started (1 email per practice-test taker, ~40/hour).");
+  const on = process.env.PRACTICE_FOLLOWUP_ENABLED === "true";
+  console.log(`[PracticeFollowup] scheduler started (${on ? "LIVE" : "OFF — set PRACTICE_FOLLOWUP_ENABLED=true to send"}; 1 email/taker, ~40/hour).`);
   setInterval(tick, 60 * 60 * 1000); // hourly
   setTimeout(tick, 90 * 1000);       // once shortly after boot
+  setTimeout(maybeSendPreview, 45 * 1000); // email the owner a draft to review
 }
