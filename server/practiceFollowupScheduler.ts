@@ -42,8 +42,8 @@ async function maybeSendPreview() {
 async function tick() {
   try {
     if (!ENV.resendApiKey) return;
-    // Opt-in: stays OFF until the owner reviews the draft and flips this on.
-    if (process.env.PRACTICE_FOLLOWUP_ENABLED !== "true") return;
+    // LIVE by default (owner approved). Kill-switch: PRACTICE_FOLLOWUP_ENABLED=false.
+    if (process.env.PRACTICE_FOLLOWUP_ENABLED === "false") return;
     const candidates = await getPracticeFollowupCandidates(BATCH_PER_TICK);
     for (const c of candidates) {
       const ok = await sendPracticeFollowupEmail({ to: c.email, name: c.name, appUrl: ENV.appUrl });
@@ -58,8 +58,8 @@ async function tick() {
 export function startPracticeFollowupScheduler() {
   if (started) return;
   started = true;
-  const on = process.env.PRACTICE_FOLLOWUP_ENABLED === "true";
-  console.log(`[PracticeFollowup] scheduler started (${on ? "LIVE" : "OFF — set PRACTICE_FOLLOWUP_ENABLED=true to send"}; 1 email/taker, ~40/hour).`);
+  const off = process.env.PRACTICE_FOLLOWUP_ENABLED === "false";
+  console.log(`[PracticeFollowup] scheduler started (${off ? "PAUSED via PRACTICE_FOLLOWUP_ENABLED=false" : "LIVE"}; 1 email/taker, ~40/hour).`);
   setInterval(tick, 60 * 60 * 1000); // hourly
   setTimeout(tick, 90 * 1000);       // once shortly after boot
   setTimeout(maybeSendPreview, 45 * 1000); // email the owner a draft to review
