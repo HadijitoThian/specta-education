@@ -236,6 +236,7 @@ import { crmJourneyRouter } from "./crmJourneyRouter";
 import { sosmedRouter } from "./sosmedRouter";
 import { startCrmReportScheduler } from "./crmReportScheduler";
 import { startTutorReminderScheduler } from "./tutorReminderScheduler";
+import { startPracticeFollowupScheduler } from "./practiceFollowupScheduler";
 import { startArticleProducerScheduler } from "./articleProducer";
 import { startGrowthInsightsScheduler } from "./growthInsights";
 import { startGoogleAdsScheduler, startGoogleAdsOptimizer } from "./googleAdsApi";
@@ -8005,6 +8006,10 @@ startCrmReportScheduler();
 // AI Tutor free-trial nurture: email reminders at +1d / +3d to students who
 // tried the taster but haven't subscribed (dedup via tutor_reminders table).
 startTutorReminderScheduler();
+
+// IELTS Practice → product follow-up: one email to free-practice takers
+// inviting them to the Mock Test + AI Tutor (dedup via practice_followups).
+startPracticeFollowupScheduler();
 
 // Article Producer scheduler (SEO/GEO): weekly review-ready blog drafts.
 // OFF unless ARTICLE_PRODUCER_ENABLED=true (no token spend until opted in).

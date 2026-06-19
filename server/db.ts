@@ -419,6 +419,13 @@ export async function ensureMarketingSchema(): Promise<void> {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `));
     await db.execute(sql.raw(`
+      CREATE TABLE IF NOT EXISTS practice_followups (
+        email VARCHAR(320) NOT NULL PRIMARY KEY,
+        sentAt TIMESTAMP NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `));
+    await db.execute(sql.raw(`
       CREATE TABLE IF NOT EXISTS geo_snapshots (
         id INT AUTO_INCREMENT PRIMARY KEY,
         query VARCHAR(255) NOT NULL,
@@ -591,6 +598,46 @@ export async function getTutorReminderCandidates(): Promise<
     anchorAt: new Date(r.anchorAt),
     remindersSent: Number(r.remindersSent ?? 0),
   }));
+}
+
+/**
+ * Candidates for the "you tried our free IELTS practice — here's the full Mock
+ * Test + AI Tutor" follow-up: distinct emails that took a practice test, whose
+ * first attempt was ≥1 day ago, and who haven't been emailed yet. Throttled by
+ * `limit` so a backlog drips out gradually (protects sender reputation).
+ */
+export async function getPracticeFollowupCandidates(
+  limit = 40,
+): Promise<Array<{ email: string; name: string | null; anchorAt: Date }>> {
+  const db = await getDb();
+  if (!db) return [];
+  const lim = Math.max(1, Math.min(200, Math.floor(limit)));
+  const rows: any = await db.execute(sql`
+    SELECT LOWER(p.studentEmail) AS email, MAX(p.studentName) AS name, MIN(p.createdAt) AS anchorAt
+    FROM ieltsPracticeResults p
+    LEFT JOIN practice_followups f ON f.email = LOWER(p.studentEmail)
+    WHERE p.studentEmail IS NOT NULL AND p.studentEmail <> '' AND f.email IS NULL
+    GROUP BY LOWER(p.studentEmail)
+    HAVING MIN(p.createdAt) <= (NOW() - INTERVAL 1 DAY)
+    ORDER BY anchorAt ASC
+    LIMIT ${sql.raw(String(lim))}
+  `);
+  const list: any[] = Array.isArray(rows[0]) ? rows[0] : rows;
+  return (list as any[]).map(r => ({
+    email: String(r.email),
+    name: r.name ?? null,
+    anchorAt: new Date(r.anchorAt),
+  }));
+}
+
+/** Mark a practice-test taker as followed-up so they're emailed only once. */
+export async function recordPracticeFollowupSent(email: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.execute(sql`
+    INSERT INTO practice_followups (email, sentAt) VALUES (${email.toLowerCase().trim()}, NOW())
+    ON DUPLICATE KEY UPDATE sentAt = NOW()
+  `);
 }
 
 /** Upsert the per-lead reminder counter after a nurture email is sent. */

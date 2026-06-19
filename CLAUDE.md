@@ -180,6 +180,12 @@ Mock Test. **Subscription**, billed via Xendit.
   active sub — at +1d and +3d, max 2, stop on subscribe. Per-lead dedupe in the
   `tutor_reminders` table (created in ensureMarketingSchema); candidates via
   `getTutorReminderCandidates()`, send via `sendTutorReminderEmail` (Resend).
+- **Practice→product follow-up email:** `practiceFollowupScheduler.ts` sends ONE
+  email to free IELTS-practice takers (`ieltsPracticeResults`) ≥1 day after their
+  first attempt, inviting them to the Mock Test + AI Tutor. Dedupe per email in
+  `practice_followups` table; throttled ~40/hour to protect sender reputation.
+  `getPracticeFollowupCandidates` / `recordPracticeFollowupSent` (db) +
+  `sendPracticeFollowupEmail` (Resend). First email-marketing use of the lead DB.
 - **Conversion tracking:** `client/src/lib/googleAds.ts` `fireConversion`. Tutor fires
   `lead` on signup (selfRegister) and `purchase` on a confirmed paid subscription
   (IeltsTutor polls status after `?paid=1` then fires with the plan value). Dormant

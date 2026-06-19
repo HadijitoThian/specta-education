@@ -273,3 +273,81 @@ export async function sendTutorReminderEmail(params: {
     return false;
   }
 }
+
+/**
+ * Follow-up for someone who took the FREE IELTS practice test: invite them to
+ * the paid full Mock Test and the AI IELTS Tutor. One-time per email.
+ */
+export async function sendPracticeFollowupEmail(params: {
+  to: string;
+  name?: string | null;
+  appUrl: string;
+}): Promise<boolean> {
+  const { to } = params;
+  const name = (params.name || "").trim() || "there";
+  const base = params.appUrl.replace(/\/+$/, "");
+  const mockUrl = `${base}/ielts/mock-test`;
+  const tutorUrl = `${base}/ielts/tutor`;
+  const unsubUrl = `${base}/unsubscribe?email=${encodeURIComponent(to)}`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+    <div style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+      <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:30px;text-align:center;">
+        <h1 style="color:white;margin:0;font-size:22px;">Sudah coba IELTS Practice kami? 🎯</h1>
+        <p style="color:rgba(255,255,255,0.9);margin:8px 0 0;font-size:13px;">Langkah selanjutnya menuju band impianmu</p>
+      </div>
+      <div style="padding:32px;">
+        <p style="color:#374151;font-size:16px;line-height:1.6;margin:0 0 14px;">Hai <strong>${name}</strong>! 👋</p>
+        <p style="color:#374151;font-size:14px;line-height:1.6;margin:0 0 24px;">
+          Terima kasih sudah mencoba <strong>latihan IELTS gratis</strong> di SpecTa. Kalau kamu serius mengejar target band, ini dua cara untuk lanjut:
+        </p>
+
+        <!-- Mock Test -->
+        <div style="border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin:0 0 16px;">
+          <h3 style="color:#1e3a8a;margin:0 0 6px;font-size:16px;">📝 Full IELTS Mock Test — Rp 79.000</h3>
+          <p style="color:#6b7280;font-size:13px;line-height:1.6;margin:0 0 14px;">
+            Tes lengkap 4 skill (Listening, Reading, Writing, Speaking), dinilai AI sesuai rubrik IELTS, laporan PDF dikirim ke emailmu. Sekali bayar, tanpa langganan.
+          </p>
+          <a href="${mockUrl}" style="display:inline-block;background:#1d4ed8;color:white;text-decoration:none;padding:11px 24px;border-radius:10px;font-weight:bold;font-size:14px;">Mulai Mock Test →</a>
+        </div>
+
+        <!-- AI Tutor -->
+        <div style="border:1px solid #f5d0e8;border-radius:12px;padding:20px;margin:0 0 8px;background:#fdf2fa;">
+          <h3 style="color:#9d174d;margin:0 0 6px;font-size:16px;">🎤 AI IELTS Tutor — coba gratis</h3>
+          <p style="color:#6b7280;font-size:13px;line-height:1.6;margin:0 0 14px;">
+            Latihan Writing & Speaking tanpa batas dengan feedback instan, band score, contoh jawaban, dan tes Speaking terpandu. Coba 1x gratis — tanpa kartu.
+          </p>
+          <a href="${tutorUrl}" style="display:inline-block;background:#db2777;color:white;text-decoration:none;padding:11px 24px;border-radius:10px;font-weight:bold;font-size:14px;">Coba AI Tutor →</a>
+        </div>
+      </div>
+      <div style="background:#f9fafb;padding:18px 32px;text-align:center;border-top:1px solid #e5e7eb;">
+        <p style="color:#9ca3af;font-size:12px;margin:0 0 6px;">© ${new Date().getFullYear()} SpecTa Education • www.spectaeducation.com</p>
+        <p style="color:#c0c4cc;font-size:11px;margin:0;"><a href="${unsubUrl}" style="color:#c0c4cc;">Berhenti berlangganan email ini</a></p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  try {
+    const response = await fetch(`${RESEND_API_BASE}/emails`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ENV.resendApiKey}` },
+      body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject: "Lanjutkan persiapan IELTS-mu — Mock Test & AI Tutor 🎯", html }),
+    });
+    if (!response.ok) {
+      console.error("[Resend] Practice follow-up failed:", response.status, await response.text());
+      return false;
+    }
+    console.log(`[Resend] Practice follow-up sent to ${to}`);
+    return true;
+  } catch (err) {
+    console.error("[Resend] Practice follow-up error:", err);
+    return false;
+  }
+}
