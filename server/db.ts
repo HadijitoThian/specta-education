@@ -618,8 +618,7 @@ export async function getPracticeFollowupCandidates(
     LEFT JOIN practice_followups f ON f.email = LOWER(p.studentEmail)
     WHERE p.studentEmail IS NOT NULL AND p.studentEmail <> '' AND f.email IS NULL
     GROUP BY LOWER(p.studentEmail)
-    HAVING MIN(p.createdAt) <= (NOW() - INTERVAL 1 DAY)
-    ORDER BY anchorAt ASC
+    ORDER BY MAX(p.createdAt) DESC
     LIMIT ${sql.raw(String(lim))}
   `);
   const list: any[] = Array.isArray(rows[0]) ? rows[0] : rows;
@@ -628,6 +627,21 @@ export async function getPracticeFollowupCandidates(
     name: r.name ?? null,
     anchorAt: new Date(r.anchorAt),
   }));
+}
+
+/**
+ * Atomically claim a practice taker for the follow-up email. Returns true only
+ * for the FIRST caller (row newly inserted) — so the instant on-completion send
+ * and the scheduler can never both email the same person.
+ */
+export async function claimPracticeFollowup(email: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const res: any = await db.execute(sql`
+    INSERT IGNORE INTO practice_followups (email, sentAt) VALUES (${email.toLowerCase().trim()}, NOW())
+  `);
+  const header = Array.isArray(res) ? res[0] : res;
+  return Number(header?.affectedRows ?? 0) === 1;
 }
 
 /** Mark a practice-test taker as followed-up so they're emailed only once. */

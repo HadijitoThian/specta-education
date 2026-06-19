@@ -51,6 +51,7 @@ import {
   updateAppointment,
   createIeltsPracticeResult,
   getAllIeltsPracticeResults,
+  claimPracticeFollowup,
   getIeltsPracticeResultById,
   getIeltsPracticeResultsByEmail,
   createCounselor,
@@ -987,6 +988,18 @@ Return as JSON:
               title: `IELTS Practice Completed: ${studentName}`,
               content: `Student: ${studentName}\nEmail: ${studentEmail}\nPhone: ${studentPhone || 'N/A'}\nSection: ${section}\nEstimated Band: ${parsed.bandScore || 'N/A'}`
             });
+
+            // Strike while hot: email the Mock Test + AI Tutor follow-up right
+            // away (deduped via claim so the scheduler can't also send it).
+            if (process.env.PRACTICE_FOLLOWUP_ENABLED !== "false") {
+              void (async () => {
+                try {
+                  if (await claimPracticeFollowup(studentEmail)) {
+                    await sendPracticeFollowupEmail({ to: studentEmail, name: studentName, appUrl: ENV.appUrl });
+                  }
+                } catch (e) { console.error("[PracticeFollowup] immediate send error:", e); }
+              })();
+            }
 
             return { success: true, data: parsed, resultId: result?.id };
           }
