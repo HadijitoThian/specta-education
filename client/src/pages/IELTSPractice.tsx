@@ -775,6 +775,42 @@ export default function IELTSPractice() {
             )}
           </div>
 
+          {/* Take it further — promote the paid Mock Test + AI Tutor at peak intent */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 mb-8">
+            <div className="text-center mb-5">
+              <h3 className="text-xl font-bold text-gray-900">Ready to push your band higher? 🚀</h3>
+              <p className="text-gray-500 text-sm mt-1">This was just a taster. Here's how to seriously prepare with SpecTa.</p>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {/* Full Mock Test */}
+              <div className="flex flex-col rounded-2xl border border-blue-100 bg-blue-50/50 p-5">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">ONE-OFF · RP 79.000</span>
+                </div>
+                <h4 className="text-lg font-bold text-gray-900 mt-1">📝 Full IELTS Mock Test</h4>
+                <p className="text-sm text-gray-600 mt-1 flex-1">
+                  A complete 4-skill exam, AI-graded to the IELTS band rubric, with a personalised PDF report emailed to you.
+                </p>
+                <a href="/ielts/mock-test" className="mt-4 inline-flex items-center justify-center gap-2 bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-blue-800 transition-all">
+                  Take the Mock Test <ArrowRight className="w-4 h-4" />
+                </a>
+              </div>
+              {/* AI Tutor */}
+              <div className="flex flex-col rounded-2xl border border-pink-100 bg-pink-50/50 p-5">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-bold text-pink-700 bg-pink-100 px-2 py-0.5 rounded-full">UNLIMITED · TRY FREE</span>
+                </div>
+                <h4 className="text-lg font-bold text-gray-900 mt-1">🎤 AI IELTS Tutor</h4>
+                <p className="text-sm text-gray-600 mt-1 flex-1">
+                  Practise Writing &amp; Speaking as much as you want, with instant feedback, band scores, and model answers. First try free.
+                </p>
+                <a href="/ielts/tutor" className="mt-4 inline-flex items-center justify-center gap-2 bg-pink-600 text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-pink-700 transition-all">
+                  Meet your AI Tutor <ArrowRight className="w-4 h-4" />
+                </a>
+              </div>
+            </div>
+          </div>
+
           {/* Actions */}
           <div className="flex flex-wrap gap-4 justify-center">
             <button
