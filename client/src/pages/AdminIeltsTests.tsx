@@ -134,20 +134,24 @@ export default function AdminIeltsTests() {
 
   const createFreePassMut = trpc.admin.ielts.createFreePass.useMutation({
     onSuccess: data => {
-      navigator.clipboard?.writeText(data.url).catch(() => {});
-      alert(
-        `Free-access link created (expires ${new Date(data.expiresAt).toLocaleDateString()}).\n\nCopied to clipboard:\n${data.url}\n\nAnyone who opens it (after signing in) gets a free ${data.testType} attempt.`
-      );
+      copyLink(data.url);
+      setGenLink({
+        title: "Mock Test free-access link",
+        url: data.url,
+        note: `Anyone who opens it (after signing in) gets a free ${data.testType} attempt. Valid until ${new Date(data.expiresAt).toLocaleDateString()}.`,
+      });
     },
     onError: e => alert(`Failed: ${e.message}`),
   });
 
   const createTutorFreePassMut = trpc.admin.ielts.createTutorFreePass.useMutation({
     onSuccess: data => {
-      navigator.clipboard?.writeText(data.url).catch(() => {});
-      alert(
-        `AI Tutor free link created (${data.days} days of access).\n\nCopied to clipboard:\n${data.url}\n\nShare it with anyone — they create a free student account and instantly get unlimited Writing & Speaking practice for ${data.days} days. Reusable until ${new Date(data.linkExpiresAt).toLocaleDateString()}.`
-      );
+      copyLink(data.url);
+      setGenLink({
+        title: `AI Tutor free link (${data.days} days)`,
+        url: data.url,
+        note: `Share with anyone — they make a free student account and get unlimited Writing & Speaking practice for ${data.days} days. Reusable until ${new Date(data.linkExpiresAt).toLocaleDateString()}.`,
+      });
     },
     onError: e => alert(`Failed: ${e.message}`),
   });
@@ -173,6 +177,14 @@ export default function AdminIeltsTests() {
     },
     onError: e => alert(`Failed: ${e.message}`),
   });
+
+  // Last-generated shareable link — shown persistently on the dashboard so it
+  // can be selected/copied/sent (an alert() popup can't be reliably copied).
+  const [genLink, setGenLink] = useState<{ title: string; url: string; note: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const copyLink = (url: string) => {
+    navigator.clipboard?.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }).catch(() => {});
+  };
 
   const [showImport, setShowImport] = useState(false);
   const [jsonText, setJsonText] = useState(SAMPLE_JSON);
@@ -263,6 +275,43 @@ export default function AdminIeltsTests() {
             </button>
           </div>
         </div>
+
+        {/* Generated shareable link — persistent + copyable so it can be sent to a student */}
+        {genLink && (
+          <div className="bg-white border-2 border-emerald-200 rounded-xl p-5 mb-8 shadow-sm">
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <div>
+                <h2 className="font-semibold text-gray-900">🔗 {genLink.title}</h2>
+                <p className="text-xs text-gray-500 mt-0.5">{genLink.note}</p>
+              </div>
+              <button onClick={() => setGenLink(null)} className="text-gray-400 hover:text-gray-700 text-sm shrink-0" title="Dismiss">✕</button>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                readOnly
+                value={genLink.url}
+                onFocus={e => e.currentTarget.select()}
+                onClick={e => e.currentTarget.select()}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono bg-gray-50 text-gray-700"
+              />
+              <button
+                onClick={() => copyLink(genLink.url)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium text-white ${copied ? "bg-green-600" : "bg-emerald-600 hover:bg-emerald-700"}`}
+              >
+                {copied ? "Copied ✓" : "Copy link"}
+              </button>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(genLink.url)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-green-600 hover:bg-green-700 text-white text-center"
+              >
+                Send via WhatsApp
+              </a>
+            </div>
+            <p className="text-[11px] text-gray-400 mt-2">Tip: click the box to select all, then Ctrl/Cmd-C — or use the buttons.</p>
+          </div>
+        )}
 
         {showImport ? (
           <div className="bg-white border border-gray-200 rounded-xl p-6 mb-8">
