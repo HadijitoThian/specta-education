@@ -284,6 +284,32 @@ import {
   getFollowUpActionsByAssignment,
 } from "./db";
 
+/**
+ * Send an aptitude result email reliably: retry a few times with backoff, and
+ * if it still fails, alert the owner so the result can be re-sent manually
+ * (via the admin "Resend result" tool) instead of silently vanishing. Runs in
+ * the background — callers fire-and-forget so the test-submit response is fast.
+ */
+function sendAptitudeResultReliable(params: Parameters<typeof sendAptitudeResultsEmail>[0]): void {
+  void (async () => {
+    const attempts = 3;
+    for (let i = 1; i <= attempts; i++) {
+      try {
+        await sendAptitudeResultsEmail(params);
+        if (i > 1) console.log(`[Aptitude] result email to ${params.to} sent on attempt ${i}`);
+        return;
+      } catch (err) {
+        console.error(`[Aptitude] result email attempt ${i}/${attempts} failed for ${params.to}:`, err);
+        if (i < attempts) await new Promise(r => setTimeout(r, i * 5000));
+      }
+    }
+    notifyOwner({
+      title: "⚠️ Aptitude result email FAILED to send",
+      content: `Could not email the result to ${params.studentName} (${params.to}) after ${attempts} tries. Their result IS saved — resend it from /admin/legacy → Pro Orders → "Resend result".`,
+    }).catch(() => {});
+  })();
+}
+
 const SYSTEM_PROMPT = `You are SpecTa, the friendly AI counselor for SpecTa Education — an Indonesian study abroad consultancy. You genuinely care about each student and want the best for them. You chat like a supportive older sibling, not a search engine.
 
 === CONVERSATION RULES (CRITICAL — FOLLOW STRICTLY) ===
@@ -2784,7 +2810,7 @@ IMPORTANT:
           console.error("[Aptitude] PDF generation failed:", pdfErr);
         }
 
-        sendAptitudeResultsEmail({
+        sendAptitudeResultReliable({
           to: input.studentEmail,
           studentName: input.studentName,
           language: input.language,
@@ -2793,7 +2819,7 @@ IMPORTANT:
           miScores,
           aiAnalysis,
           pdfBuffer: freePdfBuffer,
-        }).catch((err) => console.error("[Aptitude] Failed to send results email:", err));
+        });
 
         return {
           success: true,
@@ -3089,7 +3115,7 @@ IMPORTANT:
         }
 
         // Send premium results email with PDF attachment (isPro = true, no upsell)
-        sendAptitudeResultsEmail({
+        sendAptitudeResultReliable({
           to: input.studentEmail,
           studentName: input.studentName,
           language: input.language,
@@ -3099,7 +3125,7 @@ IMPORTANT:
           aiAnalysis,
           pdfBuffer,
           isPro: true,
-        }).catch((err: Error) => console.error("[AptitudePro] Failed to send results email:", err));
+        });
 
         return {
           success: true,
