@@ -719,6 +719,28 @@ export const ieltsAdminRouter = router({
       };
     }),
 
+  /**
+   * Email a COMPLIMENTARY ready-to-take Mock Test to a specific student — e.g.
+   * a paying customer whose old attempt can no longer be used. Creates a paid
+   * attempt and sends the login-free "Start my test" link. Admin-only.
+   */
+  sendComplimentaryTest: protectedProcedure
+    .input(z.object({
+      email: z.string().email(),
+      name: z.string().max(120).optional(),
+      testType: z.enum(["academic", "general"]).default("academic"),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      assertAdmin(ctx);
+      const { sendComplimentaryMockTest } = await import("./ieltsMockService");
+      try {
+        const r = await sendComplimentaryMockTest({ email: input.email, name: input.name, testType: input.testType });
+        return { sent: true as const, ...r };
+      } catch (e) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message });
+      }
+    }),
+
   /** Live status of the most recent (re)generation for a test code. */
   generationStatus: protectedProcedure
     .input(z.object({ code: z.string().min(1) }))

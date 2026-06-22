@@ -388,6 +388,42 @@ export async function createIeltsMockInvoice(
 }
 
 /**
+ * Admin-side: issue a COMPLIMENTARY ready-to-take Mock Test attempt to a
+ * student email and send the login-free "Start my test" link — e.g. for a
+ * paying customer whose old attempt can no longer be used. No payment, no
+ * login wall; the emailed attemptToken is the credential.
+ */
+export async function sendComplimentaryMockTest(params: {
+  email: string;
+  name?: string;
+  testType?: "academic" | "general";
+}): Promise<{ attemptToken: string; testCode: string; testTitle: string }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const testType = params.testType ?? "academic";
+  const test = await pickRandomPublishedTest(testType);
+  if (!test) throw new Error(`No published ${testType} test is available yet.`);
+
+  const name = (params.name || "").trim() || "there";
+  const attemptToken = nanoid(24);
+  const ownerUserId = await resolveGuestUserId(db, params.email, name);
+
+  await db.insert(ieltsMockAttempts).values({
+    userId: ownerUserId,
+    testId: test.id,
+    attemptToken,
+    paymentRef: `COMP-${nanoid(8)}`,
+    customerName: name,
+    customerEmail: params.email,
+    paidAt: new Date(),
+    status: "ready",
+  });
+
+  await sendTestReadyEmail(params.email, name, attemptToken);
+  return { attemptToken, testCode: test.code, testTitle: test.title };
+}
+
+/**
  * Webhook-side: marks the attempt as paid and ready to take. Called from
  * server/xenditWebhook.ts when an IELTS-MOCK- external_id pays.
  */

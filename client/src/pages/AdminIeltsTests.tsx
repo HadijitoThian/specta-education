@@ -156,6 +156,20 @@ export default function AdminIeltsTests() {
     onError: e => alert(`Failed: ${e.message}`),
   });
 
+  const [compEmail, setCompEmail] = useState("");
+  const [compName, setCompName] = useState("");
+  const sendComplimentaryMut = trpc.admin.ielts.sendComplimentaryTest.useMutation({
+    onSuccess: (data, vars) => {
+      setGenLink({
+        title: "Complimentary Mock Test sent ✓",
+        url: `https://www.spectaeducation.com/ielts/mock-test/take/${data.attemptToken}`,
+        note: `Emailed a free "Start my test" link to ${vars.email} (${data.testTitle}). No login needed — this is also the direct take link.`,
+      });
+      setCompEmail(""); setCompName("");
+    },
+    onError: e => alert(`Failed: ${e.message}`),
+  });
+
   const handleCreateTutorFreeLink = () => {
     const raw = window.prompt("AI Tutor free access — how many days? (7, 14, or 30)", "7");
     if (raw === null) return;
@@ -312,6 +326,39 @@ export default function AdminIeltsTests() {
             <p className="text-[11px] text-gray-400 mt-2">Tip: click the box to select all, then Ctrl/Cmd-C — or use the buttons.</p>
           </div>
         )}
+
+        {/* Email a complimentary Mock Test to a specific student (e.g. a paid customer who lost access) */}
+        <div className="bg-white border border-gray-200 rounded-xl p-5 mb-8">
+          <h2 className="font-semibold text-gray-900">📧 Email a free Mock Test to a student</h2>
+          <p className="text-xs text-gray-500 mt-0.5 mb-3">Creates a complimentary, ready-to-take Academic test and emails them a login-free "Start my test" link. Use this for a paying customer whose old test can't be used.</p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="email"
+              placeholder="student@email.com"
+              value={compEmail}
+              onChange={e => setCompEmail(e.target.value)}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            />
+            <input
+              type="text"
+              placeholder="Name (optional)"
+              value={compName}
+              onChange={e => setCompName(e.target.value)}
+              className="sm:w-48 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            />
+            <button
+              onClick={() => {
+                const email = compEmail.trim();
+                if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { alert("Please enter a valid email."); return; }
+                sendComplimentaryMut.mutate({ email, name: compName.trim() || undefined, testType: "academic" });
+              }}
+              disabled={sendComplimentaryMut.isPending}
+              className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium px-5 py-2 rounded-lg whitespace-nowrap"
+            >
+              {sendComplimentaryMut.isPending ? "Sending…" : "Send free test"}
+            </button>
+          </div>
+        </div>
 
         {showImport ? (
           <div className="bg-white border border-gray-200 rounded-xl p-6 mb-8">
