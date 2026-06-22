@@ -416,6 +416,16 @@ export default function AdminDashboard() {
     onError: (err) => toast.error(`❌ ${err.message}`),
   });
 
+  // Resend a completed aptitude result (report email) by email
+  const [resendResultEmail, setResendResultEmail] = useState("");
+  const resendResultMutation = trpc.aptitude.resendAptitudeResult.useMutation({
+    onSuccess: (data) => {
+      toast.success(`✅ Result re-sent to ${data.name} (${data.email})`);
+      setResendResultEmail("");
+    },
+    onError: (err) => toast.error(`❌ ${err.message}`),
+  });
+
   const copyToClipboard = (token: string) => {
     const url = `${window.location.origin}/test/pro?token=${token}`;
     navigator.clipboard.writeText(url);
@@ -2214,6 +2224,32 @@ export default function AdminDashboard() {
                     className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium px-5 py-2 rounded-lg whitespace-nowrap"
                   >
                     {issueProAccessMutation.isPending ? "Sending…" : "Send access link"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Resend a completed result — for students who finished but never got the email */}
+              <div className="p-4 border-b border-border bg-emerald-50/50">
+                <h3 className="font-semibold text-sm text-gray-900">🔁 Resend a completed aptitude result</h3>
+                <p className="text-xs text-gray-500 mt-0.5 mb-2">Student finished the test but says the result never arrived? Their result is saved — regenerate the PDF and re-email it here.</p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="email"
+                    placeholder="student@email.com"
+                    value={resendResultEmail}
+                    onChange={e => setResendResultEmail(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                  <button
+                    onClick={() => {
+                      const email = resendResultEmail.trim();
+                      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { toast.error("Please enter a valid email."); return; }
+                      resendResultMutation.mutate({ email });
+                    }}
+                    disabled={resendResultMutation.isPending}
+                    className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white text-sm font-medium px-5 py-2 rounded-lg whitespace-nowrap"
+                  >
+                    {resendResultMutation.isPending ? "Sending…" : "Resend result"}
                   </button>
                 </div>
               </div>

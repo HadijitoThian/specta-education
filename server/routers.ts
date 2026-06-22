@@ -3371,6 +3371,34 @@ IMPORTANT:
         if (!sent) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Email failed to send — check Resend config.' });
         return { sent: true as const, email: input.email, url: `${baseUrl}/test/pro?token=${tokenValue}` };
       }),
+    // ---- Admin: resend a completed aptitude RESULT (the report email) ----
+    // For students who finished the test but never received their result email
+    // (the result is saved; the email is sent fire-and-forget and may have
+    // failed or gone to spam). Regenerates the PDF and re-emails it.
+    resendAptitudeResult: protectedProcedure
+      .input(z.object({ email: z.string().email() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
+        const rows = await getAptitudeResultsByEmail(input.email.trim());
+        if (!rows.length) throw new TRPCError({ code: 'NOT_FOUND', message: 'No completed aptitude result found for that email.' });
+        const r = rows[0]; // most recent
+        const parse = (v: any, fallback: any) => { try { return typeof v === 'string' ? JSON.parse(v) : (v ?? fallback); } catch { return fallback; } };
+        const riasecScores = parse(r.riasecScores, {});
+        const miScores = parse(r.miScores, {});
+        const aiAnalysis = parse(r.aiAnalysis, {});
+        const language = (r.language as any) || 'id';
+        const hollandCode = r.hollandCode || '';
+        let pdfBuffer: Buffer | undefined;
+        try {
+          pdfBuffer = await generatePdfReport({ studentName: r.studentName, language, hollandCode, riasecScores, miScores, aiAnalysis, isPro: true });
+        } catch (e) { console.error('[AptitudeResend] PDF generation failed:', e); }
+        try {
+          await sendAptitudeResultsEmail({ to: r.studentEmail, studentName: r.studentName, language, hollandCode, riasecScores, miScores, aiAnalysis, pdfBuffer, isPro: true });
+        } catch (e) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Email failed to send: ${(e as Error).message}` });
+        }
+        return { sent: true as const, email: r.studentEmail, name: r.studentName, completedAt: r.createdAt };
+      }),
   }),
 
   // ==========================================
