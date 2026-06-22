@@ -22,6 +22,7 @@ import BlogManager from "@/components/admin/BlogManager";
 import GrowthDashboard from "@/components/admin/GrowthDashboard";
 import AdsCopilot from "@/components/admin/AdsCopilot";
 import GrowthInsights from "@/components/admin/GrowthInsights";
+import AptitudeManager from "@/components/admin/AptitudeManager";
 
 export default function AdminDashboard() {
   useEffect(() => {
@@ -30,7 +31,7 @@ export default function AdminDashboard() {
 
   const { user, loading, isAuthenticated, logout } = useAuth();
   const isAdmin = user?.role === "admin";
-  const [tab, setTab] = useState<"blog" | "growth" | "ads" | "insights">("blog");
+  const [tab, setTab] = useState<"blog" | "growth" | "ads" | "insights" | "aptitude">("blog");
 
   if (loading) {
     return (
@@ -114,8 +115,11 @@ export default function AdminDashboard() {
           <Button variant={tab === "insights" ? "default" : "outline"} size="sm" onClick={() => setTab("insights")}>
             <Brain className="w-4 h-4 mr-2" /> Insights
           </Button>
+          <Button variant={tab === "aptitude" ? "default" : "outline"} size="sm" onClick={() => setTab("aptitude")}>
+            <Brain className="w-4 h-4 mr-2" /> Tes Bakat (Pro)
+          </Button>
         </div>
-        {tab === "blog" ? <BlogManager /> : tab === "growth" ? <GrowthDashboard /> : tab === "ads" ? <AdsCopilot /> : <GrowthInsights />}
+        {tab === "blog" ? <BlogManager /> : tab === "growth" ? <GrowthDashboard /> : tab === "ads" ? <AdsCopilot /> : tab === "aptitude" ? <AptitudeManager /> : <GrowthInsights />}
       </main>
     </div>
   );
