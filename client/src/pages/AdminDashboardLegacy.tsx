@@ -405,6 +405,17 @@ export default function AdminDashboard() {
     onError: (err) => toast.error(`❌ ${err.message}`),
   });
 
+  // Issue Pro access by email (for pre-migration customers with no order row)
+  const [issueEmail, setIssueEmail] = useState("");
+  const [issueName, setIssueName] = useState("");
+  const issueProAccessMutation = trpc.aptitude.issueProAccessToEmail.useMutation({
+    onSuccess: (data) => {
+      toast.success(`✅ Access link emailed to ${data.email}`);
+      setIssueEmail(""); setIssueName("");
+    },
+    onError: (err) => toast.error(`❌ ${err.message}`),
+  });
+
   const copyToClipboard = (token: string) => {
     const url = `${window.location.origin}/test/pro?token=${token}`;
     navigator.clipboard.writeText(url);
@@ -2174,6 +2185,39 @@ export default function AdminDashboard() {
           {/* ===== PRO ORDERS TAB (Admin Only) ===== */}
           {activeTab === 'proOrders' && user?.role === 'admin' && (
             <div>
+              {/* Issue access by email — for customers who paid before the migration (no order row) */}
+              <div className="p-4 border-b border-border bg-amber-50/50">
+                <h3 className="font-semibold text-sm text-gray-900">📧 Send a Pro Test access link by email</h3>
+                <p className="text-xs text-gray-500 mt-0.5 mb-2">Use this for a customer who paid (e.g. before the migration) but isn't in the orders list below. Mints a fresh single-use link and emails it.</p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="email"
+                    placeholder="customer@email.com"
+                    value={issueEmail}
+                    onChange={e => setIssueEmail(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Name (optional)"
+                    value={issueName}
+                    onChange={e => setIssueName(e.target.value)}
+                    className="sm:w-48 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                  <button
+                    onClick={() => {
+                      const email = issueEmail.trim();
+                      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { toast.error("Please enter a valid email."); return; }
+                      issueProAccessMutation.mutate({ email, name: issueName.trim() || undefined });
+                    }}
+                    disabled={issueProAccessMutation.isPending}
+                    className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium px-5 py-2 rounded-lg whitespace-nowrap"
+                  >
+                    {issueProAccessMutation.isPending ? "Sending…" : "Send access link"}
+                  </button>
+                </div>
+              </div>
+
               {/* Revenue Summary Cards */}
               {!proOrdersLoading && proOrdersData && (
                 <div className="p-4 border-b border-border">

@@ -3356,6 +3356,21 @@ IMPORTANT:
         const sent = await sendProAccessLinkEmail({ to: order.customerEmail, customerName: order.customerName, token: tokenValue, baseUrl });
         return { success: sent, email: order.customerEmail };
       }),
+    // ---- Admin: issue Pro access by EMAIL (no existing order needed) ----
+    // For customers who paid before the migration, whose order row isn't in the
+    // current DB. Mints a fresh single-use token and emails the access link.
+    issueProAccessToEmail: protectedProcedure
+      .input(z.object({ email: z.string().email(), name: z.string().max(120).optional() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
+        const tokenValue = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        await createAccessTokens([{ token: tokenValue, status: 'unused', expiresAt }]);
+        const baseUrl = ENV.appUrl?.replace(/\/+$/, '') || 'https://www.spectaeducation.com';
+        const sent = await sendProAccessLinkEmail({ to: input.email, customerName: input.name || 'there', token: tokenValue, baseUrl });
+        if (!sent) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Email failed to send — check Resend config.' });
+        return { sent: true as const, email: input.email, url: `${baseUrl}/test/pro?token=${tokenValue}` };
+      }),
   }),
 
   // ==========================================
