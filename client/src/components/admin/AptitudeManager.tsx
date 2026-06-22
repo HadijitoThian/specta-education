@@ -23,6 +23,14 @@ export default function AptitudeManager() {
   const [accessName, setAccessName] = useState("");
   const [resendEmail, setResendEmail] = useState("");
 
+  // Read-only "did this student complete the test?" lookup
+  const [lookupInput, setLookupInput] = useState("");
+  const [lookupEmail, setLookupEmail] = useState<string | null>(null);
+  const lookup = trpc.aptitude.lookupAptitudeResult.useQuery(
+    { email: lookupEmail || "" },
+    { enabled: !!lookupEmail },
+  );
+
   const issueAccess = trpc.aptitude.issueProAccessToEmail.useMutation({
     onSuccess: d => { toast.success(`✅ Access link emailed to ${d.email}`); setAccessEmail(""); setAccessName(""); },
     onError: e => toast.error(`❌ ${e.message}`),
@@ -49,6 +57,50 @@ export default function AptitudeManager() {
       <div>
         <h2 className="text-xl font-bold text-gray-900">🧠 Tes Bakat AI Pro</h2>
         <p className="text-sm text-gray-500">Orders, access links, and result re-sends for the aptitude test.</p>
+      </div>
+
+      {/* Read-only lookup: did this student complete the test? */}
+      <div className="bg-white border border-gray-200 rounded-xl p-5">
+        <h3 className="font-semibold text-sm text-gray-900">🔍 Check if a student completed the test</h3>
+        <p className="text-xs text-gray-500 mt-0.5 mb-3">Read-only — looks up saved results by email. Sends nothing.</p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            type="email"
+            placeholder="student@email.com"
+            value={lookupInput}
+            onChange={e => setLookupInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && emailValid(lookupInput.trim())) setLookupEmail(lookupInput.trim()); }}
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          />
+          <button
+            onClick={() => { if (!emailValid(lookupInput.trim())) return toast.error("Enter a valid email."); setLookupEmail(lookupInput.trim()); }}
+            className="bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium px-5 py-2 rounded-lg whitespace-nowrap"
+          >Check</button>
+        </div>
+        {lookupEmail && (
+          <div className="mt-3 text-sm">
+            {lookup.isLoading ? (
+              <span className="text-gray-400 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Checking…</span>
+            ) : !lookup.data?.found ? (
+              <div className="text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                ❌ No completed test found for <strong>{lookupEmail}</strong>. She likely didn't finish, or used a different email.
+              </div>
+            ) : (
+              <div className="text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                ✅ Found <strong>{lookup.data.count}</strong> completed test{lookup.data.count > 1 ? "s" : ""} for {lookupEmail}:
+                <ul className="mt-1 ml-4 list-disc text-gray-700">
+                  {lookup.data.results.map(r => (
+                    <li key={r.id}>
+                      {r.name} · {r.completedAt ? new Date(r.completedAt).toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
+                      {r.hollandCode ? ` · Holland ${r.hollandCode}` : ""}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-gray-500 mt-1">Use "Resend result" above to email it to her.</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Support tools */}

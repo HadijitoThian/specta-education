@@ -3397,6 +3397,24 @@ IMPORTANT:
         if (!sent) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Email failed to send — check Resend config.' });
         return { sent: true as const, email: input.email, url: `${baseUrl}/test/pro?token=${tokenValue}` };
       }),
+    // ---- Admin: check whether a student completed the test (read-only) ----
+    lookupAptitudeResult: protectedProcedure
+      .input(z.object({ email: z.string().email() }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
+        const rows = await getAptitudeResultsByEmail(input.email.trim());
+        return {
+          found: rows.length > 0,
+          count: rows.length,
+          results: rows.map(r => ({
+            id: r.id,
+            name: r.studentName,
+            hollandCode: r.hollandCode || null,
+            completedAt: r.createdAt,
+          })),
+        };
+      }),
+
     // ---- Admin: resend a completed aptitude RESULT (the report email) ----
     // For students who finished the test but never received their result email
     // (the result is saved; the email is sent fire-and-forget and may have
