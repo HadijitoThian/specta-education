@@ -181,17 +181,6 @@ export default function AdminIeltsTests() {
     createTutorFreePassMut.mutate({ days });
   };
 
-  const fixQ2731Mut = trpc.admin.ielts.fixReadingResearcherMatching.useMutation({
-    onSuccess: data => {
-      utils.admin.ielts.list.invalidate();
-      alert(
-        `Q27-31 updated: ${data.updated} question(s) set to researcher-matching.\nPeople: ${data.people.join(", ")}` +
-          (data.errors.length ? `\nNotes: ${data.errors.join(" | ")}` : "")
-      );
-    },
-    onError: e => alert(`Failed: ${e.message}`),
-  });
-
   // Last-generated shareable link — shown persistently on the dashboard so it
   // can be selected/copied/sent (an alert() popup can't be reliably copied).
   const [genLink, setGenLink] = useState<{ title: string; url: string; note: string } | null>(null);
@@ -556,23 +545,6 @@ export default function AdminIeltsTests() {
                           {regenerateTextMut.isPending
                             ? "Regenerating text…"
                             : "Regenerate text (no audio)"}
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            if (
-                              confirm(
-                                `Fix ONLY Reading Q27-31 for "${t.code}" into researcher-matching (A-F)? Nothing else changes — passage text and all other questions stay exactly as they are.`
-                              )
-                            ) {
-                              fixQ2731Mut.mutate({ code: t.code });
-                            }
-                          }}
-                          disabled={fixQ2731Mut.isPending}
-                          className="text-xs text-orange-700 hover:text-orange-900 underline font-semibold"
-                          title="Surgically rewrite only Reading questions 27-31 as researcher-matching; everything else untouched"
-                        >
-                          {fixQ2731Mut.isPending ? "Fixing Q27-31…" : "Fix Q27-31"}
                         </button>
 
                         <button
