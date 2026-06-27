@@ -245,7 +245,7 @@ import { parseAttribution } from "./attribution";
 import { sendEmail, sendDocumentNotificationEmail, sendStaffWelcomeEmail, sendPasswordResetEmail, sendCounselorAssignmentEmail, sendStudentNotificationEmail, sendAptitudeResultsEmail, sendLeadNotificationEmail, sendParentProgressEmail } from "./email";
 import crypto from "crypto";
 import { createProTestInvoice, verifyWebhookToken, generateExternalId, getProTestPrice, getProTestDiscountPrice } from "./xenditService";
-import { sendProAccessLinkEmail, sendPaymentConfirmationEmail, sendPracticeFollowupEmail } from "./resendService";
+import { sendProAccessLinkEmail, sendPaymentConfirmationEmail, sendPracticeFollowupEmail, sendIeltsPracticeResultEmail } from "./resendService";
 import { ENV } from "./_core/env";
 import { autoEnrollContact, processDripEmails, bulkEnrollAllLeads } from "./dripCampaignService";
 import bcrypt from "bcryptjs";
@@ -306,6 +306,29 @@ function sendAptitudeResultReliable(params: Parameters<typeof sendAptitudeResult
     notifyOwner({
       title: "⚠️ Aptitude result email FAILED to send",
       content: `Could not email the result to ${params.studentName} (${params.to}) after ${attempts} tries. Their result IS saved — resend it from /admin/legacy → Pro Orders → "Resend result".`,
+    }).catch(() => {});
+  })();
+}
+
+/**
+ * Send the IELTS Practice result email reliably (the result is email-only now,
+ * so a dropped email = the student gets nothing). 3 background retries, then
+ * alert the owner so it can be re-sent.
+ */
+function sendIeltsPracticeResultReliable(params: Parameters<typeof sendIeltsPracticeResultEmail>[0]): void {
+  void (async () => {
+    for (let i = 1; i <= 3; i++) {
+      try {
+        const ok = await sendIeltsPracticeResultEmail(params);
+        if (ok) return;
+      } catch (err) {
+        console.error(`[IeltsPractice] result email attempt ${i}/3 failed for ${params.to}:`, err);
+      }
+      if (i < 3) await new Promise(r => setTimeout(r, i * 5000));
+    }
+    notifyOwner({
+      title: "⚠️ IELTS Practice result email FAILED",
+      content: `Could not email the ${params.section} practice result to ${params.studentName || ""} (${params.to}) after 3 tries. Their result IS saved in the DB.`,
     }).catch(() => {});
   })();
 }
@@ -1015,19 +1038,16 @@ Return as JSON:
               content: `Student: ${studentName}\nEmail: ${studentEmail}\nPhone: ${studentPhone || 'N/A'}\nSection: ${section}\nEstimated Band: ${parsed.bandScore || 'N/A'}`
             });
 
-            // Strike while hot: email the Mock Test + AI Tutor follow-up right
-            // away (deduped via claim so the scheduler can't also send it).
+            // Results are EMAIL-ONLY (not shown on screen) — send the result
+            // reliably. This email also carries the Mock Test + AI Tutor promo,
+            // so we mark the lead "claimed" to stop the follow-up scheduler from
+            // sending a duplicate promo email (one email, not two).
+            sendIeltsPracticeResultReliable({ to: studentEmail, studentName, section, result: parsed, appUrl: ENV.appUrl });
             if (process.env.PRACTICE_FOLLOWUP_ENABLED !== "false") {
-              void (async () => {
-                try {
-                  if (await claimPracticeFollowup(studentEmail)) {
-                    await sendPracticeFollowupEmail({ to: studentEmail, name: studentName, appUrl: ENV.appUrl });
-                  }
-                } catch (e) { console.error("[PracticeFollowup] immediate send error:", e); }
-              })();
+              claimPracticeFollowup(studentEmail).catch(() => {});
             }
 
-            return { success: true, data: parsed, resultId: result?.id };
+            return { success: true, resultId: result?.id };
           }
           return { success: false, error: "Failed to score answers" };
         } catch (error) {

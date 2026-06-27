@@ -275,6 +275,102 @@ export async function sendTutorReminderEmail(params: {
 }
 
 /**
+ * Send a student their FREE IELTS Practice result (band + feedback) by email.
+ * The on-screen result is intentionally hidden, so this email IS the result —
+ * it also carries the Mock Test + AI Tutor promo.
+ */
+export async function sendIeltsPracticeResultEmail(params: {
+  to: string;
+  studentName?: string | null;
+  section: string;
+  result: any;
+  appUrl: string;
+}): Promise<boolean> {
+  const { to, section } = params;
+  const name = (params.studentName || "").trim() || "there";
+  const r = params.result || {};
+  const base = params.appUrl.replace(/\/+$/, "");
+  const mockUrl = `${base}/ielts/mock-test`;
+  const tutorUrl = `${base}/ielts/tutor`;
+  const unsubUrl = `${base}/unsubscribe?email=${encodeURIComponent(to)}`;
+  const sectionLabel = section.charAt(0).toUpperCase() + section.slice(1);
+  const band = r.bandScore != null ? String(r.bandScore) : "—";
+  const overall = r.overallFeedback || r.feedback || "Great effort — keep practising to improve your band!";
+  const correctLine = (r.correctCount != null && r.totalQuestions != null)
+    ? `<p style="margin:0 0 14px 0;color:#475569;font-size:14px;">Score: <strong>${r.correctCount}/${r.totalQuestions}</strong> correct</p>` : "";
+  const liItems = (arr: any) => Array.isArray(arr) ? arr.map((s: string) => `<li>${String(s)}</li>`).join("") : "";
+  const strengths = liItems(r.strengths);
+  const improvements = liItems(r.improvements);
+  const criteria = r.criteria && typeof r.criteria === "object"
+    ? Object.entries(r.criteria).map(([k, v]: [string, any]) => `<li><strong>${k.replace(/([A-Z])/g, " $1").trim()}:</strong> ${v?.band ?? "—"} — ${v?.feedback ?? ""}</li>`).join("") : "";
+
+  const html = `
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+    <div style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+      <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:30px;text-align:center;">
+        <h1 style="color:white;margin:0;font-size:22px;">Hasil Latihan IELTS — ${sectionLabel}</h1>
+        <p style="color:rgba(255,255,255,0.9);margin:6px 0 0;font-size:13px;">Your IELTS Practice Result</p>
+      </div>
+      <div style="padding:32px;">
+        <p style="color:#374151;font-size:15px;margin:0 0 16px;">Hai <strong>${name}</strong> 👋 — ini hasil latihanmu:</p>
+        <div style="text-align:center;margin:0 0 20px;">
+          <div style="display:inline-block;background:#eef2ff;border-radius:16px;padding:16px 28px;">
+            <div style="font-size:12px;color:#6366f1;text-transform:uppercase;letter-spacing:1px;">Estimated Band</div>
+            <div style="font-size:44px;font-weight:800;color:#4338ca;line-height:1;">${band}</div>
+          </div>
+        </div>
+        ${correctLine}
+        <div style="background:#f9fafb;border-radius:12px;padding:16px;margin:0 0 16px;">
+          <h3 style="margin:0 0 8px;font-size:14px;color:#374151;">AI Feedback</h3>
+          <p style="margin:0;color:#475569;font-size:13px;line-height:1.6;">${overall}</p>
+        </div>
+        ${criteria ? `<div style="margin:0 0 16px;"><h3 style="font-size:14px;color:#374151;margin:0 0 6px;">Criteria</h3><ul style="margin:0;padding-left:18px;color:#475569;font-size:13px;line-height:1.7;">${criteria}</ul></div>` : ""}
+        ${strengths ? `<div style="margin:0 0 12px;"><h4 style="color:#15803d;font-size:13px;margin:0 0 4px;">✓ Strengths</h4><ul style="margin:0;padding-left:18px;color:#475569;font-size:13px;line-height:1.6;">${strengths}</ul></div>` : ""}
+        ${improvements ? `<div style="margin:0 0 8px;"><h4 style="color:#b45309;font-size:13px;margin:0 0 4px;">→ Areas to improve</h4><ul style="margin:0;padding-left:18px;color:#475569;font-size:13px;line-height:1.6;">${improvements}</ul></div>` : ""}
+
+        <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
+        <h3 style="font-size:15px;color:#111827;margin:0 0 4px;">Ready to push your band higher? 🚀</h3>
+        <p style="color:#6b7280;font-size:13px;margin:0 0 14px;">This was a free taster. Two ways to seriously prepare:</p>
+        <div style="border:1px solid #dbeafe;border-radius:12px;padding:16px;margin:0 0 12px;">
+          <strong style="color:#1e3a8a;font-size:14px;">📝 Full IELTS Mock Test — Rp 79.000</strong>
+          <p style="color:#6b7280;font-size:13px;margin:6px 0 10px;">A complete 4-skill exam, AI-graded to the IELTS rubric, PDF report emailed to you.</p>
+          <a href="${mockUrl}" style="display:inline-block;background:#1d4ed8;color:white;text-decoration:none;padding:9px 20px;border-radius:8px;font-weight:bold;font-size:13px;">Take the Mock Test →</a>
+        </div>
+        <div style="border:1px solid #fbcfe8;border-radius:12px;padding:16px;background:#fdf2fa;">
+          <strong style="color:#9d174d;font-size:14px;">🎤 AI IELTS Tutor — try free</strong>
+          <p style="color:#6b7280;font-size:13px;margin:6px 0 10px;">Unlimited Writing & Speaking practice with instant feedback. First try free.</p>
+          <a href="${tutorUrl}" style="display:inline-block;background:#db2777;color:white;text-decoration:none;padding:9px 20px;border-radius:8px;font-weight:bold;font-size:13px;">Try the AI Tutor →</a>
+        </div>
+      </div>
+      <div style="background:#f9fafb;padding:16px 32px;text-align:center;border-top:1px solid #e5e7eb;">
+        <p style="color:#9ca3af;font-size:12px;margin:0 0 6px;">© ${new Date().getFullYear()} SpecTa Education • www.spectaeducation.com</p>
+        <p style="color:#c0c4cc;font-size:11px;margin:0;"><a href="${unsubUrl}" style="color:#c0c4cc;">Unsubscribe</a></p>
+      </div>
+    </div>
+  </div>
+</body></html>`;
+
+  try {
+    const response = await fetch(`${RESEND_API_BASE}/emails`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ENV.resendApiKey}` },
+      body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject: `Hasil Latihan IELTS-mu (${sectionLabel}) — Band ${band} 🎯`, html }),
+    });
+    if (!response.ok) {
+      console.error("[Resend] IELTS practice result failed:", response.status, await response.text());
+      return false;
+    }
+    console.log(`[Resend] IELTS practice result sent to ${to}`);
+    return true;
+  } catch (err) {
+    console.error("[Resend] IELTS practice result error:", err);
+    return false;
+  }
+}
+
+/**
  * Follow-up for someone who took the FREE IELTS practice test: invite them to
  * the paid full Mock Test and the AI IELTS Tutor. One-time per email.
  */

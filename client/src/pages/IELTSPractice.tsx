@@ -6,7 +6,7 @@ import { BookOpen, PenTool, Headphones, Mic, Clock, AlertTriangle, ArrowLeft, Ar
 import { Streamdown } from "streamdown";
 
 type Section = "reading" | "writing" | "listening" | "speaking";
-type Phase = "register" | "select" | "practice" | "scoring" | "results";
+type Phase = "register" | "select" | "practice" | "scoring" | "emailSent" | "results";
 
 const SECTIONS = [
   { id: "reading" as Section, label: "Reading", icon: BookOpen, color: "from-emerald-500 to-teal-600", bgLight: "bg-emerald-50", textColor: "text-emerald-700", description: "Academic passage with comprehension questions", time: "15 min", questions: "8 questions" },
@@ -103,7 +103,7 @@ export default function IELTSPractice() {
   const scoreMutation = trpc.ieltsPractice.scoreAnswers.useMutation();
 
   const handleRegister = () => {
-    if (!studentInfo.name || !studentInfo.email) return;
+    if (!studentInfo.name.trim() || !studentInfo.email.trim() || !studentInfo.phone.trim()) return;
     setPhase("select");
   };
 
@@ -143,10 +143,8 @@ export default function IELTSPractice() {
       studentPhone: studentInfo.phone || undefined,
     }, {
       onSuccess: (data) => {
-        if (data.success) {
-          setResultData(data.data);
-          setPhase("results");
-        }
+        // Results are emailed, not shown on screen → go to the confirmation.
+        if (data.success) setPhase("emailSent");
       }
     });
   };
@@ -169,7 +167,10 @@ export default function IELTSPractice() {
               IELTS AI Practice
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Start Your Practice Session</h1>
-            <p className="text-gray-600">Enter your details to begin. Your results will be saved and scored by AI.</p>
+            <p className="text-gray-600">Enter your details to begin.</p>
+            <div className="mt-3 inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg text-sm font-medium">
+              📧 Hasil tes akan dikirim ke email kamu / Your result will be sent to your email
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl shadow-xl p-8 space-y-5">
@@ -200,7 +201,7 @@ export default function IELTSPractice() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone (Optional)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">WhatsApp / Phone *</label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
@@ -214,7 +215,7 @@ export default function IELTSPractice() {
             </div>
             <button
               onClick={handleRegister}
-              disabled={!studentInfo.name || !studentInfo.email}
+              disabled={!studentInfo.name.trim() || !studentInfo.email.trim() || !studentInfo.phone.trim()}
               className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 transition-all shadow-lg"
             >
               Continue to Practice →
@@ -684,7 +685,53 @@ export default function IELTSPractice() {
     );
   }
 
-  // ===== RESULTS PHASE =====
+  // ===== EMAIL SENT CONFIRMATION (results are email-only) =====
+  if (phase === "emailSent") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50">
+        <Navigation />
+        <div className="container max-w-xl pt-28 pb-20">
+          <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+            <div className="text-5xl mb-3">📧</div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Your result is on its way!</h1>
+            <p className="text-gray-600">
+              We've emailed your IELTS practice result and feedback to:
+            </p>
+            <p className="font-semibold text-indigo-700 my-2 break-all">{studentInfo.email}</p>
+            <p className="text-sm text-gray-500">
+              Please check your inbox in a few minutes — and your <strong>Spam/Promotions</strong> folder just in case.
+              If the email looks wrong above, you entered it at sign-up; redo the test with the correct email.
+            </p>
+
+            {/* Take it further — promote paid products (this is a promo, not the result) */}
+            <div className="mt-8 text-left">
+              <h3 className="text-lg font-bold text-gray-900 text-center mb-4">Ready to push your band higher? 🚀</h3>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="flex flex-col rounded-2xl border border-blue-100 bg-blue-50/50 p-5">
+                  <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full w-fit mb-2">ONE-OFF · RP 79.000</span>
+                  <h4 className="font-bold text-gray-900">📝 Full Mock Test</h4>
+                  <p className="text-sm text-gray-600 mt-1 flex-1">A complete 4-skill exam, AI-graded, with a PDF report emailed to you.</p>
+                  <a href="/ielts/mock-test" className="mt-3 inline-flex items-center justify-center gap-2 bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-blue-800">Take the Mock Test <ArrowRight className="w-4 h-4" /></a>
+                </div>
+                <div className="flex flex-col rounded-2xl border border-pink-100 bg-pink-50/50 p-5">
+                  <span className="text-xs font-bold text-pink-700 bg-pink-100 px-2 py-0.5 rounded-full w-fit mb-2">UNLIMITED · TRY FREE</span>
+                  <h4 className="font-bold text-gray-900">🎤 AI IELTS Tutor</h4>
+                  <p className="text-sm text-gray-600 mt-1 flex-1">Unlimited Writing & Speaking practice with instant feedback. First try free.</p>
+                  <a href="/ielts/tutor" className="mt-3 inline-flex items-center justify-center gap-2 bg-pink-600 text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-pink-700">Meet your AI Tutor <ArrowRight className="w-4 h-4" /></a>
+                </div>
+              </div>
+            </div>
+
+            <button onClick={() => setPhase("select")} className="mt-8 px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 inline-flex items-center gap-2">
+              <RefreshCw className="w-4 h-4" /> Practice Another Section
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ===== RESULTS PHASE (legacy — no longer reached; results are email-only) =====
   if (phase === "results" && resultData) {
     const sectionConfig = SECTIONS.find(s => s.id === selectedSection);
     
