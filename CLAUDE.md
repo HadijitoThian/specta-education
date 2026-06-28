@@ -370,8 +370,23 @@ a shared whiteboard panel.
 - The plain-text math notation from Week 3 is gone — the prompt now
   mandates proper LaTeX in board equations.
 
-**Coming next** (per the 10-week plan): student drawing layer over the
-board + diagram templates (Week 5), voice pipeline (Week 6 — Deepgram →
+**Week 5 (shipped):** student drawing + diagram templates.
+- New board command types the AI can emit and we render as SVG:
+  - `number_line` (signed-number ranges, intervals, inequalities)
+  - `triangle` (auto-laid-out from side lengths via law of cosines; side +
+    angle labels)
+  - `axes` (Cartesian grid with points/lines/function plots; linear and
+    quadratic functions plotted by sampling ~120 points)
+- System prompt extended with the diagram schemas + "when to use" guidance.
+- New `SketchCanvas` overlay inside the `BoardPanel` content area: pointer
+  events for pen + eraser, colour picker (purple/red/blue/black), undo,
+  clear, and a Sketch toggle (off by default so users can scroll without
+  drawing). Persisted client-side in `localStorage` keyed by `sessionId`
+  (server-side persistence can be added later — v1 doesn't need it).
+- Canvas auto-resizes via `ResizeObserver` as the AI adds new board items,
+  so existing strokes stay anchored to their original positions.
+
+**Coming next** (per the 10-week plan): voice pipeline (Week 6 — Deepgram →
 DeepSeek → ElevenLabs Flash, ~500ms target), pedagogy/RAG over past papers
 (Week 7), then admin + polish.
 

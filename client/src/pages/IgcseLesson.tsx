@@ -69,37 +69,396 @@ function BoardItem({ item }: { item: any }) {
       return <p className="text-sm text-slate-700 mt-2">{item.text}</p>;
     case "equation":
       return <KatexEquation latex={String(item.latex || "")} />;
+    case "number_line":
+      return <NumberLine from={Number(item.from)} to={Number(item.to)} marks={item.marks || []} />;
+    case "triangle":
+      return <Triangle sides={item.sides || {}} labels={item.labels || {}} />;
+    case "axes":
+      return <Axes
+        xRange={item.xRange || [-5, 5]} yRange={item.yRange || [-5, 5]}
+        title={item.title} points={item.points || []} lines={item.lines || []} functions={item.functions || []}
+      />;
     default:
       return null;
   }
 }
 
-function BoardPanel({ items, displayed }: { items: any[]; displayed: number }) {
-  const ref = useRef<HTMLDivElement | null>(null);
+// ── SVG diagram renderers ────────────────────────────────────────────────────
+function NumberLine({ from, to, marks }: { from: number; to: number; marks: any[] }) {
+  if (!isFinite(from) || !isFinite(to) || to <= from) return null;
+  const pad = 30, W = 500, H = 70;
+  const inner = W - 2 * pad;
+  const x = (v: number) => pad + ((v - from) / (to - from)) * inner;
+  const y = H / 2;
+  const ticks: number[] = [];
+  for (let i = Math.ceil(from); i <= Math.floor(to); i++) ticks.push(i);
+  return (
+    <div className="my-3 bg-white rounded-lg border border-slate-100 p-2">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-2xl mx-auto block" aria-label="Number line">
+        <defs>
+          <marker id="nl-arr" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,6 L9,3 z" fill="#334155" />
+          </marker>
+        </defs>
+        <line x1={pad - 8} y1={y} x2={W - pad + 8} y2={y} stroke="#334155" strokeWidth="2" markerEnd="url(#nl-arr)" markerStart="url(#nl-arr)" />
+        {ticks.map(t => (
+          <g key={`tk-${t}`}>
+            <line x1={x(t)} y1={y - 6} x2={x(t)} y2={y + 6} stroke="#94a3b8" strokeWidth="1.5" />
+            <text x={x(t)} y={y + 22} textAnchor="middle" fontSize="11" fill="#64748b">{t}</text>
+          </g>
+        ))}
+        {marks.map((m: any, i: number) => isFinite(Number(m?.x)) ? (
+          <g key={`m-${i}`}>
+            <circle cx={x(Number(m.x))} cy={y} r="5" fill="#7c3aed" />
+            {m.label ? <text x={x(Number(m.x))} y={y - 12} textAnchor="middle" fontSize="12" fill="#7c3aed" fontWeight="600">{String(m.label)}</text> : null}
+          </g>
+        ) : null)}
+      </svg>
+    </div>
+  );
+}
+
+function Triangle({ sides, labels }: { sides: any; labels: any }) {
+  const a = Number(sides?.a), b = Number(sides?.b), c = Number(sides?.c);
+  if (!isFinite(a) || !isFinite(b) || !isFinite(c) || a <= 0 || b <= 0 || c <= 0) return null;
+  if (a + b <= c || a + c <= b || b + c <= a) return null; // triangle inequality
+  // Place A=(0,0), B=(c,0), C from law of cosines: cos A = (b²+c²-a²)/(2bc)
+  const cosA = (b * b + c * c - a * a) / (2 * b * c);
+  const A = Math.acos(Math.max(-1, Math.min(1, cosA)));
+  const Cx = b * Math.cos(A), Cy = b * Math.sin(A);
+  // Fit into a viewBox with padding
+  const minX = Math.min(0, Cx), maxX = Math.max(c, Cx);
+  const minY = 0, maxY = Cy;
+  const pad = 30, BW = 360, BH = 280;
+  const sx = (BW - 2 * pad) / Math.max(0.001, (maxX - minX));
+  const sy = (BH - 2 * pad) / Math.max(0.001, (maxY - minY));
+  const s = Math.min(sx, sy);
+  const ox = (BW - (maxX - minX) * s) / 2 - minX * s;
+  const oy = BH - pad; // y axis points up
+  const px = (vx: number) => ox + vx * s;
+  const py = (vy: number) => oy - vy * s;
+  const A_p = { x: px(0), y: py(0) };
+  const B_p = { x: px(c), y: py(0) };
+  const C_p = { x: px(Cx), y: py(Cy) };
+  const mid = (p: { x: number; y: number }, q: { x: number; y: number }) => ({ x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 });
+  return (
+    <div className="my-3 bg-white rounded-lg border border-slate-100 p-2">
+      <svg viewBox={`0 0 ${BW} ${BH}`} className="w-full max-w-md mx-auto block" aria-label="Triangle">
+        <polygon points={`${A_p.x},${A_p.y} ${B_p.x},${B_p.y} ${C_p.x},${C_p.y}`} fill="#ede9fe" stroke="#7c3aed" strokeWidth="2" />
+        {/* vertex labels */}
+        <text x={A_p.x - 12} y={A_p.y + 16} fontSize="13" fontWeight="700" fill="#5b21b6">A</text>
+        <text x={B_p.x + 6} y={B_p.y + 16} fontSize="13" fontWeight="700" fill="#5b21b6">B</text>
+        <text x={C_p.x - 6} y={C_p.y - 8} fontSize="13" fontWeight="700" fill="#5b21b6">C</text>
+        {/* side labels — a opp A (side BC), b opp B (side AC), c opp C (side AB) */}
+        {labels?.a ? (() => { const m = mid(B_p, C_p); return <text x={m.x + 10} y={m.y} fontSize="12" fill="#334155">{String(labels.a)}</text>; })() : null}
+        {labels?.b ? (() => { const m = mid(A_p, C_p); return <text x={m.x - 26} y={m.y} fontSize="12" fill="#334155">{String(labels.b)}</text>; })() : null}
+        {labels?.c ? (() => { const m = mid(A_p, B_p); return <text x={m.x} y={m.y + 18} fontSize="12" fill="#334155">{String(labels.c)}</text>; })() : null}
+        {/* angle labels at vertices */}
+        {labels?.A ? <text x={A_p.x + 12} y={A_p.y - 8} fontSize="11" fill="#0f172a">{String(labels.A)}</text> : null}
+        {labels?.B ? <text x={B_p.x - 28} y={B_p.y - 8} fontSize="11" fill="#0f172a">{String(labels.B)}</text> : null}
+        {labels?.C ? <text x={C_p.x - 4} y={C_p.y + 14} fontSize="11" fill="#0f172a">{String(labels.C)}</text> : null}
+      </svg>
+    </div>
+  );
+}
+
+function Axes({ xRange, yRange, title, points, lines, functions }: {
+  xRange: [number, number]; yRange: [number, number];
+  title?: string; points: any[]; lines: any[]; functions: any[];
+}) {
+  const [xmin, xmax] = xRange, [ymin, ymax] = yRange;
+  if (!(xmax > xmin) || !(ymax > ymin)) return null;
+  const pad = 30, W = 360, H = 360;
+  const x = (vx: number) => pad + ((vx - xmin) / (xmax - xmin)) * (W - 2 * pad);
+  const y = (vy: number) => H - pad - ((vy - ymin) / (ymax - ymin)) * (H - 2 * pad);
+  const xticks: number[] = [];
+  for (let i = Math.ceil(xmin); i <= Math.floor(xmax); i++) xticks.push(i);
+  const yticks: number[] = [];
+  for (let i = Math.ceil(ymin); i <= Math.floor(ymax); i++) yticks.push(i);
+  const colors = ["#7c3aed", "#db2777", "#0ea5e9", "#16a34a", "#ea580c"];
+  const samples = (fn: (vx: number) => number, count = 120) => {
+    const pts: string[] = []; let prev: { x: number; y: number } | null = null;
+    for (let i = 0; i <= count; i++) {
+      const vx = xmin + (i / count) * (xmax - xmin);
+      const vy = fn(vx);
+      if (!isFinite(vy) || vy < ymin - 1e6 || vy > ymax + 1e6) { prev = null; continue; }
+      const px = x(vx), py = y(Math.max(ymin, Math.min(ymax, vy)));
+      pts.push(prev ? `L ${px} ${py}` : `M ${px} ${py}`);
+      prev = { x: px, y: py };
+    }
+    return pts.join(" ");
+  };
+  return (
+    <div className="my-3 bg-white rounded-lg border border-slate-100 p-2">
+      {title ? <div className="text-xs text-center text-slate-500 mb-1">{String(title)}</div> : null}
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-md mx-auto block" aria-label="Axes">
+        {/* grid */}
+        {xticks.map(t => <line key={`gv-${t}`} x1={x(t)} y1={pad} x2={x(t)} y2={H - pad} stroke="#f1f5f9" strokeWidth="1" />)}
+        {yticks.map(t => <line key={`gh-${t}`} x1={pad} y1={y(t)} x2={W - pad} y2={y(t)} stroke="#f1f5f9" strokeWidth="1" />)}
+        {/* axes — only draw if 0 is in range */}
+        {xmin <= 0 && xmax >= 0 ? <line x1={x(0)} y1={pad} x2={x(0)} y2={H - pad} stroke="#94a3b8" strokeWidth="1.5" /> : null}
+        {ymin <= 0 && ymax >= 0 ? <line x1={pad} y1={y(0)} x2={W - pad} y2={y(0)} stroke="#94a3b8" strokeWidth="1.5" /> : null}
+        {/* x-axis ticks */}
+        {xticks.map(t => (t !== 0 ? (
+          <g key={`xt-${t}`}>
+            <line x1={x(t)} y1={y(0) - 3} x2={x(t)} y2={y(0) + 3} stroke="#94a3b8" />
+            <text x={x(t)} y={y(0) + 14} textAnchor="middle" fontSize="9" fill="#64748b">{t}</text>
+          </g>
+        ) : null))}
+        {yticks.map(t => (t !== 0 ? (
+          <g key={`yt-${t}`}>
+            <line x1={x(0) - 3} y1={y(t)} x2={x(0) + 3} y2={y(t)} stroke="#94a3b8" />
+            <text x={x(0) - 6} y={y(t) + 3} textAnchor="end" fontSize="9" fill="#64748b">{t}</text>
+          </g>
+        ) : null))}
+        {/* lines */}
+        {lines.map((ln: any, i: number) => {
+          const x1 = Number(ln.x1), y1 = Number(ln.y1), x2 = Number(ln.x2), y2 = Number(ln.y2);
+          if (![x1, y1, x2, y2].every(isFinite)) return null;
+          const c = colors[i % colors.length];
+          return (
+            <g key={`ln-${i}`}>
+              <line x1={x(x1)} y1={y(y1)} x2={x(x2)} y2={y(y2)} stroke={c} strokeWidth="2" />
+              {ln.label ? <text x={x((x1 + x2) / 2) + 6} y={y((y1 + y2) / 2) - 4} fontSize="11" fill={c}>{String(ln.label)}</text> : null}
+            </g>
+          );
+        })}
+        {/* functions */}
+        {functions.map((f: any, i: number) => {
+          const c = colors[(i + lines.length) % colors.length];
+          let fn: ((vx: number) => number) | null = null;
+          if (f?.kind === "linear" && isFinite(Number(f.m)) && isFinite(Number(f.c))) {
+            const m = Number(f.m), cc = Number(f.c); fn = (vx: number) => m * vx + cc;
+          } else if (f?.kind === "quadratic" && isFinite(Number(f.a)) && isFinite(Number(f.b)) && isFinite(Number(f.c))) {
+            const a = Number(f.a), b = Number(f.b), cc = Number(f.c); fn = (vx: number) => a * vx * vx + b * vx + cc;
+          }
+          if (!fn) return null;
+          const d = samples(fn);
+          return (
+            <g key={`fn-${i}`}>
+              <path d={d} stroke={c} strokeWidth="2" fill="none" />
+              {f.label ? <text x={W - pad - 8} y={pad + 14 + i * 14} textAnchor="end" fontSize="11" fill={c}>{String(f.label)}</text> : null}
+            </g>
+          );
+        })}
+        {/* points */}
+        {points.map((p: any, i: number) => {
+          const vx = Number(p?.x), vy = Number(p?.y);
+          if (!isFinite(vx) || !isFinite(vy)) return null;
+          return (
+            <g key={`pt-${i}`}>
+              <circle cx={x(vx)} cy={y(vy)} r="4" fill="#7c3aed" />
+              {p.label ? <text x={x(vx) + 6} y={y(vy) - 6} fontSize="11" fill="#5b21b6">{String(p.label)}</text> : null}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// ── Student sketch (canvas overlay) ──────────────────────────────────────────
+type Pt = { x: number; y: number };
+type Stroke = { color: string; width: number; eraser: boolean; points: Pt[] };
+
+function loadStrokes(sessionId: number): Stroke[] {
+  try {
+    const raw = localStorage.getItem(`igcse-sketch-${sessionId}`);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+function saveStrokes(sessionId: number, strokes: Stroke[]) {
+  try { localStorage.setItem(`igcse-sketch-${sessionId}`, JSON.stringify(strokes)); } catch { /* quota */ }
+}
+
+function SketchCanvas({
+  sessionId, contentRef, draw, tool, color, strokes, setStrokes,
+}: {
+  sessionId: number;
+  contentRef: React.RefObject<HTMLDivElement | null>;
+  draw: boolean; tool: "pen" | "eraser"; color: string;
+  strokes: Stroke[]; setStrokes: React.Dispatch<React.SetStateAction<Stroke[]>>;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawingRef = useRef<Stroke | null>(null);
+
+  const drawStroke = (ctx: CanvasRenderingContext2D, s: Stroke) => {
+    if (!s.points.length) return;
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.lineWidth = s.width;
+    if (s.eraser) {
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.strokeStyle = "rgba(0,0,0,1)";
+    } else {
+      ctx.globalCompositeOperation = "source-over";
+      ctx.strokeStyle = s.color;
+    }
+    ctx.beginPath();
+    ctx.moveTo(s.points[0].x, s.points[0].y);
+    for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i].x, s.points[i].y);
+    ctx.stroke();
+  };
+  const redrawAll = () => {
+    const canvas = canvasRef.current; if (!canvas) return;
+    const ctx = canvas.getContext("2d"); if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const s of strokes) drawStroke(ctx, s);
+  };
+
+  // Resize canvas to match the content (AI board grows as new items arrive).
   useEffect(() => {
-    // Autoscroll the board to the latest item as it's revealed.
-    if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+    const content = contentRef.current;
+    const canvas = canvasRef.current;
+    if (!content || !canvas) return;
+    const update = () => {
+      const w = content.offsetWidth, h = content.offsetHeight;
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w; canvas.height = h;
+        redrawAll();
+      }
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(content);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contentRef]);
+
+  // Redraw whenever the strokes array changes (undo/clear/initial-load).
+  useEffect(() => { redrawAll(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [strokes]);
+
+  const getCoords = (e: React.PointerEvent) => {
+    const canvas = canvasRef.current; if (!canvas) return null;
+    const r = canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  };
+  const onDown = (e: React.PointerEvent) => {
+    if (!draw) return;
+    e.preventDefault();
+    const pt = getCoords(e); if (!pt) return;
+    drawingRef.current = {
+      color, eraser: tool === "eraser",
+      width: tool === "eraser" ? 18 : 3,
+      points: [pt],
+    };
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* ignore */ }
+  };
+  const onMove = (e: React.PointerEvent) => {
+    const s = drawingRef.current; if (!s || !draw) return;
+    const pt = getCoords(e); if (!pt) return;
+    s.points.push(pt);
+    const canvas = canvasRef.current; if (!canvas) return;
+    const ctx = canvas.getContext("2d"); if (!ctx) return;
+    drawStroke(ctx, s);
+  };
+  const onUp = () => {
+    const s = drawingRef.current; drawingRef.current = null;
+    if (!s || s.points.length === 0) return;
+    setStrokes(arr => {
+      const next = [...arr, s];
+      saveStrokes(sessionId, next);
+      return next;
+    });
+  };
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className={`absolute top-0 left-0 ${draw ? "cursor-crosshair touch-none" : ""}`}
+      style={{ pointerEvents: draw ? "auto" : "none" }}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
+    />
+  );
+}
+
+function BoardPanel({ items, displayed, sessionId }: { items: any[]; displayed: number; sessionId: number }) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const [strokes, setStrokes] = useState<Stroke[]>(() => loadStrokes(sessionId));
+  const [draw, setDraw] = useState(false);
+  const [tool, setTool] = useState<"pen" | "eraser">("pen");
+  const [color, setColor] = useState("#7c3aed");
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [displayed]);
+
+  const undo = () => setStrokes(arr => {
+    const next = arr.slice(0, -1);
+    saveStrokes(sessionId, next);
+    return next;
+  });
+  const clearAll = () => {
+    if (!strokes.length) return;
+    if (!confirm("Clear all your sketches?")) return;
+    setStrokes([]); saveStrokes(sessionId, []);
+  };
+
+  const COLORS = ["#7c3aed", "#dc2626", "#0ea5e9", "#0f172a"] as const;
+
   return (
     <div className={`${card} overflow-hidden flex flex-col h-full`}>
-      <div className="px-4 py-2 border-b border-slate-100 bg-slate-50 text-xs font-semibold text-slate-500 flex items-center justify-between">
-        <span>📋 Whiteboard</span>
-        <span className="text-slate-400">{displayed}/{items.length}</span>
+      <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 text-[11px] font-semibold text-slate-500 flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span>📋 Whiteboard</span>
+          <span className="text-slate-400 font-normal">{displayed}/{items.length}</span>
+        </div>
+        <div className="flex items-center gap-1 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setDraw(d => !d)}
+            className={`px-2 py-1 rounded-md ${draw ? "bg-violet-600 text-white" : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"}`}
+            title="Toggle sketching"
+          >
+            ✏️ {draw ? "On" : "Sketch"}
+          </button>
+          {draw && (
+            <>
+              <button type="button" onClick={() => setTool("pen")}
+                className={`px-2 py-1 rounded-md ${tool === "pen" ? "bg-violet-100 text-violet-800" : "text-slate-600 hover:bg-slate-100"}`}>Pen</button>
+              <button type="button" onClick={() => setTool("eraser")}
+                className={`px-2 py-1 rounded-md ${tool === "eraser" ? "bg-violet-100 text-violet-800" : "text-slate-600 hover:bg-slate-100"}`}>Eraser</button>
+              <div className="flex gap-1 ml-1" aria-label="Pen colour">
+                {COLORS.map(c => (
+                  <button key={c} type="button"
+                    onClick={() => { setTool("pen"); setColor(c); }}
+                    aria-label={`Colour ${c}`}
+                    className={`w-5 h-5 rounded-full border-2 ${color === c && tool === "pen" ? "border-slate-700" : "border-transparent hover:border-slate-300"}`}
+                    style={{ background: c }} />
+                ))}
+              </div>
+              <button type="button" onClick={undo} disabled={!strokes.length}
+                className="px-2 py-1 rounded-md text-slate-700 hover:bg-slate-100 disabled:opacity-30" title="Undo last stroke">↶ Undo</button>
+              <button type="button" onClick={clearAll} disabled={!strokes.length}
+                className="px-2 py-1 rounded-md text-slate-700 hover:bg-slate-100 disabled:opacity-30" title="Clear all sketches">Clear</button>
+            </>
+          )}
+        </div>
       </div>
-      <div ref={ref} className="flex-1 overflow-y-auto p-4">
-        {items.length === 0 ? (
-          <div className="h-full grid place-items-center text-center text-slate-400 text-sm">
-            <div>
-              <div className="text-3xl mb-2">✏️</div>
-              <div>The teacher's working will appear here.</div>
-              <div className="text-xs text-slate-300 mt-1">Ask a question to get started.</div>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+        <div ref={contentRef} className="p-4 relative min-h-full">
+          {items.length === 0 ? (
+            <div className="h-full grid place-items-center text-center text-slate-400 text-sm">
+              <div>
+                <div className="text-3xl mb-2">✏️</div>
+                <div>The teacher's working will appear here.</div>
+                <div className="text-xs text-slate-300 mt-1">Ask a question to get started — and toggle <strong>Sketch</strong> to draw on the board yourself.</div>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div>
-            {items.slice(0, displayed).map((item, i) => <BoardItem key={i} item={item} />)}
-          </div>
-        )}
+          ) : (
+            items.slice(0, displayed).map((item, i) => <BoardItem key={i} item={item} />)
+          )}
+          <SketchCanvas
+            sessionId={sessionId} contentRef={contentRef}
+            draw={draw} tool={tool} color={color}
+            strokes={strokes} setStrokes={setStrokes}
+          />
+        </div>
       </div>
     </div>
   );
@@ -239,7 +598,7 @@ export default function IgcseLesson() {
 
           {/* Board column */}
           <div className="overflow-hidden">
-            <BoardPanel items={boardItems} displayed={displayed} />
+            <BoardPanel items={boardItems} displayed={displayed} sessionId={sessionId} />
           </div>
         </div>
       </main>

@@ -287,6 +287,23 @@ Each board command is one of:
   { "type": "text",  "text": "<a short prose label, e.g. 'So we use the quadratic formula'>" }
   { "type": "step",  "n": <integer step number>, "text": "<one-line description of what we're doing this step>" }
   { "type": "equation", "latex": "<a single equation in valid LaTeX, e.g. x^{2} + 5x + 6 = 0>" }
+  { "type": "number_line", "from": <number>, "to": <number>, "marks": [ { "x": <number>, "label": "<short>" }, … ] }
+  { "type": "triangle", "sides": { "a": <number>, "b": <number>, "c": <number> }, "labels": { "a": "<e.g. 3 cm>", "b": "<>", "c": "<>", "A": "<angle at vertex A, e.g. 90°>", "B": "<>", "C": "<>" } }
+  { "type": "axes",
+      "xRange": [<min>, <max>], "yRange": [<min>, <max>],
+      "title": "<optional short>",
+      "points":    [ { "x": <num>, "y": <num>, "label": "<optional>" }, … ],
+      "lines":     [ { "x1": <num>, "y1": <num>, "x2": <num>, "y2": <num>, "label": "<optional>" }, … ],
+      "functions": [ { "kind": "linear",    "m": <num>, "c": <num>, "label": "<optional>" }
+                   | { "kind": "quadratic", "a": <num>, "b": <num>, "c": <num>, "label": "<optional>" }
+                   , … ]
+  }
+
+When to USE diagrams (don't force them, but reach for them when they teach):
+- number_line for inequalities, signed numbers, intervals, set ranges.
+- triangle for trig / Pythagoras / geometry. Side labels include units; angles are degrees.
+- axes for coordinate geometry, plotting linear/quadratic functions, transformations, and "sketch the curve" questions.
+- For function plots, prefer "functions" (we plot exactly); use "lines" for arbitrary segments and "points" to mark intercepts or solutions.
 
 LaTeX rules (IMPORTANT — equations render with KaTeX):
 - Always use proper LaTeX. NEVER write plain "x^2" — write "x^{2}".
