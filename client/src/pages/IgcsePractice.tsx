@@ -74,19 +74,19 @@ export default function IgcsePractice() {
     return list;
   }, [examples.data, topicFilter, marksFilter]);
 
-  // Which difficulty buckets actually have questions in the current topic
-  // filter? — used to grey out (or hide) empty buckets so students don't
-  // click into a dead filter.
-  const availableMarkBuckets = useMemo(() => {
+  // Count questions per difficulty bucket for the current topic filter.
+  // Shown as "(n)" next to each option so students see what's available
+  // without being blocked from clicking an empty bucket.
+  const markBucketCounts = useMemo(() => {
     let scope = examples.data || [];
     if (topicFilter !== "all") scope = scope.filter((e: any) => e.topicCode === topicFilter);
-    const has = { "1-2": false, "3-4": false, "5+": false } as Record<string, boolean>;
+    const c = { "1-2": 0, "3-4": 0, "5+": 0 } as Record<string, number>;
     scope.forEach((e: any) => {
-      if (e.marks <= 2) has["1-2"] = true;
-      else if (e.marks <= 4) has["3-4"] = true;
-      else has["5+"] = true;
+      if (e.marks <= 2) c["1-2"] += 1;
+      else if (e.marks <= 4) c["3-4"] += 1;
+      else c["5+"] += 1;
     });
-    return has;
+    return c;
   }, [examples.data, topicFilter]);
 
   // Group by topicCode
@@ -198,10 +198,10 @@ export default function IgcsePractice() {
               onChange={e => setMarksFilter(e.target.value as any)}
               className="ml-2 border border-slate-300 rounded-md px-2 py-1 text-sm"
             >
-              <option value="all">All</option>
-              <option value="1-2" disabled={!availableMarkBuckets["1-2"]}>1–2 marks (quick){availableMarkBuckets["1-2"] ? "" : " — none yet"}</option>
-              <option value="3-4" disabled={!availableMarkBuckets["3-4"]}>3–4 marks (typical){availableMarkBuckets["3-4"] ? "" : " — none yet"}</option>
-              <option value="5+" disabled={!availableMarkBuckets["5+"]}>5+ marks (harder){availableMarkBuckets["5+"] ? "" : " — none yet"}</option>
+              <option value="all">All ({markBucketCounts["1-2"] + markBucketCounts["3-4"] + markBucketCounts["5+"]})</option>
+              <option value="1-2">1–2 marks (quick) · {markBucketCounts["1-2"]}</option>
+              <option value="3-4">3–4 marks (typical) · {markBucketCounts["3-4"]}</option>
+              <option value="5+">5+ marks (harder) · {markBucketCounts["5+"]}</option>
             </select>
           </label>
           <span className="ml-auto text-xs text-slate-500">{filtered.length} question{filtered.length === 1 ? "" : "s"}</span>
