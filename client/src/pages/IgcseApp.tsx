@@ -34,11 +34,19 @@ const IMG = {
   business:    "/files/igcse/dashboard/subject-business.png",
 };
 
-/** <img> that hides itself if the src 404s — so missing assets degrade gracefully. */
+/** <img> that:
+ *   • appends ?v=<version> from the server's last-regen timestamp so we
+ *     bypass the browser cache after the admin clicks "Regenerate".
+ *   • hides itself if the src 404s, so missing assets degrade gracefully. */
 function SafeImg({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  const ver = trpc.igcse.dashboardImagesVersion.useQuery(undefined, {
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  }).data?.version || 0;
+  const finalSrc = ver > 0 ? `${src}?v=${ver}` : src;
   return (
     <img
-      src={src}
+      src={finalSrc}
       alt={alt}
       className={className}
       loading="lazy"

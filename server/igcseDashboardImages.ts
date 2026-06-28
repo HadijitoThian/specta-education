@@ -168,6 +168,15 @@ export function getDashboardImageProgress(): GenerateProgress | null {
   return progress;
 }
 
+// Last successful regen time — used by the dashboard as a cache-bust token on
+// image URLs (?v=<this>) so freshly-uploaded images appear immediately instead
+// of fighting the browser cache. Memory-only; resets on server restart, which
+// is fine — re-running the admin button bumps it again.
+let lastFinishedAt = 0;
+export function getDashboardImagesVersion(): number {
+  return lastFinishedAt;
+}
+
 /**
  * Generate (or regenerate) the dashboard image set. Idempotent in the sense
  * that it always overwrites the same R2 keys. Updates the in-memory progress
@@ -214,5 +223,12 @@ export async function generateIgcseDashboardImages(opts?: {
   progress.current = undefined;
   progress.state = progress.results.every(r => r.ok) ? "done" : "failed";
   progress.finishedAt = Date.now();
+
+  // Bump the cache-bust token so the dashboard picks up the new images on
+  // its next load (even with the same R2 URLs).
+  if (progress.results.some(r => r.ok)) {
+    lastFinishedAt = progress.finishedAt;
+  }
+
   return progress;
 }

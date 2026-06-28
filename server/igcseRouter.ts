@@ -1285,4 +1285,16 @@ Rules:
     const { getDashboardImageProgress } = await import("./igcseDashboardImages");
     return getDashboardImageProgress();
   }),
+
+  /**
+   * Public: current dashboard-image version (a millisecond timestamp from
+   * the last successful regen). The dashboard appends this as ?v=<n> on
+   * every image URL so freshly-uploaded images bypass the browser cache.
+   * Returns 0 if no run has happened since the last server restart — in
+   * which case URLs stay un-suffixed and standard caching applies.
+   */
+  dashboardImagesVersion: publicProcedure.query(async () => {
+    const { getDashboardImagesVersion } = await import("./igcseDashboardImages");
+    return { version: getDashboardImagesVersion() };
+  }),
 });
