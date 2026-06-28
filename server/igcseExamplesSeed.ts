@@ -391,56 +391,134 @@ const EXAMPLES: Ex[] = [
     question: "A, B, C, D are points on a circle. ABCD is a cyclic quadrilateral. Angle BAD = 78° and angle ABC = 96°.\nFind angle BCD and angle ADC, giving a reason for each.",
     markScheme: "Opposite angles of a cyclic quadrilateral sum to 180° **(B1 for reason)**\nangle BCD = 180 − 78 = **102°  (B1)**\nangle ADC = 180 − 96 = **84°  (B1)**\nStating the reason (cyclic quad opposite angles) is needed for full marks — don't just write the numbers.",
     source: "exam-style" },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 1–2 MARK QUICK QUESTIONS — Paper 2 (Extended) openers / quick wins.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  { topicCode: "1.7", marks: 1,
+    question: "Simplify, leaving your answer as a single power of 5:  5^7 × 5^2",
+    markScheme: "Add the indices when multiplying powers of the same base.\n**5^9  (B1)**",
+    source: "exam-style" },
+
+  { topicCode: "1.7", marks: 2,
+    question: "Evaluate, without a calculator:  25^{1/2} + 27^{1/3}",
+    markScheme: "25^{1/2} = √25 = 5 **(M1)**\n27^{1/3} = ³√27 = 3\nTotal = 5 + 3 = **8  (A1)**",
+    source: "exam-style" },
+
+  { topicCode: "1.4", marks: 2,
+    question: "Write the decimal 0.625 as a fraction in its simplest form.",
+    markScheme: "0.625 = 625/1000 **(M1)** for any fraction equal to 0.625.\nDivide top and bottom by 125: 625/1000 = **5/8  (A1)**",
+    source: "exam-style" },
+
+  { topicCode: "1.11", marks: 2,
+    question: "Write the ratio 24 : 36 in its simplest form.",
+    markScheme: "Common factor of 24 and 36 is 12 (HCF) **(M1)**.\nDivide both by 12: **2 : 3  (A1)**\nA ratio is in simplest form when there is no common factor other than 1.",
+    source: "exam-style" },
+
+  { topicCode: "2.1", marks: 1,
+    question: "Simplify:  5x + 3 + 2x − 7",
+    markScheme: "Collect like terms: (5x + 2x) + (3 − 7) = **7x − 4  (B1)**",
+    source: "exam-style" },
+
+  { topicCode: "2.2", marks: 1,
+    question: "Expand:  3(2x + 5)",
+    markScheme: "Multiply each term inside the bracket by 3.\n**6x + 15  (B1)**",
+    source: "exam-style" },
+
+  { topicCode: "2.6", marks: 2,
+    question: "Factorise fully:  x² − 16",
+    markScheme: "Recognise this as a difference of two squares: a² − b² = (a − b)(a + b) **(M1)**\nHere a = x, b = 4.\n**(x − 4)(x + 4)  (A1)**",
+    source: "exam-style" },
+
+  { topicCode: "6.1", marks: 2,
+    question: "A right-angled triangle has the two shorter sides of length 5 cm and 12 cm. Calculate the length of the hypotenuse.",
+    markScheme: "Use h² = 5² + 12² = 25 + 144 = 169 **(M1)**\nh = √169 = **13 cm  (A1)**\nMemorise 5-12-13 — a common Pythagorean triple.",
+    source: "exam-style" },
+
+  { topicCode: "9.3", marks: 1,
+    question: "State the mode of this set of numbers:  3, 5, 5, 7, 9, 5, 11, 8",
+    markScheme: "Mode = the most frequently occurring value.\n5 appears three times — more than any other.\n**Mode = 5  (B1)**",
+    source: "exam-style" },
+
+  { topicCode: "1.6", marks: 2,
+    question: "Without a calculator, work out:  −8 + (−3) × 4",
+    markScheme: "BIDMAS / BODMAS: multiply BEFORE adding.\n(−3) × 4 = −12 **(M1)**\nThen −8 + (−12) = **−20  (A1)**\nTrap: working left-to-right → (−8 + (−3)) × 4 = −44. WRONG order of operations.",
+    source: "exam-style" },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 5+ MARK LONGER-RESPONSE QUESTIONS — Paper 2 back-end / Paper 4 style.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  { topicCode: "2.6", marks: 6,
+    question: "Consider the equation  2x² + 5x − 3 = 0.\n(a) Calculate the discriminant.\n(b) Hence state how many real solutions the equation has.\n(c) Solve the equation using the quadratic formula, giving exact answers.\n(d) State whether the parabola y = 2x² + 5x − 3 has a minimum or maximum point, and briefly justify.",
+    markScheme: "(a) Discriminant = b² − 4ac = 5² − 4(2)(−3) = 25 + 24 = **49  (M1, A1)**\n(b) Discriminant > 0 → **two distinct real solutions  (B1)**\n(c) x = (−b ± √D) / (2a) = (−5 ± 7) / 4 **(M1)**\n  x = 2/4 = **1/2** or x = −12/4 = **−3**  **(A1)**\n(d) Coefficient of x² (= 2) is **positive**, so the parabola opens UPWARDS → **minimum** point.  **(B1)**\nKey rule: a > 0 → minimum (smile); a < 0 → maximum (frown).",
+    source: "exam-style" },
+
+  { topicCode: "5.5", marks: 5,
+    question: "A solid is made by joining a cone of radius 3 cm and height 4 cm to a cylinder of the same radius and height 10 cm. The cone sits on top of the cylinder.\n(Volume of cone = (1/3)πr²h; volume of cylinder = πr²h.)\n(a) Calculate the total volume of the solid in terms of π.\n(b) The solid is made of metal of density 7.8 g/cm³. Calculate its mass to the nearest gram.",
+    markScheme: "(a) V_cone = (1/3)π(3)²(4) = (1/3)(9)(4)π = 12π **(M1, A1)**\n  V_cyl = π(3)²(10) = 90π **(M1)**\n  **V_total = 102π cm³  (A1)** (= 320.4 cm³ to 1 d.p.)\n(b) Mass = density × volume = 7.8 × 102π = 7.8 × 320.44… **(M1)**\n  Mass ≈ **2499 g (3 s.f.)  (A1 — max 5)**\nNote: \"in terms of π\" means leave π in your answer; don't multiply it out.",
+    source: "exam-style" },
+
+  { topicCode: "6.3", marks: 6,
+    question: "In triangle ABC: AB = 8.0 cm, AC = 6.0 cm, and angle BAC = 70°.\n(a) Calculate the length BC using the cosine rule.\n(b) Calculate the area of triangle ABC.\n(c) Calculate the size of angle ABC using the sine rule.",
+    markScheme: "(a) BC² = b² + c² − 2bc cos A = 6² + 8² − 2(6)(8) cos 70° **(M1)**\n  = 36 + 64 − 96(0.342) = 100 − 32.83 = 67.17 **(M1)**\n  **BC = 8.20 cm (3 s.f.)  (A1)**\n(b) Area = ½ bc sin A = ½ (6)(8) sin 70° = 24 × 0.9397 **(M1)**\n  **Area = 22.6 cm² (3 s.f.)  (A1)**\n(c) sin(ABC)/b = sin A/a → sin(ABC) = 6 sin 70° / 8.20 = 0.6877 **(M1)**\n  **angle ABC = 43.4° (3 s.f.)  (A1 — max 6)**\nAll three sides + one angle: cosine rule first, then sine rule. The largest angle is opposite the largest side.",
+    source: "exam-style" },
+
+  { topicCode: "9.6", marks: 6,
+    question: "A cumulative frequency curve passes through these points (time t in minutes vs cumulative frequency):\n  (0, 0)  (5, 8)  (10, 25)  (15, 60)  (20, 88)  (25, 96)  (30, 100)\n\n(a) State the total number of students timed.\n(b) Estimate the median from the curve.\n(c) Estimate the interquartile range.\n(d) Estimate how many students took LESS than 12 minutes.",
+    markScheme: "(a) Maximum cumulative frequency = **100 students  (B1)**\n(b) Median at CF = 50 → read off → approx **t = 13 minutes  (B1)** (accept 12.5–13.5)\n(c) LQ at CF = 25 → t = 10; UQ at CF = 75 → t ≈ 17.5 **(M1)**\n  IQR = 17.5 − 10 = **7.5 minutes  (A1)**\n(d) At t = 12, read CF off the curve: ≈ 40 **(M1, A1 — max 6)**\nUse N/4 and 3N/4 (not (N+1)/4) for continuous data; estimates should fall within ±1 of the official mark.",
+    source: "exam-style" },
+
+  { topicCode: "8.2", marks: 5,
+    question: "A box contains 5 red balls and 4 blue balls. Three balls are drawn at random WITHOUT replacement.\n(a) Draw or describe a tree diagram for the three draws.\n(b) Calculate the probability that all three balls are the same colour.\n(c) Calculate the probability that exactly two balls are red.",
+    markScheme: "(a) Tree diagram with branches R/B at each stage, with probabilities updating as balls are removed (denominators 9, 8, 7). **(B1)**\n(b) P(RRR) = 5/9 × 4/8 × 3/7 = 60/504 **(M1)**\n  P(BBB) = 4/9 × 3/8 × 2/7 = 24/504 **(M1)**\n  Same colour = sum = 84/504 = **1/6  (A1)**\n(c) Exactly 2 reds = P(RRB) + P(RBR) + P(BRR), each = 5/9 × 4/8 × 4/7 = 80/504 **(M1)**\n  Total = 3 × 80/504 = 240/504 = **10/21  (A1 — max 5)**\nKey: without replacement → denominators decrease (9, 8, 7); 'exactly 2 reds' = sum of all orderings.",
+    source: "exam-style" },
 ];
 
 /**
- * Per-topic incremental seeder. For each topicCode in the EXAMPLES array,
- * if that topic has ZERO existing rows in the table, insert all of its
- * EXAMPLES entries. Topics that already have any rows are left alone so
- * we never duplicate questions or break existing attempt foreign keys.
+ * Per-question incremental seeder.
  *
- * This means: adding a new topic to EXAMPLES on a future deploy will
- * auto-seed it, but adding a 3rd question to an already-seeded topic
- * needs a manual SQL insert (intentional — avoids accidental dupes).
+ * Compares each EXAMPLES entry against rows already in the DB using
+ * (topicCode + first 120 chars of question text) as a stable de-dup key.
+ * Inserts only the ones not already present, so:
+ *   • adding a NEW topic to EXAMPLES → auto-seeds on next deploy
+ *   • adding ADDITIONAL questions to an already-seeded topic → also auto-seeds
+ *   • re-running has no effect (all keys match)
  */
 export async function seedIgcseExamplesIfEmpty(): Promise<{ seeded: number }> {
   const db = await getDb();
   if (!db) return { seeded: 0 };
   try {
-    // Distinct topicCodes already in the table.
-    const existing = await db.execute(sql`SELECT DISTINCT topicCode AS code FROM igcse_examples`);
+    // Build a set of (topicCode + question prefix) keys already in the DB
+    // for non-Physics (Math + any other future subjects sharing this seeder).
+    const existing = await db.execute(sql`SELECT topicCode, question FROM igcse_examples WHERE topicCode NOT LIKE 'P%'`);
     const list: any[] = Array.isArray(existing[0]) ? existing[0] : (existing as any);
-    const seeded = new Set<string>(list.map((r: any) => String(r?.code || "")));
-
-    // Group EXAMPLES by topicCode, then insert only topics not yet present.
-    const byTopic = new Map<string, Ex[]>();
-    EXAMPLES.forEach(e => {
-      const arr = byTopic.get(e.topicCode) || [];
-      arr.push(e);
-      byTopic.set(e.topicCode, arr);
-    });
+    const dedupKey = (code: string, q: string) => `${code}::${q.slice(0, 120)}`;
+    const present = new Set<string>(list.map((r: any) => dedupKey(String(r?.topicCode || ""), String(r?.question || ""))));
 
     const rows: any[] = [];
     let sortOrder = 0;
-    for (const [code, items] of Array.from(byTopic.entries())) {
-      if (seeded.has(code)) continue;
-      for (const e of items) {
-        rows.push({
-          topicCode: e.topicCode,
-          syllabus: "CIE_0580",
-          tier: "extended" as const,
-          marks: e.marks,
-          question: e.question,
-          markScheme: e.markScheme,
-          source: e.source || "exam-style",
-          sortOrder: sortOrder++,
-        });
-      }
+    for (const e of EXAMPLES) {
+      if (present.has(dedupKey(e.topicCode, e.question))) continue;
+      rows.push({
+        topicCode: e.topicCode,
+        syllabus: "CIE_0580",
+        tier: "extended" as const,
+        marks: e.marks,
+        question: e.question,
+        markScheme: e.markScheme,
+        source: e.source || "exam-style",
+        sortOrder: sortOrder++,
+      });
     }
 
-    if (!rows.length) return { seeded: 0 };
+    if (!rows.length) {
+      console.log(`[IGCSE] Math exemplars already complete (${list.length} rows in DB, ${EXAMPLES.length} in seed file).`);
+      return { seeded: 0 };
+    }
     await db.insert(igcseExamples).values(rows);
-    console.log(`[IGCSE] Seeded ${rows.length} new exam exemplars across ${byTopic.size - seeded.size} topics.`);
+    console.log(`[IGCSE] Seeded ${rows.length} new Math exemplars (total now ${list.length + rows.length}).`);
     return { seeded: rows.length };
   } catch (e) {
     console.error("[IGCSE] Exemplar seed failed:", (e as Error).message);
