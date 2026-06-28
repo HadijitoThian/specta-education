@@ -431,7 +431,7 @@ export async function ensureMarketingSchema(): Promise<void> {
     await db.execute(sql.raw(`
       CREATE TABLE IF NOT EXISTS igcse_topics (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        subject ENUM('math','physics') NOT NULL DEFAULT 'math',
+        subject ENUM('math','physics','economics') NOT NULL DEFAULT 'math',
         syllabus VARCHAR(32) NOT NULL DEFAULT 'CIE_0580',
         tier ENUM('core','extended','both') NOT NULL DEFAULT 'extended',
         areaCode VARCHAR(8) NOT NULL,
@@ -552,36 +552,42 @@ export async function ensureMarketingSchema(): Promise<void> {
 }
 
 /**
- * Widen igcse_topics.subject enum from ('math') → ('math','physics') so we
- * can insert Physics rows. Called by the Physics topic seeder before insert.
- * Idempotent: re-running on an already-widened table is a no-op.
+ * Widen igcse_topics.subject enum to include a specific new subject. Idempotent —
+ * inspects SHOW COLUMNS first and skips the ALTER if the target value is already
+ * accepted. Logs the before-state + outcome so we can diagnose from Railway logs.
  *
- * Logs success/failure loudly so we can diagnose from Railway logs.
+ * Called by each subject's topic seeder before insert.
  */
-export async function ensureIgcsePhysicsSubject(): Promise<boolean> {
+async function ensureIgcseSubject(target: "math" | "physics" | "economics"): Promise<boolean> {
   const db = await getDb();
   if (!db) return false;
   try {
-    // Inspect the current column definition. If 'physics' is already allowed,
-    // skip the ALTER entirely.
-    const colRows: any = await db.execute(sql.raw(`
-      SHOW COLUMNS FROM igcse_topics LIKE 'subject'
-    `));
+    const colRows: any = await db.execute(sql.raw(`SHOW COLUMNS FROM igcse_topics LIKE 'subject'`));
     const list: any[] = Array.isArray(colRows[0]) ? colRows[0] : (colRows as any);
     const typeStr = String(list?.[0]?.Type || list?.[0]?.type || "");
-    if (typeStr.includes("'physics'")) {
+    if (typeStr.includes(`'${target}'`)) {
       return true; // already widened
     }
-    console.log(`[IGCSE] Widening igcse_topics.subject from "${typeStr}" to include 'physics'…`);
+    console.log(`[IGCSE] Widening igcse_topics.subject from "${typeStr}" to include '${target}'…`);
+    // We always widen to the full known set so adding a new subject doesn't
+    // accidentally narrow the enum and drop earlier values.
     await db.execute(sql.raw(`
-      ALTER TABLE igcse_topics MODIFY COLUMN subject ENUM('math','physics') NOT NULL DEFAULT 'math'
+      ALTER TABLE igcse_topics MODIFY COLUMN subject ENUM('math','physics','economics') NOT NULL DEFAULT 'math'
     `));
     console.log(`[IGCSE] subject enum widened OK.`);
     return true;
   } catch (e) {
-    console.error("[IGCSE] ensureIgcsePhysicsSubject failed:", (e as Error).message);
+    console.error(`[IGCSE] ensureIgcseSubject('${target}') failed:`, (e as Error).message);
     return false;
   }
+}
+
+export async function ensureIgcsePhysicsSubject(): Promise<boolean> {
+  return ensureIgcseSubject("physics");
+}
+
+export async function ensureIgcseEconomicsSubject(): Promise<boolean> {
+  return ensureIgcseSubject("economics");
 }
 
 /**

@@ -37,9 +37,9 @@ export default function Igcse() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="IGCSE Math & Physics AI Teacher — SpecTa Education"
-        description="Belajar IGCSE Math (Cambridge 0580) dan Physics (0625) Extended bersama AI teacher interaktif. Diskusi suara dua arah, papan tulis digital, jawaban langkah demi langkah."
-        keywords="IGCSE Math, IGCSE Physics, Cambridge 0580, Cambridge 0625, AI teacher, AI tutor IGCSE, IGCSE Indonesia"
+        title="IGCSE Math, Physics & Economics AI Teacher — SpecTa Education"
+        description="Belajar IGCSE Math (0580), Physics (0625) dan Economics (0455) bersama AI teacher interaktif. Diskusi suara dua arah, papan tulis digital, jawaban langkah demi langkah."
+        keywords="IGCSE Math, IGCSE Physics, IGCSE Economics, Cambridge 0580, Cambridge 0625, Cambridge 0455, AI teacher, AI tutor IGCSE, IGCSE Indonesia"
       />
       <Navigation />
 
@@ -50,15 +50,16 @@ export default function Igcse() {
         <div className="absolute -bottom-20 -left-10 w-96 h-96 bg-amber-300/10 rounded-full blur-3xl" />
         <div className="container relative z-10 max-w-5xl mx-auto text-white">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/15 backdrop-blur-sm rounded-full text-sm font-medium mb-5 border border-white/20">
-            <Sparkles className="w-4 h-4" /> Private beta — Cambridge IGCSE · Math + Physics
+            <Sparkles className="w-4 h-4" /> Private beta — Cambridge IGCSE · Math + Physics + Economics
           </div>
           <h1 className="text-4xl md:text-6xl font-extrabold leading-tight mb-5">
-            An AI <span className="text-amber-300">Math &amp; Physics</span> teacher<br />
+            An AI <span className="text-amber-300">IGCSE</span> teacher<br />
             that <em>talks</em>, <em>explains</em>, and <em>writes on the board</em>.
           </h1>
           <p className="text-lg text-white/85 max-w-2xl mb-7 leading-relaxed">
-            Practise IGCSE Math (0580) and Physics (0625) like you would with a private tutor — speak your question,
-            watch the AI work through it step-by-step on a shared digital whiteboard, and sketch your own answers right alongside.
+            Practise IGCSE Math (0580), Physics (0625) and Economics (0455) like you would with a private tutor —
+            speak your question, watch the AI work through it step-by-step on a shared digital whiteboard,
+            and sketch your own answers right alongside.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <Link href="/igcse/app" className="inline-flex items-center gap-2 bg-white text-violet-700 font-bold px-6 py-3 rounded-xl shadow-lg hover:bg-amber-50 transition">
@@ -80,7 +81,7 @@ export default function Igcse() {
             <div className="bg-white rounded-2xl border border-gray-200 p-6">
               <Mic className="w-7 h-7 text-violet-700 mb-3" />
               <h3 className="font-bold text-gray-900 mb-1.5">Speak naturally</h3>
-              <p className="text-sm text-gray-600">Ask "Show me how to solve x² + 5x + 6 = 0" or "Explain Newton's second law" out loud — the AI listens, thinks, and answers in real time, in English or Bahasa.</p>
+              <p className="text-sm text-gray-600">Ask "Show me how to solve x² + 5x + 6 = 0", "Explain Newton's second law", or "What is opportunity cost?" out loud — the AI listens, thinks, and answers in real time, in English or Bahasa.</p>
             </div>
             <div className="bg-white rounded-2xl border border-gray-200 p-6">
               <PenTool className="w-7 h-7 text-violet-700 mb-3" />
@@ -100,7 +101,7 @@ export default function Igcse() {
       <section className="py-16 px-4 bg-slate-50">
         <div className="container max-w-5xl mx-auto">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-violet-50 text-violet-700 text-xs font-semibold rounded-full mb-3">CAMBRIDGE IGCSE · MATH 0580 + PHYSICS 0625 · EXTENDED</div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-violet-50 text-violet-700 text-xs font-semibold rounded-full mb-3">CAMBRIDGE IGCSE · MATH 0580 + PHYSICS 0625 + ECONOMICS 0455</div>
             <h2 className="text-2xl md:text-3xl font-bold">Full syllabus, taught one topic at a time</h2>
             <p className="text-gray-500 mt-2">Mapped directly to Cambridge's published syllabus areas. No filler — every topic is graded the way IGCSE examiners grade.</p>
           </div>
@@ -138,7 +139,7 @@ export default function Igcse() {
             <div className="text-4xl mb-3">🎓</div>
             <h2 className="text-2xl md:text-3xl font-extrabold mb-2">30 minutes free, then Rp 299.000/month</h2>
             <p className="text-white/90 mb-6 max-w-xl mx-auto">
-              Get the full Cambridge IGCSE 0580 (Math) and 0625 (Physics) Extended syllabus, 30 hours of tutoring per month, cancel anytime.
+              Get the full Cambridge IGCSE 0580 (Math), 0625 (Physics) and 0455 (Economics) syllabus, 30 hours of tutoring per month, cancel anytime.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <Link href="/igcse/app" className="inline-flex items-center gap-2 bg-white text-violet-700 font-bold px-6 py-3 rounded-xl shadow hover:bg-amber-50 transition">

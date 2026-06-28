@@ -244,7 +244,7 @@ function Dashboard({ status }: { status: any }) {
 
 // ── Topic picker ─────────────────────────────────────────────────────────────
 function TopicPicker({ disabled, disabledReason }: { disabled?: boolean; disabledReason?: string }) {
-  const [subject, setSubject] = useState<"math" | "physics">("math");
+  const [subject, setSubject] = useState<"math" | "physics" | "economics">("math");
   const topics = trpc.igcse.listTopics.useQuery({ subject }, { staleTime: 5 * 60_000 });
   const [openArea, setOpenArea] = useState<string | null>(null);
   const [lang, setLang] = useState<"en" | "id">("en");
@@ -267,7 +267,10 @@ function TopicPicker({ disabled, disabledReason }: { disabled?: boolean; disable
     return Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
   }, [topics.data]);
 
-  const syllabusLabel = subject === "physics" ? "CAMBRIDGE 0625 · EXTENDED" : "CAMBRIDGE 0580 · EXTENDED";
+  const syllabusLabel =
+    subject === "physics"   ? "CAMBRIDGE 0625 · EXTENDED"
+  : subject === "economics" ? "CAMBRIDGE 0455"
+  :                           "CAMBRIDGE 0580 · EXTENDED";
 
   return (
     <div className={`${card} p-6`}>
@@ -276,8 +279,8 @@ function TopicPicker({ disabled, disabledReason }: { disabled?: boolean; disable
         <span className="text-[11px] font-mono text-violet-700 bg-violet-50 px-2 py-0.5 rounded hidden sm:inline">{syllabusLabel}</span>
       </div>
 
-      {/* Subject toggle: Math vs Physics */}
-      <div className="inline-flex rounded-lg border border-slate-300 overflow-hidden text-sm mb-3" role="group" aria-label="Subject">
+      {/* Subject toggle: Math / Physics / Economics */}
+      <div className="inline-flex rounded-lg border border-slate-300 overflow-hidden text-sm mb-3 flex-wrap" role="group" aria-label="Subject">
         <button type="button" onClick={() => setSubject("math")}
           className={`px-4 py-1.5 font-semibold ${subject === "math" ? "bg-violet-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}>
           📐 Mathematics
@@ -285,6 +288,10 @@ function TopicPicker({ disabled, disabledReason }: { disabled?: boolean; disable
         <button type="button" onClick={() => setSubject("physics")}
           className={`px-4 py-1.5 font-semibold border-l border-slate-300 ${subject === "physics" ? "bg-violet-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}>
           ⚛️ Physics
+        </button>
+        <button type="button" onClick={() => setSubject("economics")}
+          className={`px-4 py-1.5 font-semibold border-l border-slate-300 ${subject === "economics" ? "bg-violet-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}>
+          💹 Economics
         </button>
       </div>
 

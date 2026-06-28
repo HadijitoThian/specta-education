@@ -74,7 +74,7 @@ export const igcseRouter = router({
 
   /** Public: list every seeded IGCSE topic, optionally filtered by subject. */
   listTopics: publicProcedure
-    .input(z.object({ subject: z.enum(["math", "physics"]).optional() }).optional())
+    .input(z.object({ subject: z.enum(["math", "physics", "economics"]).optional() }).optional())
     .query(async ({ input }) => {
       const db = await getDb();
       if (!db) return [];
@@ -311,11 +311,15 @@ export const igcseRouter = router({
             .join("\n\n---\n\n")}\n`
         : "";
 
-      const subject: "math" | "physics" = (topic?.subject === "physics") ? "physics" : "math";
-      const syllabusCode = subject === "physics" ? "0625" : "0580";
-      const subjectIntro = subject === "physics"
-        ? `You are an experienced Cambridge IGCSE Physics tutor for syllabus 0625 (Extended tier).`
-        : `You are an experienced Cambridge IGCSE Mathematics tutor for syllabus 0580 (Extended tier).`;
+      const subject: "math" | "physics" | "economics" =
+        topic?.subject === "physics" ? "physics"
+        : topic?.subject === "economics" ? "economics"
+        : "math";
+      const syllabusCode = subject === "physics" ? "0625" : subject === "economics" ? "0455" : "0580";
+      const subjectIntro =
+        subject === "physics"   ? `You are an experienced Cambridge IGCSE Physics tutor for syllabus 0625 (Extended tier).`
+      : subject === "economics" ? `You are an experienced Cambridge IGCSE Economics tutor for syllabus 0455.`
+      :                           `You are an experienced Cambridge IGCSE Mathematics tutor for syllabus 0580 (Extended tier).`;
       const physicsConventions = subject === "physics" ? `
 PHYSICS-SPECIFIC CONVENTIONS (apply throughout):
 - ALWAYS state SI units in final answers (m, kg, s, N, J, W, A, V, Ω, Pa, Hz, etc.). A numerical answer without units loses the answer mark.
@@ -326,13 +330,32 @@ PHYSICS-SPECIFIC CONVENTIONS (apply throughout):
 - Show working an examiner can mark: write the formula, substitute values, then evaluate.
 - For graphs, the gradient and area under the line usually have physical meaning (e.g. v–t graph: gradient = acceleration, area = distance).
 ` : "";
+      const economicsConventions = subject === "economics" ? `
+ECONOMICS-SPECIFIC CONVENTIONS (apply throughout):
+- Cambridge IGCSE Economics is mostly DEFINITIONS + DIAGRAMS + EVALUATION — almost no calculations.
+- Train the student on COMMAND WORDS — they signal the mark count:
+    "Define" / "State" → 2 marks (give the precise definition; one mark per accurate part).
+    "Identify" / "Give an example" → 1 mark each.
+    "Explain" → 4 marks (define + apply + show cause→effect).
+    "Analyse" → 6 marks (multiple cause→effect chains; use linking words: "this leads to…", "as a result…").
+    "Discuss" / "Evaluate" / "To what extent…" → 8 marks (BOTH SIDES + JUSTIFIED CONCLUSION).
+- Mark scheme uses ASSESSMENT OBJECTIVES (AOs):
+    AO1 Knowledge (state/define)
+    AO2 Application (use the data / context in the question)
+    AO3 Analysis (cause→effect chains)
+    AO4 Evaluation (judgment + conclusion)
+- For an 8-mark "Discuss" question, you MUST give arguments FOR and arguments AGAINST, then conclude. One-sided answers max out around L2.
+- Diagrams are essential — encourage demand/supply diagrams (with shifts vs movements clearly distinguished), PPC diagrams, cost curves. Label axes (price/quantity, etc.), curves (D, S), and equilibria (P*, Q*).
+- Apply economic theory to REAL-WORLD context whenever the question mentions a specific country, industry, or product. Generic answers lose application marks.
+- Use precise terminology: "ceteris paribus", "aggregate demand", "elastic vs inelastic", "real vs nominal", "appreciation vs depreciation". Define jargon when you use it.
+` : "";
 
       const sysPrompt = `${subjectIntro}
 ${topic ? `You are teaching: ${topic.title} (Topic ${topic.code}, Area: ${topic.areaName}).
 
 Cambridge syllabus learning outcomes for this topic:
 ${topic.learningOutcomes || "(general topic — guide the student through key skills.)"}` : `The student hasn't picked a specific topic yet — help them pick one from the IGCSE ${syllabusCode} Extended syllabus.`}
-${physicsConventions}${exemplarsBlock}
+${physicsConventions}${economicsConventions}${exemplarsBlock}
 Your teaching style:
 - Patient, encouraging private tutor. Never condescending.
 - Socratic: ask a question or check understanding BEFORE explaining; let the student think.
@@ -566,11 +589,13 @@ Rules:
   // ────────────────────────────────────────────────────────────────────────────
 
   /** Public: list available exam-practice questions, optionally filtered by
-   *  topic and/or subject. Excludes private user-pasted custom questions. */
+   *  topic and/or subject. Excludes private user-pasted custom questions.
+   *  Subject is inferred from the topicCode prefix:
+   *    "P*" → physics, "E*" → economics, otherwise → math. */
   listExamples: publicProcedure
     .input(z.object({
       topicCode: z.string().max(16).optional(),
-      subject: z.enum(["math", "physics"]).optional(),
+      subject: z.enum(["math", "physics", "economics"]).optional(),
     }).optional())
     .query(async ({ input }) => {
       const db = await getDb();
@@ -578,14 +603,11 @@ Rules:
       const rows = input?.topicCode
         ? await db.select().from(igcseExamples).where(eq(igcseExamples.topicCode, input.topicCode))
         : await db.select().from(igcseExamples);
-      const isPhysicsCode = (code: string) => code.startsWith("P");
+      const subjectOf = (code: string): "physics" | "economics" | "math" =>
+        code.startsWith("P") ? "physics" : code.startsWith("E") ? "economics" : "math";
       return rows
         .filter(r => !String(r.source || "").startsWith("custom-"))
-        .filter(r => {
-          if (!input?.subject) return true;
-          const p = isPhysicsCode(r.topicCode);
-          return input.subject === "physics" ? p : !p;
-        })
+        .filter(r => !input?.subject || subjectOf(r.topicCode) === input.subject)
         .sort((a, b) => a.topicCode.localeCompare(b.topicCode) || a.sortOrder - b.sortOrder)
         .map(r => ({
           id: r.id,
@@ -720,14 +742,20 @@ Rules:
       const history = prior.slice(-30);
 
       const hasOfficialScheme = !!(ex.markScheme && ex.markScheme.trim().length > 0);
-      const isPhysics = String(ex.topicCode || "").startsWith("P");
-      const subjectLabel = isPhysics ? "Physics (0625 Extended)" : "Math (0580 Extended)";
+      const code = String(ex.topicCode || "");
+      const isPhysics = code.startsWith("P");
+      const isEconomics = code.startsWith("E");
+      const subjectLabel = isPhysics ? "Physics (0625 Extended)" : isEconomics ? "Economics (0455)" : "Math (0580 Extended)";
       const sysPrompt = [
         `You are a Cambridge IGCSE ${subjectLabel} exam coach.`,
         "The student is attempting a real exam-style question. Your job is to GUIDE them to the answer, never hand it to them.",
         ...(isPhysics ? [
           "",
           "PHYSICS RULES: insist on SI units in final answers (no units → loses the A mark). Quote answers to 2-3 s.f. Vectors need a direction. Always require: formula → substitution → evaluation.",
+        ] : []),
+        ...(isEconomics ? [
+          "",
+          "ECONOMICS RULES: use Cambridge command-word convention. Make sure the student knows what the command word demands (Define→2, Identify→1, Explain→4, Analyse→6, Discuss/Evaluate→8). For 'Discuss/Evaluate', insist on BOTH SIDES + a justified CONCLUSION — one-sided answers cap at L2. Push for ANALYSIS chains (\"this leads to… because…\") not just lists. For diagram-required questions, ask them to describe the diagram if they can't sketch (axes labelled, curves labelled, equilibrium marked, shifts explained).",
         ] : []),
         "",
         "QUESTION:",
@@ -848,9 +876,12 @@ Rules:
         .orderBy(igcseAttemptSteps.id);
       const history = prior.slice(-20);
 
-      const isPhysicsHint = String(ex.topicCode || "").startsWith("P");
+      const hintCode = String(ex.topicCode || "");
+      const isPhysicsHint = hintCode.startsWith("P");
+      const isEconomicsHint = hintCode.startsWith("E");
+      const subjectLabelHint = isPhysicsHint ? "Physics (0625 Extended)" : isEconomicsHint ? "Economics (0455)" : "Math (0580 Extended)";
       const sysPrompt = [
-        `You are a Cambridge IGCSE ${isPhysicsHint ? "Physics (0625 Extended)" : "Math (0580 Extended)"} exam coach. The student has asked for a hint.`,
+        `You are a Cambridge IGCSE ${subjectLabelHint} exam coach. The student has asked for a hint.`,
         "",
         "QUESTION:",
         ex.question,
