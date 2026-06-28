@@ -29,6 +29,7 @@ import { getDb, getActiveIgcseSubscription, createIgcseSubscription, getIgcseLif
 import { igcseTopics, igcseSessions, type IgcseSession } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { IGCSE_PLANS, igcseExternalId, createIgcseInvoice } from "./xenditService";
+import { invokeLLM } from "./_core/llm";
 
 const FREE_TRIAL_SECONDS = 30 * 60; // 30 minutes lifetime free trial
 
@@ -211,5 +212,105 @@ export const igcseRouter = router({
       await db.update(igcseSessions).set({ transcript: updated as any })
         .where(eq(igcseSessions.id, input.id));
       return { ok: true as const, count: updated.length };
+    }),
+
+  /**
+   * Student sends a message in a lesson — DeepSeek replies with topic-grounded
+   * Cambridge IGCSE Math teaching. Persists both turns to the transcript and
+   * updates the running duration so the free-trial counter ticks accurately
+   * even if the student closes the tab without ending the session.
+   *
+   * Whiteboard "board commands" and voice are layered on in Weeks 4–6.
+   */
+  sendMessage: publicProcedure
+    .input(z.object({
+      sessionId: z.number().int().positive(),
+      message: z.string().min(1).max(4000),
+      elapsedSec: z.number().int().min(0).max(60 * 60 * 12).optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const leadId = requireLead(await resolveLead(ctx));
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      // Load session + topic
+      const [session] = await db.select().from(igcseSessions)
+        .where(and(eq(igcseSessions.id, input.sessionId), eq(igcseSessions.leadId, leadId)))
+        .limit(1);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Session not found." });
+
+      let topic: any = null;
+      if (session.topicId) {
+        const [t] = await db.select().from(igcseTopics).where(eq(igcseTopics.id, session.topicId)).limit(1);
+        topic = t || null;
+      }
+
+      // Gate: must have access (active subscription OR free-trial time remaining).
+      const sub = await getActiveIgcseSubscription(leadId);
+      if (!sub) {
+        const used = await getIgcseLifetimeSecondsUsed(leadId);
+        if (used >= FREE_TRIAL_SECONDS) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Your 30-minute free trial is done — subscribe to keep learning." });
+        }
+      }
+
+      const history = ((session.transcript as any[]) || []).slice(-20); // last 20 turns
+      const lang = session.language === "id" ? "id" : "en";
+
+      // Pedagogy system prompt — grounded in the Cambridge topic's LO.
+      const sysPrompt = `You are an experienced Cambridge IGCSE Mathematics tutor for syllabus 0580 (Extended tier).
+${topic ? `You are teaching: ${topic.title} (Topic ${topic.code}, Area: ${topic.areaName}).
+
+Cambridge syllabus learning outcomes for this topic:
+${topic.learningOutcomes || "(general topic — guide the student through key skills.)"}` : "The student hasn't picked a specific topic yet — help them pick one from the IGCSE 0580 Extended syllabus."}
+
+Your teaching style:
+- Patient, encouraging private tutor. Never condescending.
+- Use the Socratic method: ask a question or check understanding BEFORE explaining; let the student think.
+- When solving, show step-by-step working. Number each step. Briefly explain the "why" of each step, not just the "what".
+- Use plain-text math notation for now: ^ for powers (x^2), * for multiply, / for fractions, sqrt() for square roots, pi for π. (A proper whiteboard is coming soon.)
+- Keep replies SHORT — 2–4 short paragraphs max per turn. Drip-feed the lesson; don't dump.
+- If the student answers wrong, point out WHERE the slip happened and ask them to retry before giving the answer.
+- Celebrate progress with one short line ("Nice — that's the right move.").
+- If they go off-topic, gently bring them back to ${topic?.title || "the current topic"}.
+
+Language: respond in ${lang === "id" ? "Bahasa Indonesia, naturally and warmly" : "clear English"}.
+
+Never invent verbatim past-paper questions — describe the type of question instead.`;
+
+      const messages = [
+        { role: "system" as const, content: sysPrompt },
+        ...history.map((t: any) => ({
+          role: (t.role === "ai" ? "assistant" : t.role === "student" ? "user" : "system") as "user" | "assistant" | "system",
+          content: String(t.text || ""),
+        })),
+        { role: "user" as const, content: input.message },
+      ];
+
+      let reply = "";
+      try {
+        const res: any = await invokeLLM({ messages });
+        const c = res?.choices?.[0]?.message?.content;
+        reply = (typeof c === "string" ? c : "").trim();
+        if (!reply) reply = "Sorry — I got distracted. Could you say that again?";
+      } catch (e) {
+        console.error("[IGCSE] sendMessage LLM error:", e);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The tutor couldn't respond. Please try again." });
+      }
+
+      // Persist both turns + duration.
+      const now = Date.now();
+      const updatedTranscript = [
+        ...((session.transcript as any[]) || []),
+        { role: "student", text: input.message, ts: now },
+        { role: "ai", text: reply, ts: now + 1 },
+      ];
+      const patch: any = { transcript: updatedTranscript };
+      if (input.elapsedSec != null && input.elapsedSec > (session.durationSec || 0)) {
+        patch.durationSec = input.elapsedSec;
+      }
+      await db.update(igcseSessions).set(patch).where(eq(igcseSessions.id, input.sessionId));
+
+      return { reply, turns: updatedTranscript.length };
     }),
 });

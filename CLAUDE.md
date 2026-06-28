@@ -332,9 +332,28 @@ at `spectaeducation.com/igcse`. Stack architecture confirmed = "Path A+":
 - Landing page CTA now points at `/igcse/app` (free trial first) instead of
   WhatsApp-only.
 
-**Coming next** (per the 10-week plan): session room shell + tldraw + KaTeX
-board-command renderer (Weeks 3-5), voice pipeline (Week 6), pedagogy/RAG
-over past papers (Week 7), then admin + polish.
+**Week 3 (shipped):** topic picker + session room + working basic chat.
+- New endpoint `igcse.sendMessage({sessionId, message, elapsedSec})` —
+  calls DeepSeek with a topic-grounded Cambridge IGCSE Math system prompt
+  (Socratic, step-by-step, plain-text math notation for now). Persists both
+  turns to the session transcript and updates `durationSec` so the
+  free-trial counter ticks even if the student closes the tab. Gate:
+  active subscription OR free-trial time remaining (FORBIDDEN otherwise).
+- `/igcse/app` dashboard now has a real **TopicPicker** (Cambridge areas
+  C1–C9, expandable, ~70 topics) and a **RecentLessons** list.
+- New page `client/src/pages/IgcseLesson.tsx` at `/igcse/lesson/:id`:
+  chat UI with bubble transcript, autoscroll, Enter-to-send, optimistic
+  rendering, "End" button → calls `endSession` with final durationSec.
+  Header shows topic code/title + free-trial counter / active badge.
+- Pedagogy prompt is grounded in `topic.learningOutcomes` and obeys
+  `session.language` (en/id).
+- LLM: uses the existing `invokeLLM` (DeepSeek). Model is whatever
+  `DEEPSEEK_*` env points at; swap to V4 by updating the env when ready.
+
+**Coming next** (per the 10-week plan): tldraw + KaTeX board-command
+renderer (Weeks 4-5) so the AI writes equations on a shared canvas, voice
+pipeline (Week 6 — Deepgram → DeepSeek → ElevenLabs Flash, ~500ms target),
+pedagogy/RAG over past papers (Week 7), then admin + polish.
 
 **Pricing (live):** **Rp 299k/month**, 30 hrs/month fair-use cap; free trial
 **30 minutes** lifetime.

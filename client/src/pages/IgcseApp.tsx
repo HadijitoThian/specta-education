@@ -8,7 +8,8 @@
  * Reuses the existing student-portal auth (sign-in cookie → leadId), same
  * pattern used by the AI IELTS Tutor.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { SEO } from "@/components/SEO";
 
@@ -181,19 +182,8 @@ function Dashboard({ status }: { status: any }) {
           )}
         </div>
 
-        {/* Classroom placeholder (the session room lands in Weeks 3–6) */}
-        <div className={`${card} p-6`}>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Your classroom 🎓</h2>
-              <p className="text-sm text-slate-600 mt-1">
-                The interactive whiteboard + voice classroom is rolling out in private beta.
-                You're locked in early — we'll email you the moment it opens to your account.
-              </p>
-            </div>
-            <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded-full whitespace-nowrap">PRIVATE BETA</span>
-          </div>
-        </div>
+        {/* Topic picker — pick a Cambridge syllabus topic and start a lesson. */}
+        <TopicPicker disabled={!status.hasAccess} disabledReason={!status.hasAccess ? "Your free trial is done. Subscribe below to keep learning." : undefined} />
 
         {/* Subscribe card — hidden once active */}
         {!sub && (
@@ -220,17 +210,127 @@ function Dashboard({ status }: { status: any }) {
           </div>
         )}
 
+        {/* Recent lessons */}
+        <RecentLessons />
+
         {/* What's coming next */}
-        <div className={`${card} p-6`}>
-          <h3 className="font-semibold text-slate-900 mb-2">What's coming next</h3>
+        <div className={`${card} p-5`}>
+          <h3 className="font-semibold text-slate-900 mb-1.5">What's coming soon</h3>
           <ul className="text-sm text-slate-600 space-y-1 list-disc pl-5">
-            <li>Pick any topic from the Cambridge IGCSE 0580 tree.</li>
-            <li>Talk to the AI tutor in real time — in English or Bahasa.</li>
-            <li>Watch step-by-step working appear on a digital whiteboard.</li>
-            <li>Sketch your own answers — the AI checks your working.</li>
+            <li><strong>Interactive whiteboard</strong> — the AI's working appears step-by-step (Weeks 4–5).</li>
+            <li><strong>Voice mode</strong> — talk to the tutor like a real lesson (Week 6).</li>
+            <li>For now: <strong>text chat with topic-grounded AI teaching</strong> — try it above.</li>
           </ul>
         </div>
       </main>
+    </div>
+  );
+}
+
+// ── Topic picker ─────────────────────────────────────────────────────────────
+function TopicPicker({ disabled, disabledReason }: { disabled?: boolean; disabledReason?: string }) {
+  const topics = trpc.igcse.listTopics.useQuery(undefined, { staleTime: 5 * 60_000 });
+  const [openArea, setOpenArea] = useState<string | null>(null);
+  const [, setLocation] = useLocation();
+  const create = trpc.igcse.createSession.useMutation({
+    onSuccess: (s) => { if (s?.id) setLocation(`/igcse/lesson/${s.id}`); },
+    onError: (e) => alert(e?.message || "Couldn't start the lesson — please try again."),
+  });
+
+  const areas = useMemo(() => {
+    const map = new Map<string, { code: string; name: string; items: any[] }>();
+    for (const t of (topics.data || [])) {
+      const cur = map.get(t.areaCode) || { code: t.areaCode, name: t.areaName, items: [] };
+      cur.items.push(t);
+      map.set(t.areaCode, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
+  }, [topics.data]);
+
+  return (
+    <div className={`${card} p-6`}>
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-lg font-bold text-slate-900">Pick a topic to learn 📚</h2>
+        <span className="text-[11px] font-mono text-violet-700 bg-violet-50 px-2 py-0.5 rounded">CAMBRIDGE 0580 · EXTENDED</span>
+      </div>
+      <p className="text-sm text-slate-600 mb-4">Choose any topic — the AI will guide you through it step by step.</p>
+
+      {disabled && (
+        <div className="mb-4 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{disabledReason}</div>
+      )}
+
+      {topics.isLoading ? (
+        <div className="text-center text-slate-400 py-10 text-sm">Loading syllabus…</div>
+      ) : !areas.length ? (
+        <div className="text-center text-slate-400 py-10 text-sm">Topic tree is being prepared — refresh in a moment.</div>
+      ) : (
+        <div className="space-y-2">
+          {areas.map(a => {
+            const open = openArea === a.code;
+            return (
+              <div key={a.code} className="border border-slate-200 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setOpenArea(open ? null : a.code)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-left"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-violet-700 bg-violet-50 px-2 py-0.5 rounded">{a.code}</span>
+                    <span className="font-semibold text-slate-900">{a.name}</span>
+                    <span className="text-xs text-slate-400">· {a.items.length} topics</span>
+                  </span>
+                  <span className="text-slate-400">{open ? "−" : "+"}</span>
+                </button>
+                {open && (
+                  <div className="border-t border-slate-100 px-4 py-3 grid sm:grid-cols-2 gap-2">
+                    {a.items.map((t: any) => (
+                      <button
+                        key={t.id}
+                        disabled={disabled || create.isPending}
+                        onClick={() => create.mutate({ topicId: t.id, language: "en" })}
+                        className="text-left px-3 py-2 rounded-lg border border-slate-200 hover:border-violet-400 hover:bg-violet-50 disabled:opacity-50 disabled:hover:bg-white text-sm group"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-[10px] text-slate-400">{t.code}</span>
+                          <span className="text-[10px] text-violet-600 opacity-0 group-hover:opacity-100">Start →</span>
+                        </div>
+                        <div className="font-medium text-slate-800 mt-0.5">{t.title}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Recent lessons ───────────────────────────────────────────────────────────
+function RecentLessons() {
+  const list = trpc.igcse.listSessions.useQuery({ limit: 10 });
+  if (!list.data?.length) return null;
+  return (
+    <div className={`${card} p-5`}>
+      <h3 className="font-semibold text-slate-900 mb-2">Recent lessons</h3>
+      <div className="divide-y">
+        {list.data.map((s: any) => (
+          <Link
+            key={s.id}
+            href={`/igcse/lesson/${s.id}`}
+            className="flex items-center justify-between py-2 text-sm hover:bg-slate-50 rounded px-2 -mx-2"
+          >
+            <div className="text-slate-700">
+              Lesson #{s.id}
+              <span className="text-slate-400"> · {new Date(s.startedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</span>
+              {s.durationSec > 0 && <span className="text-slate-400"> · {Math.round(s.durationSec / 60)} min</span>}
+            </div>
+            <span className="text-xs text-slate-400">{s.status === "active" ? "in progress" : "ended"} →</span>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
