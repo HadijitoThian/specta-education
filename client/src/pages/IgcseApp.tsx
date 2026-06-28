@@ -244,7 +244,7 @@ function Dashboard({ status }: { status: any }) {
 
 // ── Topic picker ─────────────────────────────────────────────────────────────
 function TopicPicker({ disabled, disabledReason }: { disabled?: boolean; disabledReason?: string }) {
-  const [subject, setSubject] = useState<"math" | "physics" | "economics" | "business">("math");
+  const [subject, setSubject] = useState<"math" | "physics" | "economics" | "business" | "chemistry">("math");
   const topics = trpc.igcse.listTopics.useQuery({ subject }, { staleTime: 5 * 60_000 });
   const [openArea, setOpenArea] = useState<string | null>(null);
   const [lang, setLang] = useState<"en" | "id">("en");
@@ -271,6 +271,7 @@ function TopicPicker({ disabled, disabledReason }: { disabled?: boolean; disable
     subject === "physics"   ? "CAMBRIDGE 0625 · EXTENDED"
   : subject === "economics" ? "CAMBRIDGE 0455"
   : subject === "business"  ? "CAMBRIDGE 0450"
+  : subject === "chemistry" ? "CAMBRIDGE 0620 · EXTENDED"
   :                           "CAMBRIDGE 0580 · EXTENDED";
 
   return (
@@ -297,6 +298,10 @@ function TopicPicker({ disabled, disabledReason }: { disabled?: boolean; disable
         <button type="button" onClick={() => setSubject("business")}
           className={`px-4 py-1.5 font-semibold border-l border-slate-300 ${subject === "business" ? "bg-violet-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}>
           💼 Business
+        </button>
+        <button type="button" onClick={() => setSubject("chemistry")}
+          className={`px-4 py-1.5 font-semibold border-l border-slate-300 ${subject === "chemistry" ? "bg-violet-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}>
+          🧪 Chemistry
         </button>
       </div>
 

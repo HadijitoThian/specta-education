@@ -63,6 +63,24 @@ const TOPIC_HINTS = [
   { code: "B5.1",  name: "Business · Sources of finance" },
   { code: "B5.5",  name: "Business · Ratio analysis" },
   { code: "B6.1",  name: "Business · Economic environment" },
+  // ── Chemistry 0620
+  { code: "Ch2.1",  name: "Chemistry · Atomic structure" },
+  { code: "Ch2.4",  name: "Chemistry · Ionic bonding" },
+  { code: "Ch2.5",  name: "Chemistry · Covalent bonding" },
+  { code: "Ch3.2",  name: "Chemistry · Balancing equations" },
+  { code: "Ch3.4",  name: "Chemistry · Mole calculations" },
+  { code: "Ch4.1",  name: "Chemistry · Electrolysis" },
+  { code: "Ch5.1",  name: "Chemistry · Exothermic / endothermic" },
+  { code: "Ch6.2",  name: "Chemistry · Rate of reaction" },
+  { code: "Ch6.4",  name: "Chemistry · Redox" },
+  { code: "Ch7.1",  name: "Chemistry · Acids + bases" },
+  { code: "Ch7.4",  name: "Chemistry · Tests for ions + gases" },
+  { code: "Ch8.2",  name: "Chemistry · Group I (alkali metals)" },
+  { code: "Ch8.3",  name: "Chemistry · Group VII (halogens)" },
+  { code: "Ch9.2",  name: "Chemistry · Metal extraction" },
+  { code: "Ch11.1", name: "Chemistry · Crude oil + fractional distillation" },
+  { code: "Ch11.3", name: "Chemistry · Alkenes" },
+  { code: "Ch11.6", name: "Chemistry · Polymers" },
 ];
 
 export default function IgcsePracticeCustom() {

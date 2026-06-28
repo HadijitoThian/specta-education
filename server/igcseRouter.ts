@@ -74,7 +74,7 @@ export const igcseRouter = router({
 
   /** Public: list every seeded IGCSE topic, optionally filtered by subject. */
   listTopics: publicProcedure
-    .input(z.object({ subject: z.enum(["math", "physics", "economics", "business"]).optional() }).optional())
+    .input(z.object({ subject: z.enum(["math", "physics", "economics", "business", "chemistry"]).optional() }).optional())
     .query(async ({ input }) => {
       const db = await getDb();
       if (!db) return [];
@@ -311,20 +311,23 @@ export const igcseRouter = router({
             .join("\n\n---\n\n")}\n`
         : "";
 
-      const subject: "math" | "physics" | "economics" | "business" =
+      const subject: "math" | "physics" | "economics" | "business" | "chemistry" =
         topic?.subject === "physics" ? "physics"
         : topic?.subject === "economics" ? "economics"
         : topic?.subject === "business" ? "business"
+        : topic?.subject === "chemistry" ? "chemistry"
         : "math";
       const syllabusCode =
         subject === "physics"   ? "0625"
       : subject === "economics" ? "0455"
       : subject === "business"  ? "0450"
+      : subject === "chemistry" ? "0620"
       :                           "0580";
       const subjectIntro =
         subject === "physics"   ? `You are an experienced Cambridge IGCSE Physics tutor for syllabus 0625 (Extended tier).`
       : subject === "economics" ? `You are an experienced Cambridge IGCSE Economics tutor for syllabus 0455.`
       : subject === "business"  ? `You are an experienced Cambridge IGCSE Business Studies tutor for syllabus 0450.`
+      : subject === "chemistry" ? `You are an experienced Cambridge IGCSE Chemistry tutor for syllabus 0620 (Extended tier).`
       :                           `You are an experienced Cambridge IGCSE Mathematics tutor for syllabus 0580 (Extended tier).`;
       const physicsConventions = subject === "physics" ? `
 PHYSICS-SPECIFIC CONVENTIONS (apply throughout):
@@ -335,6 +338,29 @@ PHYSICS-SPECIFIC CONVENTIONS (apply throughout):
 - Vector quantities (force, velocity, momentum) need a direction stated.
 - Show working an examiner can mark: write the formula, substitute values, then evaluate.
 - For graphs, the gradient and area under the line usually have physical meaning (e.g. v–t graph: gradient = acceleration, area = distance).
+` : "";
+      const chemistryConventions = subject === "chemistry" ? `
+CHEMISTRY-SPECIFIC CONVENTIONS (apply throughout):
+- ALWAYS include STATE SYMBOLS in equations: (s) solid, (l) liquid, (g) gas, (aq) aqueous. Cambridge often awards a separate state-symbols mark; missing them = lost mark.
+- BALANCED equations: same atoms of each element on BOTH sides; same total charge. Adjust ONLY the coefficients, NEVER subscripts in formulas.
+- Use the WORD equation first if asked, then the SYMBOL equation. Cambridge frequently asks for both.
+- UNITS on numerical answers (g, mol, dm³, mol/dm³, cm³, %, kJ/mol). No units = no answer mark.
+- Quote final numerical answers to 2 or 3 significant figures unless told otherwise.
+- KEY FORMULAS:
+    n = m / M_r            (moles from mass; M_r = relative formula mass)
+    n = V / 24             (moles of gas at rtp, where V is in dm³)
+    c = n / V              (concentration in mol/dm³, V in dm³)
+    % yield = (actual mass / theoretical mass) × 100
+    % composition by mass = (mass of element / total mass of compound) × 100
+    ΔH (bonds) = energy in (breaking) − energy out (making)
+- COMMON MARK-SCHEME PATTERNS for chemistry answers:
+    Method (M) marks for correct formulas + substitutions.
+    Accuracy (A) marks for the final numerical answer WITH UNITS.
+    Independent (B) marks for key facts (state symbols, conditions, observations).
+- For test-for-ion / test-for-gas questions, state: REAGENT used + OBSERVATION made + IDENTITY of substance. Two marks usually: one for reagent + one for observation.
+- For 'explain the trend' questions, refer to ATOMIC STRUCTURE (number of shells, shielding, distance from nucleus) — not just 'because of size'.
+- For RATE questions, use COLLISION THEORY: more particles per volume / more energy per particle / more particles with ≥ E_a → more successful collisions per unit time.
+- LaTeX for chemistry equations renders fine with \\text{} and _, e.g. "\\text{H}_2 + \\text{Cl}_2 \\rightarrow 2\\text{HCl}". Ionic charges: "\\text{Na}^+ + \\text{Cl}^-". State symbols inline: "(s), (l), (g), (aq)".
 ` : "";
       const businessConventions = subject === "business" ? `
 BUSINESS-STUDIES-SPECIFIC CONVENTIONS (apply throughout):
@@ -391,7 +417,7 @@ ${topic ? `You are teaching: ${topic.title} (Topic ${topic.code}, Area: ${topic.
 
 Cambridge syllabus learning outcomes for this topic:
 ${topic.learningOutcomes || "(general topic — guide the student through key skills.)"}` : `The student hasn't picked a specific topic yet — help them pick one from the IGCSE ${syllabusCode} Extended syllabus.`}
-${physicsConventions}${economicsConventions}${businessConventions}${exemplarsBlock}
+${physicsConventions}${economicsConventions}${businessConventions}${chemistryConventions}${exemplarsBlock}
 Your teaching style:
 - Patient, encouraging private tutor. Never condescending.
 - Socratic: ask a question or check understanding BEFORE explaining; let the student think.
@@ -631,7 +657,7 @@ Rules:
   listExamples: publicProcedure
     .input(z.object({
       topicCode: z.string().max(16).optional(),
-      subject: z.enum(["math", "physics", "economics", "business"]).optional(),
+      subject: z.enum(["math", "physics", "economics", "business", "chemistry"]).optional(),
     }).optional())
     .query(async ({ input }) => {
       const db = await getDb();
@@ -639,11 +665,14 @@ Rules:
       const rows = input?.topicCode
         ? await db.select().from(igcseExamples).where(eq(igcseExamples.topicCode, input.topicCode))
         : await db.select().from(igcseExamples);
-      const subjectOf = (code: string): "physics" | "economics" | "business" | "math" =>
-        code.startsWith("P") ? "physics"
-      : code.startsWith("E") ? "economics"
-      : code.startsWith("B") ? "business"
-      :                        "math";
+      // Check "Ch" BEFORE "C"/"B" prefixes so Chemistry codes don't get
+      // misclassified.
+      const subjectOf = (code: string): "physics" | "economics" | "business" | "chemistry" | "math" =>
+        code.startsWith("Ch") ? "chemistry"
+      : code.startsWith("P")  ? "physics"
+      : code.startsWith("E")  ? "economics"
+      : code.startsWith("B")  ? "business"
+      :                         "math";
       return rows
         .filter(r => !String(r.source || "").startsWith("custom-"))
         .filter(r => !input?.subject || subjectOf(r.topicCode) === input.subject)
@@ -782,10 +811,17 @@ Rules:
 
       const hasOfficialScheme = !!(ex.markScheme && ex.markScheme.trim().length > 0);
       const code = String(ex.topicCode || "");
+      // Order matters: "Ch" must be checked BEFORE "C" / "B" / etc. fallbacks.
+      const isChemistry = code.startsWith("Ch");
       const isPhysics = code.startsWith("P");
       const isEconomics = code.startsWith("E");
-      const isBusiness = code.startsWith("B");
-      const subjectLabel = isPhysics ? "Physics (0625 Extended)" : isEconomics ? "Economics (0455)" : isBusiness ? "Business Studies (0450)" : "Math (0580 Extended)";
+      const isBusiness = !isChemistry && code.startsWith("B");
+      const subjectLabel =
+        isPhysics   ? "Physics (0625 Extended)"
+      : isEconomics ? "Economics (0455)"
+      : isBusiness  ? "Business Studies (0450)"
+      : isChemistry ? "Chemistry (0620 Extended)"
+      :               "Math (0580 Extended)";
       const sysPrompt = [
         `You are a Cambridge IGCSE ${subjectLabel} exam coach.`,
         "The student is attempting a real exam-style question. Your job is to GUIDE them to the answer, never hand it to them.",
@@ -800,6 +836,10 @@ Rules:
         ...(isBusiness ? [
           "",
           "BUSINESS RULES: command words (Identify→1, Define→2, Explain→4, Analyse→6, Discuss/Recommend/Justify→8). Insist on APPLICATION — every answer must reference the SPECIFIC business in the question (not generic). For Analyse: push for cause→effect chains (\"this leads to… which means… so…\"). For Discuss/Recommend: BOTH sides + JUSTIFIED CONCLUSION based on the specific business; one-sided answers cap at L2. For calculation questions (break-even, ratios, profit), require: formula → substitution → final answer with correct unit (%, units, $).",
+        ] : []),
+        ...(isChemistry ? [
+          "",
+          "CHEMISTRY RULES: insist on STATE SYMBOLS in equations — (s), (l), (g), (aq); missing them loses the state-symbols mark. Equations must be BALANCED (atoms AND charges). Numerical answers need UNITS (g, mol, dm³, mol/dm³, kJ/mol, %) — no units = no A mark. Quote answers to 2–3 s.f. For 'test for' questions: state REAGENT + OBSERVATION + IDENTITY. For 'explain the trend' questions: refer to ATOMIC STRUCTURE (shells, shielding, nuclear attraction). For RATE questions: use COLLISION THEORY (frequency × proportion with E ≥ E_a).",
         ] : []),
         "",
         "QUESTION:",
@@ -921,13 +961,15 @@ Rules:
       const history = prior.slice(-20);
 
       const hintCode = String(ex.topicCode || "");
+      const isChemistryHint = hintCode.startsWith("Ch");
       const isPhysicsHint = hintCode.startsWith("P");
       const isEconomicsHint = hintCode.startsWith("E");
-      const isBusinessHint = hintCode.startsWith("B");
+      const isBusinessHint = !isChemistryHint && hintCode.startsWith("B");
       const subjectLabelHint =
         isPhysicsHint   ? "Physics (0625 Extended)"
       : isEconomicsHint ? "Economics (0455)"
       : isBusinessHint  ? "Business Studies (0450)"
+      : isChemistryHint ? "Chemistry (0620 Extended)"
       :                   "Math (0580 Extended)";
       const sysPrompt = [
         `You are a Cambridge IGCSE ${subjectLabelHint} exam coach. The student has asked for a hint.`,
