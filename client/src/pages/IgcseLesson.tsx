@@ -532,6 +532,16 @@ export default function IgcseLesson() {
   const [listening, setListening] = useState(false); // mic is active right now
   const [speaking, setSpeaking] = useState(false);   // tutor audio is playing
   const [lang, setLang] = useState<"en" | "id">("en"); // EN or Bahasa
+  const [voiceId, setVoiceId] = useState<string>(() => {
+    try { return localStorage.getItem("igcse-voice-id") || ""; } catch { return ""; }
+  });
+  const [voiceSpeed, setVoiceSpeed] = useState<number>(() => {
+    try { return Number(localStorage.getItem("igcse-voice-speed")) || 1.1; } catch { return 1.1; }
+  });
+  const [voiceSettingsOpen, setVoiceSettingsOpen] = useState(false);
+  const voices = trpc.igcse.listVoices.useQuery(undefined, { staleTime: 60 * 60_000 });
+  useEffect(() => { try { localStorage.setItem("igcse-voice-id", voiceId); } catch { /* ignore */ } }, [voiceId]);
+  useEffect(() => { try { localStorage.setItem("igcse-voice-speed", String(voiceSpeed)); } catch { /* ignore */ } }, [voiceSpeed]);
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const sttSupported = typeof window !== "undefined" && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
@@ -619,7 +629,7 @@ export default function IgcseLesson() {
       window.speechSynthesis.cancel(); // drop anything queued from prior turns
       const utt = new SpeechSynthesisUtterance(text);
       utt.lang = lang === "id" ? "id-ID" : "en-US";
-      utt.rate = 1;
+      utt.rate = Math.max(0.5, Math.min(2, voiceSpeed));
       utt.pitch = 1;
       utt.onend = onTtsDone;
       utt.onerror = onTtsDone;
@@ -631,7 +641,11 @@ export default function IgcseLesson() {
   const speakOut = async (text: string) => {
     if (!text) return;
     try {
-      const d = await synthMut.mutateAsync({ sessionId, text });
+      const d = await synthMut.mutateAsync({
+        sessionId, text,
+        voiceId: voiceId || undefined,
+        speed: voiceSpeed,
+      });
       const audio = new Audio(`data:${d.mimeType};base64,${d.audioBase64}`);
       audioRef.current = audio;
       audio.onended = onTtsDone;
@@ -754,6 +768,65 @@ export default function IgcseLesson() {
             >
               🔊 Voice {voiceMode ? "On" : "Off"}
             </button>
+
+            {/* Voice settings (picker + speed) */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setVoiceSettingsOpen(o => !o)}
+                className="px-2 py-1 rounded-md font-semibold bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"
+                title="Voice settings"
+                aria-haspopup="true"
+                aria-expanded={voiceSettingsOpen}
+              >⚙️</button>
+              {voiceSettingsOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setVoiceSettingsOpen(false)} aria-hidden="true" />
+                  <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-200 rounded-lg shadow-xl p-3 z-40" role="dialog">
+                    <div className="text-xs font-semibold text-slate-700 mb-1">Tutor voice</div>
+                    <div className="space-y-1 mb-3">
+                      {(voices.data || []).map((v: any) => {
+                        const selected = (voiceId || (voices.data?.[0]?.id ?? "")) === v.id;
+                        return (
+                          <label key={v.id} className={`flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer ${selected ? "bg-violet-50" : "hover:bg-slate-50"}`}>
+                            <input
+                              type="radio"
+                              name="igcse-voice"
+                              checked={selected}
+                              onChange={() => setVoiceId(v.id)}
+                              className="accent-violet-600"
+                            />
+                            <span className="text-sm text-slate-800">{v.label}</span>
+                          </label>
+                        );
+                      })}
+                      {!voices.data?.length && <div className="text-xs text-slate-400 px-2 py-1.5">Loading voices…</div>}
+                    </div>
+                    <div className="text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>Speed</span>
+                      <span className="text-slate-500 font-mono">{voiceSpeed.toFixed(2)}×</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0.8} max={1.3} step={0.05}
+                      value={voiceSpeed}
+                      onChange={e => setVoiceSpeed(Number(e.target.value))}
+                      className="w-full accent-violet-600"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-400 mt-0.5">
+                      <span>Slower</span>
+                      <span>Normal (1.0×)</span>
+                      <span>Faster</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setVoiceSettingsOpen(false)}
+                      className="mt-3 w-full py-1.5 rounded-md bg-violet-600 text-white text-sm font-semibold"
+                    >Done</button>
+                  </div>
+                </>
+              )}
+            </div>
             {sub
               ? <span className="text-green-700 font-medium">✓ Active</span>
               : remainingMin != null

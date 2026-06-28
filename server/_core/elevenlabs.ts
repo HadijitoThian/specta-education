@@ -35,6 +35,9 @@ export type SynthesizeOptions = {
   stability?: number;
   /** 0-1; how strongly to match the voice. IELTS: 0.7-0.8 is good. */
   similarityBoost?: number;
+  /** Playback speed. 0.7 = slower, 1.0 = normal, 1.2 = faster. Supported by
+   *  v3 and Flash v2.5 models; ignored by older models. */
+  speed?: number;
 };
 
 function assertKey() {
@@ -44,13 +47,17 @@ function assertKey() {
 }
 
 function buildBody(opts: SynthesizeOptions) {
+  const voice_settings: Record<string, unknown> = {
+    stability: opts.stability ?? 0.5,
+    similarity_boost: opts.similarityBoost ?? 0.75,
+  };
+  if (opts.speed != null && isFinite(opts.speed)) {
+    voice_settings.speed = Math.max(0.7, Math.min(1.2, opts.speed));
+  }
   return JSON.stringify({
     text: opts.text,
     model_id: opts.modelId ?? ENV.elevenLabsModelId,
-    voice_settings: {
-      stability: opts.stability ?? 0.5,
-      similarity_boost: opts.similarityBoost ?? 0.75,
-    },
+    voice_settings,
   });
 }
 

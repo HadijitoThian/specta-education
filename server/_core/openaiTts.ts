@@ -29,18 +29,23 @@ export interface OpenAiTtsOptions {
   model?: OpenAiTtsModel;
   /** Default `mp3`. */
   format?: "mp3" | "opus" | "aac" | "flac" | "wav" | "pcm";
+  /** Playback speed. 0.25–4.0. Default 1.0. */
+  speed?: number;
 }
 
 export async function synthesizeOpenAI(opts: OpenAiTtsOptions): Promise<Buffer> {
   if (!ENV.openAiApiKey) {
     throw new Error("OPENAI_API_KEY is not configured");
   }
-  const body = {
+  const body: Record<string, unknown> = {
     model: opts.model ?? "tts-1",
     input: opts.text,
     voice: opts.voice ?? "nova",
     response_format: opts.format ?? "mp3",
   };
+  if (opts.speed != null && isFinite(opts.speed)) {
+    body.speed = Math.max(0.25, Math.min(4.0, opts.speed));
+  }
   const res = await fetch(API_URL, {
     method: "POST",
     headers: {

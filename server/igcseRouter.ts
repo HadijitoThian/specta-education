@@ -35,6 +35,20 @@ import { synthesizeOpenAI } from "./_core/openaiTts";
 
 const FREE_TRIAL_SECONDS = 30 * 60; // 30 minutes lifetime free trial
 
+/**
+ * Curated ElevenLabs voices students can pick for the tutor. Each maps to an
+ * approximate OpenAI fallback voice (different accents in OpenAI's tts-1)
+ * so the fallback feels reasonably close when ElevenLabs credit runs out.
+ */
+const IGCSE_VOICES = [
+  { id: "EXAVITQu4vr4xnSDxMaL", label: "Sarah — British female", gender: "f", accent: "British", openaiFallback: "shimmer" },
+  { id: "21m00Tcm4TlvDq8ikWAM", label: "Rachel — American female", gender: "f", accent: "American", openaiFallback: "nova" },
+  { id: "onwK4e9ZLuTAKqWW03F9", label: "Daniel — British male",   gender: "m", accent: "British", openaiFallback: "onyx" },
+  { id: "VR6AewLTigWG4xSOukaG", label: "Adam — Australian male",  gender: "m", accent: "Australian", openaiFallback: "echo" },
+] as const;
+type VoiceId = typeof IGCSE_VOICES[number]["id"];
+const DEFAULT_VOICE: VoiceId = "EXAVITQu4vr4xnSDxMaL";
+
 /** Resolve the signed-in student's leadId from the student-portal cookie. */
 async function resolveLead(ctx: any): Promise<number | null> {
   try {
@@ -53,6 +67,11 @@ function requireLead(leadId: number | null): number {
 }
 
 export const igcseRouter = router({
+  /** Voices the student can choose for the tutor. */
+  listVoices: publicProcedure.query(async () => {
+    return IGCSE_VOICES.map(v => ({ id: v.id, label: v.label, gender: v.gender, accent: v.accent }));
+  }),
+
   /** Public: list every topic in the seeded Cambridge IGCSE 0580 tree. */
   listTopics: publicProcedure.query(async () => {
     const db = await getDb();
@@ -437,6 +456,10 @@ Rules:
     .input(z.object({
       sessionId: z.number().int().positive(),
       text: z.string().min(1).max(2000),
+      /** ElevenLabs voice id from listVoices; defaults to Sarah. */
+      voiceId: z.string().max(64).optional(),
+      /** Playback speed (~0.8–1.3). Default 1.1 — faster than out-of-the-box. */
+      speed: z.number().min(0.7).max(1.3).optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       const leadId = requireLead(await resolveLead(ctx));
@@ -450,30 +473,36 @@ Rules:
       // Fallback chain: ElevenLabs (best quality) → OpenAI (cheap, still great)
       // → throw (client then falls back to browser-native SpeechSynthesis).
       const charCount = input.text.length;
+      const requestedVoiceId = (IGCSE_VOICES.find(v => v.id === input.voiceId)?.id) ?? DEFAULT_VOICE;
+      const speed = input.speed ?? 1.1;
+      const voiceMeta = IGCSE_VOICES.find(v => v.id === requestedVoiceId) ?? IGCSE_VOICES[0];
 
       // 1) ElevenLabs Flash v2.5 — multilingual, low first-byte latency.
       try {
-        console.log(`[IGCSE] TTS via ElevenLabs (${charCount} chars)`);
+        console.log(`[IGCSE] TTS via ElevenLabs voice=${voiceMeta.label} speed=${speed} (${charCount} chars)`);
         const buf = await ttsSynthesize({
           text: input.text,
           modelId: "eleven_flash_v2_5",
-          voiceId: "EXAVITQu4vr4xnSDxMaL", // Sarah — clear British female
+          voiceId: requestedVoiceId,
           stability: 0.5,
           similarityBoost: 0.75,
+          speed,
         });
         return { audioBase64: buf.toString("base64"), mimeType: "audio/mpeg", source: "elevenlabs" as const };
       } catch (elevenError) {
         console.warn(`[IGCSE] ElevenLabs failed — falling back to OpenAI: ${(elevenError as Error).message}`);
       }
 
-      // 2) OpenAI tts-1 (nova voice). ~20x cheaper, slightly higher latency.
+      // 2) OpenAI tts-1 — pick a voice that roughly matches the requested
+      //    gender/accent so the fallback doesn't sound jarringly different.
       try {
-        console.log(`[IGCSE] TTS via OpenAI (${charCount} chars)`);
+        console.log(`[IGCSE] TTS via OpenAI voice=${voiceMeta.openaiFallback} speed=${speed} (${charCount} chars)`);
         const buf = await synthesizeOpenAI({
           text: input.text,
           model: "tts-1",
-          voice: "nova",
+          voice: voiceMeta.openaiFallback as any,
           format: "mp3",
+          speed,
         });
         return { audioBase64: buf.toString("base64"), mimeType: "audio/mpeg", source: "openai" as const };
       } catch (openaiError) {
