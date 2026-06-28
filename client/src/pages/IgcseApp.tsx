@@ -231,6 +231,7 @@ function Dashboard({ status }: { status: any }) {
 function TopicPicker({ disabled, disabledReason }: { disabled?: boolean; disabledReason?: string }) {
   const topics = trpc.igcse.listTopics.useQuery(undefined, { staleTime: 5 * 60_000 });
   const [openArea, setOpenArea] = useState<string | null>(null);
+  const [lang, setLang] = useState<"en" | "id">("en");
   const [, setLocation] = useLocation();
   const create = trpc.igcse.createSession.useMutation({
     onSuccess: (s) => { if (s?.id) setLocation(`/igcse/lesson/${s.id}`); },
@@ -249,11 +250,20 @@ function TopicPicker({ disabled, disabledReason }: { disabled?: boolean; disable
 
   return (
     <div className={`${card} p-6`}>
-      <div className="flex items-center justify-between mb-1">
+      <div className="flex items-center justify-between mb-1 gap-3">
         <h2 className="text-lg font-bold text-slate-900">Pick a topic to learn 📚</h2>
-        <span className="text-[11px] font-mono text-violet-700 bg-violet-50 px-2 py-0.5 rounded">CAMBRIDGE 0580 · EXTENDED</span>
+        <span className="text-[11px] font-mono text-violet-700 bg-violet-50 px-2 py-0.5 rounded hidden sm:inline">CAMBRIDGE 0580 · EXTENDED</span>
       </div>
-      <p className="text-sm text-slate-600 mb-4">Choose any topic — the AI will guide you through it step by step.</p>
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <p className="text-sm text-slate-600 flex-1 min-w-0">Choose any topic — the AI will guide you through it step by step.</p>
+        <div className="inline-flex rounded-md border border-slate-300 overflow-hidden text-xs" role="group" aria-label="Lesson language">
+          <span className="px-2 py-1 bg-slate-50 text-slate-500 border-r border-slate-300">Language</span>
+          <button type="button" onClick={() => setLang("en")}
+            className={`px-2 py-1 font-semibold ${lang === "en" ? "bg-violet-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}>EN</button>
+          <button type="button" onClick={() => setLang("id")}
+            className={`px-2 py-1 font-semibold border-l border-slate-300 ${lang === "id" ? "bg-violet-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}>ID</button>
+        </div>
+      </div>
 
       {disabled && (
         <div className="mb-4 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{disabledReason}</div>
@@ -287,7 +297,7 @@ function TopicPicker({ disabled, disabledReason }: { disabled?: boolean; disable
                       <button
                         key={t.id}
                         disabled={disabled || create.isPending}
-                        onClick={() => create.mutate({ topicId: t.id, language: "en" })}
+                        onClick={() => create.mutate({ topicId: t.id, language: lang })}
                         className="text-left px-3 py-2 rounded-lg border border-slate-200 hover:border-violet-400 hover:bg-violet-50 disabled:opacity-50 disabled:hover:bg-white text-sm group"
                       >
                         <div className="flex items-center justify-between">

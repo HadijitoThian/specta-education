@@ -531,9 +531,29 @@ export default function IgcseLesson() {
   const [voiceMode, setVoiceMode] = useState(false); // AI speaks aloud + auto-listen
   const [listening, setListening] = useState(false); // mic is active right now
   const [speaking, setSpeaking] = useState(false);   // tutor audio is playing
+  const [lang, setLang] = useState<"en" | "id">("en"); // EN or Bahasa
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const sttSupported = typeof window !== "undefined" && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+
+  // Sync local language from the loaded session (and again if the server-side
+  // record changes — e.g. another tab updated it).
+  useEffect(() => {
+    if (session.data?.language === "id" || session.data?.language === "en") {
+      setLang(session.data.language);
+    }
+  }, [session.data?.language]);
+
+  const updateLang = trpc.igcse.updateSessionLanguage.useMutation({
+    onSuccess: () => utils.igcse.getSession.invalidate({ id: sessionId }),
+  });
+  const flipLang = (next: "en" | "id") => {
+    if (next === lang) return;
+    setLang(next);
+    updateLang.mutate({ id: sessionId, language: next });
+    // Stop any in-progress audio/recognition so the next interaction uses the new language.
+    stopAudio(); stopListening();
+  };
 
   // Cleanup on unmount
   useEffect(() => () => {
@@ -559,7 +579,7 @@ export default function IgcseLesson() {
       return;
     }
     const rec = new SR();
-    rec.lang = session.data?.language === "id" ? "id-ID" : "en-US";
+    rec.lang = lang === "id" ? "id-ID" : "en-US";
     rec.continuous = false;
     rec.interimResults = false;
     rec.onresult = (event: any) => {
@@ -665,6 +685,21 @@ export default function IgcseLesson() {
             <div className="text-sm font-semibold text-slate-800 truncate">{topic?.title || "Free-form lesson"}</div>
           </div>
           <div className="flex items-center gap-2 text-xs whitespace-nowrap">
+            {/* Language toggle — drives both the speech recogniser and the AI's reply language. */}
+            <div className="inline-flex rounded-md border border-slate-300 overflow-hidden" role="group" aria-label="Lesson language">
+              <button
+                type="button"
+                onClick={() => flipLang("en")}
+                className={`px-2 py-1 font-semibold ${lang === "en" ? "bg-violet-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}
+                title="English"
+              >EN</button>
+              <button
+                type="button"
+                onClick={() => flipLang("id")}
+                className={`px-2 py-1 font-semibold border-l border-slate-300 ${lang === "id" ? "bg-violet-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}
+                title="Bahasa Indonesia"
+              >ID</button>
+            </div>
             <button
               type="button"
               onClick={() => setVoiceMode(v => !v)}

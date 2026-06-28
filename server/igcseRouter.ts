@@ -378,6 +378,20 @@ Rules:
       return { speech, board: boardOut, turns: updatedTranscript.length };
     }),
 
+  /** Change the session's language mid-lesson. Drives both the AI's response
+   *  language (system prompt branches on session.language) and the client's
+   *  SpeechRecognition language. */
+  updateSessionLanguage: publicProcedure
+    .input(z.object({ id: z.number().int().positive(), language: z.enum(["en", "id"]) }))
+    .mutation(async ({ input, ctx }) => {
+      const leadId = requireLead(await resolveLead(ctx));
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      await db.update(igcseSessions).set({ language: input.language })
+        .where(and(eq(igcseSessions.id, input.id), eq(igcseSessions.leadId, leadId)));
+      return { ok: true as const, language: input.language };
+    }),
+
   /**
    * Synthesize the AI tutor's spoken reply via ElevenLabs Flash v2.5 (low
    * latency, multilingual — supports English + Bahasa Indonesia). Returns
