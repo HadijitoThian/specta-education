@@ -466,10 +466,36 @@ each step Socratically.
 - Dashboard at `/igcse/app` now shows two top-level mode cards: **Learn
   mode** (existing topic chat) vs **Exam Practice** (graded attempts).
 
-**Coming next** (per the 10-week plan): admin + polish (Week 9+),
+**Week 9 (shipped):** content scale-up + Cambridge specimen-paper bridge.
+- **Exemplar bank: ~25 → 63 questions across 46 distinct topics.** New
+  coverage includes recurring decimals, indices I & II, standard form,
+  exponential decay, algebraic manipulation/fractions, quadratics by
+  factorisation and formula, graphs/functions/composites/inverses,
+  coordinates and perpendicular bisectors, similarity (with the area-k²
+  / volume-k³ trap), angles in polygons, cyclic quads, area+volume,
+  Pythagoras, bearings, 3D trig, transformations, probability with and
+  without replacement, conditional probability, mean from frequency
+  tables, scatter diagrams, gradients-of-curves from first principles.
+- **Per-topic incremental seeder** — `seedIgcseExamplesIfEmpty` now
+  groups by topicCode and only inserts topics with zero existing rows.
+  This means future edits to `EXAMPLES` adding *new* topics auto-seed
+  on next deploy without duplicating existing rows or breaking
+  attempt foreign keys. (Adding extra Qs to an already-seeded topic
+  still needs a manual SQL insert — intentional, avoids dupes.)
+- **Cambridge specimen-paper panel** (Path B) on `/igcse/practice`:
+  curated emerald-card section linking to the official 0580 specimen
+  papers on cambridgeinternational.org. We don't host the PDFs (no
+  copyright risk) — we signpost. Tip text encourages students to copy
+  any specimen-paper question into Learn mode for AI-guided coaching.
+- **UX patch:** difficulty dropdown now disables (and labels "— none
+  yet") any mark bucket with zero questions in the current topic
+  filter, so students never click into a dead filter.
+
+**Coming next** (per the 10-week plan): admin + polish (Week 10+),
 session-level metering visible in /admin, cost dashboard, weakness-
 targeting (\"you're shaky on bounds — try these 3 questions\"), and
-growing the exemplar bank from ~25 to ~80.
+optionally a paste-your-own-question custom-attempt flow with Socratic
+grading against general IGCSE principles.
 
 **Pricing (live):** **Rp 299k/month**, 30 hrs/month fair-use cap; free trial
 **30 minutes** lifetime.

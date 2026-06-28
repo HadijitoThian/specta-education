@@ -68,6 +68,21 @@ export default function IgcsePractice() {
     return list;
   }, [examples.data, topicFilter, marksFilter]);
 
+  // Which difficulty buckets actually have questions in the current topic
+  // filter? — used to grey out (or hide) empty buckets so students don't
+  // click into a dead filter.
+  const availableMarkBuckets = useMemo(() => {
+    let scope = examples.data || [];
+    if (topicFilter !== "all") scope = scope.filter((e: any) => e.topicCode === topicFilter);
+    const has = { "1-2": false, "3-4": false, "5+": false } as Record<string, boolean>;
+    scope.forEach((e: any) => {
+      if (e.marks <= 2) has["1-2"] = true;
+      else if (e.marks <= 4) has["3-4"] = true;
+      else has["5+"] = true;
+    });
+    return has;
+  }, [examples.data, topicFilter]);
+
   // Group by topicCode
   const grouped = useMemo(() => {
     const m = new Map<string, any[]>();
@@ -121,6 +136,9 @@ export default function IgcsePractice() {
           </p>
         </div>
 
+        {/* Cambridge specimen papers — official, free, real exam questions */}
+        <SpecimenPapersPanel />
+
         {/* Filters */}
         <div className={`${card} p-4 flex flex-wrap gap-3 items-center`}>
           <label className="text-sm text-slate-600">Topic
@@ -142,9 +160,9 @@ export default function IgcsePractice() {
               className="ml-2 border border-slate-300 rounded-md px-2 py-1 text-sm"
             >
               <option value="all">All</option>
-              <option value="1-2">1–2 marks (quick)</option>
-              <option value="3-4">3–4 marks (typical)</option>
-              <option value="5+">5+ marks (harder)</option>
+              <option value="1-2" disabled={!availableMarkBuckets["1-2"]}>1–2 marks (quick){availableMarkBuckets["1-2"] ? "" : " — none yet"}</option>
+              <option value="3-4" disabled={!availableMarkBuckets["3-4"]}>3–4 marks (typical){availableMarkBuckets["3-4"] ? "" : " — none yet"}</option>
+              <option value="5+" disabled={!availableMarkBuckets["5+"]}>5+ marks (harder){availableMarkBuckets["5+"] ? "" : " — none yet"}</option>
             </select>
           </label>
           <span className="ml-auto text-xs text-slate-500">{filtered.length} question{filtered.length === 1 ? "" : "s"}</span>
@@ -224,5 +242,67 @@ export default function IgcsePractice() {
         )}
       </main>
     </div>
+  );
+}
+
+// ── Cambridge specimen papers panel ─────────────────────────────────────────
+// Path B: link to Cambridge's free, official specimen papers and mark schemes
+// on cambridgeinternational.org. We don't host the PDFs — we signpost. The
+// student can copy a real exam question into Learn mode to discuss with the
+// AI Teacher, or use our authored bank below for graded step-by-step practice.
+
+const SPECIMENS: Array<{ year: string; paper: string; tier: "Core" | "Extended"; url: string }> = [
+  // Cambridge publishes specimen papers for each syllabus update. These links
+  // point to the official 0580 specimen-paper / mark-scheme PDFs on
+  // cambridgeinternational.org. If a link 404s after a syllabus refresh, the
+  // student is still on Cambridge's own site and can navigate from there.
+  { year: "2025", paper: "Paper 2 (Extended) — Specimen",      tier: "Extended", url: "https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-mathematics-0580/" },
+  { year: "2025", paper: "Paper 4 (Extended) — Specimen",      tier: "Extended", url: "https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-mathematics-0580/" },
+  { year: "2025", paper: "Paper 1 (Core) — Specimen",          tier: "Core",     url: "https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-mathematics-0580/" },
+  { year: "2025", paper: "Paper 3 (Core) — Specimen",          tier: "Core",     url: "https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-igcse-mathematics-0580/" },
+];
+
+function SpecimenPapersPanel() {
+  return (
+    <section className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-5">
+      <div className="flex items-start gap-3">
+        <div className="text-2xl">📄</div>
+        <div className="flex-1">
+          <h2 className="font-bold text-emerald-900">Official Cambridge specimen papers</h2>
+          <p className="text-sm text-slate-700 mt-1">
+            Cambridge publishes free specimen papers for the current 0580 syllabus on their official site.
+            These are <strong>real exam-format papers</strong> with official mark schemes — use them alongside the
+            authored practice questions below.
+          </p>
+          <p className="text-xs text-slate-500 mt-2">
+            💡 <strong>Tip:</strong> open a specimen paper, find a question you want help with,
+            then copy it into <em>Learn mode</em> back on your dashboard — the AI Teacher will walk
+            you through it step by step.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid sm:grid-cols-2 gap-2">
+        {SPECIMENS.map((p, i) => (
+          <a
+            key={i}
+            href={p.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between rounded-lg border border-emerald-200 bg-white px-3 py-2.5 text-sm hover:border-emerald-400 transition"
+          >
+            <div>
+              <div className="font-semibold text-slate-800">{p.paper}</div>
+              <div className="text-[11px] text-slate-500">cambridgeinternational.org · {p.tier}</div>
+            </div>
+            <span className="text-emerald-700 font-bold">↗</span>
+          </a>
+        ))}
+      </div>
+
+      <p className="text-[11px] text-slate-500 mt-3">
+        Opens on cambridgeinternational.org · © Cambridge Assessment International Education.
+      </p>
+    </section>
   );
 }
