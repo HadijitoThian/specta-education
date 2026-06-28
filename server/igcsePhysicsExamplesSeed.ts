@@ -187,49 +187,169 @@ const EXAMPLES: Ex[] = [
     question: "Light from a distant galaxy is observed to be redshifted.\n(a) Explain what is meant by 'redshift'.\n(b) State what redshift of light from distant galaxies tells us about the Universe.",
     markScheme: "(a) **The wavelength of the observed light is longer (frequency is lower) than the wavelength emitted by the source — shifted towards the red end of the visible spectrum**.  **(B1, B1)** for both 'longer wavelength' and 'red end'.\n(b) **The galaxy is moving away from us; more distant galaxies have larger redshifts → they recede faster → the Universe is expanding**.  **(B1)**\nThis is direct evidence for the Big Bang model of the Universe.",
     source: "exam-style" },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Coverage expansion — fill zero-coverage topics + add 2nd questions on
+  // high-yield ones so most topics have 2 questions like the Math bank does.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ── P1.1 Physical quantities and measurement ───────────────────────────────
+  { topicCode: "P1.1", marks: 3,
+    question: "Describe how a student could measure the period of a simple pendulum (one complete swing) as accurately as possible using a stopwatch.",
+    markScheme: "Time, with a stopwatch, **a large number of oscillations (e.g. 20)  (B1)**\nDivide total time by the number of oscillations to find ONE period **(B1)**\nRepeat the measurement and **take an average** (or state \"to reduce the effect of human reaction time / random error\") **(B1)**\nKey idea: timing many swings then dividing reduces the fractional effect of human reaction-time uncertainty.",
+    source: "exam-style" },
+
+  // ── P1.2 Motion — third question (deceleration with v² = u² + 2as) ─────────
+  { topicCode: "P1.2", marks: 4,
+    question: "A car is travelling at 20 m/s when the driver applies the brakes. The car decelerates uniformly at 5.0 m/s² and stops.\n(a) Calculate the time taken to stop.\n(b) Calculate the distance travelled while braking.",
+    markScheme: "(a) Use v = u + at with v = 0, u = 20, a = −5.0 → 0 = 20 + (−5.0)t **(M1)**\n  t = 4.0 s **(A1)**\n(b) Use v² = u² + 2as → 0 = 20² + 2(−5.0)s **(M1)**\n  s = 400/10 = **40 m  (A1)**\nA negative acceleration (deceleration) is the standard sign convention. Either equation works; v² = u² + 2as is fastest when t is not needed.",
+    source: "exam-style" },
+
+  // ── P1.5 Forces — Newton's third law ───────────────────────────────────────
+  { topicCode: "P1.5", marks: 3,
+    question: "A book of weight 8.0 N rests on a table.\n(a) State the force that the table exerts on the book and its size.\n(b) State the Newton's-third-law pair of the book's WEIGHT.",
+    markScheme: "(a) **The table pushes UPWARD on the book with a normal contact force of 8.0 N  (B1, B1)**\n(b) **The book pulls the EARTH upward with a force of 8.0 N (gravitational attraction)  (B1)**\nCommon trap: saying \"the table pushes up\" as the 3rd-law pair of the weight. NOT correct — they act on the SAME body (book) and are not a 3rd-law pair. A 3rd-law pair acts on TWO DIFFERENT bodies.",
+    source: "exam-style" },
+
+  // ── P1.6 Momentum — second question (impulse / explosion) ──────────────────
+  { topicCode: "P1.6", marks: 4,
+    question: "A rifle of mass 4.0 kg fires a bullet of mass 0.020 kg horizontally with a muzzle velocity of 300 m/s.\nUsing conservation of momentum, calculate the recoil velocity of the rifle.",
+    markScheme: "Total momentum before firing = 0 (both at rest) **(B1)**\nAfter firing: bullet has momentum +0.020 × 300 = +6.0 kg m/s **(M1)**\nRifle momentum: 4.0 × v\nConservation: 0 = 4.0v + 6.0 → v = −1.5 m/s **(M1)**\n**Recoil velocity = 1.5 m/s in the OPPOSITE direction to the bullet  (A1)**\nDirection must be stated. The minus sign just encodes \"opposite direction\".",
+    source: "exam-style" },
+
+  // ── P1.7.1 Energy resources ────────────────────────────────────────────────
+  { topicCode: "P1.7.1", marks: 4,
+    question: "Compare wind power and coal-fired power stations as ways of generating electricity. Give one ADVANTAGE and one DISADVANTAGE of each.",
+    markScheme: "Wind — advantage: **renewable / does not produce CO₂ / no fuel cost** (any one) **(B1)**\nWind — disadvantage: **unreliable (depends on wind speed) / takes up large area / visual or noise pollution** (any one) **(B1)**\nCoal — advantage: **reliable / can produce large amounts of energy on demand / fuel readily available now** (any one) **(B1)**\nCoal — disadvantage: **produces CO₂ (greenhouse gas) and other pollutants (SO₂) / non-renewable / contributes to climate change** (any one) **(B1)**\nFour marks total — one for each of A/D for both sources.",
+    source: "exam-style" },
+
+  // ── P2.1 Kinetic particle model — gas pressure ─────────────────────────────
+  { topicCode: "P2.1", marks: 4,
+    question: "Explain, in terms of the motion of particles, why the pressure of a fixed mass of gas in a sealed container INCREASES when the temperature is raised at constant volume.",
+    markScheme: "Higher temperature → **particles have more (kinetic) energy** → **move faster (on average)**  **(B1, B1)**\nFaster particles **collide with the walls more often** (and with greater force per collision) **(B1)**\nMore frequent and harder collisions → **greater force per unit area on the walls → higher pressure**  **(B1)**\nKey link: temperature ↑ → speed ↑ → collision frequency AND collision force ↑ → pressure ↑.",
+    source: "exam-style" },
+
+  // ── P2.2 Thermal properties — bimetallic strip / expansion ─────────────────
+  { topicCode: "P2.2", marks: 3,
+    question: "A bimetallic strip is made by riveting together a strip of brass and a strip of iron. When heated, the strip bends with the brass on the OUTSIDE of the curve.\n(a) Explain why the strip bends.\n(b) State one practical application of a bimetallic strip.",
+    markScheme: "(a) **Brass expands MORE than iron for the same temperature rise** (brass has a larger thermal expansion) **(B1)** → the brass side becomes longer → forces the strip to curve with the brass on the outside **(B1)**.\n(b) **Fire alarm / thermostat (e.g. iron, electric kettle, oven) / temperature-controlled switch** (any one) **(B1)**\nKey rule: different metals have different expansion rates — exploited in switches that respond to temperature.",
+    source: "exam-style" },
+
+  // ── P3.2 Light — second question (lens ray diagram) ────────────────────────
+  { topicCode: "P3.2", marks: 4,
+    question: "A small object is placed 30 cm in front of a thin converging lens of focal length 20 cm.\nUsing the standard rules (ray parallel to axis → through F, ray through optical centre → straight, ray through F → emerges parallel), describe (without scale drawing) the type of image formed.\nState whether the image is:\n(a) real or virtual,\n(b) upright or inverted,\n(c) larger, smaller, or the same size,\n(d) on the same or the opposite side of the lens as the object.",
+    markScheme: "Object distance (30 cm) is **between F (20 cm) and 2F (40 cm)**  **(B1)**\n(a) **Real  (B1)**\n(b) **Inverted  (B1)**\n(c) **Larger (magnified)  (B1)**\n(d) Opposite side of the lens (on the far side from the object) — implicit in 'real'.\nGeneral rule for converging lens:\n  • Object > 2F → real, inverted, smaller\n  • Object at 2F → real, inverted, same size\n  • Object between F and 2F → real, inverted, larger (this case)\n  • Object at F → no image (rays emerge parallel)\n  • Object < F → virtual, upright, larger (magnifying glass)",
+    source: "exam-style" },
+
+  // ── P3.2.1 Dispersion ──────────────────────────────────────────────────────
+  { topicCode: "P3.2.1", marks: 3,
+    question: "(a) Explain why white light passing through a prism is split into a spectrum of colours.\n(b) State which colour is bent the MOST and which is bent the LEAST.",
+    markScheme: "(a) **White light contains many different frequencies (colours)**. **Different colours refract by different amounts** when entering the glass (the refractive index is slightly different for each wavelength) **(B1, B1)** → so they separate into a spectrum.\n(b) Bent most: **violet  (B1)**.  Bent least: **red** (implicit in 'most').\nKey rule: shorter wavelength (violet) is refracted MORE; longer wavelength (red) is refracted LESS.",
+    source: "exam-style" },
+
+  // ── P3.4 Sound — second question (ultrasound) ──────────────────────────────
+  { topicCode: "P3.4", marks: 3,
+    question: "An ultrasound pulse sent vertically downward from a ship reflects off the seabed and returns to the ship 0.20 s later. The speed of sound in seawater is 1500 m/s.\nCalculate the depth of the seabed below the ship.",
+    markScheme: "Total round-trip distance = speed × time = 1500 × 0.20 = 300 m **(M1)**\nThis distance is to seabed AND back → one-way distance = 300/2 **(M1)**\n**Depth = 150 m  (A1)**\nSame 'halve the time/distance' trick as the cliff echo problem — sonar uses exactly this principle.",
+    source: "exam-style" },
+
+  // ── P4.1 Magnetism ─────────────────────────────────────────────────────────
+  { topicCode: "P4.1", marks: 4,
+    question: "(a) State whether iron or steel is the better material for the CORE of an electromagnet, and explain why.\n(b) State whether iron or steel is the better material for a PERMANENT magnet, and explain why.",
+    markScheme: "(a) **Iron (specifically soft iron)  (B1)** because it **magnetises and demagnetises easily** — so the electromagnet can be switched ON and OFF cleanly when the current is switched **(B1)**.\n(b) **Steel  (B1)** because it **retains its magnetism after the magnetising field is removed** (hard to demagnetise) — so it stays magnetised permanently **(B1)**.\nKey distinction: soft iron = easy to magnetise AND demagnetise (good for electromagnets); steel = hard to magnetise but RETAINS magnetism (good for permanent magnets).",
+    source: "exam-style" },
+
+  // ── P4.2 Electrical quantities — second (resistance of a wire) ─────────────
+  { topicCode: "P4.2", marks: 3,
+    question: "Two wires are made of the same material and have the same cross-sectional area. Wire A has length 1.0 m and resistance 8.0 Ω. Wire B has length 2.5 m.\nCalculate the resistance of wire B.",
+    markScheme: "Resistance is **directly proportional to length** (R ∝ L) when material and area are constant **(M1)**\nR_B / R_A = L_B / L_A → R_B = 8.0 × (2.5/1.0) **(M1)**\n**R_B = 20 Ω  (A1)**\nKey rule: R ∝ L (longer = more resistance) and R ∝ 1/A (thicker = less resistance).",
+    source: "exam-style" },
+
+  // ── P4.3 Circuits — second (mixed series-parallel) ─────────────────────────
+  { topicCode: "P4.3", marks: 4,
+    question: "Two resistors of 6.0 Ω and 3.0 Ω are connected in PARALLEL, and this combination is connected IN SERIES with a 4.0 Ω resistor across a 12 V battery.\n(a) Calculate the total resistance of the circuit.\n(b) Calculate the current drawn from the battery.",
+    markScheme: "(a) Parallel pair: 1/R_p = 1/6 + 1/3 = 1/6 + 2/6 = 3/6 → R_p = **2.0 Ω  (M1, A1)**\n  Total: R_total = R_p + 4.0 = **6.0 Ω  (B1)**\n(b) I = V/R = 12/6.0 **(M1)** → **I = 2.0 A  (A1 — total 4 possible)**\nStep order matters: SIMPLIFY parallel parts to a single resistor FIRST, then add series.",
+    source: "exam-style" },
+
+  // ── P4.4 Practical electricity ─────────────────────────────────────────────
+  { topicCode: "P4.4", marks: 4,
+    question: "A household electric heater has a power rating of 2300 W and runs on a 230 V mains supply.\n(a) Calculate the current it draws.\n(b) Of the fuses available (3 A, 5 A, 13 A), state which is the most suitable and explain why.",
+    markScheme: "(a) I = P/V = 2300/230 = **10 A  (M1, A1)**\n(b) The fuse must be **rated SLIGHTLY ABOVE the normal operating current** so it doesn't trip during normal use, but blows if the current rises **(M1)**.\n  10 A draw → 13 A fuse is the most suitable **(A1)**.\nTrap: choosing 5 A (would blow immediately) or a fuse much larger than needed (wouldn't blow soon enough to protect the appliance).",
+    source: "exam-style" },
+
+  // ── P4.5 Electromagnetic effects — DC motor ────────────────────────────────
+  { topicCode: "P4.5", marks: 4,
+    question: "(a) State Fleming's left-hand rule and what it tells us.\n(b) Describe two ways to INCREASE the turning effect (torque) of a simple DC motor.",
+    markScheme: "(a) **Hold the left hand with the thumb, first (index) finger and second (middle) finger mutually at right angles. First finger = magnetic Field direction; second finger = Current direction; thumb = Force (thrust) direction on the conductor.**  **(B1, B1)**\n(b) Any TWO of: **increase the current, use a stronger magnet, use more turns on the coil, use a soft-iron core inside the coil**  **(B1, B1)**\nKey rule: F = BIL applies — increasing B, I, or the effective length of conductor in the field all raise the force.",
+    source: "exam-style" },
+
+  // ── P5.1 Nuclear atom — second (alpha scattering) ──────────────────────────
+  { topicCode: "P5.1", marks: 4,
+    question: "In Rutherford's alpha-scattering experiment, a thin gold foil was bombarded with alpha particles.\n(a) State the two key observations.\n(b) Explain what each observation tells us about the structure of the atom.",
+    markScheme: "(a) Observation 1: **Most alpha particles passed straight through with little or no deflection.  (B1)**\n  Observation 2: **A very small fraction of alpha particles were deflected through large angles, some bouncing back.  (B1)**\n(b) Observation 1 tells us: **the atom is mostly empty space.  (B1)**\n  Observation 2 tells us: **there is a small, dense, positively-charged nucleus** at the centre that repels alpha particles when they come close. **(B1)**\nKey upshot: the experiment overthrew the 'plum pudding' model and gave us the modern nuclear-atom picture.",
+    source: "exam-style" },
+
+  // ── P5.2 Radioactivity — third (penetration / safety) ──────────────────────
+  { topicCode: "P5.2", marks: 4,
+    question: "(a) Complete the table for the three types of nuclear radiation:\n         Charge      Penetration\nα        ____        ____\nβ        ____        ____\nγ        ____        ____\n(b) State the THREE main safety precautions when handling a radioactive source.",
+    markScheme: "(a) α: **+2** charge, stopped by **paper / a few cm of air**  **(B1)**\n  β: **−1** charge, stopped by **thin aluminium (a few mm)**  **(B1)**\n  γ: **0** charge, stopped (substantially) by **thick lead / metres of concrete**  **(B1)**\n(b) Any THREE of: **handle with tongs / forceps (distance), point source AWAY from people, store in a lead-lined container, limit exposure TIME, wear protective clothing / lab coat, no eating or drinking near the source**  **(B1 — best 3)**\nKey principle: protection = TIME (shorter), DISTANCE (further), SHIELDING (denser material).",
+    source: "exam-style" },
+
+  // ── P6.1 Earth and Solar System ────────────────────────────────────────────
+  { topicCode: "P6.1", marks: 3,
+    question: "A planet at a greater distance from the Sun orbits at a LOWER speed and takes a LONGER time to complete one orbit.\nExplain BOTH observations in terms of gravity.",
+    markScheme: "Gravity provides the **centripetal force needed to keep a planet in orbit  (B1)**.\nFurther from the Sun → **the gravitational pull of the Sun is weaker** (gravity falls off with distance) → the planet needs a **smaller (lower) orbital speed** to stay in orbit **(B1)**.\nA lower speed combined with a **longer orbital circumference** (further out) → the **orbital period (year) is longer  (B1)**.\nKey rule: stronger gravity → tighter, faster orbits; weaker gravity → wider, slower orbits.",
+    source: "exam-style" },
+
+  // ── P6.2 Stars — second (Sun's energy source) ──────────────────────────────
+  { topicCode: "P6.2", marks: 3,
+    question: "(a) State the process by which energy is released in the Sun's core.\n(b) State the main nuclear reaction taking place.",
+    markScheme: "(a) **Nuclear fusion  (B1)**\n(b) **Hydrogen nuclei (protons) fuse to form helium**, releasing energy **(B1)**.\n  The total mass of the products is slightly less than the total mass of the reactants — the lost mass is converted into energy (E = mc²).  **(B1)**\nThis is what powers all main-sequence stars, including the Sun, for billions of years.",
+    source: "exam-style" },
 ];
 
 /**
- * Per-topic incremental seeder for Physics exemplars. Future deploys adding
- * new topics to EXAMPLES will auto-seed without duplicating existing rows.
+ * Per-question incremental seeder for Physics exemplars.
+ *
+ * Compares each EXAMPLES entry against rows already in the DB using
+ * (topicCode + first 120 chars of question text) as a stable de-dup key.
+ * Inserts only the ones not already present, so:
+ *   • adding a NEW topic to EXAMPLES → auto-seeds on next deploy
+ *   • adding ADDITIONAL questions to an already-seeded topic → also auto-seeds
+ *   • re-running has no effect (all keys match)
  */
 export async function seedIgcsePhysicsExamplesIfEmpty(): Promise<{ seeded: number }> {
   const db = await getDb();
   if (!db) return { seeded: 0 };
   try {
-    // Distinct Physics topicCodes (P-prefixed) already in the table.
-    const existing = await db.execute(sql`SELECT DISTINCT topicCode AS code FROM igcse_examples WHERE topicCode LIKE 'P%'`);
+    // Build a set of (topicCode + question prefix) keys already in the DB.
+    const existing = await db.execute(sql`SELECT topicCode, question FROM igcse_examples WHERE topicCode LIKE 'P%'`);
     const list: any[] = Array.isArray(existing[0]) ? existing[0] : (existing as any);
-    const seeded = new Set<string>(list.map((r: any) => String(r?.code || "")));
-
-    const byTopic = new Map<string, Ex[]>();
-    EXAMPLES.forEach(e => {
-      const arr = byTopic.get(e.topicCode) || [];
-      arr.push(e);
-      byTopic.set(e.topicCode, arr);
-    });
+    const dedupKey = (code: string, q: string) => `${code}::${q.slice(0, 120)}`;
+    const present = new Set<string>(list.map((r: any) => dedupKey(String(r?.topicCode || ""), String(r?.question || ""))));
 
     const rows: any[] = [];
     let sortOrder = 1000; // offset from Math
-    for (const [code, items] of Array.from(byTopic.entries())) {
-      if (seeded.has(code)) continue;
-      for (const e of items) {
-        rows.push({
-          topicCode: e.topicCode,
-          syllabus: "CIE_0625",
-          tier: "extended" as const,
-          marks: e.marks,
-          question: e.question,
-          markScheme: e.markScheme,
-          source: e.source || "exam-style",
-          sortOrder: sortOrder++,
-        });
-      }
+    for (const e of EXAMPLES) {
+      if (present.has(dedupKey(e.topicCode, e.question))) continue;
+      rows.push({
+        topicCode: e.topicCode,
+        syllabus: "CIE_0625",
+        tier: "extended" as const,
+        marks: e.marks,
+        question: e.question,
+        markScheme: e.markScheme,
+        source: e.source || "exam-style",
+        sortOrder: sortOrder++,
+      });
     }
 
-    if (!rows.length) return { seeded: 0 };
+    if (!rows.length) {
+      console.log(`[IGCSE] Physics exemplars already complete (${list.length} rows in DB, ${EXAMPLES.length} in seed file).`);
+      return { seeded: 0 };
+    }
     await db.insert(igcseExamples).values(rows);
-    console.log(`[IGCSE] Seeded ${rows.length} new Physics exemplars.`);
+    console.log(`[IGCSE] Seeded ${rows.length} new Physics exemplars (total now ${list.length + rows.length}).`);
     return { seeded: rows.length };
   } catch (e) {
     console.error("[IGCSE] Physics exemplar seed failed:", (e as Error).message);
