@@ -244,7 +244,8 @@ function Dashboard({ status }: { status: any }) {
 
 // ── Topic picker ─────────────────────────────────────────────────────────────
 function TopicPicker({ disabled, disabledReason }: { disabled?: boolean; disabledReason?: string }) {
-  const topics = trpc.igcse.listTopics.useQuery(undefined, { staleTime: 5 * 60_000 });
+  const [subject, setSubject] = useState<"math" | "physics">("math");
+  const topics = trpc.igcse.listTopics.useQuery({ subject }, { staleTime: 5 * 60_000 });
   const [openArea, setOpenArea] = useState<string | null>(null);
   const [lang, setLang] = useState<"en" | "id">("en");
   const [, setLocation] = useLocation();
@@ -252,6 +253,9 @@ function TopicPicker({ disabled, disabledReason }: { disabled?: boolean; disable
     onSuccess: (s) => { if (s?.id) setLocation(`/igcse/lesson/${s.id}`); },
     onError: (e) => alert(e?.message || "Couldn't start the lesson — please try again."),
   });
+
+  // Reset open accordion when switching subject so users see the new tree.
+  useEffect(() => { setOpenArea(null); }, [subject]);
 
   const areas = useMemo(() => {
     const map = new Map<string, { code: string; name: string; items: any[] }>();
@@ -263,12 +267,27 @@ function TopicPicker({ disabled, disabledReason }: { disabled?: boolean; disable
     return Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
   }, [topics.data]);
 
+  const syllabusLabel = subject === "physics" ? "CAMBRIDGE 0625 · EXTENDED" : "CAMBRIDGE 0580 · EXTENDED";
+
   return (
     <div className={`${card} p-6`}>
       <div className="flex items-center justify-between mb-1 gap-3">
         <h2 className="text-lg font-bold text-slate-900">Pick a topic to learn 📚</h2>
-        <span className="text-[11px] font-mono text-violet-700 bg-violet-50 px-2 py-0.5 rounded hidden sm:inline">CAMBRIDGE 0580 · EXTENDED</span>
+        <span className="text-[11px] font-mono text-violet-700 bg-violet-50 px-2 py-0.5 rounded hidden sm:inline">{syllabusLabel}</span>
       </div>
+
+      {/* Subject toggle: Math vs Physics */}
+      <div className="inline-flex rounded-lg border border-slate-300 overflow-hidden text-sm mb-3" role="group" aria-label="Subject">
+        <button type="button" onClick={() => setSubject("math")}
+          className={`px-4 py-1.5 font-semibold ${subject === "math" ? "bg-violet-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}>
+          📐 Mathematics
+        </button>
+        <button type="button" onClick={() => setSubject("physics")}
+          className={`px-4 py-1.5 font-semibold border-l border-slate-300 ${subject === "physics" ? "bg-violet-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}>
+          ⚛️ Physics
+        </button>
+      </div>
+
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <p className="text-sm text-slate-600 flex-1 min-w-0">Choose any topic — the AI will guide you through it step by step.</p>
         <div className="inline-flex rounded-md border border-slate-300 overflow-hidden text-xs" role="group" aria-label="Lesson language">

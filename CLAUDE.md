@@ -517,10 +517,41 @@ that close out v1 of the product.
   score, hints used, status, and student name/email. Backed by two
   new admin-only endpoints `adminStats` + `adminRecentAttempts`.
 
-**v1 complete.** What's next (not yet planned): post-v1 polish — voice
-quality tuning, weakness-targeted spaced-repetition recommendations,
-a parent-facing progress report email, IGCSE Physics + Chemistry as
-follow-on subjects, growing the exemplar bank toward ~150 questions.
+**v1 complete (Math).** Multi-subject pivot starts here →
+
+**Physics 0625 (shipped):** second subject under the same IGCSE umbrella.
+- Schema widened: `igcseTopics.subject` enum now includes `physics`
+  (idempotent ALTER for existing prod tables in ensureMarketingSchema).
+- New seed `server/igcsePhysicsTopicSeed.ts`: full Cambridge 0625
+  Extended topic tree across **6 areas, ~30 topics** (P1 Motion/Forces/
+  Energy, P2 Thermal, P3 Waves, P4 Electricity & Magnetism, P5 Nuclear,
+  P6 Space). Codes are P-prefixed (e.g. `P1.5`) to avoid collisions with
+  Math's `1.5` in the shared `igcse_topics.code` UNIQUE column.
+- New seed `server/igcsePhysicsExamplesSeed.ts`: **~28 authored
+  Cambridge-style exam questions** with M/A/B/FT mark schemes across
+  motion, density, forces, moments, Hooke's law, momentum, energy/power,
+  pressure, gas laws, specific heat, latent heat, thermal transfer,
+  wave speed, refraction, EM spectrum, sound echoes, electrical
+  quantities, parallel circuits, potential divider, transformers,
+  nuclear notation, half-life, redshift.
+- AI system prompts (sendMessage + submitStep + requestHint) now branch
+  on subject. The Physics branch injects Physics-specific conventions:
+  SI units mandatory in answers, 2–3 s.f. by default, vector quantities
+  need a direction, formula→substitute→evaluate working pattern, key
+  formula bank (F=ma, ρ=m/V, P=IV, ΔE=mcΔθ, v=fλ, n=sin i/sin r, etc.).
+- API: `listTopics` and `listExamples` now accept `subject?: "math" |
+  "physics"`. listExamples uses the topicCode P-prefix to disambiguate
+  Physics rows from Math rows.
+- UI: Subject toggle (📐 Math / ⚛️ Physics) on both the gated
+  `/igcse/app` topic picker AND the `/igcse/practice` exam page. Toggle
+  resets accordion + filter state on switch so students see the new
+  subject's tree cleanly. Landing page `/igcse` headline updated to
+  "An AI Math & Physics teacher" and pill widened.
+
+**Coming next:** pricing pivot to bundles (Standard Rp 799k all-subjects /
+Premium Rp 1,290k with voice), TTS default flipped to OpenAI (5× cheaper,
+fixes unit economics), and additional subjects (Chemistry, Biology) to
+fill out the STEM bundle.
 
 **Pricing (live):** **Rp 299k/month**, 30 hrs/month fair-use cap; free trial
 **30 minutes** lifetime.

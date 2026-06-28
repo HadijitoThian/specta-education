@@ -72,13 +72,17 @@ export const igcseRouter = router({
     return IGCSE_VOICES.map(v => ({ id: v.id, label: v.label, gender: v.gender, accent: v.accent }));
   }),
 
-  /** Public: list every topic in the seeded Cambridge IGCSE 0580 tree. */
-  listTopics: publicProcedure.query(async () => {
-    const db = await getDb();
-    if (!db) return [];
-    const rows = await db.select().from(igcseTopics).orderBy(igcseTopics.sortOrder);
-    return rows;
-  }),
+  /** Public: list every seeded IGCSE topic, optionally filtered by subject. */
+  listTopics: publicProcedure
+    .input(z.object({ subject: z.enum(["math", "physics"]).optional() }).optional())
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const rows = input?.subject
+        ? await db.select().from(igcseTopics).where(eq(igcseTopics.subject, input.subject)).orderBy(igcseTopics.sortOrder)
+        : await db.select().from(igcseTopics).orderBy(igcseTopics.sortOrder);
+      return rows;
+    }),
 
   /** Sign-in + access status: subscription + free-trial counter for the gate. */
   status: publicProcedure.query(async ({ ctx }) => {
@@ -307,12 +311,28 @@ export const igcseRouter = router({
             .join("\n\n---\n\n")}\n`
         : "";
 
-      const sysPrompt = `You are an experienced Cambridge IGCSE Mathematics tutor for syllabus 0580 (Extended tier).
+      const subject: "math" | "physics" = (topic?.subject === "physics") ? "physics" : "math";
+      const syllabusCode = subject === "physics" ? "0625" : "0580";
+      const subjectIntro = subject === "physics"
+        ? `You are an experienced Cambridge IGCSE Physics tutor for syllabus 0625 (Extended tier).`
+        : `You are an experienced Cambridge IGCSE Mathematics tutor for syllabus 0580 (Extended tier).`;
+      const physicsConventions = subject === "physics" ? `
+PHYSICS-SPECIFIC CONVENTIONS (apply throughout):
+- ALWAYS state SI units in final answers (m, kg, s, N, J, W, A, V, Ω, Pa, Hz, etc.). A numerical answer without units loses the answer mark.
+- Quote final answers to 2 or 3 significant figures unless the question says otherwise.
+- Use g = 9.8 N/kg (or 10 N/kg if the question specifies). Speed of sound ≈ 340 m/s in air. Speed of light c = 3 × 10⁸ m/s.
+- Key formulas: F = ma, W = mg, ρ = m/V, p = F/A, p = ρgh, Q = It, V = IR, P = IV, ΔE = mcΔθ, KE = ½mv², ΔGPE = mgΔh, v = fλ, n = sin i / sin r, sin c = 1/n, Vₚ/Vₛ = Nₚ/Nₛ.
+- Vector quantities (force, velocity, momentum) need a direction stated.
+- Show working an examiner can mark: write the formula, substitute values, then evaluate.
+- For graphs, the gradient and area under the line usually have physical meaning (e.g. v–t graph: gradient = acceleration, area = distance).
+` : "";
+
+      const sysPrompt = `${subjectIntro}
 ${topic ? `You are teaching: ${topic.title} (Topic ${topic.code}, Area: ${topic.areaName}).
 
 Cambridge syllabus learning outcomes for this topic:
-${topic.learningOutcomes || "(general topic — guide the student through key skills.)"}` : "The student hasn't picked a specific topic yet — help them pick one from the IGCSE 0580 Extended syllabus."}
-${exemplarsBlock}
+${topic.learningOutcomes || "(general topic — guide the student through key skills.)"}` : `The student hasn't picked a specific topic yet — help them pick one from the IGCSE ${syllabusCode} Extended syllabus.`}
+${physicsConventions}${exemplarsBlock}
 Your teaching style:
 - Patient, encouraging private tutor. Never condescending.
 - Socratic: ask a question or check understanding BEFORE explaining; let the student think.
@@ -545,18 +565,27 @@ Rules:
   // mark scheme reveal at the end.
   // ────────────────────────────────────────────────────────────────────────────
 
-  /** Public: list available exam-practice questions, optionally filtered by topic.
-   *  Excludes any private user-pasted custom questions (source LIKE 'custom-%'). */
+  /** Public: list available exam-practice questions, optionally filtered by
+   *  topic and/or subject. Excludes private user-pasted custom questions. */
   listExamples: publicProcedure
-    .input(z.object({ topicCode: z.string().max(16).optional() }).optional())
+    .input(z.object({
+      topicCode: z.string().max(16).optional(),
+      subject: z.enum(["math", "physics"]).optional(),
+    }).optional())
     .query(async ({ input }) => {
       const db = await getDb();
       if (!db) return [];
       const rows = input?.topicCode
         ? await db.select().from(igcseExamples).where(eq(igcseExamples.topicCode, input.topicCode))
         : await db.select().from(igcseExamples);
+      const isPhysicsCode = (code: string) => code.startsWith("P");
       return rows
         .filter(r => !String(r.source || "").startsWith("custom-"))
+        .filter(r => {
+          if (!input?.subject) return true;
+          const p = isPhysicsCode(r.topicCode);
+          return input.subject === "physics" ? p : !p;
+        })
         .sort((a, b) => a.topicCode.localeCompare(b.topicCode) || a.sortOrder - b.sortOrder)
         .map(r => ({
           id: r.id,
@@ -691,9 +720,15 @@ Rules:
       const history = prior.slice(-30);
 
       const hasOfficialScheme = !!(ex.markScheme && ex.markScheme.trim().length > 0);
+      const isPhysics = String(ex.topicCode || "").startsWith("P");
+      const subjectLabel = isPhysics ? "Physics (0625 Extended)" : "Math (0580 Extended)";
       const sysPrompt = [
-        "You are a Cambridge IGCSE Math (0580 Extended) exam coach.",
+        `You are a Cambridge IGCSE ${subjectLabel} exam coach.`,
         "The student is attempting a real exam-style question. Your job is to GUIDE them to the answer, never hand it to them.",
+        ...(isPhysics ? [
+          "",
+          "PHYSICS RULES: insist on SI units in final answers (no units → loses the A mark). Quote answers to 2-3 s.f. Vectors need a direction. Always require: formula → substitution → evaluation.",
+        ] : []),
         "",
         "QUESTION:",
         ex.question,
@@ -813,8 +848,9 @@ Rules:
         .orderBy(igcseAttemptSteps.id);
       const history = prior.slice(-20);
 
+      const isPhysicsHint = String(ex.topicCode || "").startsWith("P");
       const sysPrompt = [
-        "You are a Cambridge IGCSE Math (0580 Extended) exam coach. The student has asked for a hint.",
+        `You are a Cambridge IGCSE ${isPhysicsHint ? "Physics (0625 Extended)" : "Math (0580 Extended)"} exam coach. The student has asked for a hint.`,
         "",
         "QUESTION:",
         ex.question,

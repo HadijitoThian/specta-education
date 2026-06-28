@@ -431,7 +431,7 @@ export async function ensureMarketingSchema(): Promise<void> {
     await db.execute(sql.raw(`
       CREATE TABLE IF NOT EXISTS igcse_topics (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        subject ENUM('math') NOT NULL DEFAULT 'math',
+        subject ENUM('math','physics') NOT NULL DEFAULT 'math',
         syllabus VARCHAR(32) NOT NULL DEFAULT 'CIE_0580',
         tier ENUM('core','extended','both') NOT NULL DEFAULT 'extended',
         areaCode VARCHAR(8) NOT NULL,
@@ -545,6 +545,18 @@ export async function ensureMarketingSchema(): Promise<void> {
         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `));
+
+    // ── Subject enum widening (idempotent ALTER for existing prod tables).
+    // When the multi-subject pivot landed, igcse_topics.subject was ENUM('math')
+    // on already-deployed databases. MODIFY COLUMN to widen the enum is safe:
+    // existing rows with 'math' stay valid; we just allow 'physics' too.
+    try {
+      await db.execute(sql.raw(`
+        ALTER TABLE igcse_topics MODIFY COLUMN subject ENUM('math','physics') NOT NULL DEFAULT 'math'
+      `));
+    } catch (e) {
+      // Already widened or table didn't exist — harmless.
+    }
   } catch (e) {
     console.error("[Growth] ensureMarketingSchema failed:", (e as Error).message);
   }

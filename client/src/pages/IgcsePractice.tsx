@@ -16,9 +16,10 @@ const card = "rounded-2xl border border-slate-200 bg-white shadow-sm";
 
 export default function IgcsePractice() {
   const [, setLocation] = useLocation();
+  const [subject, setSubject] = useState<"math" | "physics">("math");
   const status = trpc.igcse.status.useQuery(undefined, { retry: false });
-  const topics = trpc.igcse.listTopics.useQuery();
-  const examples = trpc.igcse.listExamples.useQuery({});
+  const topics = trpc.igcse.listTopics.useQuery({ subject });
+  const examples = trpc.igcse.listExamples.useQuery({ subject });
   const attempts = trpc.igcse.listAttempts.useQuery({ limit: 50 }, { enabled: !!status.data?.loggedIn });
   const weak = trpc.igcse.weaknesses.useQuery(undefined, { enabled: !!status.data?.loggedIn });
 
@@ -32,9 +33,13 @@ export default function IgcsePractice() {
     window.scrollTo(0, 0);
   }, []);
 
-  // Filters
+  // Filters — reset when subject changes (different topic codes).
   const [topicFilter, setTopicFilter] = useState<string>("all");
   const [marksFilter, setMarksFilter] = useState<"all" | "1-2" | "3-4" | "5+">("all");
+  useEffect(() => {
+    setTopicFilter("all");
+    setMarksFilter("all");
+  }, [subject]);
 
   const topicByCode = useMemo(() => {
     const m = new Map<string, string>();
@@ -133,8 +138,19 @@ export default function IgcsePractice() {
             guide you when you're stuck, and reveal the full Cambridge-style mark scheme at the end.
           </p>
           <p className="text-[11px] text-slate-400 mt-2">
-            All questions are authored to Cambridge IGCSE 0580 Extended style — not verbatim past papers.
+            All questions are authored to Cambridge IGCSE {subject === "physics" ? "0625 (Physics)" : "0580 (Math)"} Extended style — not verbatim past papers.
           </p>
+
+          <div className="inline-flex rounded-lg border border-slate-300 overflow-hidden text-sm mt-4" role="group" aria-label="Subject">
+            <button type="button" onClick={() => setSubject("math")}
+              className={`px-4 py-1.5 font-semibold ${subject === "math" ? "bg-violet-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}>
+              📐 Mathematics
+            </button>
+            <button type="button" onClick={() => setSubject("physics")}
+              className={`px-4 py-1.5 font-semibold border-l border-slate-300 ${subject === "physics" ? "bg-violet-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}>
+              ⚛️ Physics
+            </button>
+          </div>
         </div>
 
         {/* Weakness-targeting — only shown if student has at least 1 weak topic */}

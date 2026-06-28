@@ -141,7 +141,9 @@ export async function seedIgcseTopicsIfEmpty(): Promise<{ seeded: number }> {
   const db = await getDb();
   if (!db) return { seeded: 0 };
   try {
-    const existing = await db.execute(sql`SELECT COUNT(*) AS c FROM igcse_topics`);
+    // Subject-scoped: only seed Math if no Math topics exist. Lets us add
+    // other subjects (Physics, etc.) independently via their own seeders.
+    const existing = await db.execute(sql`SELECT COUNT(*) AS c FROM igcse_topics WHERE subject='math'`);
     const list: any[] = Array.isArray(existing[0]) ? existing[0] : (existing as any);
     const count = Number(list?.[0]?.c ?? 0);
     if (count > 0) return { seeded: 0 };

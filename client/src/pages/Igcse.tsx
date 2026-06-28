@@ -50,15 +50,15 @@ export default function Igcse() {
         <div className="absolute -bottom-20 -left-10 w-96 h-96 bg-amber-300/10 rounded-full blur-3xl" />
         <div className="container relative z-10 max-w-5xl mx-auto text-white">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/15 backdrop-blur-sm rounded-full text-sm font-medium mb-5 border border-white/20">
-            <Sparkles className="w-4 h-4" /> Private beta — Cambridge IGCSE Math 0580
+            <Sparkles className="w-4 h-4" /> Private beta — Cambridge IGCSE · Math + Physics
           </div>
           <h1 className="text-4xl md:text-6xl font-extrabold leading-tight mb-5">
-            An AI <span className="text-amber-300">Math teacher</span><br />
+            An AI <span className="text-amber-300">Math &amp; Physics</span> teacher<br />
             that <em>talks</em>, <em>explains</em>, and <em>writes on the board</em>.
           </h1>
           <p className="text-lg text-white/85 max-w-2xl mb-7 leading-relaxed">
-            Practise IGCSE Math like you would with a private tutor — speak your question, watch the AI work through it
-            step-by-step on a shared digital whiteboard, and sketch your own answers right alongside.
+            Practise IGCSE Math (0580) and Physics (0625) like you would with a private tutor — speak your question,
+            watch the AI work through it step-by-step on a shared digital whiteboard, and sketch your own answers right alongside.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <Link href="/igcse/app" className="inline-flex items-center gap-2 bg-white text-violet-700 font-bold px-6 py-3 rounded-xl shadow-lg hover:bg-amber-50 transition">
@@ -100,7 +100,7 @@ export default function Igcse() {
       <section className="py-16 px-4 bg-slate-50">
         <div className="container max-w-5xl mx-auto">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-violet-50 text-violet-700 text-xs font-semibold rounded-full mb-3">CAMBRIDGE IGCSE 0580 · EXTENDED TIER</div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-violet-50 text-violet-700 text-xs font-semibold rounded-full mb-3">CAMBRIDGE IGCSE · MATH 0580 + PHYSICS 0625 · EXTENDED</div>
             <h2 className="text-2xl md:text-3xl font-bold">Full syllabus, taught one topic at a time</h2>
             <p className="text-gray-500 mt-2">Mapped directly to Cambridge's published syllabus areas. No filler — every topic is graded the way IGCSE examiners grade.</p>
           </div>
