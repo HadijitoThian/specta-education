@@ -546,19 +546,41 @@ export async function ensureMarketingSchema(): Promise<void> {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `));
 
-    // ── Subject enum widening (idempotent ALTER for existing prod tables).
-    // When the multi-subject pivot landed, igcse_topics.subject was ENUM('math')
-    // on already-deployed databases. MODIFY COLUMN to widen the enum is safe:
-    // existing rows with 'math' stay valid; we just allow 'physics' too.
-    try {
-      await db.execute(sql.raw(`
-        ALTER TABLE igcse_topics MODIFY COLUMN subject ENUM('math','physics') NOT NULL DEFAULT 'math'
-      `));
-    } catch (e) {
-      // Already widened or table didn't exist — harmless.
-    }
   } catch (e) {
     console.error("[Growth] ensureMarketingSchema failed:", (e as Error).message);
+  }
+}
+
+/**
+ * Widen igcse_topics.subject enum from ('math') → ('math','physics') so we
+ * can insert Physics rows. Called by the Physics topic seeder before insert.
+ * Idempotent: re-running on an already-widened table is a no-op.
+ *
+ * Logs success/failure loudly so we can diagnose from Railway logs.
+ */
+export async function ensureIgcsePhysicsSubject(): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  try {
+    // Inspect the current column definition. If 'physics' is already allowed,
+    // skip the ALTER entirely.
+    const colRows: any = await db.execute(sql.raw(`
+      SHOW COLUMNS FROM igcse_topics LIKE 'subject'
+    `));
+    const list: any[] = Array.isArray(colRows[0]) ? colRows[0] : (colRows as any);
+    const typeStr = String(list?.[0]?.Type || list?.[0]?.type || "");
+    if (typeStr.includes("'physics'")) {
+      return true; // already widened
+    }
+    console.log(`[IGCSE] Widening igcse_topics.subject from "${typeStr}" to include 'physics'…`);
+    await db.execute(sql.raw(`
+      ALTER TABLE igcse_topics MODIFY COLUMN subject ENUM('math','physics') NOT NULL DEFAULT 'math'
+    `));
+    console.log(`[IGCSE] subject enum widened OK.`);
+    return true;
+  } catch (e) {
+    console.error("[IGCSE] ensureIgcsePhysicsSubject failed:", (e as Error).message);
+    return false;
   }
 }
 

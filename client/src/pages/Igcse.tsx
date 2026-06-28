@@ -37,9 +37,9 @@ export default function Igcse() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="IGCSE Math AI Teacher — SpecTa Education"
-        description="Belajar IGCSE Math (Cambridge 0580 Extended) bersama AI teacher interaktif. Diskusi suara dua arah, papan tulis digital, jawaban langkah demi langkah."
-        keywords="IGCSE Math, Cambridge 0580, AI teacher, AI tutor IGCSE, IGCSE Indonesia"
+        title="IGCSE Math & Physics AI Teacher — SpecTa Education"
+        description="Belajar IGCSE Math (Cambridge 0580) dan Physics (0625) Extended bersama AI teacher interaktif. Diskusi suara dua arah, papan tulis digital, jawaban langkah demi langkah."
+        keywords="IGCSE Math, IGCSE Physics, Cambridge 0580, Cambridge 0625, AI teacher, AI tutor IGCSE, IGCSE Indonesia"
       />
       <Navigation />
 
@@ -80,7 +80,7 @@ export default function Igcse() {
             <div className="bg-white rounded-2xl border border-gray-200 p-6">
               <Mic className="w-7 h-7 text-violet-700 mb-3" />
               <h3 className="font-bold text-gray-900 mb-1.5">Speak naturally</h3>
-              <p className="text-sm text-gray-600">Ask "Show me how to solve x² + 5x + 6 = 0" out loud — the AI listens, thinks, and answers in real time, in English or Bahasa.</p>
+              <p className="text-sm text-gray-600">Ask "Show me how to solve x² + 5x + 6 = 0" or "Explain Newton's second law" out loud — the AI listens, thinks, and answers in real time, in English or Bahasa.</p>
             </div>
             <div className="bg-white rounded-2xl border border-gray-200 p-6">
               <PenTool className="w-7 h-7 text-violet-700 mb-3" />
@@ -138,14 +138,14 @@ export default function Igcse() {
             <div className="text-4xl mb-3">🎓</div>
             <h2 className="text-2xl md:text-3xl font-extrabold mb-2">30 minutes free, then Rp 299.000/month</h2>
             <p className="text-white/90 mb-6 max-w-xl mx-auto">
-              Get the full Cambridge IGCSE 0580 Extended syllabus, 30 hours of tutoring per month, cancel anytime.
+              Get the full Cambridge IGCSE 0580 (Math) and 0625 (Physics) Extended syllabus, 30 hours of tutoring per month, cancel anytime.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <Link href="/igcse/app" className="inline-flex items-center gap-2 bg-white text-violet-700 font-bold px-6 py-3 rounded-xl shadow hover:bg-amber-50 transition">
                 Start free trial <ArrowRight className="w-4 h-4" />
               </Link>
               <a
-                href="https://wa.me/62818218388?text=Hi%2C%20I%27m%20interested%20in%20the%20IGCSE%20Math%20AI%20Teacher%20beta"
+                href="https://wa.me/62818218388?text=Hi%2C%20I%27m%20interested%20in%20the%20IGCSE%20Math%20%26%20Physics%20AI%20Teacher%20beta"
                 target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 border-2 border-white/40 text-white font-semibold px-6 py-3 rounded-xl hover:bg-white/10 transition"
               >

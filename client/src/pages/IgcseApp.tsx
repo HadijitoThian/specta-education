@@ -39,7 +39,7 @@ export default function IgcseApp() {
   });
 
   useEffect(() => {
-    document.title = "IGCSE Math AI Teacher — SpecTa Education";
+    document.title = "IGCSE AI Teacher — SpecTa Education";
     window.scrollTo(0, 0);
     if (justPaid) {
       try { window.history.replaceState({}, "", "/igcse/app"); } catch { /* ignore */ }
@@ -80,12 +80,12 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <SEO title="IGCSE Math AI Teacher — Sign in" description="Sign in to start your free trial of the IGCSE Math AI Teacher." noindex />
+      <SEO title="IGCSE AI Teacher — Sign in" description="Sign in to start your free trial of the IGCSE AI Teacher." noindex />
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
           <a href="https://www.spectaeducation.com" className="flex items-center gap-2" title="Back to SpecTa Education">
             <span className="font-extrabold text-violet-700">SpecTa</span>
-            <span className="font-bold text-slate-700">· IGCSE Math AI</span>
+            <span className="font-bold text-slate-700">· IGCSE AI</span>
           </a>
           <a href="https://www.spectaeducation.com" className="hidden sm:inline text-sm font-medium text-slate-500 hover:text-slate-900">← Main site</a>
         </div>
@@ -95,7 +95,7 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
         <div className="text-center mb-6">
           <div className="text-4xl mb-2">🎓</div>
           <h1 className="text-2xl font-extrabold text-slate-900">Start your free trial</h1>
-          <p className="text-sm text-slate-500 mt-1">30 minutes free with the IGCSE Math AI Teacher. No card needed.</p>
+          <p className="text-sm text-slate-500 mt-1">30 minutes free with the IGCSE AI Teacher. No card needed.</p>
         </div>
 
         <div className={`${card} p-6`}>
@@ -143,12 +143,12 @@ function Dashboard({ status }: { status: any }) {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <SEO title="IGCSE Math AI Teacher — Your classroom" description="Your IGCSE Math AI Teacher classroom." noindex />
+      <SEO title="IGCSE AI Teacher — Your classroom" description="Your IGCSE AI Teacher classroom." noindex />
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="font-extrabold text-violet-700">SpecTa</span>
-            <span className="font-bold text-slate-700">· IGCSE Math AI</span>
+            <span className="font-bold text-slate-700">· IGCSE AI</span>
           </div>
           <div className="flex items-center gap-3 text-sm">
             <a href="https://www.spectaeducation.com" className="hidden sm:inline text-slate-400 hover:text-slate-700">← Main site</a>

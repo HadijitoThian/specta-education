@@ -9,7 +9,7 @@
  * Topic `code` is prefixed with "P" (e.g. "P1.5") to avoid collisions with
  * Math's "1.5". Area codes are "P1".."P6".
  */
-import { getDb } from "./db";
+import { getDb, ensureIgcsePhysicsSubject } from "./db";
 import { igcseTopics } from "../drizzle/schema";
 import { sql } from "drizzle-orm";
 
@@ -89,6 +89,14 @@ const AREAS: Area[] = [
 export async function seedIgcsePhysicsTopicsIfEmpty(): Promise<{ seeded: number }> {
   const db = await getDb();
   if (!db) return { seeded: 0 };
+
+  // Make absolutely sure the column accepts 'physics' before we try to insert.
+  const ok = await ensureIgcsePhysicsSubject();
+  if (!ok) {
+    console.error("[IGCSE] Cannot seed Physics topics — subject enum widening failed.");
+    return { seeded: 0 };
+  }
+
   try {
     const existing = await db.execute(sql`SELECT COUNT(*) AS c FROM igcse_topics WHERE subject='physics'`);
     const list: any[] = Array.isArray(existing[0]) ? existing[0] : (existing as any);
