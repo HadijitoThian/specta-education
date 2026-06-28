@@ -8176,16 +8176,20 @@ seedUniversitiesIfEmpty().then(r => {
 
 // IGCSE AI Teacher: seed the Cambridge 0580 Extended topic tree + curated
 // exam-style exemplars (used as RAG grounding in the AI's pedagogy prompt).
-seedIgcseTopicsIfEmpty().then(r => {
-  if (r.seeded) console.log(`[IGCSE] Seeded ${r.seeded} topics`);
-}).catch(e => console.error('[IGCSE] Topic seed error:', e));
-seedIgcseExamplesIfEmpty().then(r => {
-  if (r.seeded) console.log(`[IGCSE] Seeded ${r.seeded} exam exemplars`);
-}).catch(e => console.error('[IGCSE] Example seed error:', e));
-
 // Growth Phase A: ensure attribution columns + marketing_spend table exist
 // (idempotent) so a deploy never outruns the migration and breaks lead capture.
-import("./db").then(m => m.ensureMarketingSchema()).catch(e => console.error('[Growth] schema ensure error:', e));
+// IGCSE seeds chain AFTER this so igcse_examples table exists before insert.
+import("./db").then(async m => {
+  await m.ensureMarketingSchema();
+  try {
+    const r1 = await seedIgcseTopicsIfEmpty();
+    if (r1.seeded) console.log(`[IGCSE] Seeded ${r1.seeded} topics`);
+  } catch (e) { console.error('[IGCSE] Topic seed error:', e); }
+  try {
+    const r2 = await seedIgcseExamplesIfEmpty();
+    if (r2.seeded) console.log(`[IGCSE] Seeded ${r2.seeded} exam exemplars`);
+  } catch (e) { console.error('[IGCSE] Example seed error:', e); }
+}).catch(e => console.error('[Growth] schema ensure error:', e));
 
 // Ensure the office enum includes all branches (adds Singkawang) before use.
 import("./db").then(m => m.ensureOfficeEnum()).catch(e => console.error('[CRM] office enum ensure error:', e));
