@@ -350,10 +350,30 @@ at `spectaeducation.com/igcse`. Stack architecture confirmed = "Path A+":
 - LLM: uses the existing `invokeLLM` (DeepSeek). Model is whatever
   `DEEPSEEK_*` env points at; swap to V4 by updating the env when ready.
 
-**Coming next** (per the 10-week plan): tldraw + KaTeX board-command
-renderer (Weeks 4-5) so the AI writes equations on a shared canvas, voice
-pipeline (Week 6 — Deepgram → DeepSeek → ElevenLabs Flash, ~500ms target),
-pedagogy/RAG over past papers (Week 7), then admin + polish.
+**Week 4 (shipped):** the whiteboard. The AI now returns BOTH `speech` (chat
+bubble) AND an ordered `board` array of structured commands rendered onto
+a shared whiteboard panel.
+- `igcse.sendMessage` switched to **JSON response** (`response_format:
+  json_object`). Defensive JSON parsing (strips ```json fences) so a flaky
+  parse falls back to plain speech with empty board.
+- Board command schema: `{type:"title"|"step"|"text"|"equation", …}`.
+  Equations are valid LaTeX (the system prompt explicitly enforces braces,
+  `\frac`, `\sqrt`, etc.); rendered with **KaTeX loaded from CDN**
+  (jsdelivr 0.16.11) — **no npm dependency added** to keep bundle lean.
+- Each turn's board commands are appended to `igcse_sessions.boardSnapshot`
+  (capped at last 200 items) so reopening a past lesson restores the full
+  board.
+- Client lesson room (`/igcse/lesson/:id`) is now split layout: chat column
+  + Board panel column. New board items reveal one-by-one (~600ms each) so
+  it feels like a teacher writing. Equations render via the inline
+  `KatexEquation` component (CDN loaded once, idempotent).
+- The plain-text math notation from Week 3 is gone — the prompt now
+  mandates proper LaTeX in board equations.
+
+**Coming next** (per the 10-week plan): student drawing layer over the
+board + diagram templates (Week 5), voice pipeline (Week 6 — Deepgram →
+DeepSeek → ElevenLabs Flash, ~500ms target), pedagogy/RAG over past papers
+(Week 7), then admin + polish.
 
 **Pricing (live):** **Rp 299k/month**, 30 hrs/month fair-use cap; free trial
 **30 minutes** lifetime.

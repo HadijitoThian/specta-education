@@ -258,6 +258,8 @@ export const igcseRouter = router({
       const lang = session.language === "id" ? "id" : "en";
 
       // Pedagogy system prompt — grounded in the Cambridge topic's LO.
+      // The AI returns JSON with both `speech` (the chat bubble) AND `board`
+      // (an ordered list of commands rendered onto the shared whiteboard).
       const sysPrompt = `You are an experienced Cambridge IGCSE Mathematics tutor for syllabus 0580 (Extended tier).
 ${topic ? `You are teaching: ${topic.title} (Topic ${topic.code}, Area: ${topic.areaName}).
 
@@ -266,17 +268,38 @@ ${topic.learningOutcomes || "(general topic — guide the student through key sk
 
 Your teaching style:
 - Patient, encouraging private tutor. Never condescending.
-- Use the Socratic method: ask a question or check understanding BEFORE explaining; let the student think.
-- When solving, show step-by-step working. Number each step. Briefly explain the "why" of each step, not just the "what".
-- Use plain-text math notation for now: ^ for powers (x^2), * for multiply, / for fractions, sqrt() for square roots, pi for π. (A proper whiteboard is coming soon.)
-- Keep replies SHORT — 2–4 short paragraphs max per turn. Drip-feed the lesson; don't dump.
-- If the student answers wrong, point out WHERE the slip happened and ask them to retry before giving the answer.
-- Celebrate progress with one short line ("Nice — that's the right move.").
+- Socratic: ask a question or check understanding BEFORE explaining; let the student think.
+- When solving, show step-by-step working — small steps, each on its own board line.
+- When a student makes a mistake, point to WHERE the slip happened and ask them to retry before giving the answer.
+- Celebrate progress in one short line ("Nice — that's the right move.").
 - If they go off-topic, gently bring them back to ${topic?.title || "the current topic"}.
 
 Language: respond in ${lang === "id" ? "Bahasa Indonesia, naturally and warmly" : "clear English"}.
 
-Never invent verbatim past-paper questions — describe the type of question instead.`;
+OUTPUT FORMAT — return a SINGLE JSON object with this exact shape (no extra text):
+{
+  "speech": "<2–3 short sentences you would SAY OUT LOUD to the student — conversational, drip-feed, ask back when natural>",
+  "board": [ <ordered list of board commands you would WRITE on the board, can be empty for purely conversational turns> ]
+}
+
+Each board command is one of:
+  { "type": "title", "text": "<the heading for this step or problem>" }
+  { "type": "text",  "text": "<a short prose label, e.g. 'So we use the quadratic formula'>" }
+  { "type": "step",  "n": <integer step number>, "text": "<one-line description of what we're doing this step>" }
+  { "type": "equation", "latex": "<a single equation in valid LaTeX, e.g. x^{2} + 5x + 6 = 0>" }
+
+LaTeX rules (IMPORTANT — equations render with KaTeX):
+- Always use proper LaTeX. NEVER write plain "x^2" — write "x^{2}".
+- Fractions: \\frac{a}{b}. Square roots: \\sqrt{x} or \\sqrt[3]{x}. Greek letters: \\pi, \\theta, \\alpha.
+- Subscripts: x_{1}. Multiplication: use a space, or \\cdot. Equal-or-greater: \\geq, \\leq, \\neq.
+- For a system or "x = … or x = …", inline it as one equation: x = -2 \\;\\text{or}\\; x = -3.
+- Keep each equation to ONE LINE. Break multi-step working into multiple equation commands so the student sees it build up.
+
+Rules:
+- For conversational turns (greetings, "I understand", "yes that's right"), keep \`board\` empty.
+- For teaching/solving, drip-feed: 3–8 board items per turn is plenty. Don't dump 20 lines at once.
+- Don't invent verbatim past-paper questions — describe the type of question instead.
+- Never produce ANY text outside the JSON object. JSON only.`;
 
       const messages = [
         { role: "system" as const, content: sysPrompt },
@@ -287,30 +310,53 @@ Never invent verbatim past-paper questions — describe the type of question ins
         { role: "user" as const, content: input.message },
       ];
 
-      let reply = "";
+      let speech = "";
+      let boardOut: any[] = [];
       try {
-        const res: any = await invokeLLM({ messages });
+        const res: any = await invokeLLM({
+          messages,
+          response_format: { type: "json_object" as const },
+        });
         const c = res?.choices?.[0]?.message?.content;
-        reply = (typeof c === "string" ? c : "").trim();
-        if (!reply) reply = "Sorry — I got distracted. Could you say that again?";
+        const rawText = (typeof c === "string" ? c : "").trim();
+        let parsed: any = {};
+        try {
+          // Strip ```json fences if present (some models add them).
+          const clean = rawText.replace(/^```json\s*|\s*```$/g, "").trim();
+          parsed = JSON.parse(clean);
+        } catch {
+          // Fallback: treat the whole response as speech, no board.
+          parsed = { speech: rawText, board: [] };
+        }
+        speech = String(parsed.speech || "").trim();
+        if (Array.isArray(parsed.board)) {
+          boardOut = parsed.board.filter((b: any) =>
+            b && typeof b === "object" && typeof b.type === "string"
+          ).slice(0, 30); // safety cap
+        }
+        if (!speech && !boardOut.length) {
+          speech = "Sorry — I got distracted. Could you say that again?";
+        }
       } catch (e) {
         console.error("[IGCSE] sendMessage LLM error:", e);
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The tutor couldn't respond. Please try again." });
       }
 
-      // Persist both turns + duration.
+      // Persist transcript + appended board commands + duration.
       const now = Date.now();
       const updatedTranscript = [
         ...((session.transcript as any[]) || []),
         { role: "student", text: input.message, ts: now },
-        { role: "ai", text: reply, ts: now + 1 },
+        { role: "ai", text: speech, board: boardOut, ts: now + 1 },
       ];
-      const patch: any = { transcript: updatedTranscript };
+      const existingBoard: any[] = Array.isArray(session.boardSnapshot) ? (session.boardSnapshot as any[]) : [];
+      const newBoard = [...existingBoard, ...boardOut.map(b => ({ ...b, _at: now + 1 }))].slice(-200);
+      const patch: any = { transcript: updatedTranscript, boardSnapshot: newBoard };
       if (input.elapsedSec != null && input.elapsedSec > (session.durationSec || 0)) {
         patch.durationSec = input.elapsedSec;
       }
       await db.update(igcseSessions).set(patch).where(eq(igcseSessions.id, input.sessionId));
 
-      return { reply, turns: updatedTranscript.length };
+      return { speech, board: boardOut, turns: updatedTranscript.length };
     }),
 });
