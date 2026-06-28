@@ -25,6 +25,15 @@ const STYLE_SUFFIX =
   "shallow depth of field, warm color grading, editorial style, " +
   "clean modern interior, high resolution, magazine quality";
 
+// For the 5 subject tiles we use a still-life suffix instead of a 'clean
+// modern interior' one — keeps the set visually cohesive (warm light wood
+// desk, soft window light, top-down or close-up, no human figures).
+const STILL_LIFE_SUFFIX =
+  ", photorealistic editorial still life, top-down flat-lay perspective, " +
+  "warm natural side lighting, shallow depth of field, light oak wooden " +
+  "desk surface, soft shadows, magazine-quality colour grading, " +
+  "no people, no hands, clean composition, high resolution";
+
 type Job = {
   key: string;
   prompt: string;
@@ -61,44 +70,49 @@ const JOBS: Job[] = [
     height: 768,
   },
 
-  // ── Subject portraits — one per subject ────────────────────────────────
+  // ── Subject tiles — themed STILL LIFES (no humans) ─────────────────────
+  // The five subject tiles share a cohesive aesthetic: warm light-oak desk,
+  // soft natural side light, top-down or close-up still life, subject-
+  // specific objects. Each one evokes its subject's "vibe" without using
+  // a model.
+
   {
     key: "igcse/dashboard/subject-math.png",
     prompt:
-      "Portrait of an Indonesian high-school student, around 16 years old, fair skin, neat appearance, wearing a clean white shirt school uniform, calmly looking at an open mathematics textbook with geometric diagrams and equations visible. Soft natural light from a window. Editorial portrait style, focused and analytical mood." +
-      STYLE_SUFFIX,
+      "A beautiful flat-lay still life on a light oak wooden desk: an open mathematics notebook showing elegant hand-drawn geometric diagrams (a perfect circle with inscribed triangle, a smooth parabolic curve, a coordinate grid with a plotted line), neatly handwritten algebraic equations in dark blue ink, beside it a wooden ruler, a brass compass, a clear plastic protractor, a sharpened yellow pencil. A small fresh leaf in the corner for warmth. Pristine, organised, inspiring an elegant mathematical mood." +
+      STILL_LIFE_SUFFIX,
     width: 768,
     height: 768,
   },
   {
     key: "igcse/dashboard/subject-physics.png",
     prompt:
-      "Portrait of an Indonesian high-school student, around 16 years old, fair skin, neat appearance, wearing a clean white shirt school uniform with a navy tie, looking at a physics worksheet showing force diagrams and circuit diagrams. Soft natural light, slight smile, curious and engaged expression." +
-      STYLE_SUFFIX,
+      "A still-life scene on a light oak wooden desk: a small Newton's cradle (5 polished steel balls suspended on threads), beside it a glass triangular prism splitting a thin beam of white light into a soft visible spectrum on the desk surface, a brass pocket compass, an open notebook page with hand-drawn force-arrow vectors and a pendulum sketch. Soft warm window light from the side, slight shimmer on the glass and brass, scientific and curious atmosphere." +
+      STILL_LIFE_SUFFIX,
     width: 768,
     height: 768,
   },
   {
     key: "igcse/dashboard/subject-chemistry.png",
     prompt:
-      "Portrait of an Indonesian high-school student, around 16 years old, fair skin, hair tied back, wearing a clean white shirt school uniform under a clean lab coat, holding a small glass beaker with clear liquid. Soft natural laboratory light, clean modern school chemistry lab in the blurred background. Focused, careful, curious expression." +
-      STYLE_SUFFIX,
+      "A beautiful close-up still life of three clear glass laboratory conical (Erlenmeyer) flasks on a clean white tile surface, each holding a different coloured liquid (one pale sky blue, one pale spring green, one soft amber-yellow). Light catches the curved glass and produces gentle highlights and reflections. Behind them, slightly out of focus, a periodic-table chart on the wall and a small molecular ball-and-stick model of water. Warm soft window light from the left. Clean, curious, scientific mood." +
+      STILL_LIFE_SUFFIX,
     width: 768,
     height: 768,
   },
   {
     key: "igcse/dashboard/subject-economics.png",
     prompt:
-      "Portrait of an Indonesian high-school student, around 17 years old, fair skin, neat shoulder-length hair, wearing a clean white shirt school uniform with a navy blazer, looking at a notebook with hand-drawn supply-and-demand diagrams and graphs. Soft natural light, thoughtful and analytical expression. Modern study room blurred in the background." +
-      STYLE_SUFFIX,
+      "A flat-lay still life on a light oak wooden desk: an open notebook page showing a neatly hand-drawn supply-and-demand graph with two crossing curves labelled S and D and an equilibrium point marked, beside it a small stack of crisp paper currency (neutral generic banknotes, no recognisable country), three vintage brass coins arranged casually, a magnifying glass resting on a printed line graph, and a fountain pen across the corner. Warm soft side lighting, analytical and thoughtful mood." +
+      STILL_LIFE_SUFFIX,
     width: 768,
     height: 768,
   },
   {
     key: "igcse/dashboard/subject-business.png",
     prompt:
-      "Portrait of an Indonesian high-school student, around 17 years old, fair skin, neat appearance, wearing a clean white shirt school uniform with a navy blazer, smiling confidently while looking at a tablet showing a business case study. Soft natural light, modern professional study setting blurred in the background. Confident, ambitious, aspirational mood." +
-      STYLE_SUFFIX,
+      "A flat-lay still life of a planning workspace on a light oak wooden desk: an open leather-bound notebook showing a neatly hand-drawn business diagram (a SWOT 2×2 grid with quadrants labelled, an arrow chart, a small mind map), beside it a sleek black fountain pen, a small wooden desk calendar, a porcelain coffee cup on a saucer with light steam, a smartphone face down, a few colourful sticky notes with strategic words. Warm soft window light, professional and aspirational mood." +
+      STILL_LIFE_SUFFIX,
     width: 768,
     height: 768,
   },
