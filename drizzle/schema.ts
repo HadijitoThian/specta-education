@@ -2503,6 +2503,27 @@ export const igcseTopics = mysqlTable("igcse_topics", {
 export type IgcseTopic = typeof igcseTopics.$inferSelect;
 export type InsertIgcseTopic = typeof igcseTopics.$inferInsert;
 
+/**
+ * Curated Cambridge-IGCSE-style exemplar questions, tagged by topic code.
+ * Used as RAG grounding in the AI's system prompt so it teaches like a real
+ * Cambridge tutor and references the marking conventions a student will face
+ * in the actual exam. Authored content (not scraped past papers).
+ */
+export const igcseExamples = mysqlTable("igcse_examples", {
+  id: int("id").autoincrement().primaryKey(),
+  topicCode: varchar("topicCode", { length: 16 }).notNull(), // matches igcse_topics.code
+  syllabus: varchar("syllabus", { length: 32 }).default("CIE_0580").notNull(),
+  tier: mysqlEnum("tier", ["core", "extended", "both"]).default("extended").notNull(),
+  marks: int("marks").notNull(),
+  question: text("question").notNull(),
+  markScheme: text("markScheme").notNull(),
+  source: varchar("source", { length: 160 }).notNull(), // e.g. "exam-style", "Specimen-2024-style"
+  sortOrder: int("sortOrder").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type IgcseExample = typeof igcseExamples.$inferSelect;
+export type InsertIgcseExample = typeof igcseExamples.$inferInsert;
+
 /** One AI-teacher session (one lesson on one topic). */
 export const igcseSessions = mysqlTable("igcse_sessions", {
   id: int("id").autoincrement().primaryKey(),

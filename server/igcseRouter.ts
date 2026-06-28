@@ -26,7 +26,7 @@ import { and, desc, eq } from "drizzle-orm";
 
 import { router, publicProcedure } from "./_core/trpc";
 import { getDb, getActiveIgcseSubscription, createIgcseSubscription, getIgcseLifetimeSecondsUsed, getLeadById } from "./db";
-import { igcseTopics, igcseSessions, type IgcseSession } from "../drizzle/schema";
+import { igcseTopics, igcseSessions, igcseExamples, type IgcseSession } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { IGCSE_PLANS, igcseExternalId, createIgcseInvoice } from "./xenditService";
 import { invokeLLM } from "./_core/llm";
@@ -266,6 +266,17 @@ export const igcseRouter = router({
         topic = t || null;
       }
 
+      // Pull up to 3 curated Cambridge-style exemplars for this topic. The AI
+      // uses them as grounding so it teaches in real exam style + marks the way
+      // an examiner would. Random ordering each turn so we don't always cite
+      // the same one if the student keeps asking related questions.
+      let exemplars: any[] = [];
+      if (topic?.code) {
+        const all = await db.select().from(igcseExamples)
+          .where(eq(igcseExamples.topicCode, topic.code));
+        exemplars = all.sort(() => Math.random() - 0.5).slice(0, 3);
+      }
+
       // Gate: must have access (active subscription OR free-trial time remaining).
       const sub = await getActiveIgcseSubscription(leadId);
       if (!sub) {
@@ -286,15 +297,22 @@ export const igcseRouter = router({
         }))
         .slice(-20);
 
-      // Pedagogy system prompt — grounded in the Cambridge topic's LO.
-      // The AI returns JSON with both `speech` (the chat bubble) AND `board`
-      // (an ordered list of commands rendered onto the shared whiteboard).
+      // Pedagogy system prompt — grounded in the Cambridge topic's LO PLUS
+      // a handful of curated exam-style exemplars (Week 7 RAG). The AI uses
+      // them so its working + mark-scheme commentary match what an examiner
+      // would actually award in Paper 2 / Paper 4.
+      const exemplarsBlock = exemplars.length
+        ? `\n\nCAMBRIDGE-STYLE EXAM EXEMPLARS for this topic (use as guidance for question style and how the exam awards marks — DO NOT just copy them verbatim; refer to them when teaching the technique):\n\n${exemplars
+            .map((e, i) => `Exemplar ${i + 1} (${e.marks} marks${e.source ? ", " + e.source : ""}):\nQuestion:\n${e.question}\n\nMark scheme (Cambridge convention: M = method, A = accuracy, B = independent, FT = follow-through):\n${e.markScheme}`)
+            .join("\n\n---\n\n")}\n`
+        : "";
+
       const sysPrompt = `You are an experienced Cambridge IGCSE Mathematics tutor for syllabus 0580 (Extended tier).
 ${topic ? `You are teaching: ${topic.title} (Topic ${topic.code}, Area: ${topic.areaName}).
 
 Cambridge syllabus learning outcomes for this topic:
 ${topic.learningOutcomes || "(general topic — guide the student through key skills.)"}` : "The student hasn't picked a specific topic yet — help them pick one from the IGCSE 0580 Extended syllabus."}
-
+${exemplarsBlock}
 Your teaching style:
 - Patient, encouraging private tutor. Never condescending.
 - Socratic: ask a question or check understanding BEFORE explaining; let the student think.
@@ -302,6 +320,12 @@ Your teaching style:
 - When a student makes a mistake, point to WHERE the slip happened and ask them to retry before giving the answer.
 - Celebrate progress in one short line ("Nice — that's the right move.").
 - If they go off-topic, gently bring them back to ${topic?.title || "the current topic"}.
+
+EXAM-AWARE pedagogy (Week 7):
+- Talk to the student about how the exam awards marks. When a question is worth N marks, briefly explain what each mark is for (e.g. "1 mark for the right method, 2 for the answer"). Use Cambridge's convention: M = method, A = accuracy, B = independent, FT = follow-through.
+- Flag the common student traps the exemplar mark schemes highlight (e.g. forgetting to reverse the inequality, treating reverse-percentage as a normal percentage, dropping the base of a cone).
+- When the student asks for "a practice question" or "give me an exam-style question", pose one that mirrors the EXEMPLAR style above — but vary the numbers / context. Never copy an exemplar verbatim back at them.
+- Don't pretend to quote specific past papers verbatim. You may say "this is the type of question that comes up in Paper 2" or "Paper 4 likes to test this with…".
 
 Language: respond in ${lang === "id" ? "Bahasa Indonesia, naturally and warmly" : "clear English"}.
 

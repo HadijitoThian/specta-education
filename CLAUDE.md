@@ -418,8 +418,28 @@ are present or whose credit has run out.
 - Cost-wise still within the $2/hr ceiling (Flash v2.5 ≈ \$0.30-0.60/hr of
   speech + DeepSeek + free browser STT).
 
-**Coming next** (per the 10-week plan): pedagogy/RAG over past papers
-(Week 7) so the AI cites real Cambridge questions, then admin + polish.
+**Week 7 (shipped):** exam-aware pedagogy via curated exemplar bank.
+- New `igcse_examples` table (`drizzle/schema.ts` + `server/db.ts`) keyed
+  by `topicCode`, with `question` + Cambridge-style `markScheme` using the
+  examiner conventions (**M** = method, **A** = accuracy, **B** =
+  independent, **FT** = follow-through).
+- `server/igcseExamplesSeed.ts` seeds ~25 authored Cambridge-style
+  exemplars across high-value 0580 Extended topics (percentages, ratio,
+  bounds, surds, sequences, quadratics, simultaneous, inequalities,
+  functions, differentiation, lines, circle theorems, sectors, cone
+  surface, right-angle trig, cosine rule, vectors, tree diagrams,
+  histograms, cumulative frequency). Idempotent — only seeds if empty.
+- `sendMessage` (`server/igcseRouter.ts`) pulls up to 3 random exemplars
+  for the active topic, injects them into the system prompt with the
+  mark-scheme conventions and a new **EXAM-AWARE pedagogy** block telling
+  the AI to: talk about mark allocations, flag common student traps,
+  mirror exemplar style for practice but vary numbers, never claim items
+  are verbatim past papers (so we stay copyright-clean).
+- No scraping of copyrighted Cambridge papers — every exemplar in the
+  bank is authored to Cambridge style and labelled as such.
+
+**Coming next** (per the 10-week plan): admin + polish (Week 8+),
+session-level metering visible in /admin, and a cost dashboard.
 
 **Pricing (live):** **Rp 299k/month**, 30 hrs/month fair-use cap; free trial
 **30 minutes** lifetime.

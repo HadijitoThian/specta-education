@@ -462,6 +462,21 @@ export async function ensureMarketingSchema(): Promise<void> {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `));
     await db.execute(sql.raw(`
+      CREATE TABLE IF NOT EXISTS igcse_examples (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        topicCode VARCHAR(16) NOT NULL,
+        syllabus VARCHAR(32) NOT NULL DEFAULT 'CIE_0580',
+        tier ENUM('core','extended','both') NOT NULL DEFAULT 'extended',
+        marks INT NOT NULL,
+        question TEXT NOT NULL,
+        markScheme TEXT NOT NULL,
+        source VARCHAR(160) NOT NULL,
+        sortOrder INT NOT NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_topic (topicCode)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `));
+    await db.execute(sql.raw(`
       CREATE TABLE IF NOT EXISTS igcse_progress (
         leadId INT NOT NULL,
         topicId INT NOT NULL,

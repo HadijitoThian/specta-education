@@ -234,6 +234,7 @@ import { marketingRouter } from "./marketingRouter";
 import { tutorRouter } from "./tutorRouter";
 import { igcseRouter } from "./igcseRouter";
 import { seedIgcseTopicsIfEmpty } from "./igcseTopicSeed";
+import { seedIgcseExamplesIfEmpty } from "./igcseExamplesSeed";
 import { startTutorImages } from "./tutorImages";
 import { crmJourneyRouter } from "./crmJourneyRouter";
 import { sosmedRouter } from "./sosmedRouter";
@@ -8173,10 +8174,14 @@ seedUniversitiesIfEmpty().then(r => {
   if (r.seeded) console.log(`[Universities] Seeded ${r.count} universities`);
 }).catch(e => console.error('[Universities] Seed error:', e));
 
-// IGCSE AI Teacher: seed the Cambridge 0580 Extended topic tree once.
+// IGCSE AI Teacher: seed the Cambridge 0580 Extended topic tree + curated
+// exam-style exemplars (used as RAG grounding in the AI's pedagogy prompt).
 seedIgcseTopicsIfEmpty().then(r => {
   if (r.seeded) console.log(`[IGCSE] Seeded ${r.seeded} topics`);
 }).catch(e => console.error('[IGCSE] Topic seed error:', e));
+seedIgcseExamplesIfEmpty().then(r => {
+  if (r.seeded) console.log(`[IGCSE] Seeded ${r.seeded} exam exemplars`);
+}).catch(e => console.error('[IGCSE] Example seed error:', e));
 
 // Growth Phase A: ensure attribution columns + marketing_spend table exist
 // (idempotent) so a deploy never outruns the migration and breaks lead capture.
