@@ -306,6 +306,101 @@ const EXAMPLES: Ex[] = [
     question: "(a) State the process by which energy is released in the Sun's core.\n(b) State the main nuclear reaction taking place.",
     markScheme: "(a) **Nuclear fusion  (B1)**\n(b) **Hydrogen nuclei (protons) fuse to form helium**, releasing energy **(B1)**.\n  The total mass of the products is slightly less than the total mass of the reactants — the lost mass is converted into energy (E = mc²).  **(B1)**\nThis is what powers all main-sequence stars, including the Sun, for billions of years.",
     source: "exam-style" },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 1–2 MARK QUICK QUESTIONS (definitions, single-step calculations, "state…")
+  // The kind that appear at the start of Paper 2 (Extended).
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  { topicCode: "P1.1", marks: 1,
+    question: "State the SI unit of force.",
+    markScheme: "**Newton (N)  (B1)**.\nThe newton is a derived SI unit: 1 N = 1 kg m/s².",
+    source: "exam-style" },
+
+  { topicCode: "P1.3", marks: 2,
+    question: "An object has a mass of 5.0 kg. Calculate its weight on Earth, where g = 9.8 N/kg.",
+    markScheme: "Use W = mg **(M1)**\nW = 5.0 × 9.8 = **49 N  (A1)**\nUnits must be stated for the answer mark.",
+    source: "exam-style" },
+
+  { topicCode: "P1.5", marks: 2,
+    question: "State Newton's first law of motion.",
+    markScheme: "**An object will remain at rest or continue moving in a straight line at constant velocity, UNLESS acted on by a resultant (net) force.  (B2)**\nB1 if only the 'at rest' part OR only the 'constant velocity' part is given.\nCommon shortcut: \"no resultant force → no change in motion\".",
+    source: "exam-style" },
+
+  { topicCode: "P1.7", marks: 2,
+    question: "A car of mass 1200 kg is travelling at 15 m/s. Calculate its kinetic energy.",
+    markScheme: "Use KE = ½mv² **(M1)**\nKE = ½ × 1200 × 15² = ½ × 1200 × 225 = **135 000 J (= 135 kJ)  (A1)**\nDon't forget to square the speed BEFORE multiplying.",
+    source: "exam-style" },
+
+  { topicCode: "P1.8", marks: 2,
+    question: "A force of 60 N acts on an area of 0.30 m². Calculate the pressure exerted.",
+    markScheme: "Use p = F/A **(M1)**\np = 60/0.30 = **200 Pa (= 200 N/m²)  (A1)**\nUnits: Pa = N/m² — either is acceptable.",
+    source: "exam-style" },
+
+  { topicCode: "P3.1", marks: 2,
+    question: "A water wave has a period of 0.25 s. Calculate its frequency.",
+    markScheme: "Use f = 1/T **(M1)**\nf = 1/0.25 = **4.0 Hz  (A1)**\nThe hertz is the SI unit of frequency, equal to 1/s.",
+    source: "exam-style" },
+
+  { topicCode: "P3.3", marks: 1,
+    question: "State the speed of electromagnetic waves in a vacuum.",
+    markScheme: "**3 × 10⁸ m/s  (B1)** (accept 2.998 × 10⁸ or 3.0 × 10⁸).\nAll regions of the EM spectrum (radio → gamma) travel at this speed in vacuum.",
+    source: "exam-style" },
+
+  { topicCode: "P3.4", marks: 1,
+    question: "State the approximate range of frequencies audible to a healthy young human ear.",
+    markScheme: "**20 Hz to 20 000 Hz (20 kHz)  (B1)**.\nThe upper limit drops with age. Below 20 Hz = infrasound; above 20 kHz = ultrasound.",
+    source: "exam-style" },
+
+  { topicCode: "P4.2", marks: 2,
+    question: "A current of 2.5 A flows for 40 s. Calculate the charge that passes a point in the circuit.",
+    markScheme: "Use Q = It **(M1)**\nQ = 2.5 × 40 = **100 C  (A1)**\nThe coulomb is the SI unit of charge: 1 C = the charge that passes a point in 1 s when the current is 1 A.",
+    source: "exam-style" },
+
+  { topicCode: "P5.1", marks: 2,
+    question: "The nuclide ¹⁴₆C is carbon-14.\nState the number of protons and the number of neutrons in this nucleus.",
+    markScheme: "Protons = Z = **6  (B1)**\nNeutrons = A − Z = 14 − 6 = **8  (B1)**.\nA = mass (nucleon) number, Z = proton (atomic) number.",
+    source: "exam-style" },
+
+  { topicCode: "P5.2", marks: 1,
+    question: "Name the three types of nuclear radiation in increasing order of penetrating power.",
+    markScheme: "**Alpha (α), Beta (β), Gamma (γ)  (B1)** — order must be correct.\nAlpha = least penetrating (stopped by paper); gamma = most penetrating (only stopped by thick lead).",
+    source: "exam-style" },
+
+  { topicCode: "P6.1", marks: 1,
+    question: "State, in order from closest to the Sun, the four innermost planets of the Solar System.",
+    markScheme: "**Mercury, Venus, Earth, Mars  (B1)**.\nOrder matters — these are the four 'rocky' planets, followed by the four 'gas giants' (Jupiter, Saturn, Uranus, Neptune).",
+    source: "exam-style" },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 5+ MARK LONGER-RESPONSE QUESTIONS (multi-step problems, full reasoning)
+  // The kind that appear later in Paper 2 (Extended) and on Paper 4.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  { topicCode: "P1.2", marks: 6,
+    question: "A speed–time graph for a cyclist on a 30-second journey is described:\n  0 to 6 s: speed increases uniformly from 0 to 12 m/s\n  6 to 22 s: constant speed of 12 m/s\n  22 to 30 s: speed decreases uniformly from 12 m/s to 0\n\n(a) Calculate the acceleration in the first 6 s.\n(b) Calculate the total distance travelled.\n(c) Calculate the average speed for the whole journey.",
+    markScheme: "(a) a = (v − u)/t = (12 − 0)/6 **(M1)** → **a = 2.0 m/s²  (A1)**\n(b) Triangle 1 (0–6 s): ½ × 6 × 12 = 36 m\n  Rectangle (6–22 s): 16 × 12 = 192 m\n  Triangle 2 (22–30 s): ½ × 8 × 12 = 48 m **(M1)** for splitting the area correctly\n  Total = 36 + 192 + 48 = **276 m  (A1)**\n(c) Average speed = total distance / total time = 276/30 **(M1)**\n  **= 9.2 m/s  (A1)**\nNote average ≠ (max + min)/2 — it's total distance ÷ total time.",
+    source: "exam-style" },
+
+  { topicCode: "P1.7", marks: 6,
+    question: "A roller coaster car of total mass 600 kg starts at rest at the top of a slope of height 25 m. The car reaches a speed of 18 m/s at the bottom of the slope. Take g = 9.8 N/kg.\n(a) Calculate the gravitational potential energy lost as the car descends.\n(b) Calculate the kinetic energy of the car at the bottom of the slope.\n(c) Calculate the energy lost to friction during the descent.\n(d) Suggest one reason why this energy was lost.",
+    markScheme: "(a) ΔGPE = mgΔh = 600 × 9.8 × 25 **(M1)** = **147 000 J (= 147 kJ)  (A1)**\n(b) KE = ½mv² = ½ × 600 × 18² = ½ × 600 × 324 **(M1)** = **97 200 J (≈ 97.2 kJ)  (A1)**\n(c) Energy lost = ΔGPE − KE = 147 000 − 97 200 **(M1)** = **49 800 J (≈ 49.8 kJ)  (A1)**\n(d) Friction between **the wheels and the track / air resistance** transfers the missing energy to **thermal energy (heat) and sound  (B1 — bonus mark; max 6)**.\nKey: energy is conserved overall — it's just transferred to forms we don't want.",
+    source: "exam-style" },
+
+  { topicCode: "P3.2", marks: 5,
+    question: "A ray of light travels from glass (refractive index 1.5) into air.\n(a) Calculate the critical angle for this glass-air boundary.\n(b) State what happens to a ray of light hitting the boundary at an angle of incidence (measured from the normal in the glass) of 30°.\n(c) State what happens to a ray hitting the boundary at an angle of incidence of 50°.\n(d) State one use of total internal reflection.",
+    markScheme: "(a) sin c = 1/n = 1/1.5 **(M1)** → c = sin⁻¹(0.667) = **41.8° (accept 42°)  (A1)**\n(b) 30° < critical angle → the ray **refracts** and passes into air (bending AWAY from the normal). Some light may also reflect back (partial reflection). **(B1)**\n(c) 50° > critical angle → **total internal reflection**: ALL of the light is reflected back into the glass; none escapes into the air.  **(B1)**\n(d) **Optical fibres (telecommunications, endoscopy) / periscopes / bicycle reflectors / binocular prisms** (any one)  **(B1)**\nCritical angle is the boundary case where the refracted ray would just emerge along the surface (r = 90°).",
+    source: "exam-style" },
+
+  { topicCode: "P4.5", marks: 6,
+    question: "A power station generates 5.0 MW of electrical power at 25 kV. The power is transmitted via a step-up transformer to a transmission line at 250 kV. The transmission line has a total resistance of 8.0 Ω.\n(a) State the turns ratio (Nₛ : Nₚ) of the step-up transformer, assuming it is ideal.\n(b) Calculate the current in the transmission line.\n(c) Calculate the power dissipated as heat in the line.\n(d) Explain in one sentence why electricity is transmitted at high voltage.",
+    markScheme: "(a) Vₛ/Vₚ = Nₛ/Nₚ = 250/25 = **10 : 1  (B1)** (step-up — secondary has 10× more turns)\n(b) Assuming ideal transformer, power is conserved: 5.0 × 10⁶ = V × I → I = 5.0 × 10⁶ / 250 000 **(M1)** = **20 A  (A1)**\n(c) P_loss = I²R = 20² × 8.0 **(M1)** = 400 × 8.0 = **3200 W (= 3.2 kW)  (A1)**\n(d) **At HIGH voltage the current is LOW, so I²R losses in the line are small** — the power gets delivered efficiently to the user. **(B1)**\nKey: with the SAME power, doubling V halves I and so quarters the I²R loss.",
+    source: "exam-style" },
+
+  { topicCode: "P5.2", marks: 6,
+    question: "A radioactive sample initially has a count rate of 800 counts per minute. The count rate drops as follows:\n  After 2 hours: 400 counts/min\n  After 4 hours: 200 counts/min\n  After 6 hours: 100 counts/min\n\n(a) State the half-life of the sample.\n(b) Predict the count rate after 10 hours.\n(c) The sample is uranium-238 (²³⁸₉₂U), which decays by alpha emission.\n  Write the complete nuclear equation for this decay, including the nucleon and proton numbers of the daughter nucleus.\n(d) State which type of radiation (α, β, or γ) is most strongly ionising.",
+    markScheme: "(a) Each successive 2 h halves the count → **half-life = 2.0 h  (B1)**\n(b) From 6 h (100 c/min), a further 4 h = 2 more half-lives → 100 → 50 → 25\n  **25 counts/min  (M1, A1)** (FT from (a))\n(c) α particle = ⁴₂He. Conservation: A = 238 − 4 = **234**, Z = 92 − 2 = **90** **(B1, B1)**.\n  **²³⁸₉₂U → ²³⁴₉₀Th + ⁴₂He**  (Th = thorium)  **(B1 for balanced eq)**\n(d) **Alpha (α)** — most strongly ionising (largest charge and mass)  **(B1 — max 6)**.\nOrder: ionising α > β > γ; penetrating γ > β > α (inverse).",
+    source: "exam-style" },
 ];
 
 /**
