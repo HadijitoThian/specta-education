@@ -2520,6 +2520,28 @@ export const igcseSessions = mysqlTable("igcse_sessions", {
 export type IgcseSession = typeof igcseSessions.$inferSelect;
 export type InsertIgcseSession = typeof igcseSessions.$inferInsert;
 
+/**
+ * IGCSE AI Teacher subscription — kept separate from tutor_subscriptions so
+ * the IGCSE-specific monthly hours cap doesn't pollute the tutor schema.
+ * Plan `m1` = Rp 299.000 / month, 30 hours/month fair-use cap.
+ */
+export const igcseSubscriptions = mysqlTable("igcse_subscriptions", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  plan: mysqlEnum("plan", ["m1"]).notNull(),
+  status: mysqlEnum("status", ["pending", "active", "expired", "cancelled"]).default("pending").notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }),
+  currency: varchar("currency", { length: 8 }).default("IDR").notNull(),
+  hoursLimit: int("hoursLimit").default(30).notNull(),
+  xenditInvoiceId: varchar("xenditInvoiceId", { length: 120 }),
+  startsAt: timestamp("startsAt"),
+  expiresAt: timestamp("expiresAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type IgcseSubscription = typeof igcseSubscriptions.$inferSelect;
+export type InsertIgcseSubscription = typeof igcseSubscriptions.$inferInsert;
+
 /** Per-student, per-topic mastery — used later for adaptive learning. */
 export const igcseProgress = mysqlTable("igcse_progress", {
   leadId: int("leadId").notNull(),

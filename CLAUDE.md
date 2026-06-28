@@ -307,13 +307,37 @@ at `spectaeducation.com/igcse`. Stack architecture confirmed = "Path A+":
 - `/igcse` landing page (`client/src/pages/Igcse.tsx`) — sales hero +
   live-rendered syllabus areas pulled from the seed + WhatsApp beta CTA.
 
-**Coming next** (per the 10-week plan): subscription plan + free trial
-(Week 2), session room shell + tldraw + KaTeX board command renderer
-(Weeks 3-5), voice pipeline (Week 6), pedagogy/RAG over past papers
-(Week 7), then admin + polish.
+**Week 2 (shipped):** subscription engine + free trial + gated app shell.
+- `igcse_subscriptions` table (`plan='m1'`, `hoursLimit=30`, `status`,
+  `xenditInvoiceId`, `startsAt`/`expiresAt`). Mirrors `tutor_subscriptions`
+  but kept separate so the monthly hours cap doesn't pollute the tutor row.
+- `IGCSE_PLANS.m1` in `xenditService.ts`: Rp 299.000 / 30 days / 30 hrs.
+  Plus `igcseExternalId()` / `isIgcseExternalId()` / `createIgcseInvoice()`.
+- Xendit webhook: `IGCSE-` branch in `server/xenditWebhook.ts` activates the
+  subscription on PAID/SETTLED (mirrors the `TUTOR-` branch), cancels on
+  EXPIRED/FAILED, and pings `notifyOwner`.
+- `igcseRouter.status`: returns `subscription` (plan/expiresAt/hoursLimit) +
+  `freeTrial.{totalSec, usedSec, remainingSec}` (lifetime cap of **30 minutes**
+  measured by `getIgcseLifetimeSecondsUsed` summing `durationSec` from
+  `igcse_sessions`). `hasAccess = !!sub || freeRemainingSec > 0`.
+- `igcseRouter.createCheckout({plan:"m1"})`: writes a pending
+  `igcse_subscription` row keyed by external id, hits Xendit, returns the
+  hosted invoice URL. Success redirects to `/igcse/app?paid=1`; the app then
+  polls status briefly so the new subscription appears as soon as the
+  webhook flips it active.
+- **Client:** `/igcse/app` gated page (`client/src/pages/IgcseApp.tsx`) =
+  AuthGate (reusing the student-portal pattern from the IELTS Tutor) →
+  signed-in Dashboard showing free-trial counter, subscription status,
+  "Subscribe → Xendit" plan card, "classroom opens soon" placeholder.
+- Landing page CTA now points at `/igcse/app` (free trial first) instead of
+  WhatsApp-only.
 
-**Pricing (proposed, to validate):** Rp 299k/month, 30 hrs/month fair-use
-cap; free trial 30 minutes lifetime.
+**Coming next** (per the 10-week plan): session room shell + tldraw + KaTeX
+board-command renderer (Weeks 3-5), voice pipeline (Week 6), pedagogy/RAG
+over past papers (Week 7), then admin + polish.
+
+**Pricing (live):** **Rp 299k/month**, 30 hrs/month fair-use cap; free trial
+**30 minutes** lifetime.
 - **AI Tutor launch:** the global free bypass `TUTOR_FREE_TESTING` is now
   HARD-DISABLED in production (FREE_TESTING() returns false when
   NODE_ENV=production), so the paywall is always live; the 1-try free taster

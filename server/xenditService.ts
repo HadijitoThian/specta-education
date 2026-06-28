@@ -143,3 +143,53 @@ export async function createTutorInvoice(params: {
   }
   return response.json() as Promise<XenditInvoiceResponse>;
 }
+
+// ── IGCSE AI Teacher subscription ─────────────────────────────────────────────
+export const IGCSE_PLANS = {
+  m1: { amount: 299000, days: 30, hoursLimit: 30, label: "IGCSE Math AI Teacher — 1 Month (30 hours)" },
+} as const;
+export type IgcsePlan = keyof typeof IGCSE_PLANS;
+
+export function igcseExternalId(): string {
+  return `IGCSE-${Date.now().toString(36)}-${crypto.randomBytes(4).toString("hex")}`;
+}
+export function isIgcseExternalId(id: unknown): boolean {
+  return typeof id === "string" && id.startsWith("IGCSE-");
+}
+
+export async function createIgcseInvoice(params: {
+  externalId: string; plan: IgcsePlan; customerName: string; customerEmail: string;
+  customerPhone?: string; successRedirectUrl?: string; failureRedirectUrl?: string;
+}): Promise<XenditInvoiceResponse> {
+  const plan = IGCSE_PLANS[params.plan];
+  const body: Record<string, unknown> = {
+    external_id: params.externalId,
+    amount: plan.amount,
+    currency: "IDR",
+    description: plan.label,
+    customer: {
+      given_names: params.customerName || "Student",
+      email: params.customerEmail,
+      ...(params.customerPhone ? { mobile_number: params.customerPhone } : {}),
+    },
+    customer_notification_preference: {
+      invoice_created: ["email"],
+      invoice_reminder: ["email"],
+      invoice_paid: ["email"],
+    },
+    invoice_duration: 259200, // 3 days — gives Xendit's reminder time to fire
+    ...(params.successRedirectUrl ? { success_redirect_url: params.successRedirectUrl } : {}),
+    ...(params.failureRedirectUrl ? { failure_redirect_url: params.failureRedirectUrl } : {}),
+  };
+  const response = await fetch(`${XENDIT_API_BASE}/v2/invoices`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Basic ${Buffer.from(ENV.xenditSecretKey + ":").toString("base64")}` },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    console.error("[Xendit] IGCSE invoice creation failed:", response.status, error);
+    throw new Error(`Xendit invoice creation failed: ${response.status}`);
+  }
+  return response.json() as Promise<XenditInvoiceResponse>;
+}

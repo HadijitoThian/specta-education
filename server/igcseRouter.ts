@@ -25,8 +25,12 @@ import { parse as parseCookies } from "cookie";
 import { and, desc, eq } from "drizzle-orm";
 
 import { router, publicProcedure } from "./_core/trpc";
-import { getDb } from "./db";
+import { getDb, getActiveIgcseSubscription, createIgcseSubscription, getIgcseLifetimeSecondsUsed, getLeadById } from "./db";
 import { igcseTopics, igcseSessions, type IgcseSession } from "../drizzle/schema";
+import { ENV } from "./_core/env";
+import { IGCSE_PLANS, igcseExternalId, createIgcseInvoice } from "./xenditService";
+
+const FREE_TRIAL_SECONDS = 30 * 60; // 30 minutes lifetime free trial
 
 /** Resolve the signed-in student's leadId from the student-portal cookie. */
 async function resolveLead(ctx: any): Promise<number | null> {
@@ -54,15 +58,64 @@ export const igcseRouter = router({
     return rows;
   }),
 
-  /** Sign-in + simple access status for the IGCSE app shell. */
+  /** Sign-in + access status: subscription + free-trial counter for the gate. */
   status: publicProcedure.query(async ({ ctx }) => {
     const leadId = await resolveLead(ctx);
     if (!leadId) return { loggedIn: false as const };
-    // Subscription/free-trial gating lands when we wire the IGCSE plan into
-    // tutor_subscriptions in Week 2; for the scaffold we treat all signed-in
-    // students as having access.
-    return { loggedIn: true as const, hasAccess: true };
+    const sub = await getActiveIgcseSubscription(leadId);
+    const usedSec = await getIgcseLifetimeSecondsUsed(leadId);
+    const freeRemainingSec = Math.max(0, FREE_TRIAL_SECONDS - usedSec);
+    return {
+      loggedIn: true as const,
+      subscription: sub ? { plan: sub.plan, expiresAt: sub.expiresAt, hoursLimit: sub.hoursLimit } : null,
+      freeTrial: {
+        totalSec: FREE_TRIAL_SECONDS,
+        usedSec,
+        remainingSec: freeRemainingSec,
+      },
+      hasAccess: !!sub || freeRemainingSec > 0,
+    };
   }),
+
+  /** Create a Xendit invoice for the IGCSE subscription plan; returns the hosted invoice URL. */
+  createCheckout: publicProcedure
+    .input(z.object({ plan: z.enum(["m1"]).default("m1") }))
+    .mutation(async ({ input, ctx }) => {
+      const leadId = requireLead(await resolveLead(ctx));
+      if (!ENV.xenditSecretKey) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Payments are not configured yet." });
+      }
+      const lead = await getLeadById(leadId);
+      if (!lead) throw new TRPCError({ code: "NOT_FOUND", message: "Account not found." });
+      const plan = IGCSE_PLANS[input.plan];
+      const externalId = igcseExternalId();
+      await createIgcseSubscription({
+        leadId,
+        plan: input.plan,
+        status: "pending",
+        amount: String(plan.amount) as any,
+        currency: "IDR",
+        hoursLimit: plan.hoursLimit,
+        xenditInvoiceId: externalId,
+      });
+      // Never redirect a paying customer to localhost if APP_URL is unset.
+      const base = ENV.appUrl?.replace(/\/+$/, "")
+        || "https://specta-education-production.up.railway.app";
+      try {
+        const invoice = await createIgcseInvoice({
+          externalId,
+          plan: input.plan,
+          customerName: (lead as any).name || (lead as any).studentName || "Student",
+          customerEmail: (lead as any).email || (lead as any).studentEmail,
+          customerPhone: (lead as any).phone || (lead as any).studentPhone || undefined,
+          successRedirectUrl: `${base}/igcse/app?paid=1`,
+          failureRedirectUrl: `${base}/igcse/app?paid=0`,
+        });
+        return { invoiceUrl: invoice.invoice_url };
+      } catch (e) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message });
+      }
+    }),
 
   /** Start a new lesson on a topic (or free-form if topicId is omitted). */
   createSession: publicProcedure

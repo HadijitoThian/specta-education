@@ -61,13 +61,14 @@ export default function Igcse() {
             step-by-step on a shared digital whiteboard, and sketch your own answers right alongside.
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <a href="#beta" className="inline-flex items-center gap-2 bg-white text-violet-700 font-bold px-6 py-3 rounded-xl shadow-lg hover:bg-amber-50 transition">
-              Join the private beta <ArrowRight className="w-4 h-4" />
-            </a>
+            <Link href="/igcse/app" className="inline-flex items-center gap-2 bg-white text-violet-700 font-bold px-6 py-3 rounded-xl shadow-lg hover:bg-amber-50 transition">
+              Start free trial (30 min) <ArrowRight className="w-4 h-4" />
+            </Link>
             <a href="#how" className="inline-flex items-center gap-2 border-2 border-white/30 text-white font-semibold px-6 py-3 rounded-xl hover:bg-white/10 transition">
               How it works
             </a>
           </div>
+          <p className="text-white/70 text-xs mt-3">No credit card. Cancel anytime. Or <a href="#beta" className="underline">talk to us on WhatsApp</a>.</p>
         </div>
       </section>
 
@@ -130,28 +131,28 @@ export default function Igcse() {
         </div>
       </section>
 
-      {/* Beta CTA */}
+      {/* Pricing + Beta CTA */}
       <section id="beta" className="py-16 px-4">
         <div className="container max-w-3xl mx-auto">
           <div className="rounded-3xl p-8 md:p-10 text-white text-center" style={{ background: `linear-gradient(120deg, ${PURPLE}, #db2777)` }}>
-            <div className="text-4xl mb-3">🚀</div>
-            <h2 className="text-2xl md:text-3xl font-extrabold mb-2">Be the first to try it</h2>
+            <div className="text-4xl mb-3">🎓</div>
+            <h2 className="text-2xl md:text-3xl font-extrabold mb-2">30 minutes free, then Rp 299.000/month</h2>
             <p className="text-white/90 mb-6 max-w-xl mx-auto">
-              The voice + whiteboard session room is rolling out in private beta — students get early access at a launch price. Tell us you're interested and we'll bring you in first.
+              Get the full Cambridge IGCSE 0580 Extended syllabus, 30 hours of tutoring per month, cancel anytime.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
+              <Link href="/igcse/app" className="inline-flex items-center gap-2 bg-white text-violet-700 font-bold px-6 py-3 rounded-xl shadow hover:bg-amber-50 transition">
+                Start free trial <ArrowRight className="w-4 h-4" />
+              </Link>
               <a
                 href="https://wa.me/62818218388?text=Hi%2C%20I%27m%20interested%20in%20the%20IGCSE%20Math%20AI%20Teacher%20beta"
                 target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-white text-violet-700 font-bold px-6 py-3 rounded-xl shadow hover:bg-amber-50 transition"
+                className="inline-flex items-center gap-2 border-2 border-white/40 text-white font-semibold px-6 py-3 rounded-xl hover:bg-white/10 transition"
               >
-                Join the beta on WhatsApp <ArrowRight className="w-4 h-4" />
+                Talk to us on WhatsApp
               </a>
-              <Link href="/ielts/tutor" className="inline-flex items-center gap-2 border-2 border-white/40 text-white font-semibold px-6 py-3 rounded-xl hover:bg-white/10 transition">
-                Already a SpecTa student? Try the AI IELTS Tutor
-              </Link>
             </div>
-            <p className="text-xs text-white/70 mt-5">Phase 1 of a 10-week build: voice + whiteboard rolling out subject-by-subject, starting with Cambridge IGCSE Math.</p>
+            <p className="text-xs text-white/70 mt-5">Private beta — early students lock in launch pricing.</p>
           </div>
         </div>
       </section>

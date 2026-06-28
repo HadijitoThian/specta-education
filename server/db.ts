@@ -11,6 +11,8 @@ import {
   geoSnapshots, InsertGeoSnapshot, GeoSnapshot,
   tutorSubscriptions, InsertTutorSubscription, TutorSubscription,
   tutorSessions, InsertTutorSession, TutorSession,
+  igcseSubscriptions, InsertIgcseSubscription, IgcseSubscription,
+  igcseSessions,
   documents, InsertDocument, Document,
   applications, InsertApplication, Application,
   applicationNotes, InsertApplicationNote, ApplicationNote,
@@ -469,6 +471,23 @@ export async function ensureMarketingSchema(): Promise<void> {
         PRIMARY KEY (leadId, topicId)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `));
+    await db.execute(sql.raw(`
+      CREATE TABLE IF NOT EXISTS igcse_subscriptions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        leadId INT NOT NULL,
+        plan ENUM('m1') NOT NULL,
+        status ENUM('pending','active','expired','cancelled') NOT NULL DEFAULT 'pending',
+        amount DECIMAL(12,2) NULL,
+        currency VARCHAR(8) NOT NULL DEFAULT 'IDR',
+        hoursLimit INT NOT NULL DEFAULT 30,
+        xenditInvoiceId VARCHAR(120) NULL,
+        startsAt TIMESTAMP NULL,
+        expiresAt TIMESTAMP NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_lead (leadId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `));
 
     await db.execute(sql.raw(`
       CREATE TABLE IF NOT EXISTS geo_snapshots (
@@ -604,6 +623,55 @@ export async function getTutorSubscriptionByInvoice(invoiceId: string): Promise<
   if (!db) return null;
   const [row] = await db.select().from(tutorSubscriptions).where(eq(tutorSubscriptions.xenditInvoiceId, invoiceId)).limit(1);
   return row || null;
+}
+
+// ── IGCSE AI Teacher subscriptions + free trial accounting ──────────────────
+
+export async function getActiveIgcseSubscription(leadId: number): Promise<IgcseSubscription | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(igcseSubscriptions)
+    .where(and(
+      eq(igcseSubscriptions.leadId, leadId),
+      eq(igcseSubscriptions.status, "active"),
+      gte(igcseSubscriptions.expiresAt, new Date()),
+    ))
+    .orderBy(desc(igcseSubscriptions.expiresAt)).limit(1);
+  return row || null;
+}
+
+export async function createIgcseSubscription(data: InsertIgcseSubscription): Promise<IgcseSubscription | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const r = await db.insert(igcseSubscriptions).values(data);
+  const id = (r as any)[0].insertId;
+  const [row] = await db.select().from(igcseSubscriptions).where(eq(igcseSubscriptions.id, id)).limit(1);
+  return row || null;
+}
+
+export async function updateIgcseSubscription(id: number, data: Partial<InsertIgcseSubscription>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(igcseSubscriptions).set(data).where(eq(igcseSubscriptions.id, id));
+}
+
+export async function getIgcseSubscriptionByInvoice(invoiceId: string): Promise<IgcseSubscription | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(igcseSubscriptions)
+    .where(eq(igcseSubscriptions.xenditInvoiceId, invoiceId)).limit(1);
+  return row || null;
+}
+
+/** Total seconds the student has used across all IGCSE sessions (for the
+ *  30-minute lifetime free-trial cap). */
+export async function getIgcseLifetimeSecondsUsed(leadId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const [r] = await db.select({ s: sql<number>`COALESCE(SUM(durationSec), 0)` })
+    .from(igcseSessions)
+    .where(eq(igcseSessions.leadId, leadId));
+  return Number(r?.s ?? 0);
 }
 
 /**
