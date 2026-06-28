@@ -563,6 +563,8 @@ export default function IgcseLesson() {
 
   const stopAudio = () => {
     try { audioRef.current?.pause(); } catch { /* ignore */ }
+    // also stop browser-native TTS if it was the active path
+    try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
     audioRef.current = null;
     setSpeaking(false);
   };
@@ -600,38 +602,64 @@ export default function IgcseLesson() {
     catch { setListening(false); recognitionRef.current = null; }
   };
 
-  const synth = trpc.igcse.synthesizeSpeech.useMutation({
-    onSuccess: (d) => {
+  const synthMut = trpc.igcse.synthesizeSpeech.useMutation();
+
+  // After the AI replies, speak the text aloud via this chain:
+  // 1) server-side TTS (ElevenLabs → OpenAI fallback inside the endpoint)
+  // 2) browser-native SpeechSynthesis (free, no API quota — always works
+  //    on Chrome/Edge; quality is acceptable for tutoring)
+  const onTtsDone = () => {
+    audioRef.current = null;
+    setSpeaking(false);
+    if (voiceMode && sttSupported) setTimeout(() => startListening(), 400);
+  };
+  const browserSpeak = (text: string): boolean => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return false;
+    try {
+      window.speechSynthesis.cancel(); // drop anything queued from prior turns
+      const utt = new SpeechSynthesisUtterance(text);
+      utt.lang = lang === "id" ? "id-ID" : "en-US";
+      utt.rate = 1;
+      utt.pitch = 1;
+      utt.onend = onTtsDone;
+      utt.onerror = onTtsDone;
+      window.speechSynthesis.speak(utt);
+      setSpeaking(true);
+      return true;
+    } catch { return false; }
+  };
+  const speakOut = async (text: string) => {
+    if (!text) return;
+    try {
+      const d = await synthMut.mutateAsync({ sessionId, text });
       const audio = new Audio(`data:${d.mimeType};base64,${d.audioBase64}`);
       audioRef.current = audio;
-      audio.onended = () => {
-        audioRef.current = null;
-        setSpeaking(false);
-        // Auto-continue the conversation: brief pause then listen again.
-        if (voiceMode && sttSupported) setTimeout(() => startListening(), 400);
-      };
+      audio.onended = onTtsDone;
       audio.onerror = () => {
-        setSpeaking(false); audioRef.current = null;
-        alert("Couldn't play the tutor's voice. Make sure your volume is on; if it keeps failing, turn 🔊 Voice off and reply with text.");
+        // server gave us bytes we couldn't play; try the browser as a last try
+        audioRef.current = null;
+        if (!browserSpeak(text)) { setSpeaking(false); }
       };
-      audio.play().catch((err) => {
-        setSpeaking(false); audioRef.current = null;
-        console.error("[IGCSE] audio.play() blocked:", err);
-        alert("Your browser blocked the tutor's voice from auto-playing. Click anywhere on the page, then send another message — it should play after that.");
-      });
       setSpeaking(true);
-    },
-    onError: (e) => {
-      setSpeaking(false);
-      const msg = e?.message || "Voice synthesis failed.";
-      console.error("[IGCSE] synth error:", msg);
-      // The mistake we used to make: silently turning the mic back on while
-      // the user has no idea the AI couldn't speak. Tell them what failed and
-      // flip Voice off so they're not stuck in a confusing loop.
-      alert(`Tutor voice failed:\n\n${msg}\n\nSwitching to text-only — your replies will still appear in the chat.`);
-      setVoiceMode(false);
-    },
-  });
+      try { await audio.play(); }
+      catch (playErr) {
+        console.warn("[IGCSE] audio.play() blocked, trying browser TTS:", playErr);
+        audioRef.current = null;
+        if (!browserSpeak(text)) {
+          setSpeaking(false);
+          alert("Your browser blocked the tutor's voice. Click anywhere on the page, then try Voice again.");
+        }
+      }
+    } catch (e: any) {
+      // Server TTS failed (ElevenLabs + OpenAI both down) — go free fallback.
+      console.warn("[IGCSE] server TTS failed, using browser:", e?.message);
+      if (!browserSpeak(text)) {
+        setSpeaking(false);
+        alert(`Tutor voice unavailable:\n\n${e?.message || "All TTS providers failed."}\n\nSwitching to text-only.`);
+        setVoiceMode(false);
+      }
+    }
+  };
 
   const sendMessage = trpc.igcse.sendMessage.useMutation({
     onSuccess: (d) => {
@@ -644,7 +672,7 @@ export default function IgcseLesson() {
       setTimeout(() => chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" }), 50);
 
       // Voice mode: speak the AI reply aloud, then auto-listen on end.
-      if (voiceMode && d.speech) synth.mutate({ sessionId, text: d.speech });
+      if (voiceMode && d.speech) speakOut(d.speech);
     },
     onError: (e) => {
       setSending(false);

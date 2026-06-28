@@ -31,6 +31,7 @@ import { ENV } from "./_core/env";
 import { IGCSE_PLANS, igcseExternalId, createIgcseInvoice } from "./xenditService";
 import { invokeLLM } from "./_core/llm";
 import { synthesize as ttsSynthesize } from "./_core/elevenlabs";
+import { synthesizeOpenAI } from "./_core/openaiTts";
 
 const FREE_TRIAL_SECONDS = 30 * 60; // 30 minutes lifetime free trial
 
@@ -446,21 +447,41 @@ Rules:
         .limit(1);
       if (!session) throw new TRPCError({ code: "NOT_FOUND" });
 
+      // Fallback chain: ElevenLabs (best quality) → OpenAI (cheap, still great)
+      // → throw (client then falls back to browser-native SpeechSynthesis).
+      const charCount = input.text.length;
+
+      // 1) ElevenLabs Flash v2.5 — multilingual, low first-byte latency.
       try {
+        console.log(`[IGCSE] TTS via ElevenLabs (${charCount} chars)`);
         const buf = await ttsSynthesize({
           text: input.text,
-          // Flash v2.5 — multilingual, ~75ms first-byte, cheap. ($2/hr ceiling.)
           modelId: "eleven_flash_v2_5",
-          // Sarah — clear British female; sounds like a teacher.
-          voiceId: "EXAVITQu4vr4xnSDxMaL",
-          outputFormat: "mp3_44100_64",
+          voiceId: "EXAVITQu4vr4xnSDxMaL", // Sarah — clear British female
           stability: 0.5,
           similarityBoost: 0.75,
         });
-        return { audioBase64: buf.toString("base64"), mimeType: "audio/mpeg" };
-      } catch (e) {
-        console.error("[IGCSE] synthesizeSpeech error:", e);
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message });
+        return { audioBase64: buf.toString("base64"), mimeType: "audio/mpeg", source: "elevenlabs" as const };
+      } catch (elevenError) {
+        console.warn(`[IGCSE] ElevenLabs failed — falling back to OpenAI: ${(elevenError as Error).message}`);
+      }
+
+      // 2) OpenAI tts-1 (nova voice). ~20x cheaper, slightly higher latency.
+      try {
+        console.log(`[IGCSE] TTS via OpenAI (${charCount} chars)`);
+        const buf = await synthesizeOpenAI({
+          text: input.text,
+          model: "tts-1",
+          voice: "nova",
+          format: "mp3",
+        });
+        return { audioBase64: buf.toString("base64"), mimeType: "audio/mpeg", source: "openai" as const };
+      } catch (openaiError) {
+        console.error(`[IGCSE] OpenAI TTS also failed: ${(openaiError as Error).message}`);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Voice unavailable: ${(openaiError as Error).message}`,
+        });
       }
     }),
 });

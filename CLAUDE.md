@@ -386,6 +386,15 @@ a shared whiteboard panel.
 - Canvas auto-resizes via `ResizeObserver` as the AI adds new board items,
   so existing strokes stay anchored to their original positions.
 
+**Voice TTS fallback chain** (for cost + resilience): the IGCSE
+`synthesizeSpeech` endpoint tries **ElevenLabs Flash v2.5** first (best
+quality, premium), falls back to **OpenAI `tts-1` (nova voice)** if
+ElevenLabs throws (key missing, credit exhausted, 4xx), and the client
+falls back to the **browser's native SpeechSynthesis** if the server can't
+return audio at all (free, always works on Chrome/Edge). Helper:
+`server/_core/openaiTts.ts`. Voice still works regardless of which keys
+are present or whose credit has run out.
+
 **Week 6 (shipped):** voice. The student can talk to the AI; the AI talks back.
 - New endpoint `igcse.synthesizeSpeech({sessionId, text})` wraps
   `_core/elevenlabs.synthesize` with **Flash v2.5** (`eleven_flash_v2_5`,
