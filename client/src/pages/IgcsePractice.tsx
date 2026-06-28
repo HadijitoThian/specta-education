@@ -37,7 +37,7 @@ export default function IgcsePractice() {
 
   const topicByCode = useMemo(() => {
     const m = new Map<string, string>();
-    (topics.data || []).forEach((t: any) => m.set(t.code, t.name));
+    (topics.data || []).forEach((t: any) => m.set(t.code, t.title || t.name));
     return m;
   }, [topics.data]);
 
