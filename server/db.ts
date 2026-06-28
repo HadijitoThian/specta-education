@@ -505,6 +505,36 @@ export async function ensureMarketingSchema(): Promise<void> {
     `));
 
     await db.execute(sql.raw(`
+      CREATE TABLE IF NOT EXISTS igcse_attempts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        leadId INT NOT NULL,
+        exampleId INT NOT NULL,
+        topicCode VARCHAR(16) NOT NULL,
+        marks INT NOT NULL,
+        status ENUM('in_progress','completed','abandoned') NOT NULL DEFAULT 'in_progress',
+        marksEarned INT NULL,
+        hintsUsed INT NOT NULL DEFAULT 0,
+        revealed INT NOT NULL DEFAULT 0,
+        startedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        completedAt TIMESTAMP NULL,
+        INDEX idx_lead (leadId),
+        INDEX idx_example (exampleId),
+        INDEX idx_topic (topicCode)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `));
+    await db.execute(sql.raw(`
+      CREATE TABLE IF NOT EXISTS igcse_attempt_steps (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        attemptId INT NOT NULL,
+        role ENUM('student','tutor','system') NOT NULL,
+        text TEXT NOT NULL,
+        verdict ENUM('correct','partial','wrong','hint','reveal','none') NOT NULL DEFAULT 'none',
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_attempt (attemptId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `));
+
+    await db.execute(sql.raw(`
       CREATE TABLE IF NOT EXISTS geo_snapshots (
         id INT AUTO_INCREMENT PRIMARY KEY,
         query VARCHAR(255) NOT NULL,

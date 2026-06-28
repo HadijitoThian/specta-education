@@ -67,6 +67,8 @@ const IeltsTutorRedeem = lazyWithReload(() => import("./pages/IeltsTutorRedeem")
 const Igcse = lazyWithReload(() => import("./pages/Igcse"));
 const IgcseApp = lazyWithReload(() => import("./pages/IgcseApp"));
 const IgcseLesson = lazyWithReload(() => import("./pages/IgcseLesson"));
+const IgcsePractice = lazyWithReload(() => import("./pages/IgcsePractice"));
+const IgcsePracticeAttempt = lazyWithReload(() => import("./pages/IgcsePracticeAttempt"));
 const Destinations = lazyWithReload(() => import("./pages/Destinations"));
 const CountryPage = lazyWithReload(() => import("./pages/CountryPage"));
 const Malaysia = lazyWithReload(() => import("./pages/Malaysia"));
@@ -168,6 +170,8 @@ function Router() {
         <Route path={"/igcse"} component={Igcse} />
         <Route path={"/igcse/app"} component={IgcseApp} />
         <Route path={"/igcse/lesson/:id"} component={IgcseLesson} />
+        <Route path={"/igcse/practice"} component={IgcsePractice} />
+        <Route path={"/igcse/practice/attempt/:id"} component={IgcsePracticeAttempt} />
         <Route path={"/destinations"} component={Destinations} />
         <Route path={"/destinations/:slug"} component={CountryPage} />
         <Route path={"/malaysia"} component={Malaysia} />

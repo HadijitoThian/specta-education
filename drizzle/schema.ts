@@ -2524,6 +2524,39 @@ export const igcseExamples = mysqlTable("igcse_examples", {
 export type IgcseExample = typeof igcseExamples.$inferSelect;
 export type InsertIgcseExample = typeof igcseExamples.$inferInsert;
 
+/**
+ * Exam Practice attempt — one student tackling one exam-style question.
+ * The AI coaches them Socratically through the working steps and only
+ * reveals the mark scheme at the end.
+ */
+export const igcseAttempts = mysqlTable("igcse_attempts", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  exampleId: int("exampleId").notNull(),
+  topicCode: varchar("topicCode", { length: 16 }).notNull(),
+  marks: int("marks").notNull(),
+  status: mysqlEnum("status", ["in_progress", "completed", "abandoned"]).default("in_progress").notNull(),
+  marksEarned: int("marksEarned"), // null until completed/scored
+  hintsUsed: int("hintsUsed").default(0).notNull(),
+  revealed: int("revealed").default(0).notNull(), // 0 = self-finished, 1 = revealed mark scheme
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+});
+export type IgcseAttempt = typeof igcseAttempts.$inferSelect;
+export type InsertIgcseAttempt = typeof igcseAttempts.$inferInsert;
+
+/** One turn in the practice conversation — student step or tutor reply. */
+export const igcseAttemptSteps = mysqlTable("igcse_attempt_steps", {
+  id: int("id").autoincrement().primaryKey(),
+  attemptId: int("attemptId").notNull(),
+  role: mysqlEnum("role", ["student", "tutor", "system"]).notNull(),
+  text: text("text").notNull(),
+  verdict: mysqlEnum("verdict", ["correct", "partial", "wrong", "hint", "reveal", "none"]).default("none").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type IgcseAttemptStep = typeof igcseAttemptSteps.$inferSelect;
+export type InsertIgcseAttemptStep = typeof igcseAttemptSteps.$inferInsert;
+
 /** One AI-teacher session (one lesson on one topic). */
 export const igcseSessions = mysqlTable("igcse_sessions", {
   id: int("id").autoincrement().primaryKey(),

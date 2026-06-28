@@ -182,7 +182,22 @@ function Dashboard({ status }: { status: any }) {
           )}
         </div>
 
+        {/* Two main modes: Learn (Socratic chat) vs Practice (graded exam questions) */}
+        <div className="grid sm:grid-cols-2 gap-3">
+          <a href="#topics" className={`${card} p-5 hover:border-violet-400 transition`}>
+            <div className="text-xs font-bold uppercase tracking-wider text-violet-700 mb-1">📚 Learn mode</div>
+            <h3 className="font-bold text-slate-900">Start a lesson</h3>
+            <p className="text-sm text-slate-600 mt-1">Pick a topic and chat with the AI Teacher — she'll explain step by step on the digital board, by voice or text.</p>
+          </a>
+          <Link href="/igcse/practice" className={`${card} p-5 hover:border-violet-400 transition`}>
+            <div className="text-xs font-bold uppercase tracking-wider text-violet-700 mb-1">📝 Exam Practice</div>
+            <h3 className="font-bold text-slate-900">Try exam-style questions</h3>
+            <p className="text-sm text-slate-600 mt-1">Tackle Cambridge-style questions — the AI grades each step of your working and guides you when you're stuck, without giving the answer.</p>
+          </Link>
+        </div>
+
         {/* Topic picker — pick a Cambridge syllabus topic and start a lesson. */}
+        <div id="topics" />
         <TopicPicker disabled={!status.hasAccess} disabledReason={!status.hasAccess ? "Your free trial is done. Subscribe below to keep learning." : undefined} />
 
         {/* Subscribe card — hidden once active */}

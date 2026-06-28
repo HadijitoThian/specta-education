@@ -26,7 +26,7 @@ import { and, desc, eq } from "drizzle-orm";
 
 import { router, publicProcedure } from "./_core/trpc";
 import { getDb, getActiveIgcseSubscription, createIgcseSubscription, getIgcseLifetimeSecondsUsed, getLeadById } from "./db";
-import { igcseTopics, igcseSessions, igcseExamples, type IgcseSession } from "../drizzle/schema";
+import { igcseTopics, igcseSessions, igcseExamples, igcseAttempts, igcseAttemptSteps, type IgcseSession } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { IGCSE_PLANS, igcseExternalId, createIgcseInvoice } from "./xenditService";
 import { invokeLLM } from "./_core/llm";
@@ -536,5 +536,359 @@ Rules:
           message: `Voice unavailable: ${(openaiError as Error).message}`,
         });
       }
+    }),
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // EXAM PRACTICE (Week 8) — students attempt curated exam-style questions and
+  // the AI coaches them Socratically: it grades each step, gives hint-tiered
+  // nudges when wrong, and NEVER hands them the answer until they ask for the
+  // mark scheme reveal at the end.
+  // ────────────────────────────────────────────────────────────────────────────
+
+  /** Public: list available exam-practice questions, optionally filtered by topic. */
+  listExamples: publicProcedure
+    .input(z.object({ topicCode: z.string().max(16).optional() }).optional())
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const rows = input?.topicCode
+        ? await db.select().from(igcseExamples).where(eq(igcseExamples.topicCode, input.topicCode))
+        : await db.select().from(igcseExamples);
+      // Don't leak markScheme to the client until reveal — only meta + question.
+      return rows
+        .sort((a, b) => a.topicCode.localeCompare(b.topicCode) || a.sortOrder - b.sortOrder)
+        .map(r => ({
+          id: r.id,
+          topicCode: r.topicCode,
+          marks: r.marks,
+          question: r.question,
+          source: r.source,
+          tier: r.tier,
+        }));
+    }),
+
+  /** Student's recent attempts (with example meta), most recent first. */
+  listAttempts: publicProcedure
+    .input(z.object({ limit: z.number().int().min(1).max(100).default(30) }).optional())
+    .query(async ({ input, ctx }) => {
+      const leadId = await resolveLead(ctx);
+      if (!leadId) return [];
+      const db = await getDb();
+      if (!db) return [];
+      const rows = await db.select().from(igcseAttempts)
+        .where(eq(igcseAttempts.leadId, leadId))
+        .orderBy(desc(igcseAttempts.startedAt))
+        .limit(input?.limit ?? 30);
+      return rows;
+    }),
+
+  /** Start a new attempt on a specific exam-style question. */
+  startAttempt: publicProcedure
+    .input(z.object({ exampleId: z.number().int().positive() }))
+    .mutation(async ({ input, ctx }) => {
+      const leadId = requireLead(await resolveLead(ctx));
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      // Gate: must have access.
+      const sub = await getActiveIgcseSubscription(leadId);
+      if (!sub) {
+        const used = await getIgcseLifetimeSecondsUsed(leadId);
+        if (used >= FREE_TRIAL_SECONDS) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Your 30-minute free trial is done — subscribe to keep practising." });
+        }
+      }
+
+      const [ex] = await db.select().from(igcseExamples).where(eq(igcseExamples.id, input.exampleId));
+      if (!ex) throw new TRPCError({ code: "NOT_FOUND", message: "Question not found" });
+
+      const result: any = await db.insert(igcseAttempts).values({
+        leadId,
+        exampleId: ex.id,
+        topicCode: ex.topicCode,
+        marks: ex.marks,
+        status: "in_progress",
+      });
+      const attemptId = Number(result?.insertId ?? result?.[0]?.insertId ?? 0);
+
+      const opening = `This question is worth **${ex.marks} mark${ex.marks === 1 ? "" : "s"}**. Read it carefully, then show me your first step. I'll guide you — but I won't hand you the answer.`;
+      await db.insert(igcseAttemptSteps).values({
+        attemptId,
+        role: "tutor",
+        text: opening,
+        verdict: "none",
+      });
+
+      return { attemptId, question: ex.question, marks: ex.marks, topicCode: ex.topicCode, opening };
+    }),
+
+  /** Fetch the full attempt with all steps (for resume / detail view). */
+  getAttempt: publicProcedure
+    .input(z.object({ attemptId: z.number().int().positive() }))
+    .query(async ({ input, ctx }) => {
+      const leadId = requireLead(await resolveLead(ctx));
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const [att] = await db.select().from(igcseAttempts)
+        .where(and(eq(igcseAttempts.id, input.attemptId), eq(igcseAttempts.leadId, leadId)));
+      if (!att) throw new TRPCError({ code: "NOT_FOUND", message: "Attempt not found" });
+      const [ex] = await db.select().from(igcseExamples).where(eq(igcseExamples.id, att.exampleId));
+      const steps = await db.select().from(igcseAttemptSteps)
+        .where(eq(igcseAttemptSteps.attemptId, input.attemptId))
+        .orderBy(igcseAttemptSteps.id);
+      return {
+        attempt: att,
+        question: ex?.question || "",
+        marks: ex?.marks || 0,
+        topicCode: att.topicCode,
+        // markScheme is only sent if the attempt has been completed or revealed.
+        markScheme: (att.status === "completed" || att.revealed === 1) ? (ex?.markScheme || "") : "",
+        steps,
+      };
+    }),
+
+  /**
+   * Student submits a working step. AI grades it Socratically:
+   *  - verdict ∈ {correct, partial, wrong}
+   *  - reply NEVER contains the next numeric answer — it asks a probing
+   *    question or points at the misconception.
+   *  - only when the student has actually finished (all marks earned or
+   *    they ask to reveal) does the full mark scheme appear.
+   */
+  submitStep: publicProcedure
+    .input(z.object({
+      attemptId: z.number().int().positive(),
+      text: z.string().min(1).max(2000),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const leadId = requireLead(await resolveLead(ctx));
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      const [att] = await db.select().from(igcseAttempts)
+        .where(and(eq(igcseAttempts.id, input.attemptId), eq(igcseAttempts.leadId, leadId)));
+      if (!att) throw new TRPCError({ code: "NOT_FOUND", message: "Attempt not found" });
+      if (att.status !== "in_progress") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "This attempt is already completed." });
+      }
+
+      const [ex] = await db.select().from(igcseExamples).where(eq(igcseExamples.id, att.exampleId));
+      if (!ex) throw new TRPCError({ code: "NOT_FOUND", message: "Question not found" });
+
+      // Persist student step first.
+      await db.insert(igcseAttemptSteps).values({
+        attemptId: input.attemptId,
+        role: "student",
+        text: input.text,
+        verdict: "none",
+      });
+
+      // Load the running conversation (last 30 steps to cap tokens).
+      const prior = await db.select().from(igcseAttemptSteps)
+        .where(eq(igcseAttemptSteps.attemptId, input.attemptId))
+        .orderBy(igcseAttemptSteps.id);
+      const history = prior.slice(-30);
+
+      const sysPrompt = [
+        "You are a Cambridge IGCSE Math (0580 Extended) exam coach.",
+        "The student is attempting a real exam-style question. Your job is to GUIDE them to the answer, never hand it to them.",
+        "",
+        "QUESTION:",
+        ex.question,
+        "",
+        `MARKS: ${ex.marks}`,
+        "",
+        "FULL MARK SCHEME (FOR YOUR EYES ONLY — DO NOT QUOTE OR REVEAL VERBATIM):",
+        ex.markScheme,
+        "",
+        "RULES — these are non-negotiable:",
+        "1. NEVER state the final numeric answer or any intermediate numeric answer the mark scheme uses.",
+        "2. NEVER copy the mark scheme text into your reply.",
+        "3. If the student's step is correct → confirm briefly (e.g. \"✅ That's the method mark — you've earned M1. What's your next step?\") and ask for the next step.",
+        "4. If the student's step is partially right → confirm the correct part, point at what's missing, ask a leading question. Do NOT give the missing piece directly.",
+        "5. If the student's step is wrong → DO NOT correct them with the right number. Instead ask a probing question that exposes the misconception. Examples: \"What does 'reduced by 18%' tell us about the relationship between sale price and original price?\" or \"Are you sure 0.82 of the original equals the sale price, or is it the other way round?\"",
+        "6. If the student has now produced an answer that matches the mark scheme's final answer → CONGRATULATE them, summarise which M / A marks they earned, and set status to \"complete\". DO NOT keep asking for more steps.",
+        "7. If the student says they're stuck, give them a HINT (not the answer). Hints escalate in tiers — start with a conceptual nudge, never a numeric one.",
+        "",
+        "Output STRICT JSON only — no prose, no fences:",
+        '{ "verdict": "correct" | "partial" | "wrong" | "hint", "reply": "<your Socratic reply>", "marksEarned": <integer or null>, "complete": <true|false> }',
+        "",
+        "verdict meaning:",
+        "  correct = this step is a fully valid method/answer mark line",
+        "  partial = step is on the right track but missing something",
+        "  wrong   = step contains a real error",
+        "  hint    = student asked for a hint or got stuck",
+        "",
+        "Set complete=true ONLY when the student has reached the final answer the mark scheme expects.",
+        "When complete=true, marksEarned MUST be the number of marks the student has demonstrably earned (0–" + ex.marks + ").",
+      ].join("\n");
+
+      const messages = [
+        { role: "system" as const, content: sysPrompt },
+        ...history.map(h => ({
+          role: (h.role === "student" ? "user" : "system") as "user" | "system",
+          content: h.role === "tutor" ? `Previous tutor reply: ${h.text}` : h.text,
+        })),
+      ];
+
+      let verdict: "correct" | "partial" | "wrong" | "hint" = "partial";
+      let reply = "Could you walk me through that step again?";
+      let complete = false;
+      let marksEarned: number | null = null;
+      try {
+        const res: any = await invokeLLM({
+          messages,
+          response_format: { type: "json_object" as const },
+        });
+        const c = res?.choices?.[0]?.message?.content;
+        const raw = (typeof c === "string" ? c : "").trim();
+        const clean = raw.replace(/^```json\s*|\s*```$/g, "").trim();
+        const parsed = JSON.parse(clean);
+        if (typeof parsed.reply === "string" && parsed.reply.trim()) reply = parsed.reply.trim();
+        if (["correct", "partial", "wrong", "hint"].includes(parsed.verdict)) verdict = parsed.verdict;
+        complete = !!parsed.complete;
+        if (parsed.marksEarned != null && Number.isFinite(Number(parsed.marksEarned))) {
+          marksEarned = Math.max(0, Math.min(ex.marks, Math.round(Number(parsed.marksEarned))));
+        }
+      } catch (e) {
+        console.error("[IGCSE] submitStep LLM error:", (e as Error).message);
+      }
+
+      // Persist tutor reply.
+      await db.insert(igcseAttemptSteps).values({
+        attemptId: input.attemptId,
+        role: "tutor",
+        text: reply,
+        verdict,
+      });
+
+      // If marked complete, finalise the attempt.
+      if (complete) {
+        await db.update(igcseAttempts).set({
+          status: "completed",
+          marksEarned: marksEarned ?? ex.marks,
+          completedAt: new Date(),
+        }).where(eq(igcseAttempts.id, input.attemptId));
+      }
+
+      return {
+        verdict,
+        reply,
+        complete,
+        marksEarned,
+        // Only ship the full mark scheme when the attempt is genuinely complete.
+        markScheme: complete ? ex.markScheme : "",
+      };
+    }),
+
+  /** Student asks for a hint. Increments the hint counter and asks the LLM
+   *  for a tier-appropriate nudge (escalates with each request). */
+  requestHint: publicProcedure
+    .input(z.object({ attemptId: z.number().int().positive() }))
+    .mutation(async ({ input, ctx }) => {
+      const leadId = requireLead(await resolveLead(ctx));
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const [att] = await db.select().from(igcseAttempts)
+        .where(and(eq(igcseAttempts.id, input.attemptId), eq(igcseAttempts.leadId, leadId)));
+      if (!att) throw new TRPCError({ code: "NOT_FOUND", message: "Attempt not found" });
+      if (att.status !== "in_progress") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "This attempt is already completed." });
+      }
+      const [ex] = await db.select().from(igcseExamples).where(eq(igcseExamples.id, att.exampleId));
+      if (!ex) throw new TRPCError({ code: "NOT_FOUND", message: "Question not found" });
+
+      const tier = Math.min((att.hintsUsed ?? 0) + 1, 3); // 1, 2, 3 (cap at 3)
+      const tierGuide = tier === 1
+        ? "TIER 1 — gentle conceptual nudge. Point at the topic / formula / idea they should consider. NO numbers."
+        : tier === 2
+          ? "TIER 2 — clearer hint. Name the specific technique and the FIRST line of working they should set up. Still no final number."
+          : "TIER 3 — strong scaffolding. Walk through the structure of the solution, but with placeholders or with the technique only — DO NOT give the final numeric answer.";
+
+      const prior = await db.select().from(igcseAttemptSteps)
+        .where(eq(igcseAttemptSteps.attemptId, input.attemptId))
+        .orderBy(igcseAttemptSteps.id);
+      const history = prior.slice(-20);
+
+      const sysPrompt = [
+        "You are a Cambridge IGCSE Math (0580 Extended) exam coach. The student has asked for a hint.",
+        "",
+        "QUESTION:",
+        ex.question,
+        "",
+        "MARK SCHEME (FOR YOUR EYES ONLY — DO NOT REVEAL THE FINAL NUMERIC ANSWER):",
+        ex.markScheme,
+        "",
+        tierGuide,
+        "",
+        "Output STRICT JSON only:",
+        '{ "reply": "<your hint, friendly, in 1-3 sentences>" }',
+      ].join("\n");
+
+      const messages = [
+        { role: "system" as const, content: sysPrompt },
+        ...history.map(h => ({
+          role: (h.role === "student" ? "user" : "system") as "user" | "system",
+          content: h.role === "tutor" ? `Previous tutor reply: ${h.text}` : h.text,
+        })),
+        { role: "user" as const, content: `Please give me a tier-${tier} hint.` },
+      ];
+
+      let reply = "Think about what the question is asking you to find first, then identify which IGCSE topic it belongs to.";
+      try {
+        const res: any = await invokeLLM({
+          messages,
+          response_format: { type: "json_object" as const },
+        });
+        const c = res?.choices?.[0]?.message?.content;
+        const raw = (typeof c === "string" ? c : "").trim();
+        const clean = raw.replace(/^```json\s*|\s*```$/g, "").trim();
+        const parsed = JSON.parse(clean);
+        if (typeof parsed.reply === "string" && parsed.reply.trim()) reply = parsed.reply.trim();
+      } catch (e) {
+        console.error("[IGCSE] requestHint LLM error:", (e as Error).message);
+      }
+
+      await db.insert(igcseAttemptSteps).values({
+        attemptId: input.attemptId,
+        role: "tutor",
+        text: `💡 Hint (tier ${tier}): ${reply}`,
+        verdict: "hint",
+      });
+      await db.update(igcseAttempts)
+        .set({ hintsUsed: tier })
+        .where(eq(igcseAttempts.id, input.attemptId));
+
+      return { reply, tier };
+    }),
+
+  /** Student gives up and asks for the mark scheme. Marks the attempt as
+   *  revealed (still counts as completed) and returns the full scheme. */
+  revealMarkScheme: publicProcedure
+    .input(z.object({ attemptId: z.number().int().positive() }))
+    .mutation(async ({ input, ctx }) => {
+      const leadId = requireLead(await resolveLead(ctx));
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const [att] = await db.select().from(igcseAttempts)
+        .where(and(eq(igcseAttempts.id, input.attemptId), eq(igcseAttempts.leadId, leadId)));
+      if (!att) throw new TRPCError({ code: "NOT_FOUND", message: "Attempt not found" });
+      const [ex] = await db.select().from(igcseExamples).where(eq(igcseExamples.id, att.exampleId));
+      if (!ex) throw new TRPCError({ code: "NOT_FOUND", message: "Question not found" });
+
+      await db.insert(igcseAttemptSteps).values({
+        attemptId: input.attemptId,
+        role: "system",
+        text: ex.markScheme,
+        verdict: "reveal",
+      });
+      await db.update(igcseAttempts).set({
+        status: "completed",
+        revealed: 1,
+        marksEarned: att.marksEarned ?? 0,
+        completedAt: new Date(),
+      }).where(eq(igcseAttempts.id, input.attemptId));
+
+      return { markScheme: ex.markScheme };
     }),
 });

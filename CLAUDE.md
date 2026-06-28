@@ -438,8 +438,38 @@ are present or whose credit has run out.
 - No scraping of copyrighted Cambridge papers — every exemplar in the
   bank is authored to Cambridge style and labelled as such.
 
-**Coming next** (per the 10-week plan): admin + polish (Week 8+),
-session-level metering visible in /admin, and a cost dashboard.
+**Week 8 (shipped):** Exam Practice — a first-class mode where students
+attempt the curated exam-style questions and the AI coaches them through
+each step Socratically.
+- New tables `igcse_attempts` + `igcse_attempt_steps` (drizzle schema +
+  ensureMarketingSchema CREATE TABLE).
+- New router endpoints on `igcseRouter`:
+  - `listExamples({ topicCode? })` — public list of questions (question +
+    marks + topic only; mark scheme withheld until reveal).
+  - `startAttempt({ exampleId })` — gated by subscription/free-trial,
+    creates an attempt row, seeds the opening tutor turn.
+  - `getAttempt({ attemptId })` — full state with steps; mark scheme is
+    only returned once `status=completed` or `revealed=1`.
+  - `submitStep({ attemptId, text })` — DeepSeek call with a strict
+    Socratic system prompt: NEVER reveal numeric answers, NEVER copy the
+    mark scheme; verdict ∈ {correct, partial, wrong, hint}; sets
+    `complete:true` only when the student has reached the final answer.
+  - `requestHint({ attemptId })` — tier-1/2/3 escalating nudges (concept
+    → technique → structured walk-through, all without final numbers).
+  - `revealMarkScheme({ attemptId })` — student gives up; reveals the
+    full Cambridge-style mark scheme and finalises the attempt.
+- New routes `/igcse/practice` (list, grouped by topic, with marks +
+  difficulty filters + per-question best-score badges) and
+  `/igcse/practice/attempt/:id` (split view: question on the left, chat
+  with the AI coach on the right, KaTeX rendering of inline `$...$`
+  math, colour-coded step bubbles by verdict).
+- Dashboard at `/igcse/app` now shows two top-level mode cards: **Learn
+  mode** (existing topic chat) vs **Exam Practice** (graded attempts).
+
+**Coming next** (per the 10-week plan): admin + polish (Week 9+),
+session-level metering visible in /admin, cost dashboard, weakness-
+targeting (\"you're shaky on bounds — try these 3 questions\"), and
+growing the exemplar bank from ~25 to ~80.
 
 **Pricing (live):** **Rp 299k/month**, 30 hrs/month fair-use cap; free trial
 **30 minutes** lifetime.
