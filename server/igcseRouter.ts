@@ -1250,4 +1250,39 @@ Rules:
       const list: any[] = Array.isArray(rows[0]) ? rows[0] : (rows as any);
       return list;
     }),
+
+  /**
+   * Kick off (re)generation of the IGCSE dashboard images via DeepInfra.
+   * Runs in the background — the admin UI polls adminDashboardImageStatus
+   * for live progress. Safe to re-run: same R2 keys overwrite.
+   *
+   * Cost: ~\$0.04 per image. Full run (8 images) ≈ \$0.32.
+   *      Subjects-only (5 images) ≈ \$0.20.
+   *      Humans-only (3 images) ≈ \$0.12.
+   */
+  adminRegenerateDashboardImages: adminProcedure
+    .input(z.object({
+      subset: z.enum(["all", "subjects", "humans"]).default("all"),
+    }).optional())
+    .mutation(async ({ input }) => {
+      const { getDashboardImageProgress, generateIgcseDashboardImages } =
+        await import("./igcseDashboardImages");
+      const current = getDashboardImageProgress();
+      if (current?.state === "running") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Image generation is already running. Wait for it to finish.",
+        });
+      }
+      // Fire and forget — the admin UI polls status.
+      void generateIgcseDashboardImages({ subset: input?.subset ?? "all" })
+        .catch(e => console.error("[IGCSE images] background error:", e));
+      return { accepted: true as const, subset: input?.subset ?? "all" };
+    }),
+
+  /** Poll the dashboard image generation progress (admin only). */
+  adminDashboardImageStatus: adminProcedure.query(async () => {
+    const { getDashboardImageProgress } = await import("./igcseDashboardImages");
+    return getDashboardImageProgress();
+  }),
 });
