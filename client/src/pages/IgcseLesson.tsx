@@ -305,24 +305,35 @@ function SketchCanvas({
     const ctx = canvas.getContext("2d"); if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     for (const s of strokes) drawStroke(ctx, s);
+    // also preserve any in-progress stroke through a resize
+    if (drawingRef.current) drawStroke(ctx, drawingRef.current);
   };
 
   // Resize canvas to match the content (AI board grows as new items arrive).
+  // Skip during an active stroke (so resizing can't wipe the in-progress stroke)
+  // and debounce with rAF + a tolerance so sub-pixel jitter from the parent
+  // layout doesn't trigger a feedback loop ("screen vibrates").
   useEffect(() => {
     const content = contentRef.current;
     const canvas = canvasRef.current;
     if (!content || !canvas) return;
+    let rafId = 0;
+    const TOL = 2; // px — ignore tiny size jitter
     const update = () => {
+      rafId = 0;
+      if (drawingRef.current) return; // never resize mid-stroke
       const w = content.offsetWidth, h = content.offsetHeight;
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w; canvas.height = h;
-        redrawAll();
-      }
+      if (Math.abs(canvas.width - w) < TOL && Math.abs(canvas.height - h) < TOL) return;
+      canvas.width = w; canvas.height = h;
+      redrawAll();
     };
     update();
-    const ro = new ResizeObserver(update);
+    const ro = new ResizeObserver(() => {
+      if (rafId) return; // already queued
+      rafId = requestAnimationFrame(update);
+    });
     ro.observe(content);
-    return () => ro.disconnect();
+    return () => { ro.disconnect(); if (rafId) cancelAnimationFrame(rafId); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contentRef]);
 
@@ -366,8 +377,15 @@ function SketchCanvas({
   return (
     <canvas
       ref={canvasRef}
-      className={`absolute top-0 left-0 ${draw ? "cursor-crosshair touch-none" : ""}`}
-      style={{ pointerEvents: draw ? "auto" : "none" }}
+      className={`absolute inset-0 z-10 ${draw ? "cursor-crosshair touch-none" : ""}`}
+      style={{
+        pointerEvents: draw ? "auto" : "none",
+        // CSS size always tracks the parent so the canvas can never be visually
+        // smaller than the content area; the JS-set bitmap width/height controls
+        // drawing resolution.
+        width: "100%",
+        height: "100%",
+      }}
       onPointerDown={onDown}
       onPointerMove={onMove}
       onPointerUp={onUp}
@@ -401,43 +419,44 @@ function BoardPanel({ items, displayed, sessionId }: { items: any[]; displayed: 
 
   const COLORS = ["#7c3aed", "#dc2626", "#0ea5e9", "#0f172a"] as const;
 
+  // Important: the toolbar's height stays CONSTANT whether sketching is on or
+  // off (we just disable the tools when off). This keeps the content area
+  // height stable, so toggling sketch can't trigger a ResizeObserver loop.
+  const toolBtn = "px-2 py-1 rounded-md disabled:opacity-30";
   return (
     <div className={`${card} overflow-hidden flex flex-col h-full`}>
-      <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 text-[11px] font-semibold text-slate-500 flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
+      <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 text-[11px] font-semibold text-slate-500 flex items-center justify-between gap-2 whitespace-nowrap overflow-x-auto">
+        <div className="flex items-center gap-2 shrink-0">
           <span>📋 Whiteboard</span>
           <span className="text-slate-400 font-normal">{displayed}/{items.length}</span>
         </div>
-        <div className="flex items-center gap-1 flex-wrap">
+        <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
             onClick={() => setDraw(d => !d)}
-            className={`px-2 py-1 rounded-md ${draw ? "bg-violet-600 text-white" : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"}`}
+            className={`${toolBtn} ${draw ? "bg-violet-600 text-white" : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"}`}
             title="Toggle sketching"
           >
             ✏️ {draw ? "On" : "Sketch"}
           </button>
-          {draw && (
-            <>
-              <button type="button" onClick={() => setTool("pen")}
-                className={`px-2 py-1 rounded-md ${tool === "pen" ? "bg-violet-100 text-violet-800" : "text-slate-600 hover:bg-slate-100"}`}>Pen</button>
-              <button type="button" onClick={() => setTool("eraser")}
-                className={`px-2 py-1 rounded-md ${tool === "eraser" ? "bg-violet-100 text-violet-800" : "text-slate-600 hover:bg-slate-100"}`}>Eraser</button>
-              <div className="flex gap-1 ml-1" aria-label="Pen colour">
-                {COLORS.map(c => (
-                  <button key={c} type="button"
-                    onClick={() => { setTool("pen"); setColor(c); }}
-                    aria-label={`Colour ${c}`}
-                    className={`w-5 h-5 rounded-full border-2 ${color === c && tool === "pen" ? "border-slate-700" : "border-transparent hover:border-slate-300"}`}
-                    style={{ background: c }} />
-                ))}
-              </div>
-              <button type="button" onClick={undo} disabled={!strokes.length}
-                className="px-2 py-1 rounded-md text-slate-700 hover:bg-slate-100 disabled:opacity-30" title="Undo last stroke">↶ Undo</button>
-              <button type="button" onClick={clearAll} disabled={!strokes.length}
-                className="px-2 py-1 rounded-md text-slate-700 hover:bg-slate-100 disabled:opacity-30" title="Clear all sketches">Clear</button>
-            </>
-          )}
+          <button type="button" onClick={() => setTool("pen")} disabled={!draw}
+            className={`${toolBtn} ${draw && tool === "pen" ? "bg-violet-100 text-violet-800" : "text-slate-600 hover:bg-slate-100"}`}>Pen</button>
+          <button type="button" onClick={() => setTool("eraser")} disabled={!draw}
+            className={`${toolBtn} ${draw && tool === "eraser" ? "bg-violet-100 text-violet-800" : "text-slate-600 hover:bg-slate-100"}`}>Eraser</button>
+          <div className="flex gap-1 ml-1" aria-label="Pen colour">
+            {COLORS.map(c => (
+              <button key={c} type="button"
+                disabled={!draw}
+                onClick={() => { setTool("pen"); setColor(c); }}
+                aria-label={`Colour ${c}`}
+                className={`w-5 h-5 rounded-full border-2 disabled:opacity-30 ${color === c && tool === "pen" && draw ? "border-slate-700" : "border-transparent hover:border-slate-300"}`}
+                style={{ background: c }} />
+            ))}
+          </div>
+          <button type="button" onClick={undo} disabled={!strokes.length}
+            className={`${toolBtn} text-slate-700 hover:bg-slate-100`} title="Undo last stroke">↶</button>
+          <button type="button" onClick={clearAll} disabled={!strokes.length}
+            className={`${toolBtn} text-slate-700 hover:bg-slate-100`} title="Clear all sketches">Clear</button>
         </div>
       </div>
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
