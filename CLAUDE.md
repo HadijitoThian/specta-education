@@ -386,9 +386,31 @@ a shared whiteboard panel.
 - Canvas auto-resizes via `ResizeObserver` as the AI adds new board items,
   so existing strokes stay anchored to their original positions.
 
-**Coming next** (per the 10-week plan): voice pipeline (Week 6 — Deepgram →
-DeepSeek → ElevenLabs Flash, ~500ms target), pedagogy/RAG over past papers
-(Week 7), then admin + polish.
+**Week 6 (shipped):** voice. The student can talk to the AI; the AI talks back.
+- New endpoint `igcse.synthesizeSpeech({sessionId, text})` wraps
+  `_core/elevenlabs.synthesize` with **Flash v2.5** (`eleven_flash_v2_5`,
+  multilingual, low first-byte) + voice id Sarah (`EXAVITQu4vr4xnSDxMaL`) +
+  `mp3_44100_64` for compact transfer. Returns base64 mp3 the client decodes
+  and plays via HTMLAudioElement. Owner-scoped to the session so it can't
+  be abused as a free TTS endpoint.
+- **STT** — for v1 we use the browser's free **Web Speech API**
+  (`SpeechRecognition` / `webkitSpeechRecognition`); no Deepgram key needed.
+  Falls back gracefully on Safari/Firefox where it isn't supported (mic
+  button hidden, voice toggle disabled with tooltip).
+- Lesson room UI:
+  - **🔊 Voice toggle** in the header — when ON, AI replies are spoken
+    aloud and the mic re-arms automatically when the audio ends → real
+    back-and-forth conversation, hands-free.
+  - **🎙️ Mic button** in the input bar (push-to-talk, always available,
+    even with voice toggle off).
+  - Live banner when listening (red pulse) or speaking (violet pulse) with
+    Stop buttons.
+  - Recognition language follows `session.language` (`en-US` or `id-ID`).
+- Cost-wise still within the $2/hr ceiling (Flash v2.5 ≈ \$0.30-0.60/hr of
+  speech + DeepSeek + free browser STT).
+
+**Coming next** (per the 10-week plan): pedagogy/RAG over past papers
+(Week 7) so the AI cites real Cambridge questions, then admin + polish.
 
 **Pricing (live):** **Rp 299k/month**, 30 hrs/month fair-use cap; free trial
 **30 minutes** lifetime.

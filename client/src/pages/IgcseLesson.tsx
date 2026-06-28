@@ -527,6 +527,79 @@ export default function IgcseLesson() {
   const startRef = useRef<number>(Date.now());
   useEffect(() => { startRef.current = Date.now(); }, [session.data?.id]);
 
+  // Voice state
+  const [voiceMode, setVoiceMode] = useState(false); // AI speaks aloud + auto-listen
+  const [listening, setListening] = useState(false); // mic is active right now
+  const [speaking, setSpeaking] = useState(false);   // tutor audio is playing
+  const recognitionRef = useRef<any>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const sttSupported = typeof window !== "undefined" && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+
+  // Cleanup on unmount
+  useEffect(() => () => {
+    try { recognitionRef.current?.stop(); } catch { /* ignore */ }
+    try { audioRef.current?.pause(); } catch { /* ignore */ }
+  }, []);
+
+  const stopAudio = () => {
+    try { audioRef.current?.pause(); } catch { /* ignore */ }
+    audioRef.current = null;
+    setSpeaking(false);
+  };
+  const stopListening = () => {
+    try { recognitionRef.current?.stop(); } catch { /* ignore */ }
+    setListening(false);
+  };
+
+  const startListening = () => {
+    if (listening || sending || speaking) return;
+    const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      alert("Voice input isn't supported in this browser. Try Chrome or Edge.");
+      return;
+    }
+    const rec = new SR();
+    rec.lang = session.data?.language === "id" ? "id-ID" : "en-US";
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.onresult = (event: any) => {
+      const transcript = String(event?.results?.[0]?.[0]?.transcript || "").trim();
+      if (!transcript) return;
+      // Submit the transcribed message as if the user typed it.
+      setInput("");
+      setSending(true);
+      setTurns(t => [...t, { role: "student", text: transcript, ts: Date.now() }]);
+      setTimeout(() => chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" }), 30);
+      const elapsedSec = Math.round((Date.now() - startRef.current) / 1000);
+      sendMessage.mutate({ sessionId, message: transcript, elapsedSec });
+    };
+    rec.onerror = () => { setListening(false); recognitionRef.current = null; };
+    rec.onend = () => { setListening(false); recognitionRef.current = null; };
+    recognitionRef.current = rec;
+    try { rec.start(); setListening(true); }
+    catch { setListening(false); recognitionRef.current = null; }
+  };
+
+  const synth = trpc.igcse.synthesizeSpeech.useMutation({
+    onSuccess: (d) => {
+      const audio = new Audio(`data:${d.mimeType};base64,${d.audioBase64}`);
+      audioRef.current = audio;
+      audio.onended = () => {
+        audioRef.current = null;
+        setSpeaking(false);
+        // Auto-continue the conversation: brief pause then listen again.
+        if (voiceMode && sttSupported) setTimeout(() => startListening(), 400);
+      };
+      audio.onerror = () => { setSpeaking(false); audioRef.current = null; };
+      audio.play().catch(() => { setSpeaking(false); audioRef.current = null; });
+      setSpeaking(true);
+    },
+    onError: () => {
+      setSpeaking(false);
+      if (voiceMode && sttSupported) setTimeout(() => startListening(), 200);
+    },
+  });
+
   const sendMessage = trpc.igcse.sendMessage.useMutation({
     onSuccess: (d) => {
       setTurns(t => [...t, { role: "ai", text: d.speech, board: d.board || [], ts: Date.now() }]);
@@ -536,6 +609,9 @@ export default function IgcseLesson() {
       setSending(false);
       utils.igcse.status.invalidate();
       setTimeout(() => chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" }), 50);
+
+      // Voice mode: speak the AI reply aloud, then auto-listen on end.
+      if (voiceMode && d.speech) synth.mutate({ sessionId, text: d.speech });
     },
     onError: (e) => {
       setSending(false);
@@ -543,6 +619,12 @@ export default function IgcseLesson() {
     },
   });
   const endSession = trpc.igcse.endSession.useMutation({ onSuccess: () => setLocation("/igcse/app") });
+
+  // When user disables voice mode mid-flight, stop any audio.
+  useEffect(() => {
+    if (!voiceMode) { stopAudio(); stopListening(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceMode]);
 
   const submit = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -582,11 +664,24 @@ export default function IgcseLesson() {
             <div className="text-[11px] font-mono text-violet-700">{topic?.code ?? "—"} · {topic?.areaName ?? "IGCSE Math"}</div>
             <div className="text-sm font-semibold text-slate-800 truncate">{topic?.title || "Free-form lesson"}</div>
           </div>
-          <div className="text-xs whitespace-nowrap">
+          <div className="flex items-center gap-2 text-xs whitespace-nowrap">
+            <button
+              type="button"
+              onClick={() => setVoiceMode(v => !v)}
+              disabled={!sttSupported}
+              className={`px-2.5 py-1 rounded-md font-semibold ${
+                voiceMode
+                  ? "bg-violet-600 text-white"
+                  : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"
+              } disabled:opacity-40 disabled:cursor-not-allowed`}
+              title={sttSupported ? "Speak with the tutor (AI replies aloud)" : "Voice mode needs Chrome or Edge"}
+            >
+              🔊 Voice {voiceMode ? "On" : "Off"}
+            </button>
             {sub
               ? <span className="text-green-700 font-medium">✓ Active</span>
               : remainingMin != null
-                ? <span className="text-slate-500">{remainingMin} min trial left</span>
+                ? <span className="text-slate-500">{remainingMin} min left</span>
                 : <span className="text-slate-400">—</span>}
           </div>
         </div>
@@ -622,6 +717,31 @@ export default function IgcseLesson() {
         </div>
       </main>
 
+      {/* Voice status banner */}
+      {(speaking || listening) && (
+        <div className="bg-violet-50 border-t border-violet-100 shrink-0">
+          <div className="max-w-6xl mx-auto px-4 py-2 flex items-center justify-between text-sm">
+            {speaking ? (
+              <>
+                <span className="flex items-center gap-2 text-violet-800 font-medium">
+                  <span className="inline-block w-2 h-2 bg-violet-600 rounded-full animate-pulse" />
+                  🔊 Tutor speaking…
+                </span>
+                <button onClick={stopAudio} className="text-xs px-2 py-1 rounded border border-violet-200 text-violet-700 hover:bg-white">Stop</button>
+              </>
+            ) : listening ? (
+              <>
+                <span className="flex items-center gap-2 text-red-700 font-medium">
+                  <span className="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                  🎙️ Listening — speak now
+                </span>
+                <button onClick={stopListening} className="text-xs px-2 py-1 rounded border border-red-200 text-red-700 hover:bg-white">Stop</button>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
+
       {/* Input bar */}
       <div className="bg-white border-t border-slate-200 shrink-0">
         <form onSubmit={submit} className="max-w-6xl mx-auto px-4 py-3 flex items-end gap-2">
@@ -634,6 +754,21 @@ export default function IgcseLesson() {
             className="flex-1 resize-none px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
             disabled={sending}
           />
+          {sttSupported && (
+            <button
+              type="button"
+              onClick={() => listening ? stopListening() : startListening()}
+              disabled={sending || speaking}
+              className={`px-3 py-2.5 rounded-xl text-sm font-semibold border ${
+                listening
+                  ? "bg-red-600 text-white border-red-600 animate-pulse"
+                  : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+              } disabled:opacity-40 disabled:cursor-not-allowed`}
+              title={listening ? "Stop listening" : "Tap to speak"}
+            >
+              🎙️
+            </button>
+          )}
           <button
             type="submit"
             disabled={sending || !input.trim()}
@@ -656,7 +791,7 @@ export default function IgcseLesson() {
           </button>
         </form>
         <p className="text-[10px] text-slate-400 text-center pb-2">
-          Enter to send · Shift+Enter for new line · voice + sketch coming soon
+          Enter to send · Shift+Enter for new line · 🎙️ to speak · 🔊 Voice for AI to reply aloud
         </p>
       </div>
     </div>

@@ -30,6 +30,7 @@ import { igcseTopics, igcseSessions, type IgcseSession } from "../drizzle/schema
 import { ENV } from "./_core/env";
 import { IGCSE_PLANS, igcseExternalId, createIgcseInvoice } from "./xenditService";
 import { invokeLLM } from "./_core/llm";
+import { synthesize as ttsSynthesize } from "./_core/elevenlabs";
 
 const FREE_TRIAL_SECONDS = 30 * 60; // 30 minutes lifetime free trial
 
@@ -375,5 +376,43 @@ Rules:
       await db.update(igcseSessions).set(patch).where(eq(igcseSessions.id, input.sessionId));
 
       return { speech, board: boardOut, turns: updatedTranscript.length };
+    }),
+
+  /**
+   * Synthesize the AI tutor's spoken reply via ElevenLabs Flash v2.5 (low
+   * latency, multilingual — supports English + Bahasa Indonesia). Returns
+   * base64-encoded mp3 the client decodes and plays. Owner-scoped to the
+   * session so it can't be abused as a free TTS endpoint.
+   */
+  synthesizeSpeech: publicProcedure
+    .input(z.object({
+      sessionId: z.number().int().positive(),
+      text: z.string().min(1).max(2000),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const leadId = requireLead(await resolveLead(ctx));
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const [session] = await db.select().from(igcseSessions)
+        .where(and(eq(igcseSessions.id, input.sessionId), eq(igcseSessions.leadId, leadId)))
+        .limit(1);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND" });
+
+      try {
+        const buf = await ttsSynthesize({
+          text: input.text,
+          // Flash v2.5 — multilingual, ~75ms first-byte, cheap. ($2/hr ceiling.)
+          modelId: "eleven_flash_v2_5",
+          // Sarah — clear British female; sounds like a teacher.
+          voiceId: "EXAVITQu4vr4xnSDxMaL",
+          outputFormat: "mp3_44100_64",
+          stability: 0.5,
+          similarityBoost: 0.75,
+        });
+        return { audioBase64: buf.toString("base64"), mimeType: "audio/mpeg" };
+      } catch (e) {
+        console.error("[IGCSE] synthesizeSpeech error:", e);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message });
+      }
     }),
 });
