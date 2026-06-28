@@ -19,6 +19,35 @@ const PINK = "#db2777";
 const card = "rounded-2xl border border-slate-200 bg-white shadow-sm";
 const inp = "w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm";
 
+// ── Dashboard imagery (generated via scripts/generate-igcse-landing-images.ts).
+// References R2-backed /files/<key> URLs. If the image hasn't been generated yet
+// the <img> onError handler gracefully hides it so the dashboard still looks
+// clean. To regenerate: `pnpm tsx scripts/generate-igcse-landing-images.ts`.
+const IMG = {
+  hero:        "/files/igcse/dashboard/hero.png",
+  modeLearn:   "/files/igcse/dashboard/mode-learn.png",
+  modePractice:"/files/igcse/dashboard/mode-practice.png",
+  math:        "/files/igcse/dashboard/subject-math.png",
+  physics:     "/files/igcse/dashboard/subject-physics.png",
+  chemistry:   "/files/igcse/dashboard/subject-chemistry.png",
+  economics:   "/files/igcse/dashboard/subject-economics.png",
+  business:    "/files/igcse/dashboard/subject-business.png",
+};
+
+/** <img> that hides itself if the src 404s — so missing assets degrade gracefully. */
+function SafeImg({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      loading="lazy"
+      decoding="async"
+      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+    />
+  );
+}
+
 export default function IgcseApp() {
   const utils = trpc.useUtils();
   const status = trpc.igcse.status.useQuery(undefined, { retry: false });
@@ -160,85 +189,215 @@ function Dashboard({ status }: { status: any }) {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-        {/* Headline status */}
-        <div className={`${card} p-6`}>
-          {sub ? (
-            <>
-              <div className="flex items-center gap-2 text-green-700 font-semibold mb-1">✓ Subscription active</div>
-              <p className="text-sm text-slate-600">
-                Plan: <strong>{sub.plan === "m1" ? "1 Month — 30 hours" : sub.plan}</strong>
-                {sub.expiresAt ? <> · renews/expires <strong>{new Date(sub.expiresAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</strong></> : null}
+      <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+        {/* ── HERO ───────────────────────────────────────────────────────────
+            Big welcome banner with a student image. Status (subscription
+            or trial counter) lives on top of the gradient so it's the
+            first thing the student sees on every visit. */}
+        <section
+          className="relative overflow-hidden rounded-3xl shadow-lg"
+          style={{ background: `linear-gradient(120deg, ${PURPLE} 0%, ${PINK} 100%)` }}
+        >
+          <div className="grid md:grid-cols-[1.3fr_1fr] gap-0 items-stretch">
+            <div className="p-7 md:p-10 text-white relative z-10">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm text-xs font-semibold mb-3">
+                ✨ Cambridge IGCSE · 5 subjects
+              </div>
+              <h1 className="text-2xl md:text-4xl font-extrabold leading-tight">
+                Selamat datang —<br />
+                ready to learn today?
+              </h1>
+              <p className="text-white/90 mt-3 max-w-md text-sm md:text-base">
+                Math, Physics, Chemistry, Economics, Business. Talk to your AI teacher
+                by voice, watch her work on the digital board, and practise exam-style questions.
               </p>
-            </>
-          ) : (
-            <>
-              <div className="flex items-center gap-2 font-semibold text-slate-900 mb-1">🎁 Free trial</div>
-              <p className="text-sm text-slate-600">
-                <strong>{remainingMin}</strong> of 30 free minutes remaining
-                {usedMin > 0 ? <> ({usedMin} min used)</> : null}.
-              </p>
-            </>
-          )}
-        </div>
 
-        {/* Two main modes: Learn (Socratic chat) vs Practice (graded exam questions) */}
-        <div className="grid sm:grid-cols-2 gap-3">
-          <a href="#topics" className={`${card} p-5 hover:border-violet-400 transition`}>
-            <div className="text-xs font-bold uppercase tracking-wider text-violet-700 mb-1">📚 Learn mode</div>
-            <h3 className="font-bold text-slate-900">Start a lesson</h3>
-            <p className="text-sm text-slate-600 mt-1">Pick a topic and chat with the AI Teacher — she'll explain step by step on the digital board, by voice or text.</p>
+              {/* Status pill — subscription state or free-trial remaining */}
+              <div className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/15 backdrop-blur-sm text-sm">
+                {sub ? (
+                  <>
+                    <span className="text-emerald-200 font-bold">✓ Subscription active</span>
+                    <span className="text-white/70">·</span>
+                    <span className="text-white">{sub.plan === "m1" ? "1 Month — 30 hours" : sub.plan}</span>
+                    {sub.expiresAt && (
+                      <>
+                        <span className="text-white/70">·</span>
+                        <span className="text-white">expires {new Date(sub.expiresAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</span>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <span className="text-amber-200 font-bold">🎁 Free trial</span>
+                    <span className="text-white/70">·</span>
+                    <span className="text-white"><strong>{remainingMin}</strong> of 30 minutes left</span>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="relative h-48 md:h-auto">
+              <SafeImg
+                src={IMG.hero}
+                alt="Indonesian high-school student studying"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              {/* Subtle gradient fade so the image blends into the gradient */}
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-700/40 via-transparent to-transparent md:from-purple-700/30 pointer-events-none" />
+            </div>
+          </div>
+        </section>
+
+        {/* ── TWO MODES — image-rich Learn vs Practice cards ─────────────── */}
+        <section className="grid sm:grid-cols-2 gap-4">
+          <a href="#topics" className={`${card} group overflow-hidden hover:border-violet-400 hover:shadow-md transition`}>
+            <div className="relative h-40 bg-violet-50">
+              <SafeImg
+                src={IMG.modeLearn}
+                alt="Student in a one-to-one lesson with the AI Teacher"
+                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-300"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-white/95 via-white/0 to-transparent" />
+              <div className="absolute bottom-3 left-4 right-4 text-xs font-bold uppercase tracking-wider text-violet-700">
+                📚 Learn mode
+              </div>
+            </div>
+            <div className="p-5">
+              <h3 className="font-bold text-slate-900">Start a lesson</h3>
+              <p className="text-sm text-slate-600 mt-1">Pick a topic and chat with the AI Teacher — she'll explain step-by-step on the digital board, by voice or text.</p>
+              <div className="mt-3 text-sm font-semibold text-violet-700 group-hover:translate-x-1 transition">Pick a topic →</div>
+            </div>
           </a>
-          <Link href="/igcse/practice" className={`${card} p-5 hover:border-violet-400 transition`}>
-            <div className="text-xs font-bold uppercase tracking-wider text-violet-700 mb-1">📝 Exam Practice</div>
-            <h3 className="font-bold text-slate-900">Try exam-style questions</h3>
-            <p className="text-sm text-slate-600 mt-1">Tackle Cambridge-style questions — the AI grades each step of your working and guides you when you're stuck, without giving the answer.</p>
+          <Link href="/igcse/practice" className={`${card} group overflow-hidden hover:border-violet-400 hover:shadow-md transition`}>
+            <div className="relative h-40 bg-rose-50">
+              <SafeImg
+                src={IMG.modePractice}
+                alt="Student practising Cambridge exam-style questions"
+                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-300"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-white/95 via-white/0 to-transparent" />
+              <div className="absolute bottom-3 left-4 right-4 text-xs font-bold uppercase tracking-wider text-rose-700">
+                📝 Exam Practice
+              </div>
+            </div>
+            <div className="p-5">
+              <h3 className="font-bold text-slate-900">Try exam-style questions</h3>
+              <p className="text-sm text-slate-600 mt-1">Tackle Cambridge-style questions — the AI grades each step of your working and guides you when you're stuck, without giving the answer away.</p>
+              <div className="mt-3 text-sm font-semibold text-rose-700 group-hover:translate-x-1 transition">Try a question →</div>
+            </div>
           </Link>
-        </div>
+        </section>
 
-        {/* Topic picker — pick a Cambridge syllabus topic and start a lesson. */}
+        {/* ── SUBJECTS at-a-glance — visual subject gallery ──────────────── */}
+        <section>
+          <div className="flex items-baseline justify-between mb-3 px-1">
+            <h2 className="text-lg font-bold text-slate-900">Your 5 subjects</h2>
+            <span className="text-xs text-slate-500">Click any subject to start →</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <SubjectTile href="#topics" image={IMG.math}      emoji="📐" name="Mathematics"    syllabus="0580" colour="violet" />
+            <SubjectTile href="#topics" image={IMG.physics}   emoji="⚛️" name="Physics"        syllabus="0625" colour="sky" />
+            <SubjectTile href="#topics" image={IMG.chemistry} emoji="🧪" name="Chemistry"      syllabus="0620" colour="emerald" />
+            <SubjectTile href="#topics" image={IMG.economics} emoji="💹" name="Economics"      syllabus="0455" colour="amber" />
+            <SubjectTile href="#topics" image={IMG.business}  emoji="💼" name="Business Studies" syllabus="0450" colour="rose" />
+          </div>
+        </section>
+
+        {/* ── Topic picker (Learn-mode launcher) ─────────────────────────── */}
         <div id="topics" />
         <TopicPicker disabled={!status.hasAccess} disabledReason={!status.hasAccess ? "Your free trial is done. Subscribe below to keep learning." : undefined} />
 
-        {/* Subscribe card — hidden once active */}
+        {/* ── Subscribe card — hidden once active ────────────────────────── */}
         {!sub && (
-          <div className="rounded-2xl p-6 text-white" style={{ background: `linear-gradient(120deg, ${PURPLE}, ${PINK})` }}>
-            <div className="font-bold text-lg">Unlock unlimited learning</div>
-            <p className="text-white/85 text-sm mt-0.5">
-              Free trial gives you a taste. The full plan unlocks the whole Cambridge IGCSE 0580 Extended syllabus, 30 hours/month.
-            </p>
-            <div className="mt-4 rounded-xl bg-white/15 p-4 flex items-center justify-between gap-3">
-              <div>
-                <div className="text-xs uppercase tracking-wider text-white/80">1 Month plan</div>
-                <div className="font-extrabold text-2xl">Rp 299.000</div>
-                <div className="text-xs text-white/80">30 hours of tutoring · cancel anytime</div>
+          <div className="rounded-2xl p-6 text-white relative overflow-hidden" style={{ background: `linear-gradient(120deg, ${PURPLE}, ${PINK})` }}>
+            <div className="relative z-10">
+              <div className="font-bold text-lg">Unlock unlimited learning</div>
+              <p className="text-white/85 text-sm mt-0.5">
+                Free trial gives you a taste. The full plan unlocks all 5 IGCSE subjects, 30 hours of tutoring per month.
+              </p>
+              <div className="mt-4 rounded-xl bg-white/15 p-4 flex items-center justify-between gap-3 backdrop-blur-sm">
+                <div>
+                  <div className="text-xs uppercase tracking-wider text-white/80">1 Month plan</div>
+                  <div className="font-extrabold text-2xl">Rp 299.000</div>
+                  <div className="text-xs text-white/80">30 hours of tutoring · cancel anytime</div>
+                </div>
+                <button
+                  onClick={() => checkout.mutate({ plan: "m1" })}
+                  disabled={checkout.isPending}
+                  className="bg-white text-violet-700 font-bold px-5 py-2.5 rounded-xl shadow disabled:opacity-60"
+                >
+                  {checkout.isPending ? "Opening…" : "Subscribe →"}
+                </button>
               </div>
-              <button
-                onClick={() => checkout.mutate({ plan: "m1" })}
-                disabled={checkout.isPending}
-                className="bg-white text-violet-700 font-bold px-5 py-2.5 rounded-xl shadow disabled:opacity-60"
-              >
-                {checkout.isPending ? "Opening…" : "Subscribe →"}
-              </button>
+              <p className="text-[11px] text-white/70 mt-3">Secure payment via Xendit (cards, e-wallets, bank transfer).</p>
             </div>
-            <p className="text-[11px] text-white/70 mt-3">Secure payment via Xendit (cards, e-wallets, bank transfer).</p>
           </div>
         )}
 
-        {/* Recent lessons */}
+        {/* ── Recent lessons ─────────────────────────────────────────────── */}
         <RecentLessons />
 
-        {/* What's coming next */}
-        <div className={`${card} p-5`}>
-          <h3 className="font-semibold text-slate-900 mb-1.5">What's coming soon</h3>
-          <ul className="text-sm text-slate-600 space-y-1 list-disc pl-5">
-            <li><strong>Interactive whiteboard</strong> — the AI's working appears step-by-step (Weeks 4–5).</li>
-            <li><strong>Voice mode</strong> — talk to the tutor like a real lesson (Week 6).</li>
-            <li>For now: <strong>text chat with topic-grounded AI teaching</strong> — try it above.</li>
-          </ul>
-        </div>
+        {/* ── How it works strip (replaces stale 'Coming soon') ──────────── */}
+        <section className={`${card} p-6`}>
+          <h3 className="font-bold text-slate-900 mb-3">How your AI teacher works</h3>
+          <div className="grid sm:grid-cols-3 gap-4 text-sm">
+            <div>
+              <div className="text-2xl mb-1">🎙️</div>
+              <div className="font-semibold text-slate-800">Speak naturally</div>
+              <p className="text-slate-600 mt-0.5">Ask out loud in English or Bahasa — the AI listens and answers in real time.</p>
+            </div>
+            <div>
+              <div className="text-2xl mb-1">✏️</div>
+              <div className="font-semibold text-slate-800">Watch her write</div>
+              <p className="text-slate-600 mt-0.5">Equations, diagrams and working appear step-by-step on a shared digital whiteboard.</p>
+            </div>
+            <div>
+              <div className="text-2xl mb-1">🎯</div>
+              <div className="font-semibold text-slate-800">Get exam-ready</div>
+              <p className="text-slate-600 mt-0.5">Practice Cambridge-style questions, graded with M/A mark conventions, with hints when you're stuck.</p>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
+  );
+}
+
+// ── Subject tile — pretty card with student image + name + syllabus chip ──
+function SubjectTile({
+  href, image, emoji, name, syllabus, colour,
+}: {
+  href: string;
+  image: string;
+  emoji: string;
+  name: string;
+  syllabus: string;
+  colour: "violet" | "sky" | "emerald" | "amber" | "rose";
+}) {
+  // Colour palette per subject — keeps the tile gallery visually distinct.
+  const palette: Record<string, { bg: string; text: string; ring: string }> = {
+    violet:  { bg: "bg-violet-50",  text: "text-violet-700",  ring: "hover:ring-violet-300" },
+    sky:     { bg: "bg-sky-50",     text: "text-sky-700",     ring: "hover:ring-sky-300" },
+    emerald: { bg: "bg-emerald-50", text: "text-emerald-700", ring: "hover:ring-emerald-300" },
+    amber:   { bg: "bg-amber-50",   text: "text-amber-700",   ring: "hover:ring-amber-300" },
+    rose:    { bg: "bg-rose-50",    text: "text-rose-700",    ring: "hover:ring-rose-300" },
+  };
+  const p = palette[colour];
+  return (
+    <a href={href}
+       className={`${card} group overflow-hidden hover:shadow-md transition hover:ring-2 ${p.ring}`}>
+      <div className={`relative h-28 ${p.bg}`}>
+        <SafeImg
+          src={image}
+          alt={`${name} student`}
+          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-300"
+        />
+        <div className="absolute top-1.5 left-1.5 text-xl drop-shadow-sm">{emoji}</div>
+      </div>
+      <div className="p-3">
+        <div className="font-semibold text-slate-900 text-sm leading-tight">{name}</div>
+        <div className={`text-[10px] font-mono ${p.text} mt-0.5`}>CIE {syllabus}</div>
+      </div>
+    </a>
   );
 }
 
