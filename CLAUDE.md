@@ -491,11 +491,36 @@ each step Socratically.
   yet") any mark bucket with zero questions in the current topic
   filter, so students never click into a dead filter.
 
-**Coming next** (per the 10-week plan): admin + polish (Week 10+),
-session-level metering visible in /admin, cost dashboard, weakness-
-targeting (\"you're shaky on bounds — try these 3 questions\"), and
-optionally a paste-your-own-question custom-attempt flow with Socratic
-grading against general IGCSE principles.
+**Week 10 (shipped):** admin oversight + weakness-targeting + paste-your-
+own-question custom attempts. The three things from the 10-week plan
+that close out v1 of the product.
+- **Weakness-targeting** (`igcse.weaknesses`): per-topic accuracy
+  aggregation for the signed-in student. The /igcse/practice page now
+  shows a rose-coloured "🎯 Focus areas" card listing the top 5 topics
+  where the student is under 70% accuracy (or has revealed every
+  attempt = given up), ranked by total marks lost. Each row has 1-2
+  "Try a 3-mark question →" buttons that start a fresh attempt in that
+  topic.
+- **Custom-question attempts** (`igcse.startCustomAttempt`): the
+  student pastes a question — typically from a Cambridge specimen
+  paper — and the AI coaches them through it Socratically. Stored as a
+  private igcse_examples row tagged source=`custom-${leadId}` (filtered
+  out of listExamples so it doesn't pollute the public bank). The
+  Socratic prompt branches: when no official mark scheme is provided,
+  the AI uses general 0580 marking principles and is conservative
+  about declaring an answer "correct". New page
+  `/igcse/practice/custom` with a clean composer (question + marks +
+  optional topic).
+- **Admin IGCSE tab** on `/admin`: stat cards (active subscriptions,
+  revenue, lesson hours, attempts, avg accuracy, bank size), plus a
+  table of the most recent 50 attempts across all students with topic,
+  score, hints used, status, and student name/email. Backed by two
+  new admin-only endpoints `adminStats` + `adminRecentAttempts`.
+
+**v1 complete.** What's next (not yet planned): post-v1 polish — voice
+quality tuning, weakness-targeted spaced-repetition recommendations,
+a parent-facing progress report email, IGCSE Physics + Chemistry as
+follow-on subjects, growing the exemplar bank toward ~150 questions.
 
 **Pricing (live):** **Rp 299k/month**, 30 hrs/month fair-use cap; free trial
 **30 minutes** lifetime.

@@ -13,7 +13,7 @@
  */
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Loader2, LogOut, Home, Sparkles, FileText, TrendingUp, Megaphone, Brain } from "lucide-react";
+import { Loader2, LogOut, Home, Sparkles, FileText, TrendingUp, Megaphone, Brain, GraduationCap } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import GrowthDashboard from "@/components/admin/GrowthDashboard";
 import AdsCopilot from "@/components/admin/AdsCopilot";
 import GrowthInsights from "@/components/admin/GrowthInsights";
 import AptitudeManager from "@/components/admin/AptitudeManager";
+import IgcseAdmin from "@/components/admin/IgcseAdmin";
 
 export default function AdminDashboard() {
   useEffect(() => {
@@ -31,7 +32,7 @@ export default function AdminDashboard() {
 
   const { user, loading, isAuthenticated, logout } = useAuth();
   const isAdmin = user?.role === "admin";
-  const [tab, setTab] = useState<"blog" | "growth" | "ads" | "insights" | "aptitude">("blog");
+  const [tab, setTab] = useState<"blog" | "growth" | "ads" | "insights" | "aptitude" | "igcse">("blog");
 
   if (loading) {
     return (
@@ -118,8 +119,16 @@ export default function AdminDashboard() {
           <Button variant={tab === "aptitude" ? "default" : "outline"} size="sm" onClick={() => setTab("aptitude")}>
             <Brain className="w-4 h-4 mr-2" /> Tes Bakat (Pro)
           </Button>
+          <Button variant={tab === "igcse" ? "default" : "outline"} size="sm" onClick={() => setTab("igcse")}>
+            <GraduationCap className="w-4 h-4 mr-2" /> IGCSE
+          </Button>
         </div>
-        {tab === "blog" ? <BlogManager /> : tab === "growth" ? <GrowthDashboard /> : tab === "ads" ? <AdsCopilot /> : tab === "aptitude" ? <AptitudeManager /> : <GrowthInsights />}
+        {tab === "blog" ? <BlogManager />
+          : tab === "growth" ? <GrowthDashboard />
+          : tab === "ads" ? <AdsCopilot />
+          : tab === "aptitude" ? <AptitudeManager />
+          : tab === "igcse" ? <IgcseAdmin />
+          : <GrowthInsights />}
       </main>
     </div>
   );

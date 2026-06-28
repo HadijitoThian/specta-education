@@ -22,9 +22,9 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { jwtVerify } from "jose";
 import { parse as parseCookies } from "cookie";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
-import { router, publicProcedure } from "./_core/trpc";
+import { router, publicProcedure, adminProcedure } from "./_core/trpc";
 import { getDb, getActiveIgcseSubscription, createIgcseSubscription, getIgcseLifetimeSecondsUsed, getLeadById } from "./db";
 import { igcseTopics, igcseSessions, igcseExamples, igcseAttempts, igcseAttemptSteps, type IgcseSession } from "../drizzle/schema";
 import { ENV } from "./_core/env";
@@ -545,7 +545,8 @@ Rules:
   // mark scheme reveal at the end.
   // ────────────────────────────────────────────────────────────────────────────
 
-  /** Public: list available exam-practice questions, optionally filtered by topic. */
+  /** Public: list available exam-practice questions, optionally filtered by topic.
+   *  Excludes any private user-pasted custom questions (source LIKE 'custom-%'). */
   listExamples: publicProcedure
     .input(z.object({ topicCode: z.string().max(16).optional() }).optional())
     .query(async ({ input }) => {
@@ -554,8 +555,8 @@ Rules:
       const rows = input?.topicCode
         ? await db.select().from(igcseExamples).where(eq(igcseExamples.topicCode, input.topicCode))
         : await db.select().from(igcseExamples);
-      // Don't leak markScheme to the client until reveal — only meta + question.
       return rows
+        .filter(r => !String(r.source || "").startsWith("custom-"))
         .sort((a, b) => a.topicCode.localeCompare(b.topicCode) || a.sortOrder - b.sortOrder)
         .map(r => ({
           id: r.id,
@@ -689,6 +690,7 @@ Rules:
         .orderBy(igcseAttemptSteps.id);
       const history = prior.slice(-30);
 
+      const hasOfficialScheme = !!(ex.markScheme && ex.markScheme.trim().length > 0);
       const sysPrompt = [
         "You are a Cambridge IGCSE Math (0580 Extended) exam coach.",
         "The student is attempting a real exam-style question. Your job is to GUIDE them to the answer, never hand it to them.",
@@ -698,8 +700,9 @@ Rules:
         "",
         `MARKS: ${ex.marks}`,
         "",
-        "FULL MARK SCHEME (FOR YOUR EYES ONLY — DO NOT QUOTE OR REVEAL VERBATIM):",
-        ex.markScheme,
+        hasOfficialScheme
+          ? "FULL MARK SCHEME (FOR YOUR EYES ONLY — DO NOT QUOTE OR REVEAL VERBATIM):\n" + ex.markScheme
+          : "NOTE: This is a question the student pasted in (e.g. from a Cambridge specimen paper). You do NOT have the official mark scheme. Coach using your knowledge of standard Cambridge IGCSE 0580 marking: identify likely method marks (M), accuracy marks (A), and independent marks (B), and estimate how the marks would be allocated. Be conservative — say so if you're unsure which technique the examiner expects.",
         "",
         "RULES — these are non-negotiable:",
         "1. NEVER state the final numeric answer or any intermediate numeric answer the mark scheme uses.",
@@ -707,7 +710,7 @@ Rules:
         "3. If the student's step is correct → confirm briefly (e.g. \"✅ That's the method mark — you've earned M1. What's your next step?\") and ask for the next step.",
         "4. If the student's step is partially right → confirm the correct part, point at what's missing, ask a leading question. Do NOT give the missing piece directly.",
         "5. If the student's step is wrong → DO NOT correct them with the right number. Instead ask a probing question that exposes the misconception. Examples: \"What does 'reduced by 18%' tell us about the relationship between sale price and original price?\" or \"Are you sure 0.82 of the original equals the sale price, or is it the other way round?\"",
-        "6. If the student has now produced an answer that matches the mark scheme's final answer → CONGRATULATE them, summarise which M / A marks they earned, and set status to \"complete\". DO NOT keep asking for more steps.",
+        "6. If the student has now produced the correct final answer (matching the mark scheme, or a mathematically correct answer if no scheme is provided) → CONGRATULATE them, summarise which M / A marks they earned, and set complete=true. DO NOT keep asking for more steps.",
         "7. If the student says they're stuck, give them a HINT (not the answer). Hints escalate in tiers — start with a conceptual nudge, never a numeric one.",
         "",
         "Output STRICT JSON only — no prose, no fences:",
@@ -890,5 +893,203 @@ Rules:
       }).where(eq(igcseAttempts.id, input.attemptId));
 
       return { markScheme: ex.markScheme };
+    }),
+
+  /**
+   * Custom-question attempt (Path B closure): the student pastes a question
+   * — typically from a Cambridge specimen paper — and we start a Socratic
+   * coaching attempt without an official mark scheme. The prompt switches
+   * to "no scheme provided" mode and the AI coaches using general 0580
+   * marking principles.
+   *
+   * Stored as a private igcse_examples row tagged source=`custom-${leadId}`
+   * with an empty markScheme. listExamples filters these out so they don't
+   * appear in the public bank.
+   */
+  startCustomAttempt: publicProcedure
+    .input(z.object({
+      question: z.string().min(10).max(2000),
+      marks: z.number().int().min(1).max(20),
+      topicCode: z.string().max(16).optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const leadId = requireLead(await resolveLead(ctx));
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      // Gate: must have access.
+      const sub = await getActiveIgcseSubscription(leadId);
+      if (!sub) {
+        const used = await getIgcseLifetimeSecondsUsed(leadId);
+        if (used >= FREE_TRIAL_SECONDS) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Your 30-minute free trial is done — subscribe to keep practising." });
+        }
+      }
+
+      // Create a private example row tagged to this student.
+      const insExample: any = await db.insert(igcseExamples).values({
+        topicCode: input.topicCode || "custom",
+        syllabus: "CIE_0580",
+        tier: "extended" as const,
+        marks: input.marks,
+        question: input.question.trim(),
+        markScheme: "", // empty → submitStep switches to "no official scheme" coaching mode
+        source: `custom-${leadId}`,
+        sortOrder: 0,
+      });
+      const exampleId = Number(insExample?.insertId ?? insExample?.[0]?.insertId ?? 0);
+
+      const insAttempt: any = await db.insert(igcseAttempts).values({
+        leadId,
+        exampleId,
+        topicCode: input.topicCode || "custom",
+        marks: input.marks,
+        status: "in_progress",
+      });
+      const attemptId = Number(insAttempt?.insertId ?? insAttempt?.[0]?.insertId ?? 0);
+
+      const opening = `I don't have an official mark scheme for this one — but I'll coach you through it using standard Cambridge 0580 marking. This question is worth **${input.marks} mark${input.marks === 1 ? "" : "s"}**. Show me your first step.`;
+      await db.insert(igcseAttemptSteps).values({
+        attemptId,
+        role: "tutor",
+        text: opening,
+        verdict: "none",
+      });
+
+      return { attemptId, exampleId, opening };
+    }),
+
+  /**
+   * Per-topic weakness summary for the signed-in student. Returns the
+   * topics where they're scoring below 50% (or have never tried), ranked by
+   * total marks lost. The /igcse/practice page uses this to surface
+   * "🎯 Focus areas: try these 3 questions next" suggestions.
+   */
+  weaknesses: publicProcedure.query(async ({ ctx }) => {
+    const leadId = await resolveLead(ctx);
+    if (!leadId) return { ranked: [], totalAttempted: 0, completed: 0 };
+    const db = await getDb();
+    if (!db) return { ranked: [], totalAttempted: 0, completed: 0 };
+
+    const atts = await db.select().from(igcseAttempts).where(eq(igcseAttempts.leadId, leadId));
+    if (!atts.length) return { ranked: [], totalAttempted: 0, completed: 0 };
+
+    // Aggregate per topic: total marks attempted, marks earned, attempts count.
+    const byTopic = new Map<string, { topicCode: string; attempts: number; marksAttempted: number; marksEarned: number; revealed: number; lastAt: number }>();
+    for (const a of atts) {
+      const t = byTopic.get(a.topicCode) || { topicCode: a.topicCode, attempts: 0, marksAttempted: 0, marksEarned: 0, revealed: 0, lastAt: 0 };
+      t.attempts += 1;
+      if (a.status === "completed") {
+        t.marksAttempted += a.marks;
+        t.marksEarned += (a.marksEarned ?? 0);
+        if (a.revealed === 1) t.revealed += 1;
+      }
+      const startedTs = a.startedAt ? new Date(a.startedAt).getTime() : 0;
+      if (startedTs > t.lastAt) t.lastAt = startedTs;
+      byTopic.set(a.topicCode, t);
+    }
+
+    const ranked = Array.from(byTopic.values())
+      .map(t => ({
+        ...t,
+        accuracy: t.marksAttempted > 0 ? t.marksEarned / t.marksAttempted : 0,
+        marksLost: Math.max(0, t.marksAttempted - t.marksEarned),
+      }))
+      // Surface weakest: under 70% accuracy AND at least 1 completed attempt,
+      // or topics where every attempt was revealed (= gave up).
+      .filter(t => (t.marksAttempted > 0 && t.accuracy < 0.7) || (t.attempts > 0 && t.revealed === t.attempts))
+      .sort((a, b) => b.marksLost - a.marksLost || a.accuracy - b.accuracy)
+      .slice(0, 5);
+
+    const totalAttempted = atts.length;
+    const completed = atts.filter(a => a.status === "completed").length;
+    return { ranked, totalAttempted, completed };
+  }),
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // ADMIN — read-only oversight for /admin
+  // ────────────────────────────────────────────────────────────────────────────
+
+  /** Aggregated IGCSE metrics for the admin dashboard. */
+  adminStats: adminProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) return null;
+    const allSubs = await db.execute(sql`SELECT status, amount, currency FROM igcse_subscriptions`);
+    const subsList: any[] = Array.isArray(allSubs[0]) ? allSubs[0] : (allSubs as any);
+    let activeSubs = 0;
+    let pendingSubs = 0;
+    let revenueIDR = 0;
+    for (const s of subsList) {
+      if (s.status === "active") activeSubs++;
+      else if (s.status === "pending") pendingSubs++;
+      if ((s.status === "active" || s.status === "expired") && (s.currency === "IDR" || !s.currency)) {
+        revenueIDR += Number(s.amount || 0);
+      }
+    }
+
+    const sessRow = await db.execute(sql`SELECT COUNT(*) AS c, COALESCE(SUM(durationSec), 0) AS s FROM igcse_sessions`);
+    const sessList: any[] = Array.isArray(sessRow[0]) ? sessRow[0] : (sessRow as any);
+    const totalSessions = Number(sessList?.[0]?.c ?? 0);
+    const totalLessonSec = Number(sessList?.[0]?.s ?? 0);
+
+    const attRow = await db.execute(sql`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS completed,
+        SUM(CASE WHEN revealed=1 THEN 1 ELSE 0 END) AS revealed,
+        COALESCE(SUM(marks), 0) AS marksTotal,
+        COALESCE(SUM(marksEarned), 0) AS marksEarned
+      FROM igcse_attempts
+    `);
+    const attList: any[] = Array.isArray(attRow[0]) ? attRow[0] : (attRow as any);
+    const a0 = attList?.[0] ?? {};
+    const totalAttempts = Number(a0.total ?? 0);
+    const completedAttempts = Number(a0.completed ?? 0);
+    const revealedAttempts = Number(a0.revealed ?? 0);
+    const marksTotal = Number(a0.marksTotal ?? 0);
+    const marksEarned = Number(a0.marksEarned ?? 0);
+
+    const exRow = await db.execute(sql`
+      SELECT COUNT(*) AS bank,
+        SUM(CASE WHEN source LIKE 'custom-%' THEN 1 ELSE 0 END) AS customQs
+      FROM igcse_examples
+    `);
+    const exList: any[] = Array.isArray(exRow[0]) ? exRow[0] : (exRow as any);
+    const exemplarBankSize = Number(exList?.[0]?.bank ?? 0) - Number(exList?.[0]?.customQs ?? 0);
+    const customQuestions = Number(exList?.[0]?.customQs ?? 0);
+
+    return {
+      subscriptions: { active: activeSubs, pending: pendingSubs, revenueIDR },
+      sessions: { total: totalSessions, totalLessonHours: Math.round((totalLessonSec / 3600) * 10) / 10 },
+      attempts: {
+        total: totalAttempts,
+        completed: completedAttempts,
+        revealed: revealedAttempts,
+        marksTotal,
+        marksEarned,
+        accuracy: marksTotal > 0 ? Math.round((marksEarned / marksTotal) * 1000) / 10 : 0, // %
+      },
+      bank: { exemplars: exemplarBankSize, customQuestions },
+    };
+  }),
+
+  /** Recent attempts across all students for the admin attempt feed. */
+  adminRecentAttempts: adminProcedure
+    .input(z.object({ limit: z.number().int().min(1).max(200).default(50) }).optional())
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const rows = await db.execute(sql`
+        SELECT
+          a.id, a.leadId, a.topicCode, a.marks, a.marksEarned, a.status, a.revealed,
+          a.hintsUsed, a.startedAt, a.completedAt,
+          l.name AS leadName, l.email AS leadEmail
+        FROM igcse_attempts a
+        LEFT JOIN leads l ON l.id = a.leadId
+        ORDER BY a.startedAt DESC
+        LIMIT ${input?.limit ?? 50}
+      `);
+      const list: any[] = Array.isArray(rows[0]) ? rows[0] : (rows as any);
+      return list;
     }),
 });

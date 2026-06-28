@@ -20,6 +20,7 @@ export default function IgcsePractice() {
   const topics = trpc.igcse.listTopics.useQuery();
   const examples = trpc.igcse.listExamples.useQuery({});
   const attempts = trpc.igcse.listAttempts.useQuery({ limit: 50 }, { enabled: !!status.data?.loggedIn });
+  const weak = trpc.igcse.weaknesses.useQuery(undefined, { enabled: !!status.data?.loggedIn });
 
   const startAttempt = trpc.igcse.startAttempt.useMutation({
     onSuccess: (d) => setLocation(`/igcse/practice/attempt/${d.attemptId}`),
@@ -136,8 +137,30 @@ export default function IgcsePractice() {
           </p>
         </div>
 
+        {/* Weakness-targeting — only shown if student has at least 1 weak topic */}
+        {weak.data && weak.data.ranked.length > 0 && (
+          <WeaknessCard
+            ranked={weak.data.ranked}
+            topicByCode={topicByCode}
+            examples={examples.data || []}
+            onStart={(exampleId) => startAttempt.mutate({ exampleId })}
+          />
+        )}
+
         {/* Cambridge specimen papers — official, free, real exam questions */}
         <SpecimenPapersPanel />
+
+        {/* Paste-your-own-question CTA */}
+        <Link href="/igcse/practice/custom" className={`${card} block p-5 hover:border-violet-400 transition`}>
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">✍️</div>
+            <div className="flex-1">
+              <h3 className="font-bold text-slate-900">Paste your own question</h3>
+              <p className="text-sm text-slate-600">Bring a question from a specimen paper, textbook, or past test — the AI will coach you step by step.</p>
+            </div>
+            <span className="text-violet-700 font-bold">→</span>
+          </div>
+        </Link>
 
         {/* Filters */}
         <div className={`${card} p-4 flex flex-wrap gap-3 items-center`}>
@@ -242,6 +265,75 @@ export default function IgcsePractice() {
         )}
       </main>
     </div>
+  );
+}
+
+// ── Weakness-targeting card ──────────────────────────────────────────────────
+// Surfaces the topics where the student is scoring below 70% (or where they've
+// revealed every attempt without solving) and points them at fresh questions
+// to try in those topics. Drives the "keep practising — get unstuck on bounds
+// today" loop.
+
+function WeaknessCard({
+  ranked, topicByCode, examples, onStart,
+}: {
+  ranked: any[];
+  topicByCode: Map<string, string>;
+  examples: any[];
+  onStart: (exampleId: number) => void;
+}) {
+  // For each weak topic, suggest up to 2 questions the student hasn't fully
+  // mastered. (We don't track "attempted" per example here; just pick top of
+  // sort order in the topic.)
+  return (
+    <section className="rounded-2xl border border-rose-200 bg-rose-50/50 p-5">
+      <div className="flex items-start gap-3">
+        <div className="text-2xl">🎯</div>
+        <div className="flex-1">
+          <h2 className="font-bold text-rose-900">Focus areas</h2>
+          <p className="text-sm text-slate-700 mt-1">
+            Based on your attempts, these are the topics where you've lost the most marks.
+            Worth practising next.
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 space-y-3">
+        {ranked.map((t) => {
+          const pct = Math.round(t.accuracy * 100);
+          const qsForTopic = examples.filter(e => e.topicCode === t.topicCode).slice(0, 2);
+          return (
+            <div key={t.topicCode} className="rounded-xl bg-white border border-rose-100 p-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-rose-700">{t.topicCode}</span>
+                  <span className="ml-2 font-semibold text-slate-800">{topicByCode.get(t.topicCode) || "Custom"}</span>
+                </div>
+                <div className="text-xs text-slate-600">
+                  {t.marksAttempted > 0
+                    ? <>Accuracy: <strong className={pct < 50 ? "text-rose-700" : "text-amber-700"}>{pct}%</strong> · {t.marksEarned}/{t.marksAttempted} marks</>
+                    : <>Tried {t.attempts}× · revealed</>}
+                </div>
+              </div>
+              {qsForTopic.length > 0 ? (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {qsForTopic.map(q => (
+                    <button
+                      key={q.id}
+                      onClick={() => onStart(q.id)}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-rose-600 text-white hover:bg-rose-700"
+                    >
+                      Try a {q.marks}-mark question →
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 mt-2">No bank question for this topic yet — try pasting one from a specimen paper.</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
