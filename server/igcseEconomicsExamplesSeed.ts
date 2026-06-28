@@ -87,13 +87,13 @@ const EXAMPLES: Ex[] = [
     source: "exam-style" },
 
   { topicCode: "E2.7", marks: 4,
-    question: "Explain why the demand for cigarettes tends to be price INELASTIC.",
-    markScheme: "1 mark for each accurate point, max 4:\n• Cigarettes are **addictive** → consumers feel compelled to buy regardless of price changes.\n• **Few close substitutes** → there is no alternative product that gives the same effect.\n• They tend to take a **small proportion of income** → even a large % price rise has little impact on overall purchasing power.\n• Considered a **necessity** by addicted users.\n• **Short time period** → habits and addictions are hard to break quickly.\nFor full marks: at least two distinct points, each clearly explained in the context of cigarettes (not generic).",
+    question: "Explain why the demand for petrol (gasoline) tends to be price INELASTIC in the short run.",
+    markScheme: "1 mark for each accurate point, max 4:\n• **Few close substitutes** in the short run — most cars and motorcycles can only run on petrol; switching to electric vehicles takes years.\n• **Necessity** — many people depend on driving to get to work, school, or to deliver goods; they can't easily stop.\n• **Habit / fixed routines** — people drive the same routes daily; behaviour is slow to change even when price rises.\n• It is **a small proportion of total income** for many drivers — a price rise hurts but doesn't trigger a big behaviour change in the short run.\n• **Short time period** — in the long run demand is more elastic (people buy more fuel-efficient cars, switch transport modes), but in the short run options are limited.\nFor full marks: at least two distinct points, each clearly explained in the context of petrol (not generic).",
     source: "exam-style" },
 
   { topicCode: "E2.10", marks: 4,
     question: "Explain, using ONE example, what is meant by a 'negative externality of production'.",
-    markScheme: "**Definition (1 mark):** A negative externality is a **cost imposed on a THIRD PARTY** by an economic activity (production or consumption) for which they are **not compensated**.\n**Of PRODUCTION (1 mark):** The third-party cost arises from the producer's activity (not the consumer's).\n**Example (1 mark):** A factory polluting a river — **third parties** = nearby residents, fishermen.\n**Effect (1 mark, max 4):** The market price does not reflect the true social cost → over-production from a society's perspective → market failure.\nCommon error: confusing 'negative externality of production' with 'of consumption' (e.g. second-hand smoke). The KEY distinguisher is whether the external cost arises from making the good or using it.",
+    markScheme: "**Definition (1 mark):** A negative externality is a **cost imposed on a THIRD PARTY** by an economic activity (production or consumption) for which they are **not compensated**.\n**Of PRODUCTION (1 mark):** The third-party cost arises from the producer's activity (not the consumer's).\n**Example (1 mark):** A factory polluting a river — **third parties** = nearby residents, fishermen.\n**Effect (1 mark, max 4):** The market price does not reflect the true social cost → over-production from a society's perspective → market failure.\nCommon error: confusing 'negative externality of production' with 'of consumption' (e.g. traffic noise from people driving cars). The KEY distinguisher is whether the external cost arises from making the good or using it.",
     source: "exam-style" },
 
   { topicCode: "E3.6", marks: 4,
@@ -151,8 +151,8 @@ const EXAMPLES: Ex[] = [
   // ═══════════════════════════════════════════════════════════════════════════
 
   { topicCode: "E2.10", marks: 6,
-    question: "Analyse how a government could correct the market failure caused by negative externalities of consumption (e.g. smoking).",
-    markScheme: "L3 (5–6): Clear identification of the market failure + at least TWO well-developed policy responses with full cause-effect chains showing how each corrects the failure.\nL2 (3–4): Some accurate analysis of one policy, or a list of policies with brief explanation.\nL1 (1–2): Vague references to government action, no clear chain.\n\nKey points:\n• Identify the failure: market over-consumes the good (private benefit > social benefit; third-party costs ignored).\n• **Indirect tax** (e.g. tobacco duty) → raises price → reduces quantity demanded → moves consumption toward the socially optimal level. Also raises government revenue for healthcare.\n• **Regulation** (smoking bans in public places, age limits) → directly reduces consumption + protects third parties.\n• **Information / education** (advertising, warning labels) → reduces demand by changing perceptions of private benefit.\n• **Subsidy on substitutes** (e.g. nicotine replacement therapy) → shifts consumers to a less harmful alternative.\n\nFor L3, the answer must SHOW the mechanism (how the tax/regulation/info changes behaviour and outcomes), not just list policies.",
+    question: "Analyse how a government could correct the market failure caused by negative externalities of consumption (e.g. sugary drinks contributing to childhood obesity and rising healthcare costs).",
+    markScheme: "L3 (5–6): Clear identification of the market failure + at least TWO well-developed policy responses with full cause-effect chains showing how each corrects the failure.\nL2 (3–4): Some accurate analysis of one policy, or a list of policies with brief explanation.\nL1 (1–2): Vague references to government action, no clear chain.\n\nKey points:\n• Identify the failure: market over-consumes the good (private benefit > social benefit; third-party costs — e.g. taxpayer-funded healthcare — ignored).\n• **Indirect tax** (e.g. sugar tax on sweetened drinks) → raises price → reduces quantity demanded → moves consumption toward the socially optimal level. Also raises government revenue for healthcare / sport programmes.\n• **Regulation** (limits on advertising to children, restrictions on sales in schools, mandatory clear labelling) → directly reduces exposure + consumption.\n• **Information / education campaigns** (healthy-eating awareness, school programmes) → reduces demand by changing perceptions of private benefit.\n• **Subsidy on substitutes** (e.g. cheaper bottled water, subsidised fruit in school canteens) → shifts consumers to healthier alternatives.\n\nFor L3, the answer must SHOW the mechanism (how the tax/regulation/info changes behaviour and outcomes), not just list policies.",
     source: "exam-style" },
 
   { topicCode: "E4.4", marks: 6,
@@ -193,6 +193,34 @@ const EXAMPLES: Ex[] = [
 export async function seedIgcseEconomicsExamplesIfEmpty(): Promise<{ seeded: number }> {
   const db = await getDb();
   if (!db) return { seeded: 0 };
+
+  // ── One-shot sanitisation: remove any older questions whose subject matter
+  // is inappropriate for our 14–16-year-old audience (cigarettes / smoking /
+  // tobacco). Idempotent — re-running finds 0 rows after the first deploy.
+  // The fresh seed below then inserts the cleaned replacements (petrol PED,
+  // sugary-drinks externality, etc.).
+  try {
+    const banned = ["%cigarette%", "%smoking%", "%tobacco%", "%nicotine%"];
+    for (const pat of banned) {
+      const res: any = await db.execute(sql`
+        DELETE FROM igcse_examples
+        WHERE topicCode LIKE 'E%' AND question LIKE ${pat}
+      `);
+      const n = Number(res?.affectedRows ?? res?.[0]?.affectedRows ?? 0);
+      if (n > 0) console.log(`[IGCSE] Sanitised ${n} Economics row(s) matching ${pat}.`);
+    }
+    // Also cleanse the learningOutcomes on the market-failure topic row.
+    const upd: any = await db.execute(sql`
+      UPDATE igcse_topics
+      SET learningOutcomes = REPLACE(learningOutcomes, 'e.g. tobacco', 'e.g. sugary drinks, junk food')
+      WHERE subject = 'economics' AND code = 'E2.10' AND learningOutcomes LIKE '%e.g. tobacco%'
+    `);
+    const updN = Number(upd?.affectedRows ?? upd?.[0]?.affectedRows ?? 0);
+    if (updN > 0) console.log(`[IGCSE] Sanitised tobacco reference in E2.10 learningOutcomes.`);
+  } catch (e) {
+    console.warn("[IGCSE] Economics sanitisation pass failed (non-fatal):", (e as Error).message);
+  }
+
   try {
     const existing = await db.execute(sql`SELECT topicCode, question FROM igcse_examples WHERE topicCode LIKE 'E%'`);
     const list: any[] = Array.isArray(existing[0]) ? existing[0] : (existing as any);

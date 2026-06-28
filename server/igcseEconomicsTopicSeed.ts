@@ -52,7 +52,7 @@ const AREAS: Area[] = [
       { code: "E2.9", title: "Market economic system",
         learningOutcomes: "A pure market economy: resources allocated by the price mechanism, private ownership of factors, profit motive, consumer sovereignty. Advantages (efficiency, choice, innovation, incentives) and disadvantages (inequality, market failure, public goods underprovided, ignores externalities)." },
       { code: "E2.10", title: "Market failure",
-        learningOutcomes: "When the market fails to allocate resources efficiently. Causes: negative externalities (e.g. pollution), positive externalities (e.g. vaccination), public goods (non-rival + non-excludable — e.g. street lighting, defence), merit goods (under-consumed — e.g. education), demerit goods (over-consumed — e.g. tobacco), monopoly power, factor immobility, information failure. Government can intervene via taxes, subsidies, regulation, direct provision." },
+        learningOutcomes: "When the market fails to allocate resources efficiently. Causes: negative externalities (e.g. pollution), positive externalities (e.g. vaccination), public goods (non-rival + non-excludable — e.g. street lighting, defence), merit goods (under-consumed — e.g. education), demerit goods (over-consumed — e.g. sugary drinks, junk food), monopoly power, factor immobility, information failure. Government can intervene via taxes, subsidies, regulation, direct provision." },
       { code: "E2.11", title: "Mixed economic system",
         learningOutcomes: "Most real economies have private + public sectors coexisting. The role of the public sector (provide public goods, correct externalities, regulate monopolies, redistribute income via tax & welfare). Examples of mixed economies." },
     ],
