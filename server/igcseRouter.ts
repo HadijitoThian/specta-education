@@ -255,8 +255,16 @@ export const igcseRouter = router({
         }
       }
 
-      const history = ((session.transcript as any[]) || []).slice(-20); // last 20 turns
       const lang = session.language === "id" ? "id" : "en";
+      // Last 20 turns, but skip our own "Sorry — I got distracted" fallbacks so
+      // the model isn't taught to keep apologising once one slips in.
+      const history = (((session.transcript as any[]) || [])
+        .filter((t: any) => {
+          if (t.role !== "ai") return true;
+          const tx = String(t.text || "");
+          return !tx.startsWith("Sorry — I got distracted") && !tx.startsWith("Maaf — koneksiku terputus");
+        }))
+        .slice(-20);
 
       // Pedagogy system prompt — grounded in the Cambridge topic's LO.
       // The AI returns JSON with both `speech` (the chat bubble) AND `board`
@@ -321,10 +329,26 @@ Rules:
 
       const messages = [
         { role: "system" as const, content: sysPrompt },
-        ...history.map((t: any) => ({
-          role: (t.role === "ai" ? "assistant" : t.role === "student" ? "user" : "system") as "user" | "assistant" | "system",
-          content: String(t.text || ""),
-        })),
+        ...history.map((t: any) => {
+          // Replay assistant turns as the JSON STRUCTURE the model originally
+          // produced. Without this, the model sees its prior replies as plain
+          // prose and abandons the JSON output contract on the next turn —
+          // returning {} or empty fields, which triggered our fallback. This
+          // keeps the conversation pattern consistent end-to-end.
+          if (t.role === "ai") {
+            return {
+              role: "assistant" as const,
+              content: JSON.stringify({
+                speech: t.text || "",
+                board: Array.isArray(t.board) ? t.board : [],
+              }),
+            };
+          }
+          return {
+            role: (t.role === "student" ? "user" : "system") as "user" | "system",
+            content: String(t.text || ""),
+          };
+        }),
         { role: "user" as const, content: input.message },
       ];
 
@@ -352,8 +376,18 @@ Rules:
             b && typeof b === "object" && typeof b.type === "string"
           ).slice(0, 30); // safety cap
         }
+        // Last-resort: if the model returned valid JSON with everything empty
+        // BUT we still got some raw text, use that as speech rather than the
+        // generic apology — better to show the model's actual words than to
+        // fall back blindly.
+        if (!speech && !boardOut.length && rawText && rawText !== "{}") {
+          console.warn("[IGCSE] empty parsed reply — falling back to rawText:", rawText.slice(0, 200));
+          speech = rawText.slice(0, 1500);
+        }
         if (!speech && !boardOut.length) {
-          speech = "Sorry — I got distracted. Could you say that again?";
+          speech = lang === "id"
+            ? "Maaf — koneksiku terputus sebentar. Bisa ulangi pertanyaannya?"
+            : "Sorry — I got distracted. Could you say that again?";
         }
       } catch (e) {
         console.error("[IGCSE] sendMessage LLM error:", e);
