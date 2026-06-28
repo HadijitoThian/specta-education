@@ -50,6 +50,19 @@ const TOPIC_HINTS = [
   { code: "E4.5",  name: "Econ · Inflation" },
   { code: "E6.2",  name: "Econ · Free trade vs protectionism" },
   { code: "E6.3",  name: "Econ · Exchange rates" },
+  // ── Business Studies 0450
+  { code: "B1.3",  name: "Business · Enterprise + growth" },
+  { code: "B1.4",  name: "Business · Types of business organisation" },
+  { code: "B1.5",  name: "Business · Stakeholders" },
+  { code: "B2.1",  name: "Business · Motivating workers" },
+  { code: "B2.2",  name: "Business · Leadership + management" },
+  { code: "B3.1",  name: "Business · Marketing + customer" },
+  { code: "B3.3",  name: "Business · Product life cycle" },
+  { code: "B3.4",  name: "Business · Pricing strategies" },
+  { code: "B4.2",  name: "Business · Break-even analysis" },
+  { code: "B5.1",  name: "Business · Sources of finance" },
+  { code: "B5.5",  name: "Business · Ratio analysis" },
+  { code: "B6.1",  name: "Business · Economic environment" },
 ];
 
 export default function IgcsePracticeCustom() {

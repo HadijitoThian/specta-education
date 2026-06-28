@@ -16,7 +16,7 @@ const card = "rounded-2xl border border-slate-200 bg-white shadow-sm";
 
 export default function IgcsePractice() {
   const [, setLocation] = useLocation();
-  const [subject, setSubject] = useState<"math" | "physics" | "economics">("math");
+  const [subject, setSubject] = useState<"math" | "physics" | "economics" | "business">("math");
   const status = trpc.igcse.status.useQuery(undefined, { retry: false });
   const topics = trpc.igcse.listTopics.useQuery({ subject });
   const examples = trpc.igcse.listExamples.useQuery({ subject });
@@ -138,7 +138,7 @@ export default function IgcsePractice() {
             guide you when you're stuck, and reveal the full Cambridge-style mark scheme at the end.
           </p>
           <p className="text-[11px] text-slate-400 mt-2">
-            All questions are authored to Cambridge IGCSE {subject === "physics" ? "0625 (Physics)" : subject === "economics" ? "0455 (Economics)" : "0580 (Math)"} style — not verbatim past papers.
+            All questions are authored to Cambridge IGCSE {subject === "physics" ? "0625 (Physics)" : subject === "economics" ? "0455 (Economics)" : subject === "business" ? "0450 (Business Studies)" : "0580 (Math)"} style — not verbatim past papers.
           </p>
 
           <div className="inline-flex rounded-lg border border-slate-300 overflow-hidden text-sm mt-4 flex-wrap" role="group" aria-label="Subject">
@@ -153,6 +153,10 @@ export default function IgcsePractice() {
             <button type="button" onClick={() => setSubject("economics")}
               className={`px-4 py-1.5 font-semibold border-l border-slate-300 ${subject === "economics" ? "bg-violet-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}>
               💹 Economics
+            </button>
+            <button type="button" onClick={() => setSubject("business")}
+              className={`px-4 py-1.5 font-semibold border-l border-slate-300 ${subject === "business" ? "bg-violet-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}>
+              💼 Business
             </button>
           </div>
         </div>

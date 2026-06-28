@@ -431,7 +431,7 @@ export async function ensureMarketingSchema(): Promise<void> {
     await db.execute(sql.raw(`
       CREATE TABLE IF NOT EXISTS igcse_topics (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        subject ENUM('math','physics','economics') NOT NULL DEFAULT 'math',
+        subject ENUM('math','physics','economics','business') NOT NULL DEFAULT 'math',
         syllabus VARCHAR(32) NOT NULL DEFAULT 'CIE_0580',
         tier ENUM('core','extended','both') NOT NULL DEFAULT 'extended',
         areaCode VARCHAR(8) NOT NULL,
@@ -558,7 +558,7 @@ export async function ensureMarketingSchema(): Promise<void> {
  *
  * Called by each subject's topic seeder before insert.
  */
-async function ensureIgcseSubject(target: "math" | "physics" | "economics"): Promise<boolean> {
+async function ensureIgcseSubject(target: "math" | "physics" | "economics" | "business"): Promise<boolean> {
   const db = await getDb();
   if (!db) return false;
   try {
@@ -572,7 +572,7 @@ async function ensureIgcseSubject(target: "math" | "physics" | "economics"): Pro
     // We always widen to the full known set so adding a new subject doesn't
     // accidentally narrow the enum and drop earlier values.
     await db.execute(sql.raw(`
-      ALTER TABLE igcse_topics MODIFY COLUMN subject ENUM('math','physics','economics') NOT NULL DEFAULT 'math'
+      ALTER TABLE igcse_topics MODIFY COLUMN subject ENUM('math','physics','economics','business') NOT NULL DEFAULT 'math'
     `));
     console.log(`[IGCSE] subject enum widened OK.`);
     return true;
@@ -588,6 +588,10 @@ export async function ensureIgcsePhysicsSubject(): Promise<boolean> {
 
 export async function ensureIgcseEconomicsSubject(): Promise<boolean> {
   return ensureIgcseSubject("economics");
+}
+
+export async function ensureIgcseBusinessSubject(): Promise<boolean> {
+  return ensureIgcseSubject("business");
 }
 
 /**

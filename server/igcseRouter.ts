@@ -74,7 +74,7 @@ export const igcseRouter = router({
 
   /** Public: list every seeded IGCSE topic, optionally filtered by subject. */
   listTopics: publicProcedure
-    .input(z.object({ subject: z.enum(["math", "physics", "economics"]).optional() }).optional())
+    .input(z.object({ subject: z.enum(["math", "physics", "economics", "business"]).optional() }).optional())
     .query(async ({ input }) => {
       const db = await getDb();
       if (!db) return [];
@@ -311,14 +311,20 @@ export const igcseRouter = router({
             .join("\n\n---\n\n")}\n`
         : "";
 
-      const subject: "math" | "physics" | "economics" =
+      const subject: "math" | "physics" | "economics" | "business" =
         topic?.subject === "physics" ? "physics"
         : topic?.subject === "economics" ? "economics"
+        : topic?.subject === "business" ? "business"
         : "math";
-      const syllabusCode = subject === "physics" ? "0625" : subject === "economics" ? "0455" : "0580";
+      const syllabusCode =
+        subject === "physics"   ? "0625"
+      : subject === "economics" ? "0455"
+      : subject === "business"  ? "0450"
+      :                           "0580";
       const subjectIntro =
         subject === "physics"   ? `You are an experienced Cambridge IGCSE Physics tutor for syllabus 0625 (Extended tier).`
       : subject === "economics" ? `You are an experienced Cambridge IGCSE Economics tutor for syllabus 0455.`
+      : subject === "business"  ? `You are an experienced Cambridge IGCSE Business Studies tutor for syllabus 0450.`
       :                           `You are an experienced Cambridge IGCSE Mathematics tutor for syllabus 0580 (Extended tier).`;
       const physicsConventions = subject === "physics" ? `
 PHYSICS-SPECIFIC CONVENTIONS (apply throughout):
@@ -329,6 +335,36 @@ PHYSICS-SPECIFIC CONVENTIONS (apply throughout):
 - Vector quantities (force, velocity, momentum) need a direction stated.
 - Show working an examiner can mark: write the formula, substitute values, then evaluate.
 - For graphs, the gradient and area under the line usually have physical meaning (e.g. v–t graph: gradient = acceleration, area = distance).
+` : "";
+      const businessConventions = subject === "business" ? `
+BUSINESS-STUDIES-SPECIFIC CONVENTIONS (apply throughout):
+- Cambridge IGCSE Business Studies is DEFINITIONS + APPLICATION + ANALYSIS + EVALUATION, often case-study based. Almost no formulas — except a few core ones (break-even, ratios).
+- Train the student on COMMAND WORDS — they signal the mark count:
+    "Identify" / "State" → 1 mark each (just name it).
+    "Define" → 2 marks (precise definition; one mark per accurate part).
+    "Outline" → 2 marks (brief explanation).
+    "Explain" → 4 marks (name + develop with reasoning, applied to the business).
+    "Analyse" → 6 marks (multiple cause→effect chains; use linking words: "this leads to…", "as a result…", "because of this…").
+    "Discuss" / "Recommend" / "Justify" → 8 marks (BOTH SIDES + JUSTIFIED CONCLUSION applied to the case).
+- Mark scheme uses ASSESSMENT OBJECTIVES (AOs):
+    AO1 Knowledge (state/define a term)
+    AO2 Application (use the SPECIFIC business + context in the question — generic answers lose marks)
+    AO3 Analysis (cause→effect chains)
+    AO4 Evaluation (judgment + recommendation + justification)
+- For an 8-mark Discuss/Recommend question, you MUST give arguments FOR and arguments AGAINST, then conclude with a justified recommendation based on the SPECIFIC business in the case. One-sided answers cap at L2.
+- KEY FORMULAS to know:
+    Added value = Selling price − Cost of bought-in materials
+    Contribution per unit = Selling price − Variable cost per unit
+    Break-even output = Fixed costs / Contribution per unit
+    Margin of safety = Actual output − Break-even output
+    Gross Profit Margin = (Gross Profit / Revenue) × 100
+    Net Profit Margin = (Net Profit / Revenue) × 100
+    ROCE = (Net Profit / Capital Employed) × 100
+    Current ratio = Current Assets / Current Liabilities
+    Acid Test = (Current Assets − Stock) / Current Liabilities
+- Key frameworks to reference where useful: 4Ps (Product, Price, Place, Promotion), motivation theorists (Taylor, Maslow, Herzberg), leadership styles (autocratic, democratic, laissez-faire), Henri Fayol's functions of management, product life cycle stages.
+- Apply theory to a SPECIFIC business in every example (a bakery, smartphone maker, coffee chain, etc.) — not generic. This is what gets the application marks.
+- Use precise terminology: cash vs profit, stakeholders vs shareholders, financial vs non-financial, internal vs external, primary vs secondary.
 ` : "";
       const economicsConventions = subject === "economics" ? `
 ECONOMICS-SPECIFIC CONVENTIONS (apply throughout):
@@ -355,7 +391,7 @@ ${topic ? `You are teaching: ${topic.title} (Topic ${topic.code}, Area: ${topic.
 
 Cambridge syllabus learning outcomes for this topic:
 ${topic.learningOutcomes || "(general topic — guide the student through key skills.)"}` : `The student hasn't picked a specific topic yet — help them pick one from the IGCSE ${syllabusCode} Extended syllabus.`}
-${physicsConventions}${economicsConventions}${exemplarsBlock}
+${physicsConventions}${economicsConventions}${businessConventions}${exemplarsBlock}
 Your teaching style:
 - Patient, encouraging private tutor. Never condescending.
 - Socratic: ask a question or check understanding BEFORE explaining; let the student think.
@@ -595,7 +631,7 @@ Rules:
   listExamples: publicProcedure
     .input(z.object({
       topicCode: z.string().max(16).optional(),
-      subject: z.enum(["math", "physics", "economics"]).optional(),
+      subject: z.enum(["math", "physics", "economics", "business"]).optional(),
     }).optional())
     .query(async ({ input }) => {
       const db = await getDb();
@@ -603,8 +639,11 @@ Rules:
       const rows = input?.topicCode
         ? await db.select().from(igcseExamples).where(eq(igcseExamples.topicCode, input.topicCode))
         : await db.select().from(igcseExamples);
-      const subjectOf = (code: string): "physics" | "economics" | "math" =>
-        code.startsWith("P") ? "physics" : code.startsWith("E") ? "economics" : "math";
+      const subjectOf = (code: string): "physics" | "economics" | "business" | "math" =>
+        code.startsWith("P") ? "physics"
+      : code.startsWith("E") ? "economics"
+      : code.startsWith("B") ? "business"
+      :                        "math";
       return rows
         .filter(r => !String(r.source || "").startsWith("custom-"))
         .filter(r => !input?.subject || subjectOf(r.topicCode) === input.subject)
@@ -745,7 +784,8 @@ Rules:
       const code = String(ex.topicCode || "");
       const isPhysics = code.startsWith("P");
       const isEconomics = code.startsWith("E");
-      const subjectLabel = isPhysics ? "Physics (0625 Extended)" : isEconomics ? "Economics (0455)" : "Math (0580 Extended)";
+      const isBusiness = code.startsWith("B");
+      const subjectLabel = isPhysics ? "Physics (0625 Extended)" : isEconomics ? "Economics (0455)" : isBusiness ? "Business Studies (0450)" : "Math (0580 Extended)";
       const sysPrompt = [
         `You are a Cambridge IGCSE ${subjectLabel} exam coach.`,
         "The student is attempting a real exam-style question. Your job is to GUIDE them to the answer, never hand it to them.",
@@ -756,6 +796,10 @@ Rules:
         ...(isEconomics ? [
           "",
           "ECONOMICS RULES: use Cambridge command-word convention. Make sure the student knows what the command word demands (Define→2, Identify→1, Explain→4, Analyse→6, Discuss/Evaluate→8). For 'Discuss/Evaluate', insist on BOTH SIDES + a justified CONCLUSION — one-sided answers cap at L2. Push for ANALYSIS chains (\"this leads to… because…\") not just lists. For diagram-required questions, ask them to describe the diagram if they can't sketch (axes labelled, curves labelled, equilibrium marked, shifts explained).",
+        ] : []),
+        ...(isBusiness ? [
+          "",
+          "BUSINESS RULES: command words (Identify→1, Define→2, Explain→4, Analyse→6, Discuss/Recommend/Justify→8). Insist on APPLICATION — every answer must reference the SPECIFIC business in the question (not generic). For Analyse: push for cause→effect chains (\"this leads to… which means… so…\"). For Discuss/Recommend: BOTH sides + JUSTIFIED CONCLUSION based on the specific business; one-sided answers cap at L2. For calculation questions (break-even, ratios, profit), require: formula → substitution → final answer with correct unit (%, units, $).",
         ] : []),
         "",
         "QUESTION:",
@@ -879,7 +923,12 @@ Rules:
       const hintCode = String(ex.topicCode || "");
       const isPhysicsHint = hintCode.startsWith("P");
       const isEconomicsHint = hintCode.startsWith("E");
-      const subjectLabelHint = isPhysicsHint ? "Physics (0625 Extended)" : isEconomicsHint ? "Economics (0455)" : "Math (0580 Extended)";
+      const isBusinessHint = hintCode.startsWith("B");
+      const subjectLabelHint =
+        isPhysicsHint   ? "Physics (0625 Extended)"
+      : isEconomicsHint ? "Economics (0455)"
+      : isBusinessHint  ? "Business Studies (0450)"
+      :                   "Math (0580 Extended)";
       const sysPrompt = [
         `You are a Cambridge IGCSE ${subjectLabelHint} exam coach. The student has asked for a hint.`,
         "",

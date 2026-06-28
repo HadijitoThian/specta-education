@@ -239,6 +239,8 @@ import { seedIgcsePhysicsTopicsIfEmpty } from "./igcsePhysicsTopicSeed";
 import { seedIgcsePhysicsExamplesIfEmpty } from "./igcsePhysicsExamplesSeed";
 import { seedIgcseEconomicsTopicsIfEmpty } from "./igcseEconomicsTopicSeed";
 import { seedIgcseEconomicsExamplesIfEmpty } from "./igcseEconomicsExamplesSeed";
+import { seedIgcseBusinessTopicsIfEmpty } from "./igcseBusinessTopicSeed";
+import { seedIgcseBusinessExamplesIfEmpty } from "./igcseBusinessExamplesSeed";
 import { startTutorImages } from "./tutorImages";
 import { crmJourneyRouter } from "./crmJourneyRouter";
 import { sosmedRouter } from "./sosmedRouter";
@@ -8209,6 +8211,14 @@ import("./db").then(async m => {
     const r6 = await seedIgcseEconomicsExamplesIfEmpty();
     if (r6.seeded) console.log(`[IGCSE] Seeded ${r6.seeded} Economics exam exemplars`);
   } catch (e) { console.error('[IGCSE] Economics example seed error:', e); }
+  try {
+    const r7 = await seedIgcseBusinessTopicsIfEmpty();
+    if (r7.seeded) console.log(`[IGCSE] Seeded ${r7.seeded} Business Studies topics`);
+  } catch (e) { console.error('[IGCSE] Business topic seed error:', e); }
+  try {
+    const r8 = await seedIgcseBusinessExamplesIfEmpty();
+    if (r8.seeded) console.log(`[IGCSE] Seeded ${r8.seeded} Business Studies exam exemplars`);
+  } catch (e) { console.error('[IGCSE] Business example seed error:', e); }
 }).catch(e => console.error('[Growth] schema ensure error:', e));
 
 // Ensure the office enum includes all branches (adds Singkawang) before use.
