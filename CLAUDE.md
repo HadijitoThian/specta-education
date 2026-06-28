@@ -275,6 +275,45 @@ Mock Test. **Subscription**, billed via Xendit.
 - Optional cleanup: delete dormant agent code/routes; rename legacy
   `manus-runtime-user-info` localStorage key.
 - Build fresh agents (future).
+
+## 10. NEW PRODUCT — IGCSE Math AI Teacher (`/igcse`)
+
+Phase 1 in progress. Interactive AI tutor for Cambridge IGCSE Mathematics 0580
+(Extended tier) with a shared digital whiteboard + voice conversation. Lives
+at `spectaeducation.com/igcse`. Stack architecture confirmed = "Path A+":
+
+- **Brain:** DeepSeek V4 (Flash for conversation, Pro for hard math reasoning).
+  DeepSeek-V3 is fine as fallback if V4 endpoint isn't yet live.
+- **Voice in (STT):** streaming — Deepgram or AssemblyAI realtime (~200ms).
+- **Voice out (TTS):** ElevenLabs Flash v2.5 streaming (~75ms first byte).
+- **VAD:** Silero VAD client-side for tight end-of-utterance.
+- **Whiteboard:** tldraw + KaTeX. The LLM emits structured "board commands"
+  (title / equation / text / diagram) that we render as tldraw shapes
+  step-by-step so it looks like a teacher writing.
+- **Target turn-around:** ~500ms (streaming end-to-end pipeline).
+- **Cost ceiling:** **$2/hr/student** — measured per session via `costCents`.
+- **Auth/sub:** reuse student-portal cookie + Xendit subscription engine.
+
+**Week-1 scaffold (this commit):**
+- DB tables: `igcse_topics` (~70 topics seeded), `igcse_sessions`,
+  `igcse_progress`. Idempotent via `ensureMarketingSchema`.
+- Topic tree authored from Cambridge 0580 Extended syllabus areas C1-C9,
+  seeded by `seedIgcseTopicsIfEmpty` on startup (mirrors universities seeder).
+- `server/igcseRouter.ts` (`igcse` namespace): listTopics, status,
+  createSession, listSessions, getSession, endSession, appendTranscript.
+  Phase-1 status returns `hasAccess: true` for all signed-in leads;
+  subscription gating wires in when the IGCSE plan is added to
+  `tutor_subscriptions` (Week 2).
+- `/igcse` landing page (`client/src/pages/Igcse.tsx`) — sales hero +
+  live-rendered syllabus areas pulled from the seed + WhatsApp beta CTA.
+
+**Coming next** (per the 10-week plan): subscription plan + free trial
+(Week 2), session room shell + tldraw + KaTeX board command renderer
+(Weeks 3-5), voice pipeline (Week 6), pedagogy/RAG over past papers
+(Week 7), then admin + polish.
+
+**Pricing (proposed, to validate):** Rp 299k/month, 30 hrs/month fair-use
+cap; free trial 30 minutes lifetime.
 - **AI Tutor launch:** the global free bypass `TUTOR_FREE_TESTING` is now
   HARD-DISABLED in production (FREE_TESTING() returns false when
   NODE_ENV=production), so the paywall is always live; the 1-try free taster

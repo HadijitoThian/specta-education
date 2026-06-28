@@ -425,6 +425,51 @@ export async function ensureMarketingSchema(): Promise<void> {
         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `));
+    // ── IGCSE AI Teacher tables ─────────────────────────────────────────────
+    await db.execute(sql.raw(`
+      CREATE TABLE IF NOT EXISTS igcse_topics (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        subject ENUM('math') NOT NULL DEFAULT 'math',
+        syllabus VARCHAR(32) NOT NULL DEFAULT 'CIE_0580',
+        tier ENUM('core','extended','both') NOT NULL DEFAULT 'extended',
+        areaCode VARCHAR(8) NOT NULL,
+        areaName VARCHAR(120) NOT NULL,
+        code VARCHAR(16) NOT NULL UNIQUE,
+        title VARCHAR(200) NOT NULL,
+        learningOutcomes TEXT NULL,
+        sortOrder INT NOT NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_area (areaCode)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `));
+    await db.execute(sql.raw(`
+      CREATE TABLE IF NOT EXISTS igcse_sessions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        leadId INT NOT NULL,
+        topicId INT NULL,
+        language ENUM('en','id') NOT NULL DEFAULT 'en',
+        transcript JSON NULL,
+        boardSnapshot JSON NULL,
+        durationSec INT NOT NULL DEFAULT 0,
+        costCents INT NOT NULL DEFAULT 0,
+        status ENUM('active','ended') NOT NULL DEFAULT 'active',
+        startedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        endedAt TIMESTAMP NULL,
+        INDEX idx_lead (leadId),
+        INDEX idx_topic (topicId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `));
+    await db.execute(sql.raw(`
+      CREATE TABLE IF NOT EXISTS igcse_progress (
+        leadId INT NOT NULL,
+        topicId INT NOT NULL,
+        masteryLevel TINYINT NOT NULL DEFAULT 0,
+        sessionsCount INT NOT NULL DEFAULT 0,
+        lastSeenAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (leadId, topicId)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `));
+
     await db.execute(sql.raw(`
       CREATE TABLE IF NOT EXISTS geo_snapshots (
         id INT AUTO_INCREMENT PRIMARY KEY,

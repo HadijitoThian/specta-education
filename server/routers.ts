@@ -232,6 +232,8 @@ import { crmCockpitRouter } from "./crmCockpitRouter";
 import { crmIntakeRouter } from "./crmIntakeRouter";
 import { marketingRouter } from "./marketingRouter";
 import { tutorRouter } from "./tutorRouter";
+import { igcseRouter } from "./igcseRouter";
+import { seedIgcseTopicsIfEmpty } from "./igcseTopicSeed";
 import { startTutorImages } from "./tutorImages";
 import { crmJourneyRouter } from "./crmJourneyRouter";
 import { sosmedRouter } from "./sosmedRouter";
@@ -8123,6 +8125,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
   intake: crmIntakeRouter,
   marketing: marketingRouter,
   tutor: tutorRouter,
+  igcse: igcseRouter,
   journey: crmJourneyRouter,
   sosmed: sosmedRouter,
 });
@@ -8169,6 +8172,11 @@ startTutorImages();
 seedUniversitiesIfEmpty().then(r => {
   if (r.seeded) console.log(`[Universities] Seeded ${r.count} universities`);
 }).catch(e => console.error('[Universities] Seed error:', e));
+
+// IGCSE AI Teacher: seed the Cambridge 0580 Extended topic tree once.
+seedIgcseTopicsIfEmpty().then(r => {
+  if (r.seeded) console.log(`[IGCSE] Seeded ${r.seeded} topics`);
+}).catch(e => console.error('[IGCSE] Topic seed error:', e));
 
 // Growth Phase A: ensure attribution columns + marketing_spend table exist
 // (idempotent) so a deploy never outruns the migration and breaks lead capture.

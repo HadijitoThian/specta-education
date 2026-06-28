@@ -2481,3 +2481,51 @@ export const ieltsMockScores = mysqlTable("ieltsMockScores", {
 });
 export type IeltsMockScore = typeof ieltsMockScores.$inferSelect;
 export type InsertIeltsMockScore = typeof ieltsMockScores.$inferInsert;
+
+// ── IGCSE AI Teacher (Phase 1 — Math 0580 Extended) ─────────────────────────
+/**
+ * Cambridge IGCSE syllabus topic tree. Seeded once on startup; the AI uses the
+ * `learningOutcomes` text as part of its grounding when teaching a topic.
+ */
+export const igcseTopics = mysqlTable("igcse_topics", {
+  id: int("id").autoincrement().primaryKey(),
+  subject: mysqlEnum("subject", ["math"]).default("math").notNull(),
+  syllabus: varchar("syllabus", { length: 32 }).default("CIE_0580").notNull(), // Cambridge IGCSE Math 0580
+  tier: mysqlEnum("tier", ["core", "extended", "both"]).default("extended").notNull(),
+  areaCode: varchar("areaCode", { length: 8 }).notNull(), // C1..C9
+  areaName: varchar("areaName", { length: 120 }).notNull(),
+  code: varchar("code", { length: 16 }).notNull().unique(), // e.g. "1.7", "2.3"
+  title: varchar("title", { length: 200 }).notNull(),
+  learningOutcomes: text("learningOutcomes"), // pasted Cambridge LOs / our notes
+  sortOrder: int("sortOrder").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type IgcseTopic = typeof igcseTopics.$inferSelect;
+export type InsertIgcseTopic = typeof igcseTopics.$inferInsert;
+
+/** One AI-teacher session (one lesson on one topic). */
+export const igcseSessions = mysqlTable("igcse_sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  topicId: int("topicId"), // nullable for free-form chats
+  language: mysqlEnum("language", ["en", "id"]).default("en").notNull(),
+  transcript: json("transcript"), // [{role, text, ts}]
+  boardSnapshot: json("boardSnapshot"), // tldraw doc snapshot
+  durationSec: int("durationSec").default(0).notNull(),
+  costCents: int("costCents").default(0).notNull(), // metered LLM+STT+TTS cost
+  status: mysqlEnum("status", ["active", "ended"]).default("active").notNull(),
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  endedAt: timestamp("endedAt"),
+});
+export type IgcseSession = typeof igcseSessions.$inferSelect;
+export type InsertIgcseSession = typeof igcseSessions.$inferInsert;
+
+/** Per-student, per-topic mastery — used later for adaptive learning. */
+export const igcseProgress = mysqlTable("igcse_progress", {
+  leadId: int("leadId").notNull(),
+  topicId: int("topicId").notNull(),
+  masteryLevel: tinyint("masteryLevel").default(0).notNull(), // 0..5
+  sessionsCount: int("sessionsCount").default(0).notNull(),
+  lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
+});
+export type IgcseProgress = typeof igcseProgress.$inferSelect;
