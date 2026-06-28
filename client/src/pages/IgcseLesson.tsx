@@ -610,13 +610,26 @@ export default function IgcseLesson() {
         // Auto-continue the conversation: brief pause then listen again.
         if (voiceMode && sttSupported) setTimeout(() => startListening(), 400);
       };
-      audio.onerror = () => { setSpeaking(false); audioRef.current = null; };
-      audio.play().catch(() => { setSpeaking(false); audioRef.current = null; });
+      audio.onerror = () => {
+        setSpeaking(false); audioRef.current = null;
+        alert("Couldn't play the tutor's voice. Make sure your volume is on; if it keeps failing, turn 🔊 Voice off and reply with text.");
+      };
+      audio.play().catch((err) => {
+        setSpeaking(false); audioRef.current = null;
+        console.error("[IGCSE] audio.play() blocked:", err);
+        alert("Your browser blocked the tutor's voice from auto-playing. Click anywhere on the page, then send another message — it should play after that.");
+      });
       setSpeaking(true);
     },
-    onError: () => {
+    onError: (e) => {
       setSpeaking(false);
-      if (voiceMode && sttSupported) setTimeout(() => startListening(), 200);
+      const msg = e?.message || "Voice synthesis failed.";
+      console.error("[IGCSE] synth error:", msg);
+      // The mistake we used to make: silently turning the mic back on while
+      // the user has no idea the AI couldn't speak. Tell them what failed and
+      // flip Voice off so they're not stuck in a confusing loop.
+      alert(`Tutor voice failed:\n\n${msg}\n\nSwitching to text-only — your replies will still appear in the chat.`);
+      setVoiceMode(false);
     },
   });
 
