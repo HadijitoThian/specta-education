@@ -183,6 +183,100 @@ const EXAMPLES: Ex[] = [
     question: "Discuss whether human activities are responsible for the recent increases in atmospheric carbon dioxide and global temperatures. Refer to the carbon cycle and to specific human activities. Justify your conclusion.",
     markScheme: "L4 (7–8): Carbon cycle explained + specific human activities identified + balanced + JUSTIFIED conclusion.\nL3 (5–6): Both sides argued but conclusion weak or missing.\nL2 (3–4): One-sided.\nL1 (1–2): Description only.\n\nKey content (build the chain):\n\n**Carbon cycle (briefly):**\n• Photosynthesis removes CO₂ from the atmosphere (locks it into plant biomass).\n• Respiration of plants, animals, decomposers releases CO₂.\n• Combustion of fossil fuels and biomass releases CO₂ — historically slow, now accelerated.\n• Over geological time the cycle is balanced; atmospheric CO₂ stays roughly constant.\n\n**Human activities increasing CO₂:**\n• **Burning fossil fuels** for electricity, transport, industry → releases ancient carbon (locked away for millions of years) into the atmosphere very rapidly.\n• **Deforestation** → fewer trees to absorb CO₂ via photosynthesis; burning the cut forests adds even more CO₂.\n• **Agriculture** (rice paddies, livestock) releases CO₂ and methane (another greenhouse gas).\n• **Cement production** releases CO₂.\n\n**Effects on temperature:**\n• CO₂ is a greenhouse gas — traps infrared radiation, warming the lower atmosphere.\n• Atmospheric CO₂ has risen from ~280 ppm (pre-industrial) to ~420 ppm (now). Global average temperature has risen ~1.1 °C in the same period.\n• Strong correlation + clear mechanism = strong case for human cause.\n\n**Alternative natural explanations (the OTHER side):**\n• Some natural temperature variation occurs (volcanic activity, solar cycles).\n• BUT scientific consensus says these cannot account for the magnitude or speed of current warming.\n\nCONCLUSION (L4):\n• Yes, human activities — primarily fossil-fuel combustion and deforestation — are the main driver of the recent CO₂ increase and consequent warming. Natural variation alone cannot explain the rate of change observed since 1900. Action: reduce fossil-fuel use, protect forests, transition to renewables.",
     source: "exam-style" },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EXPANSION ROUND — lifts Biology coverage from 30 → ~50 questions.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  { topicCode: "Bi1.3", marks: 2,
+    question: "Name the FIVE kingdoms of living organisms used in classification.",
+    markScheme: "**Animal, Plant, Fungus, Prokaryote (bacteria), Protoctist** — all five required for B2.\nB1 if any 3-4 named. The newer 3-domain system (Bacteria, Archaea, Eukarya) is NOT required by 0610.",
+    source: "exam-style" },
+
+  { topicCode: "Bi2.2", marks: 4,
+    question: "Explain how a root hair cell is adapted for its function.",
+    markScheme: "1 mark per linked structure→function point (max 4):\n• **Long thin projection (root hair)** → very large surface area in contact with soil water → faster water uptake by osmosis.\n• **Thin cell wall + membrane** → short diffusion distance for water + minerals.\n• **Many mitochondria** → release ATP for ACTIVE TRANSPORT of mineral ions against the gradient (e.g. nitrates from dilute soil into concentrated cell sap).\n• **No chloroplasts** → root cells are underground (no light), so chloroplasts would be useless; resources directed to absorption instead.\n• **Permanent vacuole containing concentrated cell sap** → maintains low water potential → water drawn in by osmosis.",
+    source: "exam-style" },
+
+  { topicCode: "Bi4.1", marks: 3,
+    question: "State the food test for STARCH and the food test for REDUCING SUGAR, giving the reagent used and the positive result colour change for each.",
+    markScheme: "**Starch (1.5 marks):** add **iodine solution** → goes from yellow/brown to **blue-black** if starch present.\n**Reducing sugar (1.5 marks):** add **Benedict's solution** and **heat in a water bath** → goes from blue to **brick red / orange** if reducing sugar present (green → yellow → orange → brick red shows increasing amount).\nKey examiner detail: must say 'HEAT' for Benedict's — at room temperature it won't react.",
+    source: "exam-style" },
+
+  { topicCode: "Bi4.1", marks: 2,
+    question: "Describe the food test for protein.",
+    markScheme: "**Add biuret reagent** (or sodium hydroxide + dilute copper sulfate) to the food sample. **(B1)**\nIf protein is present, the colour changes from **blue to purple / violet / lilac**. **(B1)**\nNo heating needed (unlike Benedict's).",
+    source: "exam-style" },
+
+  { topicCode: "Bi5.2", marks: 4,
+    question: "Sketch (in words) the shape of a graph showing the rate of an enzyme-controlled reaction against TEMPERATURE, and explain its three distinct regions.",
+    markScheme: "Mark for each region described correctly, max 4:\n• **Low temperatures (0–20 °C)**: rate is LOW and rising slowly — particles have little kinetic energy → few successful collisions per second.\n• **Rising up to the optimum (around 37 °C in humans)**: rate INCREASES rapidly — more energy → more frequent + more successful enzyme–substrate collisions. (curve rises)\n• **At the optimum**: rate is at its MAXIMUM — best fit between enzyme conformation + collisions.\n• **Above the optimum**: rate FALLS SHARPLY — heat energy breaks hydrogen bonds maintaining the active site shape → enzyme DENATURES → substrate no longer fits → reaction stops (rate → 0).\n\nKey words examiners reward: 'denatured', 'active site', 'shape change', 'optimum'.",
+    source: "exam-style" },
+
+  { topicCode: "Bi6.1", marks: 4,
+    question: "A leaf has been kept in the dark for 24 hours then exposed to bright sunlight for 4 hours. When tested with iodine, the leaf turns blue-black.\n(a) State the conclusion that can be drawn from this experiment.\n(b) Explain why the leaf was kept in the dark for 24 hours first.\n(c) Why is the leaf usually boiled in ethanol before adding iodine?",
+    markScheme: "(a) The leaf has produced STARCH (during photosynthesis under the light) → **photosynthesis has occurred** → **starch is the storage product of photosynthesis**. **(B1)**\n(b) **DESTARCHING** — to remove any starch that was already in the leaf before the experiment, so we know any starch detected at the end came from photosynthesis during the 4 hours of light. **(B1)** (Otherwise we couldn't tell.)\n(c) **Ethanol removes chlorophyll** (extracts the green pigment) → the leaf becomes white/colourless. **(B1)** → the iodine colour change is then clearly visible against the white leaf. The leaf is first dipped in boiling water to soften it / kill the cells / break the waxy cuticle. **(B1)**",
+    source: "exam-style" },
+
+  { topicCode: "Bi7.1", marks: 4,
+    question: "Identify TWO deficiency diseases and the missing nutrient that causes each.",
+    markScheme: "1 mark for naming each disease + 1 mark for the correct nutrient (max 4):\n• **Scurvy** — caused by **vitamin C deficiency**. Symptoms: bleeding gums, slow wound healing.\n• **Rickets** — caused by **vitamin D deficiency** (also calcium). Symptoms: soft, bent bones in children.\n• **Anaemia** — caused by **iron deficiency**. Symptoms: tiredness, pale skin, breathlessness.\n• **Kwashiorkor** — caused by **protein deficiency**. Symptoms: swollen abdomen ('belly'), stunted growth.\n• **Marasmus** — caused by **overall energy / calorie deficiency** (extreme malnutrition).\n• **Goitre** — caused by **iodine deficiency**. Symptoms: swelling of the thyroid in the neck.",
+    source: "exam-style" },
+
+  { topicCode: "Bi8.1", marks: 4,
+    question: "Compare xylem and phloem in plants. Refer to: structure, what they transport, and direction of transport.",
+    markScheme: "Mark for each clear contrast (max 4):\n• **Structure:** Xylem = **dead, hollow** cells joined end-to-end into a continuous tube, walls **lignified** for support; no cytoplasm. Phloem = **living** sieve-tube elements with companion cells; cytoplasm strands; sieve plates with pores.\n• **What they transport:** Xylem = **water + dissolved mineral ions** (one-way). Phloem = **sucrose + amino acids** (organic solutes).\n• **Direction:** Xylem = **upwards only** (roots → leaves, by transpiration pull). Phloem = **two-way** — from source (e.g. leaves) to sink (growing tissue, roots, fruits); known as translocation.\n• **Energy:** Xylem transport is PASSIVE (transpiration pull). Phloem transport REQUIRES ENERGY (active loading at the source).\nAny clear contrast on each of structure / contents / direction earns marks.",
+    source: "exam-style" },
+
+  { topicCode: "Bi9.2", marks: 4,
+    question: "Compare the structure of arteries and veins, and explain how each structure relates to its function.",
+    markScheme: "Mark for each clear contrast (max 4):\n• **Arteries** have **thick muscular walls** + **narrow lumen** → withstand and maintain HIGH blood pressure as blood is forced out of the heart. **No valves** along the length (except where they leave the heart) — pressure is high enough to prevent backflow.\n• **Veins** have **thin walls** + **wide lumen** → low-pressure blood flows back to the heart slowly. **Valves** along the length → prevent backflow (especially against gravity in legs).\n• **Function:** Arteries carry blood AWAY from the heart at high pressure; veins return blood TO the heart at low pressure.\n• **Direction:** All arteries carry oxygenated blood EXCEPT the pulmonary artery (heart → lungs, deoxygenated). All veins carry deoxygenated blood EXCEPT the pulmonary vein (lungs → heart, oxygenated).",
+    source: "exam-style" },
+
+  { topicCode: "Bi10.1", marks: 3,
+    question: "State THREE ways the human body defends itself against pathogens BEFORE the immune response of lymphocytes is triggered (i.e. the body's first lines of defence).",
+    markScheme: "Any THREE of (B1 each, max 3):\n• **Skin** — physical barrier; tough outer layer (keratinised) prevents pathogen entry.\n• **Mucus in airways** — traps pathogens; **cilia sweep it up** and out to the throat.\n• **Stomach acid (HCl)** — kills most pathogens swallowed with food.\n• **Tears + saliva** — contain **lysozyme**, an enzyme that destroys bacterial cell walls.\n• **Blood clotting at wounds** — platelets + fibrin seal cuts, preventing pathogen entry.\n• **Phagocytes (white blood cells) ingesting pathogens** — non-specific (counts as 1st line response too).\nAnswers about antibodies / vaccination are NOT first-line — those are the specific immune response.",
+    source: "exam-style" },
+
+  { topicCode: "Bi12.1", marks: 3,
+    question: "A muscle cell respires aerobically using 1 mol of glucose. Use the balanced equation for aerobic respiration to calculate how many moles of carbon dioxide are produced.",
+    markScheme: "Balanced equation: C₆H₁₂O₆ + 6O₂ → 6CO₂ + 6H₂O **(M1)**\n1 mole of glucose produces **6 moles of CO₂**  **(A1)**\nKey point: the coefficients in the balanced equation give the molar ratio. **(B1 for showing this reasoning)**.",
+    source: "exam-style" },
+
+  { topicCode: "Bi13.1", marks: 4,
+    question: "Describe the role of the kidneys in removing urea from the blood.",
+    markScheme: "Mark for each step in order, max 4:\n• Blood enters the kidney via the **renal artery**.\n• In each **glomerulus (Bowman's capsule)**, high pressure forces small molecules (water, glucose, urea, ions, amino acids) out of the blood into the kidney tubule — **ultrafiltration**.\n• As the filtrate flows through the tubule, **selective reabsorption** moves all glucose, plus required water + ions, BACK into the blood. (Active transport for glucose; osmosis for water; some active transport for ions.)\n• What remains (urea + excess water + excess ions) flows through the collecting duct → ureter → bladder → out as **urine**.\nADH (antidiuretic hormone) regulates how much water is reabsorbed — more ADH → more water back into blood → less urine.",
+    source: "exam-style" },
+
+  { topicCode: "Bi14.2", marks: 4,
+    question: "Describe how the eye accommodates (adjusts focus) when looking at a CLOSE object after looking at a distant one.",
+    markScheme: "Mark for each step, max 4:\n• **Ciliary muscles CONTRACT** (form a smaller ring).\n• **Suspensory ligaments slacken** (no longer pulled taut).\n• **Lens becomes more rounded / fatter / shorter focal length** (its natural elastic shape).\n• Light from the close object is refracted MORE → focuses correctly on the retina.\nFor distant objects, the reverse happens: ciliary muscles relax → suspensory ligaments tighten → lens becomes thin + flat → less refraction.",
+    source: "exam-style" },
+
+  { topicCode: "Bi16.3", marks: 4,
+    question: "State the role of each of these four hormones in the human menstrual cycle: FSH, LH, oestrogen, progesterone.",
+    markScheme: "1 mark per hormone (max 4):\n• **FSH (Follicle Stimulating Hormone)** — produced by the pituitary gland; stimulates the ovary to develop an egg in a follicle; also triggers oestrogen production.\n• **Oestrogen** — produced by the ovary (developing follicle); causes the **uterus lining to thicken** in preparation for a possible pregnancy.\n• **LH (Luteinising Hormone)** — produced by the pituitary; surge around day 14 **triggers OVULATION** (release of the egg).\n• **Progesterone** — produced by the corpus luteum (empty follicle after ovulation); **maintains the uterus lining** so that an implanted embryo can develop. If no pregnancy, progesterone falls → lining sheds → menstruation begins (day 1).",
+    source: "exam-style" },
+
+  { topicCode: "Bi17.2", marks: 4,
+    question: "A man and a woman are both heterozygous carriers of a recessive allele (s) for a genetic disorder. Their child is born WITHOUT the disorder. Show, using a genetic diagram, the probability that this unaffected child is ALSO a carrier (heterozygous).",
+    markScheme: "Parents: Ss × Ss.  Punnett square:\n```\n          S       s\n     S    SS      Ss\n     s    Ss      ss\n```\n  Offspring: 1 SS : 2 Ss : 1 ss → ratio 1 unaffected (SS) : 2 unaffected carriers (Ss) : 1 affected (ss). **(M1, A1)**\n  Unaffected child means NOT ss. Among the unaffected offspring (SS + Ss combined = 3 children), **2 out of 3 are carriers (Ss)**. **(M1)**\n  **Probability the unaffected child is a carrier = 2/3 (≈ 67%)  (A1)**\nTrap: many students answer 1/2 (the heterozygote share of ALL offspring) — but the question conditions on the child already being unaffected, so we must exclude the ss possibility.",
+    source: "exam-style" },
+
+  { topicCode: "Bi18.1", marks: 4,
+    question: "Distinguish between CONTINUOUS variation and DISCONTINUOUS variation, giving one example of each.",
+    markScheme: "**Continuous (2 marks):** variation that takes **any value across a range** (no distinct categories). Example: **human height** — anywhere between ~1.4 m and 2.1 m, continuous spectrum. Other examples: weight, hand span, leaf length. Usually caused by MANY genes + environmental influence.\n**Discontinuous (2 marks):** variation that falls into **distinct, separate categories** (no in-betweens). Example: **human blood group** (A, B, AB, O — you're definitely one of these four, no half-blood-types). Other examples: ability to roll the tongue, attached vs detached earlobes. Usually caused by ONE or FEW genes; little environmental influence.\nKey distinction: graph of continuous = bell curve; discontinuous = bar chart with distinct gaps.",
+    source: "exam-style" },
+
+  { topicCode: "Bi19.3", marks: 6,
+    question: "Analyse the typical pattern of bacterial population growth in a sealed nutrient broth, identifying the FOUR named phases.",
+    markScheme: "L3 (5–6): All four phases named + clear cause→effect for each.\nL2 (3–4): Three phases.\nL1 (1–2): Two or fewer.\n\nThe four phases (mark each):\n1. **Lag phase**: bacteria are adjusting to the new environment, synthesising enzymes; population grows VERY SLOWLY.\n2. **Exponential (log) phase**: bacteria divide rapidly (every ~20 min for E. coli) — plenty of food + space + no waste yet. Population doubles, doubles, doubles → grows EXPONENTIALLY.\n3. **Stationary phase**: birth rate = death rate. Food + space increasingly limited; waste products accumulate. Population stable at the **carrying capacity** of the closed environment.\n4. **Death (decline) phase**: nutrients exhausted, toxic waste high → death rate > birth rate → population falls.\n\nL3 answer also notes: in a real ecosystem (not closed), population stabilises near carrying capacity rather than declining — predators / disease / migration keep it there.",
+    source: "exam-style" },
+
+  { topicCode: "Bi21.1", marks: 4,
+    question: "Yeast is used in both bread-making and brewing. Explain how the same chemical process produces different products in each case.",
+    markScheme: "Mark for each correct point, max 4:\n• In both cases yeast carries out **anaerobic respiration** (fermentation): glucose → ethanol + carbon dioxide (+ small energy).\n• **In BREAD-MAKING**: the **carbon dioxide** produced is the desired product — it forms bubbles in the dough → bread RISES. The ethanol evaporates during baking.\n• **In BREWING (beer / wine)**: the **ethanol** produced is the desired product — it's the alcohol. The carbon dioxide either escapes or (in some beers + sparkling wines) is captured to give carbonation.\n• The bread-maker uses fast-acting yeast for short rise times; brewing uses slower yeasts at controlled temperatures for hours/days.\n• Optimum yeast temperature ~ 30 °C; too hot → yeast dies (denatures enzymes).",
+    source: "exam-style" },
 ];
 
 /**

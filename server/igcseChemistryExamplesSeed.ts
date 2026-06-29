@@ -183,6 +183,90 @@ const EXAMPLES: Ex[] = [
     question: "A compound contains 40.0% carbon, 6.7% hydrogen and 53.3% oxygen by mass.\n(a) Calculate its empirical formula. (A_r: C = 12, H = 1, O = 16.)\n(b) The compound has a relative molecular mass of 180. Calculate its molecular formula.",
     markScheme: "(a) Divide each % by its A_r → moles in 100 g of compound:\n  C: 40.0/12 = 3.33  ·  H: 6.7/1 = 6.70  ·  O: 53.3/16 = 3.33  **(M1)**\n  Divide all by the smallest (3.33):\n  C: 1  ·  H: 2  ·  O: 1  **(M1)**\n  **Empirical formula = CH₂O  (A1)**\n(b) M_r(empirical CH₂O) = 12 + 2 + 16 = 30.\n  Multiplier = 180 / 30 = **6  (M1)**\n  Molecular formula = (CH₂O) × 6 = **C₆H₁₂O₆  (A1, max 5)**\n(This is the formula of glucose — exam-classic example.)",
     source: "exam-style" },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EXPANSION ROUND — lifts Chemistry coverage from 32 → ~50 questions.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  { topicCode: "Ch2.1", marks: 2,
+    question: "An atom of magnesium-24 has the symbol ²⁴₁₂Mg. State the number of protons, neutrons and electrons in this atom.",
+    markScheme: "Protons = atomic number = **12**  **(B1)**\nNeutrons = mass number − atomic number = 24 − 12 = **12**\nElectrons (neutral atom) = protons = **12**  **(B1 — needs all three correct)**.\nElectron configuration: 2,8,2.",
+    source: "exam-style" },
+
+  { topicCode: "Ch2.1", marks: 2,
+    question: "Define an isotope.",
+    markScheme: "Full-mark definition: isotopes are **atoms of the same element** (1) — same number of protons (same atomic number) — but with **different numbers of neutrons** (different mass numbers). (1)\nExamples: ¹²C, ¹³C, ¹⁴C all have 6 protons but 6, 7, 8 neutrons respectively.",
+    source: "exam-style" },
+
+  { topicCode: "Ch2.4", marks: 4,
+    question: "Describe the formation of an ionic bond between sodium (Na, group I) and chlorine (Cl, group VII). Include the electron configurations and the charges of the ions formed.",
+    markScheme: "1 mark per correct step (max 4):\n• Na has electron configuration **2,8,1** — one electron in the outer shell.\n• Cl has electron configuration **2,8,7** — seven electrons in the outer shell.\n• Na LOSES its outer electron → forms Na⁺ (now 2,8 — a full shell, like neon). **(B1)**\n• Cl GAINS an electron → forms Cl⁻ (now 2,8,8 — a full shell, like argon). **(B1)**\n• The opposite charges (Na⁺ + Cl⁻) ATTRACT — an electrostatic force of attraction = the **ionic bond**. **(B1)**\n• Resulting compound is NaCl — a giant ionic lattice. **(B1)**\nFor full marks, the transfer (Na → Cl) direction and the final ion charges must be clear.",
+    source: "exam-style" },
+
+  { topicCode: "Ch2.5", marks: 4,
+    question: "Describe, using dot-and-cross diagrams (in words), how a molecule of water (H₂O) is held together by covalent bonds.",
+    markScheme: "Mark for each correct point, max 4:\n• Oxygen has 6 outer electrons; needs 2 more for a full shell (octet).\n• Each hydrogen has 1 electron; needs 1 more for a full shell (duplet — like helium).\n• Oxygen **shares one electron with each of two hydrogen atoms** → forms TWO single covalent bonds (H–O–H).\n• Each covalent bond is a **shared pair of electrons** (one from each atom) — the dot-and-cross diagram shows ●× pairs between O and each H.\n• Oxygen now has **8 outer electrons** (its own 6 + 2 shared) — full shell. Each H has **2 electrons** — full shell.\n• Molecule formula: H₂O.\nKey vocabulary: 'shared pair', 'covalent bond', 'full outer shell'.",
+    source: "exam-style" },
+
+  { topicCode: "Ch3.4", marks: 4,
+    question: "Calculate the mass of magnesium oxide formed when 4.8 g of magnesium burns completely in oxygen.\n2Mg + O₂ → 2MgO   (A_r: Mg = 24, O = 16)",
+    markScheme: "Moles of Mg = 4.8 / 24 = **0.20 mol** **(M1)**\nFrom equation, mole ratio Mg : MgO = 2 : 2 = 1 : 1.\nSo moles of MgO formed = **0.20 mol** **(B1)**\nM_r of MgO = 24 + 16 = 40\nMass of MgO = moles × M_r = 0.20 × 40 = **8.0 g** **(M1, A1)**\nSanity check: conservation of mass tells us 4.8 g Mg + 3.2 g O₂ = 8.0 g MgO. ✓",
+    source: "exam-style" },
+
+  { topicCode: "Ch3.4", marks: 4,
+    question: "Calculate the volume of carbon dioxide (at rtp) produced when 5.0 g of calcium carbonate decomposes:\nCaCO₃ → CaO + CO₂   (A_r: Ca = 40, C = 12, O = 16; 1 mole of gas = 24 dm³ at rtp)",
+    markScheme: "M_r of CaCO₃ = 40 + 12 + 48 = 100\nMoles of CaCO₃ = 5.0 / 100 = **0.050 mol** **(M1)**\nMole ratio CaCO₃ : CO₂ = 1 : 1 → moles of CO₂ = **0.050 mol** **(B1)**\nVolume of CO₂ at rtp = n × 24 = 0.050 × 24 **(M1)**\n**= 1.2 dm³**  (= 1200 cm³)  **(A1)**\nWatch the units — dm³ or cm³, both acceptable if stated.",
+    source: "exam-style" },
+
+  { topicCode: "Ch6.2", marks: 4,
+    question: "A student investigates the effect of TEMPERATURE on the rate of reaction between marble chips (CaCO₃) and dilute hydrochloric acid (HCl). Predict and explain how the rate changes as the temperature increases.",
+    markScheme: "Mark for each correct collision-theory point (max 4):\n• At HIGHER temperature, the reacting particles have **more kinetic energy** → move FASTER.\n• Particles **collide more frequently** per unit time.\n• A LARGER PROPORTION of collisions have energy **≥ the activation energy (E_a)** → more SUCCESSFUL collisions.\n• Net effect: **rate of reaction INCREASES with temperature**.\n• Rule of thumb: a 10 °C rise typically DOUBLES the rate.\nGraph shape: rate vs temperature curves upward (often roughly exponential within reasonable ranges).",
+    source: "exam-style" },
+
+  { topicCode: "Ch7.1", marks: 3,
+    question: "Define an acid and an alkali in terms of the ions they produce in aqueous solution.",
+    markScheme: "**Acid (1.5 marks):** a substance that produces **hydrogen ions (H⁺)** when dissolved in water. (Or 'proton donor'.)\n**Alkali (1.5 marks):** a soluble base — a substance that produces **hydroxide ions (OH⁻)** when dissolved in water.\nKey examiner detail: must include 'when dissolved in water' / 'in aqueous solution' — defines it as a property of the aqueous solution, not the pure substance.\nExamples: HCl, H₂SO₄, HNO₃ (acids); NaOH, KOH, Ca(OH)₂ (alkalis).",
+    source: "exam-style" },
+
+  { topicCode: "Ch7.1", marks: 4,
+    question: "Describe the reactions between a dilute acid and:\n(a) a metal (using zinc + dilute hydrochloric acid as your example)\n(b) a base (using copper oxide + dilute sulfuric acid)\nFor each, write the word equation AND a balanced symbol equation with state symbols.",
+    markScheme: "(a) **Acid + metal → salt + hydrogen**\n  Word: zinc + hydrochloric acid → zinc chloride + hydrogen **(B1)**\n  Symbol: Zn(s) + 2HCl(aq) → ZnCl₂(aq) + H₂(g)  **(B1 — balanced + state symbols)**\n(b) **Acid + base → salt + water** (neutralisation)\n  Word: copper oxide + sulfuric acid → copper sulfate + water **(B1)**\n  Symbol: CuO(s) + H₂SO₄(aq) → CuSO₄(aq) + H₂O(l)  **(B1)**\nMust include STATE SYMBOLS for full marks. Salt name depends on the acid: HCl → chlorides; H₂SO₄ → sulfates; HNO₃ → nitrates.",
+    source: "exam-style" },
+
+  { topicCode: "Ch4.1", marks: 4,
+    question: "Explain what happens at the cathode and at the anode during the electrolysis of MOLTEN sodium chloride.",
+    markScheme: "Mark for each correct half-equation + product (max 4):\n• At the **cathode (negative electrode)**: sodium ions (Na⁺) are attracted; they **GAIN electrons** (are REDUCED) to form sodium metal.\n  Half-equation: **Na⁺ + e⁻ → Na**  **(B1, B1)**\n• At the **anode (positive electrode)**: chloride ions (Cl⁻) are attracted; they **LOSE electrons** (are OXIDISED) to form chlorine gas.\n  Half-equation: **2Cl⁻ → Cl₂ + 2e⁻**  **(B1, B1)**\nKey rule (mnemonic): **OIL RIG** — Oxidation Is Loss (of electrons), Reduction Is Gain.\nAt the cathode: REDUCTION. At the anode: OXIDATION.",
+    source: "exam-style" },
+
+  { topicCode: "Ch4.1", marks: 4,
+    question: "When AQUEOUS copper sulfate is electrolysed using INERT (graphite) electrodes, copper is deposited at the cathode and oxygen is given off at the anode. Explain why hydrogen is NOT produced at the cathode in this case.",
+    markScheme: "Mark for each correct point, max 4:\n• In aqueous CuSO₄, the ions present are Cu²⁺ + SO₄²⁻ from the salt AND H⁺ + OH⁻ from water.\n• At the cathode, Cu²⁺ and H⁺ both compete to be reduced.\n• The metal with the LOWER position in the reactivity series is preferentially discharged.\n• **Copper is LESS reactive than hydrogen** (above-H in the reactivity series of metals) — so **Cu²⁺ is discharged in preference to H⁺**.\n• Copper is deposited at the cathode (red-brown coating); hydrogen stays in solution as H⁺.\n• At the anode, OH⁻ is preferentially discharged over SO₄²⁻ → produces oxygen + water.\nKey rule: the LESS REACTIVE positive ion gets discharged at the cathode.",
+    source: "exam-style" },
+
+  { topicCode: "Ch8.1", marks: 4,
+    question: "Describe TWO trends in the physical properties of the Group I metals (alkali metals) going DOWN the group.",
+    markScheme: "Any TWO trends + brief explanation (max 4):\n• **Density INCREASES** going down (mostly) — atoms get heavier; though Na and K are anomalously low (less than water).\n• **Melting + boiling points DECREASE** going down — metallic bonding weakens as the outer electron is further from the (increasingly shielded) nucleus.\n• **Reactivity INCREASES** going down — the outer electron is more easily lost (more shielding, further from nucleus, weaker attraction) → easier reaction with water/oxygen.\n• **Atomic radius INCREASES** going down — more occupied electron shells.\n• All are soft, shiny when freshly cut, conduct electricity (metallic).\nTwo well-explained trends = full marks. The reason ('outer electron further from nucleus + more shielding') is the key examiner-rewarded link.",
+    source: "exam-style" },
+
+  { topicCode: "Ch8.3", marks: 4,
+    question: "When chlorine water is added to a solution of potassium bromide, the colourless solution turns orange/brown. Explain this observation using ideas of reactivity in Group VII (halogens). Write the ionic equation.",
+    markScheme: "Mark for each correct point (max 4):\n• Chlorine is **MORE REACTIVE** than bromine — chlorine is HIGHER up Group VII (smaller atom, easier to gain electron, stronger pull on bonding electrons).\n• So chlorine DISPLACES bromine from potassium bromide.\n• The orange/brown colour is **bromine** (Br₂) being released into solution.\n• Word equation: chlorine + potassium bromide → potassium chloride + bromine\n• Ionic equation: **Cl₂ + 2Br⁻ → 2Cl⁻ + Br₂**  **(B1)**\n• Chlorine is reduced (gains electrons → Cl⁻); bromide is oxidised (loses electrons → Br₂). A redox reaction.\nKey rule: a more reactive halogen will always displace a less reactive halogen from its salt.",
+    source: "exam-style" },
+
+  { topicCode: "Ch5.1", marks: 4,
+    question: "Define EXOTHERMIC and ENDOTHERMIC reactions, giving one example of each.",
+    markScheme: "**Exothermic (2 marks):** a reaction that **RELEASES energy (heat) TO the surroundings** — surroundings warm up. ΔH is NEGATIVE. Example: **combustion of methane** (CH₄ + 2O₂ → CO₂ + 2H₂O), neutralisation of acid + alkali, respiration in cells.\n**Endothermic (2 marks):** a reaction that **ABSORBS energy (heat) FROM the surroundings** — surroundings cool down. ΔH is POSITIVE. Example: **thermal decomposition of calcium carbonate** (CaCO₃ → CaO + CO₂, needs strong heating), photosynthesis, dissolving ammonium nitrate in water (cold-pack effect).\nKey rule: bond breaking absorbs energy (endo); bond making releases energy (exo). The OVERALL ΔH = (bonds broken) − (bonds made).",
+    source: "exam-style" },
+
+  { topicCode: "Ch11.3", marks: 4,
+    question: "Describe the test that distinguishes between an ALKENE and an ALKANE. State the reagent, the observation with each, and explain why they differ.",
+    markScheme: "**Reagent: BROMINE WATER** (orange/brown coloured). **(B1)**\n**Observation with alkene** (e.g. ethene, propene): bromine water **rapidly DECOLOURISES** (orange → colourless). **(B1)**\n**Observation with alkane** (e.g. methane, ethane): bromine water **stays orange/brown** (NO change). **(B1)**\n**Explanation: Alkenes contain a C=C double bond** that is reactive — bromine adds ACROSS the double bond in an ADDITION reaction (e.g. CH₂=CH₂ + Br₂ → CH₂BrCH₂Br, a colourless dibromide). Alkanes only have single C–C and C–H bonds, which are unreactive towards bromine without UV light. **(B1)**\nThis is the classic 'test for unsaturation'.",
+    source: "exam-style" },
+
+  { topicCode: "Ch11.6", marks: 6,
+    question: "Polymers can be made by either addition polymerisation or condensation polymerisation. Analyse the differences between these two processes, including the type of monomer, what is given off, and one example of each.",
+    markScheme: "L3 (5–6): Both processes explained with the THREE comparison points + correct examples.\nL2 (3–4): One process explained well, the other only mentioned.\nL1 (1–2): Listing only.\n\n**ADDITION polymerisation:**\n• **Monomers**: small molecules with a C=C **double bond** (alkenes — e.g. ethene CH₂=CH₂).\n• **Process**: the C=C double bonds OPEN UP, and the monomers JOIN END-TO-END to form a long chain. ALL atoms in the monomer end up in the polymer.\n• **By-products**: **none** — nothing is given off.\n• **Example**: poly(ethene) from ethene; PVC from chloroethene; polystyrene from styrene.\n\n**CONDENSATION polymerisation:**\n• **Monomers**: small molecules with TWO functional groups each (e.g. a dicarboxylic acid + a diol; or an amino acid with both -NH₂ and -COOH).\n• **Process**: the functional groups REACT, with the loss of a SMALL MOLECULE (usually **water** — H₂O — sometimes HCl).\n• **By-products**: **water** (or HCl) given off each time a bond forms.\n• **Examples**: nylon (from a dicarboxylic acid + diamine), polyester (PET — from terephthalic acid + ethylene glycol), proteins (amino acids).\n\nL3 answer also notes the structural impact: addition polymers have C–C backbones; condensation polymers have ester (–COO–) or amide (–CONH–) linkages along the chain.",
+    source: "exam-style" },
 ];
 
 /**

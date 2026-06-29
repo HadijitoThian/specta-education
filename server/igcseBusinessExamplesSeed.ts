@@ -188,6 +188,94 @@ const EXAMPLES: Ex[] = [
     question: "A medium-sized electronics company wants to raise \\$2 million to develop a new product. Discuss whether it should raise the money by issuing more shares OR by taking out a long-term bank loan. Justify your choice.",
     markScheme: "L4 (7–8): Strengths AND weaknesses of BOTH options, applied to a medium-sized electronics firm, + clear justified choice.\nL3 (5–6): Both options covered but weak conclusion.\nL2 (3–4): One-sided.\nL1 (1–2): Description only.\n\nISSUE MORE SHARES:\n• **No repayment** — shares don't have to be paid back.\n• **No interest** — preserves cash flow.\n• **Strengthens balance sheet** — equity rises, gearing falls → easier to borrow later.\n• **BUT loss of control** — new shareholders share ownership, votes, and dividends.\n• **Dividends expected** — over the long run shareholders demand returns (and a rising share price).\n• Possible if the firm is a plc (open share issue) or has wealthy private investors (Ltd).\n• Slower to arrange than a loan; setup costs (underwriting, prospectus) can be significant for plc.\n\nLONG-TERM BANK LOAN:\n• **Owners keep full control** — no shares given up.\n• **Fixed repayment schedule** — easy to plan around.\n• **Interest is a tax-deductible expense** in most jurisdictions.\n• **BUT increases gearing** — higher financial risk if profits fall.\n• **BUT requires collateral / security** in most cases.\n• **Interest cost reduces profit** + cash flow each month.\n• **Easier and faster** to arrange than a share issue for a medium-sized firm.\n\nCONTEXTUAL FACTORS:\n• How profitable is the new product likely to be? If returns are uncertain, debt is risky (must be repaid regardless).\n• Current gearing — if already high, adding more debt is dangerous → shares preferable.\n• Owners' attitude to losing control.\n• Interest-rate environment.\n\nCONCLUSION (L4):\n• Typical justified answer: if the firm is already moderately leveraged and the product is high-risk, **shares** spread the risk. If the firm has stable cash flow + owners value control + interest rates are low, **a loan** is cheaper overall. Conclusion must pick one option and justify based on the firm's specific situation.",
     source: "exam-style" },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EXPANSION ROUND: fills gap topics + lifts coverage to ~50 questions.
+  // Includes the 4th P of the marketing mix (Place) which was missing from v1.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ── B3.5 PLACE — the missing 4th P (NEW) ───────────────────────────────────
+  { topicCode: "B3.5", marks: 2,
+    question: "Define 'Place' in the marketing mix.",
+    markScheme: "1 mark: **how** the product is **distributed** / how it reaches the customer.\n1 mark: from the **producer / manufacturer** to the **end consumer** (the distribution channel).\nFull-mark answer: 'Place refers to the methods and channels used to distribute a product from the producer to the final consumer — e.g. direct sales, retailers, wholesalers, e-commerce.'",
+    source: "exam-style" },
+
+  { topicCode: "B3.5", marks: 4,
+    question: "Explain TWO factors a small bakery should consider when choosing its distribution channel.",
+    markScheme: "1 mark for naming each factor + 1 mark for explanation in context (max 4):\n• **Type of product (perishability)** — fresh bread is highly perishable → short channel (direct sale from shop, or local delivery within hours) rather than long wholesale chain.\n• **Target customer location** — if customers are local (within walking distance) → direct sale from the shop is enough; if wider area → home-delivery + click-and-collect.\n• **Cost** — wholesalers + retailers take a margin → less profit per loaf; direct sale = full margin but the bakery must do all the selling itself.\n• **Volume** — small bakery may not produce enough to justify supplying supermarkets (which want consistent large volumes).\n• **Brand image** — direct sale lets the bakery present the brand directly (smell, freshness, service) → supermarkets dilute the personal touch.\nAny two well-explained = full marks.",
+    source: "exam-style" },
+
+  { topicCode: "B3.5", marks: 6,
+    question: "A clothing brand is considering switching from selling only through physical retail stores to selling ONLY online (e-commerce). Analyse TWO advantages and ONE disadvantage of this change.",
+    markScheme: "L3 (5–6): Two advantages and one disadvantage, each clearly explained with cause→effect chain applied to a clothing brand.\nL2 (3–4): Two of the three covered well.\nL1 (1–2): Listing only.\n\nADVANTAGES to develop:\n• **Lower fixed costs** — no shop rent, fewer staff, no in-store fittings → higher margin per sale, or freedom to lower prices.\n• **Wider geographic reach** — can sell to customers anywhere in the country (or globally) without opening more shops.\n• **24/7 availability** — customers can browse and buy at any time → captures sales the physical shop would miss.\n• **Rich customer data** — every click + purchase tracked → better targeted marketing, personalisation.\n• **Faster product launches** — new collections live the moment they're uploaded, no waiting for in-store rollout.\n\nDISADVANTAGES (pick the strongest one):\n• **Customers can't try on clothes** before buying → higher RETURN rate → costly reverse logistics + restocking. Critical for fashion.\n• **Loss of in-store experience** — fitting rooms, sales assistants, the 'high street' feel — affects brand-perception for premium brands.\n• **Heavy reliance on delivery infrastructure** — late delivery = unhappy customer; courier strikes can stop sales.\n• **Existing physical-store staff** may be made redundant — bad PR + morale.\n\nL3 answer applies these to a clothing brand specifically and notes the trade-off (clothing fits = main barrier to going pure online).",
+    source: "exam-style" },
+
+  // ── More across understaffed topics ────────────────────────────────────────
+
+  { topicCode: "B1.1", marks: 1,
+    question: "Identify the FOUR factors of production.",
+    markScheme: "**Land, Labour, Capital, Enterprise**  **(B1 — all four required)**.\nB0 if any of the four is missing. (Note: this is the same list as in Economics 0455 — Business Studies shares the foundation.)",
+    source: "exam-style" },
+
+  { topicCode: "B1.2", marks: 2,
+    question: "State the THREE sectors of business activity and give one example of each.",
+    markScheme: "1 mark for naming all 3; 1 mark for one valid example of each (max 2):\n• **Primary** — extraction of raw materials (e.g. farming, mining, fishing, oil drilling)\n• **Secondary** — manufacturing / construction (e.g. car factory, baker, builder)\n• **Tertiary** — services (e.g. bank, hospital, restaurant, retail shop)\nThe relative size of each sector shifts as an economy develops — developed economies are dominated by tertiary.",
+    source: "exam-style" },
+
+  { topicCode: "B1.5", marks: 4,
+    question: "Explain how the objectives of SHAREHOLDERS and EMPLOYEES of a company might conflict.",
+    markScheme: "Mark for each clear point, max 4:\n• **Shareholders** want **high profits** + **rising dividends** + **rising share price** — return on their investment.\n• **Employees** want **higher wages**, **job security**, **good working conditions**, **training opportunities**.\n• Conflict arises because **higher wages → lower profits** → less for shareholders.\n• Cost-cutting (redundancies, automation) raises profit for shareholders but **threatens employee job security**.\n• Reinvesting profit in employee training/benefits → less dividend paid out.\n• Resolution attempts: profit-sharing, share-ownership schemes for employees, transparent communication.\nAny clear pair of opposing objectives + the underlying mechanism = full marks.",
+    source: "exam-style" },
+
+  { topicCode: "B2.3", marks: 4,
+    question: "Explain the difference between ON-THE-JOB and OFF-THE-JOB training, and give one advantage of each.",
+    markScheme: "**On-the-job (2 marks):** training that takes place at the **workplace, doing real work** (often by shadowing an experienced colleague). **Advantage:** cheaper, no time away from work, the trainee learns the company's actual systems immediately.\n**Off-the-job (2 marks):** training away from the workplace — at a **specialist training centre, college, or seminar**. **Advantage:** wider/more advanced skills can be taught; specialist instructors; trainee can fully focus without work distractions.\nThe two are often combined — induction (off-the-job) + role-specific training (on-the-job).",
+    source: "exam-style" },
+
+  { topicCode: "B2.4", marks: 4,
+    question: "Identify TWO barriers to effective internal communication in a business and suggest how each could be overcome.",
+    markScheme: "1 mark for naming a barrier + 1 mark for suggested fix (max 4):\n• **Use of jargon/technical language** → simpler language; glossaries; train staff to write clearly.\n• **Information overload (too many emails)** → use clear channels (urgent vs FYI); meetings only when needed; written summaries.\n• **Language differences** (multinational workforces) → translation; multilingual managers; visual diagrams; pictograms.\n• **Long chain of command** (too many hierarchy levels) → flatten structure; direct channels between senior managers + workers (open door policy).\n• **Poor medium choice** (e.g. urgent message buried in email) → use appropriate medium (phone for urgent, group chat for daily, email for records).\n• **Hierarchy/intimidation** — workers don't speak up → anonymous suggestion boxes, regular 1-on-1s, psychological safety.\nAny two distinct barrier+fix pairs.",
+    source: "exam-style" },
+
+  { topicCode: "B3.7", marks: 4,
+    question: "Explain TWO ways technology has changed how businesses PROMOTE their products.",
+    markScheme: "1 mark for naming + 1 mark for development (max 4):\n• **Social media marketing** — Instagram, TikTok, YouTube → brands reach huge audiences cheaply and target specific demographics by age, interest, location.\n• **Influencer marketing** — paying social-media personalities to endorse → trusted by their followers, especially for fashion + beauty + tech.\n• **Search engine ads (Google ads)** — promote to people actively searching for related products → high purchase intent.\n• **Personalised email campaigns** — segmented mailing lists based on past purchases → higher conversion than mass email.\n• **Retargeting ads** — show products the customer already viewed → reminders that convert browsing to buying.\n• **Data analytics** — measure exactly which ad / channel / message converts best, refine spend in real time.\nAny two clearly explained = full marks.",
+    source: "exam-style" },
+
+  { topicCode: "B4.2", marks: 4,
+    question: "A factory has fixed costs of \\$50,000 per month. It sells units at \\$30 each, with variable cost of \\$10 per unit.\n(a) Calculate the break-even output per month.\n(b) Calculate the profit if it sells 4,000 units per month.",
+    markScheme: "(a) Contribution per unit = 30 − 10 = \\$20 **(M1)**\n  Break-even = FC / contribution = 50,000 / 20 **(M1)**\n  **= 2,500 units  (A1)**\n(b) Total revenue = 4,000 × 30 = \\$120,000\n  Total variable cost = 4,000 × 10 = \\$40,000\n  Total cost = 50,000 + 40,000 = \\$90,000\n  **Profit = 120,000 − 90,000 = \\$30,000  (M1, A1 — max 4 total)**\nFaster alternative for (b): contribution per unit × units sold − FC = 20 × 4000 − 50,000 = \\$30,000.",
+    source: "exam-style" },
+
+  { topicCode: "B4.3", marks: 4,
+    question: "Explain TWO benefits to a manufacturer of maintaining HIGH QUALITY production.",
+    markScheme: "1 mark for naming + 1 mark for explanation (max 4):\n• **Stronger brand reputation** → customers trust the brand → repeat purchases + word-of-mouth referrals → growth in sales without high marketing spend.\n• **Ability to charge premium prices** → higher margin per unit → more profit even at lower volume.\n• **Fewer returns + warranty claims** → lower cost of reverse logistics + replacement parts + refunds.\n• **Reduced waste in production** → defective products = scrapped or reworked = wasted material + labour; high quality means less of this.\n• **Higher employee morale** — workers proud of producing quality goods → lower staff turnover.\n• **Easier compliance with regulations + safety standards** — fewer recalls + lawsuits.\nAny two well-explained.",
+    source: "exam-style" },
+
+  { topicCode: "B5.2", marks: 4,
+    question: "Explain TWO causes of cash-flow problems in a small business.",
+    markScheme: "1 mark for naming + 1 mark for development (max 4):\n• **Overtrading** — taking on more orders than the business has working capital for → cash tied up in stock + receivables before revenue arrives.\n• **Late payment by customers** — invoices unpaid past their due date → no cash inflow even though sales were made.\n• **Holding too much stock** — cash tied up in inventory; storage + insurance costs.\n• **Unexpected large costs** — equipment breaks, building damage, key supplier collapses → urgent cash needed.\n• **Seasonal sales** — long stretches with low income (e.g. a tourist business in low season) but bills still arrive monthly.\n• **Falling sales** — revenue drops faster than fixed costs can be cut.\n• **Buying expensive assets outright** — using cash for a machine instead of leasing.\nAny two well-explained = 4.",
+    source: "exam-style" },
+
+  { topicCode: "B5.5", marks: 4,
+    question: "A retail store has revenue of \\$500,000, gross profit of \\$200,000, and net profit of \\$60,000.\n(a) Calculate the Gross Profit Margin (GPM).\n(b) Calculate the Net Profit Margin (NPM).\n(c) Suggest ONE reason why GPM and NPM are different.",
+    markScheme: "(a) GPM = (Gross Profit / Revenue) × 100 = (200,000 / 500,000) × 100 = **40%  (M1, A1)**\n(b) NPM = (Net Profit / Revenue) × 100 = (60,000 / 500,000) × 100 = **12%  (A1)**\n(c) **GPM only deducts cost of sales** (the cost of buying the goods). **NPM also deducts ALL OTHER expenses** — rent, salaries, marketing, utilities, insurance. So NPM is always lower than GPM for a profitable business. **(B1, max 4)**.\nA big gap between GPM and NPM (40% → 12%) suggests overheads + expenses are eating into profit; consider cost-cutting.",
+    source: "exam-style" },
+
+  { topicCode: "B6.3", marks: 6,
+    question: "Analyse how a DEPRECIATION of the Indonesian rupiah against the US dollar would affect an Indonesian smartphone importer AND an Indonesian textile exporter.",
+    markScheme: "L3 (5–6): Both businesses analysed with clear cause→effect chains + at least one mitigation.\nL2 (3–4): One business analysed well.\nL1 (1–2): Definitions only.\n\nKey content (build both halves):\n\n**Smartphone IMPORTER (negative impact):**\n• Smartphones are bought in USD (or other foreign currencies).\n• Rupiah depreciates → it now takes MORE rupiah to buy the same USD → cost of imported smartphones in rupiah RISES.\n• Importer either: (a) passes the higher cost to customers → consumer prices rise → demand falls (especially if PED elastic); OR (b) absorbs the cost → squeezed profit margin.\n• Either way: revenue or profit hit.\n\n**Textile EXPORTER (positive impact):**\n• Textiles are sold abroad, priced in USD.\n• Rupiah depreciates → for the same USD price, the exporter receives MORE rupiah → higher rupiah revenue.\n• OR: the exporter can LOWER the USD price (still get same rupiah as before) → more competitive abroad → higher export volume → higher market share.\n• Win-win for the exporter — better margins AND/OR larger market.\n\n**Caveats / mitigations:**\n• Imported INPUTS to textile production (dyes, machinery) also get more expensive — partial offset.\n• Hedging contracts can lock in exchange rates to reduce risk.\n\nL3 answer covers both directions + at least one nuance.",
+    source: "exam-style" },
+
+  { topicCode: "B6.2", marks: 6,
+    question: "Analyse the ethical and environmental issues a clothing brand should consider when sourcing from overseas suppliers in developing countries.",
+    markScheme: "L3 (5–6): At least two ethical issues + at least two environmental issues + recommendation, applied to a clothing brand.\nL2 (3–4): Issues identified but limited application.\nL1 (1–2): Listing only.\n\n**Ethical issues to develop:**\n• **Worker pay and conditions** — are workers paid at least a living wage? Working safely? No child labour? (e.g. Rana Plaza disaster 2013).\n• **Working hours** — overtime without pay; no breaks.\n• **Right to unionise** — many suppliers ban unions, preventing workers from negotiating.\n• **Supply-chain transparency** — does the brand even know who its suppliers' suppliers are? Sub-contracting hides abuses.\n\n**Environmental issues:**\n• **Water pollution** from textile dyeing — toxic chemicals released into local rivers.\n• **Carbon emissions** from long-distance shipping (sea + air freight).\n• **Use of synthetic fibres (polyester)** — microplastic pollution from washing.\n• **Local water use** — cotton cultivation drains aquifers in already dry regions.\n\n**What the brand should do (the recommendation):**\n• Audit suppliers regularly (independent third-party audits, not self-reported).\n• Publish a supplier list (transparency).\n• Pay a 'living wage premium' above local minimum.\n• Move to certified sustainable materials (GOTS organic cotton, recycled polyester).\n• Reduce air freight in favour of sea + rail.\n\nL3 answer ties business decisions to BOTH ethical AND environmental outcomes; balances cost vs reputation.",
+    source: "exam-style" },
+
+  { topicCode: "B3.8", marks: 4,
+    question: "A new bottled-water brand is targeting health-conscious gym-goers in Jakarta. Explain how the FOUR Ps of the marketing mix should be coordinated to support this positioning.",
+    markScheme: "1 mark per P, max 4:\n• **Product:** clear bottle, minimalist labelling, electrolyte/vitamin-enriched, 500 ml fitness-friendly size; recyclable material to signal eco-credentials.\n• **Price:** premium pricing (e.g. 1.5–2× regular bottled water) → signals quality + matches gym-goer willingness to pay for self-care.\n• **Place:** distribution INSIDE gyms (vending machines, partnerships with gym chains), premium supermarkets in fitness-conscious districts, food-delivery apps that gym-goers use.\n• **Promotion:** Instagram + TikTok influencer marketing with fitness influencers; sponsorship of running events / 5K races; sample distribution in gyms; clean before/after testimonials.\nAll 4 Ps consistent → reinforces the 'premium + fitness + health' positioning.",
+    source: "exam-style" },
 ];
 
 /**
