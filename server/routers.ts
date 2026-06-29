@@ -8191,6 +8191,14 @@ seedUniversitiesIfEmpty().then(r => {
 // IGCSE seeds chain AFTER this so igcse_examples table exists before insert.
 import("./db").then(async m => {
   await m.ensureMarketingSchema();
+  // Run the IGCSE subscription-schema migration UNCONDITIONALLY — it is what
+  // unblocks the IGCSE status endpoint after the pricing-pivot column adds.
+  // If this fails to run, login bounces students back to the login page.
+  try {
+    await m.ensureIgcseSubscriptionsSchema();
+  } catch (e) {
+    console.error('[IGCSE] ensureIgcseSubscriptionsSchema failed:', e);
+  }
   try {
     const r1 = await seedIgcseTopicsIfEmpty();
     if (r1.seeded) console.log(`[IGCSE] Seeded ${r1.seeded} Math topics`);

@@ -508,22 +508,8 @@ export async function ensureMarketingSchema(): Promise<void> {
         INDEX idx_lead (leadId)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `));
-    // Idempotent prod migration: widen the plan enum + add the new columns
-    // for already-deployed databases. Each ALTER is wrapped in its own try
-    // so the function survives "duplicate column" errors on re-runs.
-    const igcseSubAlters = [
-      `ALTER TABLE igcse_subscriptions MODIFY COLUMN plan ENUM('m1','m2','m3','a1','a2','a3') NOT NULL`,
-      `ALTER TABLE igcse_subscriptions ADD COLUMN subjectsLimit INT NOT NULL DEFAULT 1`,
-      `ALTER TABLE igcse_subscriptions ADD COLUMN subjectsSelected JSON NULL`,
-      `ALTER TABLE igcse_subscriptions ADD COLUMN topUpHours INT NOT NULL DEFAULT 0`,
-      `ALTER TABLE igcse_subscriptions ADD COLUMN parentEmail VARCHAR(255) NULL`,
-      `ALTER TABLE igcse_subscriptions ADD COLUMN parentName VARCHAR(120) NULL`,
-      `ALTER TABLE igcse_subscriptions MODIFY COLUMN hoursLimit INT NOT NULL DEFAULT 6`,
-    ];
-    for (const stmt of igcseSubAlters) {
-      try { await db.execute(sql.raw(stmt)); }
-      catch (e) { /* duplicate column / enum already wide — harmless */ }
-    }
+    // (subs-schema ALTERs moved to ensureIgcseSubscriptionsSchema below —
+    //  they need to run unconditionally, NOT gated on the outer try block.)
 
     await db.execute(sql.raw(`
       CREATE TABLE IF NOT EXISTS igcse_attempts (
@@ -600,6 +586,35 @@ async function ensureIgcseSubject(target: "math" | "physics" | "economics" | "bu
   } catch (e) {
     console.error(`[IGCSE] ensureIgcseSubject('${target}') failed:`, (e as Error).message);
     return false;
+  }
+}
+
+/**
+ * Standalone, always-runs migration for igcse_subscriptions.
+ *
+ * Critical: this MUST execute on every boot regardless of whether
+ * ensureMarketingSchema completed, because the bundle pricing introduced
+ * new columns (subjectsLimit, subjectsSelected, topUpHours, parentEmail,
+ * parentName) that the IGCSE status endpoint reads. If they don't exist,
+ * Drizzle's SELECT * crashes and the page bounces the student back to login.
+ *
+ * Each ALTER is independently wrapped — duplicate-column errors are harmless.
+ */
+export async function ensureIgcseSubscriptionsSchema(): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const stmts = [
+    `ALTER TABLE igcse_subscriptions MODIFY COLUMN plan ENUM('m1','m2','m3','a1','a2','a3') NOT NULL`,
+    `ALTER TABLE igcse_subscriptions ADD COLUMN subjectsLimit INT NOT NULL DEFAULT 1`,
+    `ALTER TABLE igcse_subscriptions ADD COLUMN subjectsSelected JSON NULL`,
+    `ALTER TABLE igcse_subscriptions ADD COLUMN topUpHours INT NOT NULL DEFAULT 0`,
+    `ALTER TABLE igcse_subscriptions ADD COLUMN parentEmail VARCHAR(255) NULL`,
+    `ALTER TABLE igcse_subscriptions ADD COLUMN parentName VARCHAR(120) NULL`,
+    `ALTER TABLE igcse_subscriptions MODIFY COLUMN hoursLimit INT NOT NULL DEFAULT 6`,
+  ];
+  for (const stmt of stmts) {
+    try { await db.execute(sql.raw(stmt)); }
+    catch (e) { /* duplicate column / enum already wide — harmless */ }
   }
 }
 
@@ -748,14 +763,25 @@ export async function getTutorSubscriptionByInvoice(invoiceId: string): Promise<
 export async function getActiveIgcseSubscription(leadId: number): Promise<IgcseSubscription | null> {
   const db = await getDb();
   if (!db) return null;
-  const [row] = await db.select().from(igcseSubscriptions)
-    .where(and(
-      eq(igcseSubscriptions.leadId, leadId),
-      eq(igcseSubscriptions.status, "active"),
-      gte(igcseSubscriptions.expiresAt, new Date()),
-    ))
-    .orderBy(desc(igcseSubscriptions.expiresAt)).limit(1);
-  return row || null;
+  // Defensive: if the igcse_subscriptions schema is mid-migration (e.g. the
+  // ADD COLUMN ALTERs haven't run yet on a particular deploy), Drizzle's
+  // SELECT * would throw and bubble up into the status endpoint, which then
+  // appears to the student as "I just logged in but got bounced back".
+  // Return null on any DB error so login still completes — worst case the
+  // student just sees "free trial" until the next deploy + ALTER lands.
+  try {
+    const [row] = await db.select().from(igcseSubscriptions)
+      .where(and(
+        eq(igcseSubscriptions.leadId, leadId),
+        eq(igcseSubscriptions.status, "active"),
+        gte(igcseSubscriptions.expiresAt, new Date()),
+      ))
+      .orderBy(desc(igcseSubscriptions.expiresAt)).limit(1);
+    return row || null;
+  } catch (e) {
+    console.error(`[IGCSE] getActiveIgcseSubscription failed for lead ${leadId}:`, (e as Error).message);
+    return null;
+  }
 }
 
 export async function createIgcseSubscription(data: InsertIgcseSubscription): Promise<IgcseSubscription | null> {
