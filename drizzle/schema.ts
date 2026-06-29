@@ -2489,7 +2489,7 @@ export type InsertIeltsMockScore = typeof ieltsMockScores.$inferInsert;
  */
 export const igcseTopics = mysqlTable("igcse_topics", {
   id: int("id").autoincrement().primaryKey(),
-  subject: mysqlEnum("subject", ["math", "physics", "economics", "business", "chemistry"]).default("math").notNull(),
+  subject: mysqlEnum("subject", ["math", "physics", "economics", "business", "chemistry", "biology"]).default("math").notNull(),
   syllabus: varchar("syllabus", { length: 32 }).default("CIE_0580").notNull(), // Cambridge IGCSE Math 0580
   tier: mysqlEnum("tier", ["core", "extended", "both"]).default("extended").notNull(),
   areaCode: varchar("areaCode", { length: 8 }).notNull(), // C1..C9

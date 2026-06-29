@@ -37,8 +37,8 @@ export default function Igcse() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="Cambridge IGCSE AI Tutor — Math, Physics, Economics & Business | SpecTa"
-        description="Belajar Cambridge IGCSE Math (0580), Physics (0625), Economics (0455) dan Business Studies (0450) bersama AI teacher yang bisa diajak ngobrol, menjelaskan langkah-demi-langkah di papan tulis digital, dan menilai jawaban exam seperti examiner asli. Coba gratis 30 menit."
+        title="Cambridge IGCSE AI Tutor — Math, Physics, Chemistry, Biology, Economics & Business | SpecTa"
+        description="Belajar Cambridge IGCSE Math (0580), Physics (0625), Chemistry (0620), Biology (0610), Economics (0455) dan Business Studies (0450) bersama AI teacher yang bisa diajak ngobrol, menjelaskan langkah-demi-langkah di papan tulis digital, dan menilai jawaban exam seperti examiner asli. Coba gratis 30 menit."
         keywords="IGCSE AI tutor, IGCSE Math tutor, IGCSE Physics, IGCSE Economics, IGCSE Business Studies, Cambridge 0580, Cambridge 0625, Cambridge 0455, Cambridge 0450, AI teacher Indonesia, les IGCSE online, bimbel IGCSE, SpecTa Tutor"
         ogImage="/files/igcse/dashboard/hero.png"
       />
@@ -102,7 +102,7 @@ export default function Igcse() {
       <section className="py-16 px-4 bg-slate-50">
         <div className="container max-w-5xl mx-auto">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-violet-50 text-violet-700 text-xs font-semibold rounded-full mb-3">CAMBRIDGE IGCSE · MATH 0580 + PHYSICS 0625 + CHEMISTRY 0620 + ECONOMICS 0455 + BUSINESS 0450</div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-violet-50 text-violet-700 text-xs font-semibold rounded-full mb-3">CAMBRIDGE IGCSE · MATH 0580 + PHYSICS 0625 + CHEMISTRY 0620 + BIOLOGY 0610 + ECONOMICS 0455 + BUSINESS 0450</div>
             <h2 className="text-2xl md:text-3xl font-bold">Full syllabus, taught one topic at a time</h2>
             <p className="text-gray-500 mt-2">Mapped directly to Cambridge's published syllabus areas. No filler — every topic is graded the way IGCSE examiners grade.</p>
           </div>
@@ -140,7 +140,7 @@ export default function Igcse() {
             <div className="text-4xl mb-3">🎓</div>
             <h2 className="text-2xl md:text-3xl font-extrabold mb-2">30 minutes free, then Rp 299.000/month</h2>
             <p className="text-white/90 mb-6 max-w-xl mx-auto">
-              Get the full Cambridge IGCSE 0580 (Math), 0625 (Physics), 0620 (Chemistry), 0455 (Economics) and 0450 (Business Studies) syllabus, 30 hours of tutoring per month, cancel anytime.
+              Get the full Cambridge IGCSE 0580 (Math), 0625 (Physics), 0620 (Chemistry), 0610 (Biology), 0455 (Economics) and 0450 (Business Studies) syllabus — 6 subjects, with hours pooled across your selected subjects.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <Link href="/igcse/app" className="inline-flex items-center gap-2 bg-white text-violet-700 font-bold px-6 py-3 rounded-xl shadow hover:bg-amber-50 transition">

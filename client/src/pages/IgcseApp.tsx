@@ -30,6 +30,7 @@ const IMG = {
   math:        "/files/igcse/dashboard/subject-math.png",
   physics:     "/files/igcse/dashboard/subject-physics.png",
   chemistry:   "/files/igcse/dashboard/subject-chemistry.png",
+  biology:     "/files/igcse/dashboard/subject-biology.png",
   economics:   "/files/igcse/dashboard/subject-economics.png",
   business:    "/files/igcse/dashboard/subject-business.png",
 };
@@ -298,13 +299,14 @@ function Dashboard({ status }: { status: any }) {
         {/* ── SUBJECTS at-a-glance — visual subject gallery ──────────────── */}
         <section>
           <div className="flex items-baseline justify-between mb-3 px-1">
-            <h2 className="text-lg font-bold text-slate-900">Your 5 subjects</h2>
+            <h2 className="text-lg font-bold text-slate-900">Your 6 subjects</h2>
             <span className="text-xs text-slate-500">Click any subject to start →</span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <SubjectTile href="#topics" image={IMG.math}      emoji="📐" name="Mathematics"    syllabus="0580" colour="violet" />
             <SubjectTile href="#topics" image={IMG.physics}   emoji="⚛️" name="Physics"        syllabus="0625" colour="sky" />
             <SubjectTile href="#topics" image={IMG.chemistry} emoji="🧪" name="Chemistry"      syllabus="0620" colour="emerald" />
+            <SubjectTile href="#topics" image={IMG.biology}   emoji="🧬" name="Biology"        syllabus="0610" colour="teal" />
             <SubjectTile href="#topics" image={IMG.economics} emoji="💹" name="Economics"      syllabus="0455" colour="amber" />
             <SubjectTile href="#topics" image={IMG.business}  emoji="💼" name="Business Studies" syllabus="0450" colour="rose" />
           </div>
@@ -359,11 +361,12 @@ const PLAN_DEFS = {
   a3: { tier: 3, subjects: 3, hours: 18, monthly: 849_000, annual: 8_490_000 },
 } as const;
 
-type SubjectKey = "math" | "physics" | "chemistry" | "economics" | "business";
+type SubjectKey = "math" | "physics" | "chemistry" | "biology" | "economics" | "business";
 const SUBJECT_OPTIONS: { key: SubjectKey; emoji: string; name: string; syllabus: string }[] = [
   { key: "math",      emoji: "📐", name: "Mathematics",      syllabus: "0580" },
   { key: "physics",   emoji: "⚛️", name: "Physics",          syllabus: "0625" },
   { key: "chemistry", emoji: "🧪", name: "Chemistry",        syllabus: "0620" },
+  { key: "biology",   emoji: "🧬", name: "Biology",          syllabus: "0610" },
   { key: "economics", emoji: "💹", name: "Economics",        syllabus: "0455" },
   { key: "business",  emoji: "💼", name: "Business Studies", syllabus: "0450" },
 ];
@@ -529,13 +532,14 @@ function SubjectTile({
   emoji: string;
   name: string;
   syllabus: string;
-  colour: "violet" | "sky" | "emerald" | "amber" | "rose";
+  colour: "violet" | "sky" | "emerald" | "teal" | "amber" | "rose";
 }) {
   // Colour palette per subject — keeps the tile gallery visually distinct.
   const palette: Record<string, { bg: string; text: string; ring: string }> = {
     violet:  { bg: "bg-violet-50",  text: "text-violet-700",  ring: "hover:ring-violet-300" },
     sky:     { bg: "bg-sky-50",     text: "text-sky-700",     ring: "hover:ring-sky-300" },
     emerald: { bg: "bg-emerald-50", text: "text-emerald-700", ring: "hover:ring-emerald-300" },
+    teal:    { bg: "bg-teal-50",    text: "text-teal-700",    ring: "hover:ring-teal-300" },
     amber:   { bg: "bg-amber-50",   text: "text-amber-700",   ring: "hover:ring-amber-300" },
     rose:    { bg: "bg-rose-50",    text: "text-rose-700",    ring: "hover:ring-rose-300" },
   };
@@ -561,7 +565,7 @@ function SubjectTile({
 
 // ── Topic picker ─────────────────────────────────────────────────────────────
 function TopicPicker({ disabled, disabledReason }: { disabled?: boolean; disabledReason?: string }) {
-  const [subject, setSubject] = useState<"math" | "physics" | "economics" | "business" | "chemistry">("math");
+  const [subject, setSubject] = useState<"math" | "physics" | "economics" | "business" | "chemistry" | "biology">("math");
   const topics = trpc.igcse.listTopics.useQuery({ subject }, { staleTime: 5 * 60_000 });
   const [openArea, setOpenArea] = useState<string | null>(null);
   const [lang, setLang] = useState<"en" | "id">("en");
@@ -589,6 +593,7 @@ function TopicPicker({ disabled, disabledReason }: { disabled?: boolean; disable
   : subject === "economics" ? "CAMBRIDGE 0455"
   : subject === "business"  ? "CAMBRIDGE 0450"
   : subject === "chemistry" ? "CAMBRIDGE 0620 · EXTENDED"
+  : subject === "biology"   ? "CAMBRIDGE 0610 · EXTENDED"
   :                           "CAMBRIDGE 0580 · EXTENDED";
 
   return (
@@ -619,6 +624,10 @@ function TopicPicker({ disabled, disabledReason }: { disabled?: boolean; disable
         <button type="button" onClick={() => setSubject("chemistry")}
           className={`px-4 py-1.5 font-semibold border-l border-slate-300 ${subject === "chemistry" ? "bg-violet-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}>
           🧪 Chemistry
+        </button>
+        <button type="button" onClick={() => setSubject("biology")}
+          className={`px-4 py-1.5 font-semibold border-l border-slate-300 ${subject === "biology" ? "bg-violet-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}>
+          🧬 Biology
         </button>
       </div>
 

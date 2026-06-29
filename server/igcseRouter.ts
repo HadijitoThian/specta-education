@@ -66,13 +66,15 @@ function requireLead(leadId: number | null): number {
   return leadId;
 }
 
-/** Topic-code → subject inference. P=physics, E=economics, B=business, C=chemistry,
- *  otherwise math. Mirrors the same mapping listExamples already uses. */
-function subjectOfTopicCode(code: string): "math" | "physics" | "economics" | "business" | "chemistry" {
+/** Topic-code → subject inference. Order matters: longer/more-specific prefixes
+ *  must be checked BEFORE shorter ones (Bi before B, Ch before C). */
+function subjectOfTopicCode(code: string): "math" | "physics" | "economics" | "business" | "chemistry" | "biology" {
+  if (code.startsWith("Bi")) return "biology";   // before B
+  if (code.startsWith("Ch")) return "chemistry"; // before C
   if (code.startsWith("P")) return "physics";
   if (code.startsWith("E")) return "economics";
   if (code.startsWith("B")) return "business";
-  if (code.startsWith("C")) return "chemistry";
+  if (code.startsWith("C")) return "chemistry"; // legacy single-letter fallback
   return "math";
 }
 
@@ -102,7 +104,7 @@ export const igcseRouter = router({
 
   /** Public: list every seeded IGCSE topic, optionally filtered by subject. */
   listTopics: publicProcedure
-    .input(z.object({ subject: z.enum(["math", "physics", "economics", "business", "chemistry"]).optional() }).optional())
+    .input(z.object({ subject: z.enum(["math", "physics", "economics", "business", "chemistry", "biology"]).optional() }).optional())
     .query(async ({ input }) => {
       const db = await getDb();
       if (!db) return [];
@@ -146,7 +148,7 @@ export const igcseRouter = router({
   createCheckout: publicProcedure
     .input(z.object({
       plan: z.enum(["m1", "m2", "m3", "a1", "a2", "a3"]),
-      subjects: z.array(z.enum(["math", "physics", "chemistry", "economics", "business"]))
+      subjects: z.array(z.enum(["math", "physics", "chemistry", "biology", "economics", "business"]))
         .min(1).max(3),
       parentEmail: z.string().email(),
       parentName: z.string().min(1).max(120).optional(),
@@ -384,23 +386,26 @@ export const igcseRouter = router({
             .join("\n\n---\n\n")}\n`
         : "";
 
-      const subject: "math" | "physics" | "economics" | "business" | "chemistry" =
+      const subject: "math" | "physics" | "economics" | "business" | "chemistry" | "biology" =
         topic?.subject === "physics" ? "physics"
         : topic?.subject === "economics" ? "economics"
         : topic?.subject === "business" ? "business"
         : topic?.subject === "chemistry" ? "chemistry"
+        : topic?.subject === "biology" ? "biology"
         : "math";
       const syllabusCode =
         subject === "physics"   ? "0625"
       : subject === "economics" ? "0455"
       : subject === "business"  ? "0450"
       : subject === "chemistry" ? "0620"
+      : subject === "biology"   ? "0610"
       :                           "0580";
       const subjectIntro =
         subject === "physics"   ? `You are an experienced Cambridge IGCSE Physics tutor for syllabus 0625 (Extended tier).`
       : subject === "economics" ? `You are an experienced Cambridge IGCSE Economics tutor for syllabus 0455.`
       : subject === "business"  ? `You are an experienced Cambridge IGCSE Business Studies tutor for syllabus 0450.`
       : subject === "chemistry" ? `You are an experienced Cambridge IGCSE Chemistry tutor for syllabus 0620 (Extended tier).`
+      : subject === "biology"   ? `You are an experienced Cambridge IGCSE Biology tutor for syllabus 0610 (Extended tier).`
       :                           `You are an experienced Cambridge IGCSE Mathematics tutor for syllabus 0580 (Extended tier).`;
       const physicsConventions = subject === "physics" ? `
 PHYSICS-SPECIFIC CONVENTIONS (apply throughout):
@@ -434,6 +439,35 @@ CHEMISTRY-SPECIFIC CONVENTIONS (apply throughout):
 - For 'explain the trend' questions, refer to ATOMIC STRUCTURE (number of shells, shielding, distance from nucleus) — not just 'because of size'.
 - For RATE questions, use COLLISION THEORY: more particles per volume / more energy per particle / more particles with ≥ E_a → more successful collisions per unit time.
 - LaTeX for chemistry equations renders fine with \\text{} and _, e.g. "\\text{H}_2 + \\text{Cl}_2 \\rightarrow 2\\text{HCl}". Ionic charges: "\\text{Na}^+ + \\text{Cl}^-". State symbols inline: "(s), (l), (g), (aq)".
+` : "";
+      const biologyConventions = subject === "biology" ? `
+BIOLOGY-SPECIFIC CONVENTIONS (apply throughout):
+- Cambridge IGCSE Biology is heavy on PRECISE TERMINOLOGY + CAUSE-AND-EFFECT explanations + DIAGRAMS. Almost no calculations (a few simple ones for magnification, percentage change, biomass).
+- Train the student on COMMAND WORDS:
+    "Define" / "State" / "Name" → 1-2 marks each (precise definition, exact term).
+    "Identify" → 1 mark (name from a diagram or list).
+    "Describe" → 2-4 marks (factual recall, no reason needed — e.g. "Describe what happens during inhalation").
+    "Explain" → 4-6 marks (state AND give the BIOLOGICAL reason / cause-effect chain).
+    "Compare" → 4-6 marks (similarities AND differences with linkers like "whereas", "but"; use of comparative words).
+    "Suggest" → 3-6 marks (apply biology to an unfamiliar example — link to known concepts).
+    "Discuss" / "Evaluate" → 6-8 marks (advantages + disadvantages + justified conclusion).
+- KEY DEFINITIONS the student must memorise (Cambridge marks the wording strictly):
+    Diffusion = NET movement of particles from higher to lower concentration (PASSIVE, no energy).
+    Osmosis = NET movement of WATER from higher water potential to lower water potential through a PARTIALLY PERMEABLE MEMBRANE.
+    Active transport = movement AGAINST the gradient using ENERGY from respiration (via carrier proteins).
+    Respiration = chemical reactions in cells that BREAK DOWN nutrient molecules to RELEASE ENERGY.
+    Photosynthesis = process by which plants make GLUCOSE from CO₂ + WATER using LIGHT ENERGY (absorbed by CHLOROPHYLL).
+    Gene = section of DNA that codes for the amino-acid sequence of a protein.
+    Chromosome = thread-like structure of DNA carrying genetic information.
+- ADAPTATIONS questions: ALWAYS link the STRUCTURE to the FUNCTION. "It has X feature → which means Y → which helps the organism Z."
+- For DIAGRAMS (e.g. heart, leaf, kidney nephron, eye, neurone): make sure every labelled part has a clear function. Encourage labelled sketches even when describing in text.
+- KEY EQUATIONS (word form is enough for most marks; symbol equation for higher marks):
+    Aerobic respiration: glucose + oxygen → carbon dioxide + water (+ energy)
+    Anaerobic respiration (in humans): glucose → lactic acid (+ small energy)
+    Anaerobic respiration (in yeast): glucose → ethanol + CO₂ (+ energy)
+    Photosynthesis: CO₂ + water → (light + chlorophyll) → glucose + oxygen
+- Use SCIENTIFIC NAMES correctly: aerobic (with O₂), anaerobic (without O₂), oxygenated/deoxygenated, hypertonic/hypotonic, etc.
+- For NATURAL SELECTION questions, hit the 5-step chain: variation → over-production → struggle for survival → 'survival of the fittest' → advantageous alleles passed on → over generations, population evolves.
 ` : "";
       const businessConventions = subject === "business" ? `
 BUSINESS-STUDIES-SPECIFIC CONVENTIONS (apply throughout):
@@ -490,7 +524,7 @@ ${topic ? `You are teaching: ${topic.title} (Topic ${topic.code}, Area: ${topic.
 
 Cambridge syllabus learning outcomes for this topic:
 ${topic.learningOutcomes || "(general topic — guide the student through key skills.)"}` : `The student hasn't picked a specific topic yet — help them pick one from the IGCSE ${syllabusCode} Extended syllabus.`}
-${physicsConventions}${economicsConventions}${businessConventions}${chemistryConventions}${exemplarsBlock}
+${physicsConventions}${economicsConventions}${businessConventions}${chemistryConventions}${biologyConventions}${exemplarsBlock}
 Your teaching style:
 - Patient, encouraging private tutor. Never condescending.
 - Socratic: ask a question or check understanding BEFORE explaining; let the student think.
@@ -730,7 +764,7 @@ Rules:
   listExamples: publicProcedure
     .input(z.object({
       topicCode: z.string().max(16).optional(),
-      subject: z.enum(["math", "physics", "economics", "business", "chemistry"]).optional(),
+      subject: z.enum(["math", "physics", "economics", "business", "chemistry", "biology"]).optional(),
     }).optional())
     .query(async ({ input }) => {
       const db = await getDb();
@@ -738,10 +772,11 @@ Rules:
       const rows = input?.topicCode
         ? await db.select().from(igcseExamples).where(eq(igcseExamples.topicCode, input.topicCode))
         : await db.select().from(igcseExamples);
-      // Check "Ch" BEFORE "C"/"B" prefixes so Chemistry codes don't get
-      // misclassified.
-      const subjectOf = (code: string): "physics" | "economics" | "business" | "chemistry" | "math" =>
-        code.startsWith("Ch") ? "chemistry"
+      // Prefix order matters — longer prefixes (Bi, Ch) come FIRST so they
+      // don't get misclassified as B (Business) / C.
+      const subjectOf = (code: string): "physics" | "economics" | "business" | "chemistry" | "biology" | "math" =>
+        code.startsWith("Bi") ? "biology"
+      : code.startsWith("Ch") ? "chemistry"
       : code.startsWith("P")  ? "physics"
       : code.startsWith("E")  ? "economics"
       : code.startsWith("B")  ? "business"
@@ -887,16 +922,18 @@ Rules:
 
       const hasOfficialScheme = !!(ex.markScheme && ex.markScheme.trim().length > 0);
       const code = String(ex.topicCode || "");
-      // Order matters: "Ch" must be checked BEFORE "C" / "B" / etc. fallbacks.
+      // Order matters: "Bi"/"Ch" must be checked BEFORE "B"/"C" / etc. fallbacks.
+      const isBiology = code.startsWith("Bi");
       const isChemistry = code.startsWith("Ch");
-      const isPhysics = code.startsWith("P");
+      const isPhysics = !isBiology && code.startsWith("P");
       const isEconomics = code.startsWith("E");
-      const isBusiness = !isChemistry && code.startsWith("B");
+      const isBusiness = !isBiology && !isChemistry && code.startsWith("B");
       const subjectLabel =
         isPhysics   ? "Physics (0625 Extended)"
       : isEconomics ? "Economics (0455)"
       : isBusiness  ? "Business Studies (0450)"
       : isChemistry ? "Chemistry (0620 Extended)"
+      : isBiology   ? "Biology (0610 Extended)"
       :               "Math (0580 Extended)";
       const sysPrompt = [
         `You are a Cambridge IGCSE ${subjectLabel} exam coach.`,
@@ -916,6 +953,10 @@ Rules:
         ...(isChemistry ? [
           "",
           "CHEMISTRY RULES: insist on STATE SYMBOLS in equations — (s), (l), (g), (aq); missing them loses the state-symbols mark. Equations must be BALANCED (atoms AND charges). Numerical answers need UNITS (g, mol, dm³, mol/dm³, kJ/mol, %) — no units = no A mark. Quote answers to 2–3 s.f. For 'test for' questions: state REAGENT + OBSERVATION + IDENTITY. For 'explain the trend' questions: refer to ATOMIC STRUCTURE (shells, shielding, nuclear attraction). For RATE questions: use COLLISION THEORY (frequency × proportion with E ≥ E_a).",
+        ] : []),
+        ...(isBiology ? [
+          "",
+          "BIOLOGY RULES: command words (Define/State → 1-2, Describe → 2-4, Explain → 4-6 with cause→effect, Compare → 4-6 with similarities AND differences, Suggest → apply to a new context, Discuss/Evaluate → 6-8 with both sides + conclusion). Use PRECISE biological terminology — Cambridge marks wording strictly. For DEFINITIONS, hit ALL the key phrases (e.g. osmosis: 'net movement of WATER', 'higher to lower water potential', 'partially permeable membrane' — all three needed). For ADAPTATIONS: always link STRUCTURE → FUNCTION (e.g. 'one-cell-thick wall' → 'short diffusion distance' → 'faster gas exchange'). For natural selection: insist on the 5-step chain (variation → over-production → struggle → favourable alleles passed on → population evolves). Never call enzymes 'killed' — they 'denature'.",
         ] : []),
         "",
         "QUESTION:",
@@ -1037,15 +1078,17 @@ Rules:
       const history = prior.slice(-20);
 
       const hintCode = String(ex.topicCode || "");
+      const isBiologyHint = hintCode.startsWith("Bi");
       const isChemistryHint = hintCode.startsWith("Ch");
-      const isPhysicsHint = hintCode.startsWith("P");
+      const isPhysicsHint = !isBiologyHint && hintCode.startsWith("P");
       const isEconomicsHint = hintCode.startsWith("E");
-      const isBusinessHint = !isChemistryHint && hintCode.startsWith("B");
+      const isBusinessHint = !isBiologyHint && !isChemistryHint && hintCode.startsWith("B");
       const subjectLabelHint =
         isPhysicsHint   ? "Physics (0625 Extended)"
       : isEconomicsHint ? "Economics (0455)"
       : isBusinessHint  ? "Business Studies (0450)"
       : isChemistryHint ? "Chemistry (0620 Extended)"
+      : isBiologyHint   ? "Biology (0610 Extended)"
       :                   "Math (0580 Extended)";
       const sysPrompt = [
         `You are a Cambridge IGCSE ${subjectLabelHint} exam coach. The student has asked for a hint.`,

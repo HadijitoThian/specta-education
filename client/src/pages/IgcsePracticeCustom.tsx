@@ -81,6 +81,20 @@ const TOPIC_HINTS = [
   { code: "Ch11.1", name: "Chemistry · Crude oil + fractional distillation" },
   { code: "Ch11.3", name: "Chemistry · Alkenes" },
   { code: "Ch11.6", name: "Chemistry · Polymers" },
+  // ── Biology 0610
+  { code: "Bi1.1",  name: "Biology · MRS GREN + characteristics of life" },
+  { code: "Bi2.1",  name: "Biology · Cells + organelles" },
+  { code: "Bi3.2",  name: "Biology · Osmosis" },
+  { code: "Bi5.1",  name: "Biology · Enzymes + lock-and-key" },
+  { code: "Bi6.1",  name: "Biology · Photosynthesis" },
+  { code: "Bi7.2",  name: "Biology · Digestion + enzymes" },
+  { code: "Bi9.1",  name: "Biology · Heart + circulation" },
+  { code: "Bi11.2", name: "Biology · Gas exchange in alveoli" },
+  { code: "Bi12.1", name: "Biology · Aerobic + anaerobic respiration" },
+  { code: "Bi14.3", name: "Biology · Hormones + homeostasis" },
+  { code: "Bi17.2", name: "Biology · Monohybrid inheritance + Punnett squares" },
+  { code: "Bi18.1", name: "Biology · Natural selection + evolution" },
+  { code: "Bi19.1", name: "Biology · Food chains + energy flow" },
 ];
 
 export default function IgcsePracticeCustom() {

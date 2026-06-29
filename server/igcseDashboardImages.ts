@@ -135,6 +135,14 @@ export const DASHBOARD_JOBS: Job[] = [
     height: 768,
   },
   {
+    key: "igcse/dashboard/subject-biology.png",
+    prompt:
+      "A beautiful still life on a light oak wooden desk: an open vintage biology field notebook showing neat hand-drawn pencil sketches of a leaf cross-section and a cell with labelled organelles (nucleus, mitochondria, chloroplasts), beside it a brass magnifying glass resting partly over a fresh deep-green fern leaf and a small pressed flower, a clear glass microscope slide with a dark specimen, and a pair of small rounded plant tweezers. Warm soft window light from the side highlights the green of the leaf and the curl of the pages. Calm, curious, natural-science mood." +
+      STILL_LIFE_SUFFIX,
+    width: 768,
+    height: 768,
+  },
+  {
     key: "igcse/dashboard/subject-economics.png",
     prompt:
       "A flat-lay still life on a light oak wooden desk: an open notebook page showing a neatly hand-drawn supply-and-demand graph with two crossing curves labelled S and D and an equilibrium point marked, beside it a small stack of crisp paper currency (neutral generic banknotes, no recognisable country), three vintage brass coins arranged casually, a magnifying glass resting on a printed line graph, and a fountain pen across the corner. Warm soft side lighting, analytical and thoughtful mood." +
