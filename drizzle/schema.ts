@@ -2582,11 +2582,24 @@ export type InsertIgcseSession = typeof igcseSessions.$inferInsert;
 export const igcseSubscriptions = mysqlTable("igcse_subscriptions", {
   id: int("id").autoincrement().primaryKey(),
   leadId: int("leadId").notNull(),
-  plan: mysqlEnum("plan", ["m1"]).notNull(),
+  // Plan codes — m1/m2/m3 = monthly 1/2/3 subjects; a1/a2/a3 = annual variants.
+  plan: mysqlEnum("plan", ["m1", "m2", "m3", "a1", "a2", "a3"]).notNull(),
   status: mysqlEnum("status", ["pending", "active", "expired", "cancelled"]).default("pending").notNull(),
   amount: decimal("amount", { precision: 12, scale: 2 }),
   currency: varchar("currency", { length: 8 }).default("IDR").notNull(),
-  hoursLimit: int("hoursLimit").default(30).notNull(),
+  // How many subjects the student is allowed to access on this plan (1/2/3).
+  subjectsLimit: int("subjectsLimit").default(1).notNull(),
+  // JSON array of the specific subjects this student picked at purchase time,
+  // e.g. ["math","physics"]. Used for access enforcement in Learn + Practice.
+  // Admin can swap once per billing cycle.
+  subjectsSelected: json("subjectsSelected"),
+  // Total hours pool for the billing period (pooled across subjects).
+  hoursLimit: int("hoursLimit").default(6).notNull(),
+  // Top-up hours bought separately during this period (Rp 40k/hr).
+  topUpHours: int("topUpHours").default(0).notNull(),
+  // Parent email — captured at signup, used for the weekly progress report.
+  parentEmail: varchar("parentEmail", { length: 255 }),
+  parentName: varchar("parentName", { length: 120 }),
   xenditInvoiceId: varchar("xenditInvoiceId", { length: 120 }),
   startsAt: timestamp("startsAt"),
   expiresAt: timestamp("expiresAt"),

@@ -66,6 +66,34 @@ function requireLead(leadId: number | null): number {
   return leadId;
 }
 
+/** Topic-code → subject inference. P=physics, E=economics, B=business, C=chemistry,
+ *  otherwise math. Mirrors the same mapping listExamples already uses. */
+function subjectOfTopicCode(code: string): "math" | "physics" | "economics" | "business" | "chemistry" {
+  if (code.startsWith("P")) return "physics";
+  if (code.startsWith("E")) return "economics";
+  if (code.startsWith("B")) return "business";
+  if (code.startsWith("C")) return "chemistry";
+  return "math";
+}
+
+/** Throw if the student's active subscription doesn't cover the given subject.
+ *  Free-trial students (no subscription yet) get a free pass — they can sample
+ *  any subject; the 30-min lifetime cap is the gate for them. */
+async function requireSubjectAccess(leadId: number, subject: string): Promise<void> {
+  const sub = await getActiveIgcseSubscription(leadId);
+  if (!sub) return; // free trial — no subject gating
+  const selected: string[] = Array.isArray(sub.subjectsSelected) ? (sub.subjectsSelected as string[]) : [];
+  // Older subscriptions (m1 before the bundle migration) had no subjectsSelected
+  // → grant access to everything to avoid locking out grandfathered customers.
+  if (selected.length === 0) return;
+  if (!selected.includes(subject)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: `Your plan doesn't include ${subject}. Upgrade your subscription or swap subjects from settings.`,
+    });
+  }
+}
+
 export const igcseRouter = router({
   /** Voices the student can choose for the tutor. */
   listVoices: publicProcedure.query(async () => {
@@ -93,7 +121,16 @@ export const igcseRouter = router({
     const freeRemainingSec = Math.max(0, FREE_TRIAL_SECONDS - usedSec);
     return {
       loggedIn: true as const,
-      subscription: sub ? { plan: sub.plan, expiresAt: sub.expiresAt, hoursLimit: sub.hoursLimit } : null,
+      subscription: sub ? {
+        plan: sub.plan,
+        expiresAt: sub.expiresAt,
+        hoursLimit: (sub.hoursLimit || 0) + (sub.topUpHours || 0),
+        baseHoursLimit: sub.hoursLimit,
+        topUpHours: sub.topUpHours || 0,
+        subjectsLimit: sub.subjectsLimit || 1,
+        subjectsSelected: Array.isArray(sub.subjectsSelected) ? (sub.subjectsSelected as string[]) : [],
+        parentEmail: sub.parentEmail || null,
+      } : null,
       freeTrial: {
         totalSec: FREE_TRIAL_SECONDS,
         usedSec,
@@ -103,9 +140,17 @@ export const igcseRouter = router({
     };
   }),
 
-  /** Create a Xendit invoice for the IGCSE subscription plan; returns the hosted invoice URL. */
+  /** Create a Xendit invoice for the IGCSE subscription plan; returns the hosted invoice URL.
+   *  Captures the subjects the student wants access to + their parent's email so we can send
+   *  the weekly progress report. The webhook activates the row when payment lands. */
   createCheckout: publicProcedure
-    .input(z.object({ plan: z.enum(["m1"]).default("m1") }))
+    .input(z.object({
+      plan: z.enum(["m1", "m2", "m3", "a1", "a2", "a3"]),
+      subjects: z.array(z.enum(["math", "physics", "chemistry", "economics", "business"]))
+        .min(1).max(3),
+      parentEmail: z.string().email(),
+      parentName: z.string().min(1).max(120).optional(),
+    }))
     .mutation(async ({ input, ctx }) => {
       const leadId = requireLead(await resolveLead(ctx));
       if (!ENV.xenditSecretKey) {
@@ -114,6 +159,18 @@ export const igcseRouter = router({
       const lead = await getLeadById(leadId);
       if (!lead) throw new TRPCError({ code: "NOT_FOUND", message: "Account not found." });
       const plan = IGCSE_PLANS[input.plan];
+
+      // Validate: number of subjects must match the plan's subjectsLimit exactly.
+      // (Less is fine — they can swap one later from admin — but more is not allowed.)
+      if (input.subjects.length > plan.subjectsLimit) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `This plan covers up to ${plan.subjectsLimit} subject(s); you selected ${input.subjects.length}.`,
+        });
+      }
+      // Dedup subjects defensively.
+      const subjectsSelected = Array.from(new Set(input.subjects));
+
       const externalId = igcseExternalId();
       await createIgcseSubscription({
         leadId,
@@ -122,6 +179,10 @@ export const igcseRouter = router({
         amount: String(plan.amount) as any,
         currency: "IDR",
         hoursLimit: plan.hoursLimit,
+        subjectsLimit: plan.subjectsLimit,
+        subjectsSelected: subjectsSelected as any,
+        parentEmail: input.parentEmail,
+        parentName: input.parentName || null,
         xenditInvoiceId: externalId,
       });
       // Never redirect a paying customer to localhost if APP_URL is unset.
@@ -153,6 +214,18 @@ export const igcseRouter = router({
       const leadId = requireLead(await resolveLead(ctx));
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      // Enforce subject access: a 2-subject student can't start a lesson on a
+      // topic outside their picked pair. Resolve the topic's subject from its
+      // code prefix and check against subjectsSelected.
+      if (input.topicId) {
+        const [t] = await db.select({ code: igcseTopics.code, subject: igcseTopics.subject })
+          .from(igcseTopics).where(eq(igcseTopics.id, input.topicId)).limit(1);
+        if (t?.code) {
+          const subj = (t.subject as string) || subjectOfTopicCode(t.code);
+          await requireSubjectAccess(leadId, subj);
+        }
+      }
       const r = await db.insert(igcseSessions).values({
         leadId,
         topicId: input.topicId ?? null,
@@ -722,6 +795,9 @@ Rules:
       const [ex] = await db.select().from(igcseExamples).where(eq(igcseExamples.id, input.exampleId));
       if (!ex) throw new TRPCError({ code: "NOT_FOUND", message: "Question not found" });
 
+      // Subject access gate (does the student's plan cover this question's subject?)
+      await requireSubjectAccess(leadId, subjectOfTopicCode(ex.topicCode));
+
       const result: any = await db.insert(igcseAttempts).values({
         leadId,
         exampleId: ex.id,
@@ -1082,6 +1158,10 @@ Rules:
         if (used >= FREE_TRIAL_SECONDS) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Your 30-minute free trial is done — subscribe to keep practising." });
         }
+      }
+      // If they gave a topic code, enforce the subject covers it.
+      if (input.topicCode) {
+        await requireSubjectAccess(leadId, subjectOfTopicCode(input.topicCode));
       }
 
       // Create a private example row tagged to this student.

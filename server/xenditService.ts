@@ -145,10 +145,27 @@ export async function createTutorInvoice(params: {
 }
 
 // ── IGCSE AI Teacher subscription ─────────────────────────────────────────────
+//
+// Tier ladder (mirrors how Indonesian tuition is sold — 1 hr ≈ 1 session):
+//   m1 = 1 subject  · 6 hrs   · Rp 399,000 / month
+//   m2 = 2 subjects · 12 hrs  · Rp 699,000 / month
+//   m3 = 3 subjects · 18 hrs  · Rp 849,000 / month
+// Annual variants get "2 bulan gratis" (pay 10 × monthly):
+//   a1 / a2 / a3
+// All tiers include best-available voice (ElevenLabs → OpenAI fallback) AND
+// the weekly parent progress email. Hours are POOLED across the selected subjects.
 export const IGCSE_PLANS = {
-  m1: { amount: 299000, days: 30, hoursLimit: 30, label: "IGCSE Math AI Teacher — 1 Month (30 hours)" },
+  m1: { amount:   399_000, days:  30, hoursLimit:  6, subjectsLimit: 1, label: "SpecTa Tutor IGCSE — 1 Subject · 6 hours / month" },
+  m2: { amount:   699_000, days:  30, hoursLimit: 12, subjectsLimit: 2, label: "SpecTa Tutor IGCSE — 2 Subjects · 12 hours / month" },
+  m3: { amount:   849_000, days:  30, hoursLimit: 18, subjectsLimit: 3, label: "SpecTa Tutor IGCSE — 3 Subjects · 18 hours / month" },
+  a1: { amount: 3_990_000, days: 365, hoursLimit:  6, subjectsLimit: 1, label: "SpecTa Tutor IGCSE — 1 Subject · Annual (12 months for the price of 10)" },
+  a2: { amount: 6_990_000, days: 365, hoursLimit: 12, subjectsLimit: 2, label: "SpecTa Tutor IGCSE — 2 Subjects · Annual (12 months for the price of 10)" },
+  a3: { amount: 8_490_000, days: 365, hoursLimit: 18, subjectsLimit: 3, label: "SpecTa Tutor IGCSE — 3 Subjects · Annual (12 months for the price of 10)" },
 } as const;
 export type IgcsePlan = keyof typeof IGCSE_PLANS;
+
+// Per-hour top-up. Charged on top of any active subscription.
+export const IGCSE_TOPUP_PRICE = 40_000; // Rp / hour
 
 export function igcseExternalId(): string {
   return `IGCSE-${Date.now().toString(36)}-${crypto.randomBytes(4).toString("hex")}`;

@@ -314,32 +314,8 @@ function Dashboard({ status }: { status: any }) {
         <div id="topics" />
         <TopicPicker disabled={!status.hasAccess} disabledReason={!status.hasAccess ? "Your free trial is done. Subscribe below to keep learning." : undefined} />
 
-        {/* ── Subscribe card — hidden once active ────────────────────────── */}
-        {!sub && (
-          <div className="rounded-2xl p-6 text-white relative overflow-hidden" style={{ background: `linear-gradient(120deg, ${PURPLE}, ${PINK})` }}>
-            <div className="relative z-10">
-              <div className="font-bold text-lg">Unlock unlimited learning</div>
-              <p className="text-white/85 text-sm mt-0.5">
-                Free trial gives you a taste. The full plan unlocks all 5 IGCSE subjects, 30 hours of tutoring per month.
-              </p>
-              <div className="mt-4 rounded-xl bg-white/15 p-4 flex items-center justify-between gap-3 backdrop-blur-sm">
-                <div>
-                  <div className="text-xs uppercase tracking-wider text-white/80">1 Month plan</div>
-                  <div className="font-extrabold text-2xl">Rp 299.000</div>
-                  <div className="text-xs text-white/80">30 hours of tutoring · cancel anytime</div>
-                </div>
-                <button
-                  onClick={() => checkout.mutate({ plan: "m1" })}
-                  disabled={checkout.isPending}
-                  className="bg-white text-violet-700 font-bold px-5 py-2.5 rounded-xl shadow disabled:opacity-60"
-                >
-                  {checkout.isPending ? "Opening…" : "Subscribe →"}
-                </button>
-              </div>
-              <p className="text-[11px] text-white/70 mt-3">Secure payment via Xendit (cards, e-wallets, bank transfer).</p>
-            </div>
-          </div>
-        )}
+        {/* ── Subscribe — 3-tier picker (hidden once active) ─────────────── */}
+        {!sub && <SubscribeCard checkout={checkout} />}
 
         {/* ── Recent lessons ─────────────────────────────────────────────── */}
         <RecentLessons />
@@ -366,6 +342,180 @@ function Dashboard({ status }: { status: any }) {
           </div>
         </section>
       </main>
+    </div>
+  );
+}
+
+// ── Subscribe card — 3-tier picker + Monthly/Annual toggle + subjects + parent email ──
+// Carries all the state for the checkout flow. Calls igcse.createCheckout when
+// the student clicks the tier's button; backend redirects to the Xendit hosted invoice.
+
+const PLAN_DEFS = {
+  m1: { tier: 1, subjects: 1, hours:  6, monthly: 399_000 },
+  m2: { tier: 2, subjects: 2, hours: 12, monthly: 699_000 },
+  m3: { tier: 3, subjects: 3, hours: 18, monthly: 849_000 },
+  a1: { tier: 1, subjects: 1, hours:  6, monthly: 399_000, annual: 3_990_000 },
+  a2: { tier: 2, subjects: 2, hours: 12, monthly: 699_000, annual: 6_990_000 },
+  a3: { tier: 3, subjects: 3, hours: 18, monthly: 849_000, annual: 8_490_000 },
+} as const;
+
+type SubjectKey = "math" | "physics" | "chemistry" | "economics" | "business";
+const SUBJECT_OPTIONS: { key: SubjectKey; emoji: string; name: string; syllabus: string }[] = [
+  { key: "math",      emoji: "📐", name: "Mathematics",      syllabus: "0580" },
+  { key: "physics",   emoji: "⚛️", name: "Physics",          syllabus: "0625" },
+  { key: "chemistry", emoji: "🧪", name: "Chemistry",        syllabus: "0620" },
+  { key: "economics", emoji: "💹", name: "Economics",        syllabus: "0455" },
+  { key: "business",  emoji: "💼", name: "Business Studies", syllabus: "0450" },
+];
+const fmtIDR = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
+
+function SubscribeCard({ checkout }: { checkout: any }) {
+  const [tier, setTier] = useState<1 | 2 | 3>(2); // default highlight the popular middle
+  const [period, setPeriod] = useState<"monthly" | "annual">("monthly");
+  const [subjects, setSubjects] = useState<SubjectKey[]>(["math"]);
+  const [parentEmail, setParentEmail] = useState("");
+  const [parentName, setParentName] = useState("");
+
+  // Resolve the plan code from tier + period.
+  const planCode = (period === "annual" ? `a${tier}` : `m${tier}`) as "m1"|"m2"|"m3"|"a1"|"a2"|"a3";
+  const plan = PLAN_DEFS[planCode];
+
+  // Cap the subjects array to the tier's subjectsLimit so the UI can't get
+  // out of sync (e.g. user picks 3 subjects then drops to Tier 1).
+  useEffect(() => {
+    setSubjects(prev => prev.slice(0, tier));
+  }, [tier]);
+
+  const toggleSubject = (k: SubjectKey) => {
+    setSubjects(prev => {
+      if (prev.includes(k)) return prev.filter(s => s !== k);
+      if (prev.length >= tier) return [...prev.slice(1), k]; // FIFO — kick the oldest selection
+      return [...prev, k];
+    });
+  };
+
+  const total = period === "annual" ? (PLAN_DEFS[`a${tier}` as const].annual!) : plan.monthly;
+  const annualSaving = PLAN_DEFS[`a${tier}` as const];
+  const savings = period === "annual" && annualSaving.annual ? (annualSaving.monthly * 12 - annualSaving.annual) : 0;
+
+  const isValidEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(parentEmail.trim());
+  const canSubscribe = subjects.length === tier && isValidEmail && !checkout.isPending;
+
+  return (
+    <div className="rounded-3xl p-6 md:p-8 text-white relative overflow-hidden shadow-xl" style={{ background: `linear-gradient(120deg, ${PURPLE}, ${PINK})` }}>
+      <div className="relative z-10">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-white/80 font-bold">Choose your plan</div>
+            <div className="font-extrabold text-xl md:text-2xl">Bayar 1 bimbel, dapat hingga 3 mata pelajaran</div>
+          </div>
+          {/* Monthly / Annual toggle */}
+          <div className="inline-flex rounded-full bg-white/15 backdrop-blur-sm p-1 text-xs">
+            <button type="button" onClick={() => setPeriod("monthly")}
+              className={`px-3 py-1.5 rounded-full font-semibold ${period === "monthly" ? "bg-white text-violet-700" : "text-white/90"}`}>Monthly</button>
+            <button type="button" onClick={() => setPeriod("annual")}
+              className={`px-3 py-1.5 rounded-full font-semibold ${period === "annual" ? "bg-white text-violet-700" : "text-white/90"}`}>
+              Annual <span className="ml-1 text-[10px] bg-amber-300 text-amber-900 px-1.5 py-0.5 rounded-full">2 bulan gratis</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Tier cards */}
+        <div className="grid sm:grid-cols-3 gap-3 mt-4">
+          {([1, 2, 3] as const).map(t => {
+            const p = PLAN_DEFS[`m${t}` as const];
+            const aprice = PLAN_DEFS[`a${t}` as const].annual!;
+            const display = period === "annual" ? aprice : p.monthly;
+            const isSelected = tier === t;
+            return (
+              <button type="button" key={t} onClick={() => setTier(t)}
+                className={`text-left rounded-2xl p-4 transition border-2 ${isSelected ? "bg-white text-slate-900 border-white shadow-lg" : "bg-white/10 text-white border-white/20 hover:bg-white/15"}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isSelected ? "text-violet-700" : "text-white/80"}`}>{t} {t === 1 ? "subject" : "subjects"}</span>
+                  {t === 2 && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${isSelected ? "bg-amber-100 text-amber-800" : "bg-amber-300 text-amber-900"}`}>POPULAR</span>}
+                </div>
+                <div className="font-extrabold text-2xl">{fmtIDR(display)}</div>
+                <div className={`text-xs ${isSelected ? "text-slate-500" : "text-white/70"}`}>
+                  {p.hours} hours/month · pooled
+                  {period === "annual" && <><br />= 12 months for the price of 10</>}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Subject picker */}
+        <div className="mt-5">
+          <div className="text-sm font-semibold mb-2">
+            Pick {tier} {tier === 1 ? "subject" : "subjects"} ({subjects.length} of {tier} selected)
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            {SUBJECT_OPTIONS.map(s => {
+              const isSelected = subjects.includes(s.key);
+              return (
+                <button type="button" key={s.key} onClick={() => toggleSubject(s.key)}
+                  className={`rounded-xl p-3 text-left transition border-2 ${isSelected ? "bg-white text-slate-900 border-white shadow" : "bg-white/10 text-white border-white/20 hover:bg-white/15"}`}>
+                  <div className="text-xl">{s.emoji}</div>
+                  <div className="text-xs font-semibold mt-1">{s.name}</div>
+                  <div className={`text-[10px] font-mono ${isSelected ? "text-violet-600" : "text-white/70"}`}>CIE {s.syllabus}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Parent email */}
+        <div className="mt-5">
+          <div className="text-sm font-semibold mb-2">Parent details — for the weekly progress report</div>
+          <div className="grid sm:grid-cols-2 gap-2">
+            <input
+              type="email"
+              placeholder="parent@email.com"
+              value={parentEmail}
+              onChange={e => setParentEmail(e.target.value)}
+              className="bg-white/95 text-slate-900 placeholder:text-slate-400 px-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+            />
+            <input
+              type="text"
+              placeholder="Parent name (optional)"
+              value={parentName}
+              onChange={e => setParentName(e.target.value)}
+              className="bg-white/95 text-slate-900 placeholder:text-slate-400 px-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+            />
+          </div>
+          <p className="text-[11px] text-white/75 mt-1.5">
+            We send a weekly progress report every Sunday (hours used + topics covered + what to focus on next).
+          </p>
+        </div>
+
+        {/* Total + CTA */}
+        <div className="mt-6 rounded-2xl bg-white/15 p-4 backdrop-blur-sm flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-white/80">{period === "annual" ? "Annual total" : "Monthly total"}</div>
+            <div className="font-extrabold text-3xl">{fmtIDR(total)}</div>
+            {savings > 0 && <div className="text-xs text-amber-200 font-semibold">Save {fmtIDR(savings)} vs monthly</div>}
+          </div>
+          <button
+            onClick={() => checkout.mutate({
+              plan: planCode,
+              subjects,
+              parentEmail: parentEmail.trim(),
+              parentName: parentName.trim() || undefined,
+            })}
+            disabled={!canSubscribe}
+            className="bg-white text-violet-700 font-bold px-6 py-3 rounded-xl shadow disabled:opacity-50"
+          >
+            {checkout.isPending ? "Opening Xendit…" : "Subscribe →"}
+          </button>
+        </div>
+        {!isValidEmail && parentEmail.length > 0 && (
+          <p className="text-xs text-amber-200 mt-2">Please enter a valid parent email.</p>
+        )}
+        {subjects.length !== tier && (
+          <p className="text-xs text-amber-200 mt-2">Pick exactly {tier} {tier === 1 ? "subject" : "subjects"} to continue.</p>
+        )}
+        <p className="text-[11px] text-white/70 mt-3">Secure payment via Xendit (cards, e-wallets, bank transfer). Cancel anytime.</p>
+      </div>
     </div>
   );
 }

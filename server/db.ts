@@ -490,11 +490,16 @@ export async function ensureMarketingSchema(): Promise<void> {
       CREATE TABLE IF NOT EXISTS igcse_subscriptions (
         id INT AUTO_INCREMENT PRIMARY KEY,
         leadId INT NOT NULL,
-        plan ENUM('m1') NOT NULL,
+        plan ENUM('m1','m2','m3','a1','a2','a3') NOT NULL,
         status ENUM('pending','active','expired','cancelled') NOT NULL DEFAULT 'pending',
         amount DECIMAL(12,2) NULL,
         currency VARCHAR(8) NOT NULL DEFAULT 'IDR',
-        hoursLimit INT NOT NULL DEFAULT 30,
+        subjectsLimit INT NOT NULL DEFAULT 1,
+        subjectsSelected JSON NULL,
+        hoursLimit INT NOT NULL DEFAULT 6,
+        topUpHours INT NOT NULL DEFAULT 0,
+        parentEmail VARCHAR(255) NULL,
+        parentName VARCHAR(120) NULL,
         xenditInvoiceId VARCHAR(120) NULL,
         startsAt TIMESTAMP NULL,
         expiresAt TIMESTAMP NULL,
@@ -503,6 +508,22 @@ export async function ensureMarketingSchema(): Promise<void> {
         INDEX idx_lead (leadId)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `));
+    // Idempotent prod migration: widen the plan enum + add the new columns
+    // for already-deployed databases. Each ALTER is wrapped in its own try
+    // so the function survives "duplicate column" errors on re-runs.
+    const igcseSubAlters = [
+      `ALTER TABLE igcse_subscriptions MODIFY COLUMN plan ENUM('m1','m2','m3','a1','a2','a3') NOT NULL`,
+      `ALTER TABLE igcse_subscriptions ADD COLUMN subjectsLimit INT NOT NULL DEFAULT 1`,
+      `ALTER TABLE igcse_subscriptions ADD COLUMN subjectsSelected JSON NULL`,
+      `ALTER TABLE igcse_subscriptions ADD COLUMN topUpHours INT NOT NULL DEFAULT 0`,
+      `ALTER TABLE igcse_subscriptions ADD COLUMN parentEmail VARCHAR(255) NULL`,
+      `ALTER TABLE igcse_subscriptions ADD COLUMN parentName VARCHAR(120) NULL`,
+      `ALTER TABLE igcse_subscriptions MODIFY COLUMN hoursLimit INT NOT NULL DEFAULT 6`,
+    ];
+    for (const stmt of igcseSubAlters) {
+      try { await db.execute(sql.raw(stmt)); }
+      catch (e) { /* duplicate column / enum already wide — harmless */ }
+    }
 
     await db.execute(sql.raw(`
       CREATE TABLE IF NOT EXISTS igcse_attempts (
