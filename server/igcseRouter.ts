@@ -553,7 +553,19 @@ Each board command is one of:
   { "type": "step",  "n": <integer step number>, "text": "<one-line description of what we're doing this step>" }
   { "type": "equation", "latex": "<a single equation in valid LaTeX, e.g. x^{2} + 5x + 6 = 0>" }
   { "type": "number_line", "from": <number>, "to": <number>, "marks": [ { "x": <number>, "label": "<short>" }, … ] }
-  { "type": "triangle", "sides": { "a": <number>, "b": <number>, "c": <number> }, "labels": { "a": "<e.g. 3 cm>", "b": "<>", "c": "<>", "A": "<angle at vertex A, e.g. 90°>", "B": "<>", "C": "<>" } }
+  { "type": "triangle",
+      "AB": <length of side from A to B>,
+      "BC": <length of side from B to C>,
+      "AC": <length of side from A to C (the hypotenuse if right-angled at B)>,
+      "labelAB": "<text drawn next to side AB, e.g. 'AB = 4 cm'>",
+      "labelBC": "<text drawn next to side BC, e.g. 'BC = 5 cm'>",
+      "labelAC": "<text drawn next to side AC, e.g. 'AC = √41 cm'>",
+      "angleA": "<text at vertex A, e.g. '30°'>",
+      "angleB": "<text at vertex B, e.g. '90°' for a right angle at B>",
+      "angleC": "<text at vertex C, e.g. '60°'>"
+  }
+  // CRITICAL: AB/BC/AC are NUMBERS (lengths). labelAB/labelBC/labelAC are STRINGS placed next to that exact side. Vertex A is bottom-left, B is bottom-right, C is at the top — same convention always. NEVER mix up names: 'AB' refers ONLY to the side between vertices A and B. Don't put "BC = 5 cm" as labelAB. Worked example, right triangle at B with AB=4, BC=3, AC=5:
+  //   { "type": "triangle", "AB": 4, "BC": 3, "AC": 5, "labelAB": "AB = 4 cm", "labelBC": "BC = 3 cm", "labelAC": "AC = 5 cm", "angleB": "90°" }
   { "type": "axes",
       "xRange": [<min>, <max>], "yRange": [<min>, <max>],
       "title": "<optional short>",
@@ -569,6 +581,13 @@ When to USE diagrams (don't force them, but reach for them when they teach):
 - triangle for trig / Pythagoras / geometry. Side labels include units; angles are degrees.
 - axes for coordinate geometry, plotting linear/quadratic functions, transformations, and "sketch the curve" questions.
 - For function plots, prefer "functions" (we plot exactly); use "lines" for arbitrary segments and "points" to mark intercepts or solutions.
+
+🔴 DIAGRAM FIDELITY (NON-NEGOTIABLE — this is the #1 source of student confusion):
+- The numbers, labels, and names you put IN a diagram MUST match the numbers, labels, and names you use in your written reasoning. If you say "AB = 4 cm" in your spoken or written reasoning, the diagram MUST show "4 cm" on the side from A to B — NOT on a different side.
+- For triangles, ALWAYS use the new endpoint-named schema: AB, BC, AC for side lengths; labelAB, labelBC, labelAC for the text drawn next to each named side. The convention is: vertex A is bottom-left, vertex B is bottom-right, vertex C at the top. NEVER use the legacy a/b/c slot schema — it's ambiguous and easy to mismatch.
+- Before sending a board command, ASK YOURSELF: "if a student looked at this diagram alone (no text), would each label be sitting on the correct side?" If you're unsure, omit the label rather than guess.
+- For coordinate-axes points: the (x, y) coords you give in the JSON ARE the position; the optional "label" is the small text that appears next to it. Don't write "(3, 4)" in your text but then put { x: 4, y: 3 } in the JSON. Coordinate ORDER is (x, y) — horizontal then vertical.
+- For number lines: each mark's "x" value is its position on the line. Don't say "the solution is x = 5" then place a mark at x = -5.
 
 LaTeX rules (IMPORTANT — equations render with KaTeX):
 - Always use proper LaTeX. NEVER write plain "x^2" — write "x^{2}".

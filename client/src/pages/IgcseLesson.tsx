@@ -72,7 +72,9 @@ function BoardItem({ item }: { item: any }) {
     case "number_line":
       return <NumberLine from={Number(item.from)} to={Number(item.to)} marks={item.marks || []} />;
     case "triangle":
-      return <Triangle sides={item.sides || {}} labels={item.labels || {}} />;
+      // Pass the WHOLE item so the Triangle component can pick up v2 endpoint-named
+      // props (AB, BC, AC, labelAB, ...) AND the legacy sides/labels schema.
+      return <Triangle {...item} sides={item.sides || {}} labels={item.labels || {}} />;
     case "axes":
       return <Axes
         xRange={item.xRange || [-5, 5]} yRange={item.yRange || [-5, 5]}
@@ -118,8 +120,67 @@ function NumberLine({ from, to, marks }: { from: number; to: number; marks: any[
   );
 }
 
-function Triangle({ sides, labels }: { sides: any; labels: any }) {
-  const a = Number(sides?.a), b = Number(sides?.b), c = Number(sides?.c);
+/** Triangle component — supports TWO board-command schemas:
+ *
+ *   v1 (legacy, still works for old transcripts):
+ *     { sides: { a, b, c }, labels: { a, b, c, A, B, C } }
+ *     where a = side BC (opposite A), b = side AC (opposite B), c = side AB (opposite C).
+ *
+ *   v2 (new, AI-friendly — endpoint names, no abstract slots):
+ *     { AB: 4, BC: 5, AC: 6.4,
+ *       labelAB: "AB = 4 cm", labelBC: "BC = 5 cm", labelAC: "AC = 6.4 cm",
+ *       angleA: "30°", angleB: "90°", angleC: "60°" }
+ *
+ * v2 takes precedence if any v2 keys are present — the AI keeps confusing the
+ * abstract a/b/c slots in v1 (e.g. putting "BC = 5" in the slot that draws on
+ * side AC), so v2 names sides by their endpoints to make confusion impossible.
+ */
+function Triangle({ sides, labels, ...rest }: any) {
+  // v2: endpoint-named sides take precedence if any are present.
+  const AB_v2 = rest?.AB, BC_v2 = rest?.BC, AC_v2 = rest?.AC;
+  const hasV2 = [AB_v2, BC_v2, AC_v2].some(v => v != null);
+
+  // Internal: a = BC (opposite A), b = AC (opposite B), c = AB (opposite C).
+  let a: number, b: number, c: number;
+  let labelOnBC: string | undefined, labelOnAC: string | undefined, labelOnAB: string | undefined;
+  let angleA: string | undefined, angleB: string | undefined, angleC: string | undefined;
+
+  if (hasV2) {
+    c = Number(AB_v2);              // side AB
+    a = Number(BC_v2);              // side BC
+    b = Number(AC_v2);              // side AC
+    labelOnAB = rest?.labelAB ? String(rest.labelAB) : (Number.isFinite(c) ? `${c}` : undefined);
+    labelOnBC = rest?.labelBC ? String(rest.labelBC) : (Number.isFinite(a) ? `${a}` : undefined);
+    labelOnAC = rest?.labelAC ? String(rest.labelAC) : (Number.isFinite(b) ? `${b}` : undefined);
+    angleA = rest?.angleA ? String(rest.angleA) : undefined;
+    angleB = rest?.angleB ? String(rest.angleB) : undefined;
+    angleC = rest?.angleC ? String(rest.angleC) : undefined;
+
+    // If AC isn't given but it's a right triangle at B, compute it (Pythagoras).
+    // Same for the other two — only if exactly one side is missing.
+    const known = [c, a, b].filter(v => Number.isFinite(v));
+    if (known.length === 2) {
+      // Assume right triangle at B (most common in IGCSE — bottom-right corner).
+      if (!Number.isFinite(b) && Number.isFinite(a) && Number.isFinite(c)) {
+        b = Math.sqrt(a * a + c * c);     // AC = √(AB² + BC²)
+      } else if (!Number.isFinite(a) && Number.isFinite(b) && Number.isFinite(c)) {
+        a = Math.sqrt(Math.max(0, b * b - c * c)); // BC = √(AC² − AB²)
+      } else if (!Number.isFinite(c) && Number.isFinite(a) && Number.isFinite(b)) {
+        c = Math.sqrt(Math.max(0, b * b - a * a));
+      }
+    }
+  } else {
+    a = Number(sides?.a);
+    b = Number(sides?.b);
+    c = Number(sides?.c);
+    labelOnBC = labels?.a ? String(labels.a) : undefined;
+    labelOnAC = labels?.b ? String(labels.b) : undefined;
+    labelOnAB = labels?.c ? String(labels.c) : undefined;
+    angleA = labels?.A ? String(labels.A) : undefined;
+    angleB = labels?.B ? String(labels.B) : undefined;
+    angleC = labels?.C ? String(labels.C) : undefined;
+  }
+
   if (!isFinite(a) || !isFinite(b) || !isFinite(c) || a <= 0 || b <= 0 || c <= 0) return null;
   if (a + b <= c || a + c <= b || b + c <= a) return null; // triangle inequality
   // Place A=(0,0), B=(c,0), C from law of cosines: cos A = (b²+c²-a²)/(2bc)
@@ -149,14 +210,15 @@ function Triangle({ sides, labels }: { sides: any; labels: any }) {
         <text x={A_p.x - 12} y={A_p.y + 16} fontSize="13" fontWeight="700" fill="#5b21b6">A</text>
         <text x={B_p.x + 6} y={B_p.y + 16} fontSize="13" fontWeight="700" fill="#5b21b6">B</text>
         <text x={C_p.x - 6} y={C_p.y - 8} fontSize="13" fontWeight="700" fill="#5b21b6">C</text>
-        {/* side labels — a opp A (side BC), b opp B (side AC), c opp C (side AB) */}
-        {labels?.a ? (() => { const m = mid(B_p, C_p); return <text x={m.x + 10} y={m.y} fontSize="12" fill="#334155">{String(labels.a)}</text>; })() : null}
-        {labels?.b ? (() => { const m = mid(A_p, C_p); return <text x={m.x - 26} y={m.y} fontSize="12" fill="#334155">{String(labels.b)}</text>; })() : null}
-        {labels?.c ? (() => { const m = mid(A_p, B_p); return <text x={m.x} y={m.y + 18} fontSize="12" fill="#334155">{String(labels.c)}</text>; })() : null}
+        {/* side labels — placed visibly at the midpoint of each side.
+            Names normalised above so labelOnBC always goes on side BC, etc. */}
+        {labelOnBC ? (() => { const m = mid(B_p, C_p); return <text x={m.x + 10} y={m.y} fontSize="12" fill="#334155">{labelOnBC}</text>; })() : null}
+        {labelOnAC ? (() => { const m = mid(A_p, C_p); return <text x={m.x - 26} y={m.y} fontSize="12" fill="#334155">{labelOnAC}</text>; })() : null}
+        {labelOnAB ? (() => { const m = mid(A_p, B_p); return <text x={m.x} y={m.y + 18} fontSize="12" fill="#334155">{labelOnAB}</text>; })() : null}
         {/* angle labels at vertices */}
-        {labels?.A ? <text x={A_p.x + 12} y={A_p.y - 8} fontSize="11" fill="#0f172a">{String(labels.A)}</text> : null}
-        {labels?.B ? <text x={B_p.x - 28} y={B_p.y - 8} fontSize="11" fill="#0f172a">{String(labels.B)}</text> : null}
-        {labels?.C ? <text x={C_p.x - 4} y={C_p.y + 14} fontSize="11" fill="#0f172a">{String(labels.C)}</text> : null}
+        {angleA ? <text x={A_p.x + 12} y={A_p.y - 8} fontSize="11" fill="#0f172a">{angleA}</text> : null}
+        {angleB ? <text x={B_p.x - 28} y={B_p.y - 8} fontSize="11" fill="#0f172a">{angleB}</text> : null}
+        {angleC ? <text x={C_p.x - 4} y={C_p.y + 14} fontSize="11" fill="#0f172a">{angleC}</text> : null}
       </svg>
     </div>
   );
