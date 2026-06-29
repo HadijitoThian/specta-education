@@ -1420,4 +1420,72 @@ Rules:
     const { getDashboardImagesVersion } = await import("./igcseDashboardImages");
     return { version: getDashboardImagesVersion() };
   }),
+
+  /**
+   * Admin force-reseed: runs every IGCSE topic+exemplar seeder and reports
+   * the result per subject. Use this when a deploy didn't pick up new seeds
+   * (e.g. enum widening failed silently). Idempotent — each seeder checks
+   * for existing rows before inserting.
+   *
+   * Also returns the current row counts per subject so we can see at a glance
+   * what's actually in the DB right now.
+   */
+  adminReseedAllSubjects: adminProcedure.mutation(async () => {
+    type Result = { subject: string; topicsSeeded: number; examplesSeeded: number; error?: string };
+    const out: Result[] = [];
+    const db = await getDb();
+
+    const subjects: Array<{ name: string; topicSeed: () => Promise<{ seeded: number }>; exampleSeed: () => Promise<{ seeded: number }>; subjectKey: string }> = [
+      { name: "Math",       subjectKey: "math",      topicSeed: async () => (await import("./igcseTopicSeed")).seedIgcseTopicsIfEmpty(),                     exampleSeed: async () => (await import("./igcseExamplesSeed")).seedIgcseExamplesIfEmpty() },
+      { name: "Physics",    subjectKey: "physics",   topicSeed: async () => (await import("./igcsePhysicsTopicSeed")).seedIgcsePhysicsTopicsIfEmpty(),       exampleSeed: async () => (await import("./igcsePhysicsExamplesSeed")).seedIgcsePhysicsExamplesIfEmpty() },
+      { name: "Chemistry",  subjectKey: "chemistry", topicSeed: async () => (await import("./igcseChemistryTopicSeed")).seedIgcseChemistryTopicsIfEmpty(),   exampleSeed: async () => (await import("./igcseChemistryExamplesSeed")).seedIgcseChemistryExamplesIfEmpty() },
+      { name: "Biology",    subjectKey: "biology",   topicSeed: async () => (await import("./igcseBiologyTopicSeed")).seedIgcseBiologyTopicsIfEmpty(),       exampleSeed: async () => (await import("./igcseBiologyExamplesSeed")).seedIgcseBiologyExamplesIfEmpty() },
+      { name: "Economics",  subjectKey: "economics", topicSeed: async () => (await import("./igcseEconomicsTopicSeed")).seedIgcseEconomicsTopicsIfEmpty(),   exampleSeed: async () => (await import("./igcseEconomicsExamplesSeed")).seedIgcseEconomicsExamplesIfEmpty() },
+      { name: "Business",   subjectKey: "business",  topicSeed: async () => (await import("./igcseBusinessTopicSeed")).seedIgcseBusinessTopicsIfEmpty(),     exampleSeed: async () => (await import("./igcseBusinessExamplesSeed")).seedIgcseBusinessExamplesIfEmpty() },
+    ];
+
+    for (const s of subjects) {
+      try {
+        const t = await s.topicSeed();
+        const e = await s.exampleSeed();
+        out.push({ subject: s.name, topicsSeeded: t.seeded, examplesSeeded: e.seeded });
+      } catch (err) {
+        out.push({ subject: s.name, topicsSeeded: 0, examplesSeeded: 0, error: (err as Error)?.message || String(err) });
+      }
+    }
+
+    // Snapshot current row counts so admin can see what's actually in the DB.
+    let counts: Record<string, { topics: number; examples: number }> = {};
+    if (db) {
+      try {
+        const t: any = await db.execute(sql`SELECT subject, COUNT(*) AS c FROM igcse_topics GROUP BY subject`);
+        const tList: any[] = Array.isArray(t[0]) ? t[0] : (t as any);
+        for (const r of tList) {
+          counts[String(r.subject)] = counts[String(r.subject)] || { topics: 0, examples: 0 };
+          counts[String(r.subject)].topics = Number(r.c);
+        }
+        // Examples don't have a 'subject' column — infer from topicCode prefix.
+        const x: any = await db.execute(sql`SELECT
+          CASE
+            WHEN topicCode LIKE 'Bi%' THEN 'biology'
+            WHEN topicCode LIKE 'Ch%' THEN 'chemistry'
+            WHEN topicCode LIKE 'P%'  THEN 'physics'
+            WHEN topicCode LIKE 'E%'  THEN 'economics'
+            WHEN topicCode LIKE 'B%'  THEN 'business'
+            ELSE 'math'
+          END AS subject,
+          COUNT(*) AS c
+          FROM igcse_examples
+          WHERE source NOT LIKE 'custom-%'
+          GROUP BY subject`);
+        const xList: any[] = Array.isArray(x[0]) ? x[0] : (x as any);
+        for (const r of xList) {
+          counts[String(r.subject)] = counts[String(r.subject)] || { topics: 0, examples: 0 };
+          counts[String(r.subject)].examples = Number(r.c);
+        }
+      } catch (e) { /* best-effort; don't fail the whole call */ }
+    }
+
+    return { results: out, counts };
+  }),
 });

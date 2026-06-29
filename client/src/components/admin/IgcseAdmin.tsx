@@ -4,7 +4,7 @@
  */
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { Loader2, Image as ImageIcon } from "lucide-react";
+import { Loader2, Image as ImageIcon, Database } from "lucide-react";
 
 export default function IgcseAdmin() {
   const stats = trpc.igcse.adminStats.useQuery();
@@ -47,6 +47,9 @@ export default function IgcseAdmin() {
 
       {/* Dashboard image regeneration */}
       <DashboardImageRegenCard />
+
+      {/* Force-reseed all subjects (recovery + diagnostic). */}
+      <ReseedSubjectsCard />
 
       {/* Recent attempts feed */}
       <div className="rounded-xl border border-border bg-card">
@@ -209,6 +212,95 @@ function DashboardImageRegenCard() {
 
           <p className="text-[11px] text-muted-foreground mt-2">
             Tip: reload <code>/igcse/app</code> after the run finishes to see the new images.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── /admin → IGCSE → Force-reseed all subjects ─────────────────────────────
+// Idempotent diagnostic + recovery button. Runs every topic + exemplar seeder
+// and reports what happened per subject. Use when:
+//   • a fresh deploy didn't pick up a subject's content (e.g. subject enum
+//     widening failed silently on prod)
+//   • you want to see at a glance what's actually in the DB right now
+// Re-running on a healthy DB is harmless — each seeder skips already-seeded rows.
+
+function ReseedSubjectsCard() {
+  const reseed = trpc.igcse.adminReseedAllSubjects.useMutation({
+    onError: e => alert(e?.message || "Couldn't run reseed."),
+  });
+  const r = reseed.data;
+  const grandTotalTopics = r?.counts ? Object.values(r.counts).reduce((s: number, v: any) => s + (v?.topics || 0), 0) : 0;
+  const grandTotalEx = r?.counts ? Object.values(r.counts).reduce((s: number, v: any) => s + (v?.examples || 0), 0) : 0;
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="flex items-start gap-3">
+        <Database className="w-5 h-5 mt-0.5 text-violet-600" />
+        <div className="flex-1">
+          <h3 className="font-semibold">Subject content (topics + exam questions)</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Force-runs every IGCSE topic + exemplar seeder and shows what's currently in the DB.
+            Idempotent — each seeder skips already-seeded rows. Use this if a subject is missing
+            after a deploy.
+          </p>
+
+          <button
+            onClick={() => reseed.mutate()}
+            disabled={reseed.isPending}
+            className="mt-3 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 text-white text-sm font-medium px-4 py-1.5 rounded-lg"
+          >
+            {reseed.isPending ? "Running…" : "Reseed all subjects"}
+          </button>
+
+          {r && (
+            <div className="mt-4 rounded-lg border border-border overflow-hidden text-xs">
+              <table className="w-full">
+                <thead className="bg-muted/40 text-muted-foreground uppercase tracking-wider">
+                  <tr>
+                    <th className="text-left px-3 py-2">Subject</th>
+                    <th className="text-right px-3 py-2">+ Topics this run</th>
+                    <th className="text-right px-3 py-2">+ Questions this run</th>
+                    <th className="text-right px-3 py-2">Total topics</th>
+                    <th className="text-right px-3 py-2">Total questions</th>
+                    <th className="text-left px-3 py-2">Error</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {r.results.map((row, i) => {
+                    const key = row.subject.toLowerCase();
+                    const c: any = r.counts?.[key] || { topics: 0, examples: 0 };
+                    return (
+                      <tr key={i} className="border-t border-border">
+                        <td className="px-3 py-2 font-medium">{row.subject}</td>
+                        <td className="px-3 py-2 text-right">{row.topicsSeeded}</td>
+                        <td className="px-3 py-2 text-right">{row.examplesSeeded}</td>
+                        <td className="px-3 py-2 text-right font-mono">{c.topics}</td>
+                        <td className="px-3 py-2 text-right font-mono">{c.examples}</td>
+                        <td className="px-3 py-2 text-rose-700" title={row.error}>
+                          {row.error ? row.error.slice(0, 60) + "…" : ""}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="border-t border-border bg-muted/20 font-semibold">
+                    <td className="px-3 py-2">TOTAL</td>
+                    <td className="px-3 py-2 text-right">{r.results.reduce((s, x) => s + x.topicsSeeded, 0)}</td>
+                    <td className="px-3 py-2 text-right">{r.results.reduce((s, x) => s + x.examplesSeeded, 0)}</td>
+                    <td className="px-3 py-2 text-right font-mono">{grandTotalTopics}</td>
+                    <td className="px-3 py-2 text-right font-mono">{grandTotalEx}</td>
+                    <td />
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <p className="text-[11px] text-muted-foreground mt-2">
+            Tip: if a subject shows 0 total topics here, the subject enum on igcse_topics may not have been widened on this DB.
+            Re-running the button after a deploy will retry the enum-widening and the seed.
           </p>
         </div>
       </div>
