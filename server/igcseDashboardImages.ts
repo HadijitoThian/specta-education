@@ -24,16 +24,32 @@ import { ENV } from "./_core/env";
 
 const DEEPINFRA_IMAGE_URL = "https://api.deepinfra.com/v1/openai/images/generations";
 
+// Hero needs a human; we keep that one editorial. Subject tiles + mode cards
+// switched to grounded, candid object photography (no humans, no hands) to
+// avoid the AI-generated 'plastic skin' / wrong-fingers look.
 const STYLE_SUFFIX =
   ", photorealistic, professional photography, soft natural lighting, " +
   "shallow depth of field, warm color grading, editorial style, " +
   "clean modern interior, high resolution, magazine quality";
 
 const STILL_LIFE_SUFFIX =
-  ", photorealistic editorial still life, top-down flat-lay perspective, " +
-  "warm natural side lighting, shallow depth of field, light oak wooden " +
-  "desk surface, soft shadows, magazine-quality colour grading, " +
-  "no people, no hands, clean composition, high resolution";
+  ", grounded candid documentary photography, natural lighting only, " +
+  "shot on a 50mm lens, real textures (wood grain, paper grain, ink bleed, " +
+  "natural fingerprints on glass), light oak wooden desk surface, " +
+  "soft warm side window light, gentle realistic shadows, mild film grain, " +
+  "muted natural colour palette, no people, no hands, no faces, " +
+  "no perfect symmetry, slightly imperfect composition, high resolution";
+
+// Wider 3/4-view variant for the two mode-card images (1024x768 horizontal).
+const DESK_SCENE_SUFFIX =
+  ", grounded candid documentary photography of a real desk scene, " +
+  "shot on a 50mm lens at f/2.8, three-quarter angle view from one side " +
+  "(not top-down), natural lighting only — warm afternoon light from a " +
+  "window off to one side, real textures (wood grain, paper grain, fabric, " +
+  "ceramic), light oak wooden desk surface, gentle realistic shadows, " +
+  "mild film grain, muted natural colour palette, lived-in feel — like " +
+  "the person just stepped away — no people, no hands, no faces, " +
+  "slightly imperfect natural composition, high resolution";
 
 export type Job = {
   key: string;
@@ -54,20 +70,41 @@ export const DASHBOARD_JOBS: Job[] = [
     height: 768,
   },
 
-  // ── Mode cards: Learn / Practice (humans) ────────────────────────────────
+  // ── Mode cards — desk scenes (no people, no hands; matches still-life feel) ──
   {
     key: "igcse/dashboard/mode-learn.png",
     prompt:
-      "An Indonesian high-school student, around 15 years old, fair skin, neat shoulder-length hair, wearing a clean white shirt school uniform, sitting at a desk speaking thoughtfully to a laptop with a friendly engaged expression. Open notebook beside the laptop. Warm soft window light, blurred home study background, conversational and engaging mood. Camera angle: 3/4 from the side." +
-      STYLE_SUFFIX,
+      "A warm, lived-in desk scene on a light oak wooden desk, photographed at " +
+      "a three-quarter angle. An open thin silver laptop sits centred with its " +
+      "screen showing a soft warm glow (slightly out of focus so the screen " +
+      "content is barely legible). To the right of the laptop, a wireless " +
+      "earbud case lies open. To the left, an open spiral notebook with " +
+      "casual hand-drawn diagrams and short notes in blue ink, a freshly " +
+      "sharpened pencil resting across it. A white ceramic mug of tea with " +
+      "soft steam rising. A small house plant just inside frame. Warm " +
+      "late-afternoon sunlight from a window on the left throws gentle " +
+      "shadows across the desk. The scene looks like a real student just " +
+      "stepped away from a tutoring session. Conversational, friendly, inviting." +
+      DESK_SCENE_SUFFIX,
     width: 1024,
     height: 768,
   },
   {
     key: "igcse/dashboard/mode-practice.png",
     prompt:
-      "An Indonesian high-school student, around 16 years old, fair skin, short neat hair, wearing a clean white shirt school uniform, focused expression, writing in a notebook with a pencil while looking at a tablet showing a Cambridge-style exam question. Hand visible writing. Soft natural light, blurred modern study desk background, determined and focused mood." +
-      STYLE_SUFFIX,
+      "A focused exam-prep desk scene on a light oak wooden desk, photographed " +
+      "at a three-quarter angle. A printed exam paper headed 'Cambridge IGCSE " +
+      "— Question Paper' in subtle black serif type lies in the middle of the " +
+      "desk (the body text is gently out of focus, not legible — just block-" +
+      "shapes implying paragraphs and question numbers). A sharpened HB " +
+      "pencil and a black ball-point pen rest neatly on top of the paper. A " +
+      "small round analog desk clock sits beside it showing about ten past " +
+      "the hour. A clear plastic ruler and a scientific calculator are " +
+      "nearby. A folded pair of reading glasses sits at the edge. Cool morning " +
+      "light from a window on the right throws crisp shadows. The mood is " +
+      "quiet, focused, determined — like a student has just sat down to " +
+      "start a timed practice paper." +
+      DESK_SCENE_SUFFIX,
     width: 1024,
     height: 768,
   },
