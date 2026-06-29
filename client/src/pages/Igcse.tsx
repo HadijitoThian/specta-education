@@ -37,9 +37,10 @@ export default function Igcse() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="IGCSE Math, Physics, Chemistry, Economics & Business AI Teacher — SpecTa Education"
-        description="Belajar IGCSE Math (0580), Physics (0625), Chemistry (0620), Economics (0455) dan Business Studies (0450) bersama AI teacher interaktif. Diskusi suara dua arah, papan tulis digital, jawaban langkah demi langkah."
-        keywords="IGCSE Math, IGCSE Physics, IGCSE Chemistry, IGCSE Economics, IGCSE Business, Cambridge 0580, Cambridge 0625, Cambridge 0620, Cambridge 0455, Cambridge 0450, AI teacher, AI tutor IGCSE, IGCSE Indonesia"
+        title="Cambridge IGCSE AI Tutor — Math, Physics, Economics & Business | SpecTa"
+        description="Belajar Cambridge IGCSE Math (0580), Physics (0625), Economics (0455) dan Business Studies (0450) bersama AI teacher yang bisa diajak ngobrol, menjelaskan langkah-demi-langkah di papan tulis digital, dan menilai jawaban exam seperti examiner asli. Coba gratis 30 menit."
+        keywords="IGCSE AI tutor, IGCSE Math tutor, IGCSE Physics, IGCSE Economics, IGCSE Business Studies, Cambridge 0580, Cambridge 0625, Cambridge 0455, Cambridge 0450, AI teacher Indonesia, les IGCSE online, bimbel IGCSE, SpecTa Tutor"
+        ogImage="/files/igcse/dashboard/hero.png"
       />
       <Navigation />
 

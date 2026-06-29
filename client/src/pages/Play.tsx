@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { SEO } from '@/components/SEO';
 import { Link, useLocation } from "wouter";
-import { Sparkles, Globe, ArrowRight, Gamepad2, Star, Zap, Users, Trophy, Brain, GraduationCap } from "lucide-react";
+import { Sparkles, Globe, ArrowRight, Gamepad2, Star, Zap, Users, Trophy, Brain, GraduationCap, Scale } from "lucide-react";
 import ChatBot from "@/components/ChatBot";
 import ChatBotButton from "@/components/ChatBotButton";
 import Navigation from "@/components/Navigation";
@@ -90,7 +90,7 @@ export default function Play() {
 
       {/* Game Cards Section */}
       <div className="max-w-5xl mx-auto px-4 -mt-12 relative z-20 pb-20">
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Card 1: Country Quiz */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -248,7 +248,7 @@ export default function Play() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.6 }}
-            className="md:col-span-2 lg:col-span-1"
+            className=""
           >
             <div
               onClick={() => setLocation("/play/aptitude")}
@@ -314,6 +314,81 @@ export default function Play() {
                   <span className="text-gray-400 text-sm">~10-15 minutes</span>
                   <div className="flex items-center gap-2 text-teal-600 font-semibold group-hover:gap-3 transition-all">
                     Take Test
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Card 4: Compare Universities (relocated from main nav) */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.8 }}
+            className=""
+          >
+            <div
+              onClick={() => setLocation("/compare")}
+              className="group cursor-pointer bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-2xl hover:-translate-y-2 transition-all duration-500"
+            >
+              {/* Card header gradient */}
+              <div className="relative bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 p-8 pb-12">
+                <div className="absolute top-4 right-4 text-3xl opacity-30 animate-bounce" style={{ animationDuration: '3s' }}>⚖️</div>
+                <div className="absolute bottom-4 left-4 text-2xl opacity-30 animate-bounce" style={{ animationDelay: '1s', animationDuration: '4s' }}>🏛️</div>
+
+                <div className="relative z-10">
+                  <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-3 py-1.5 mb-4">
+                    <Scale className="w-3.5 h-3.5 text-white" />
+                    <span className="text-white/90 text-xs font-medium">Side-by-side</span>
+                  </div>
+                  <h2 className="text-3xl font-bold text-white mb-2">Compare<br />Universities</h2>
+                  <p className="text-white/80 text-sm max-w-xs">
+                    Compare universities by tuition, ranking, location, and entry requirements — pick the right fit.
+                  </p>
+                </div>
+              </div>
+
+              {/* Card body */}
+              <div className="p-6">
+                <div className="flex flex-wrap gap-2 mb-5">
+                  {[
+                    { emoji: "💰", name: "Tuition" },
+                    { emoji: "🏆", name: "Ranking" },
+                    { emoji: "🌍", name: "Location" },
+                    { emoji: "📋", name: "Requirements" },
+                  ].map((p, i) => (
+                    <span key={i} className="text-xs bg-amber-50 text-amber-700 rounded-full px-3 py-1.5 font-medium">
+                      {p.emoji} {p.name}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="space-y-2 mb-6">
+                  <div className="flex items-center gap-2 text-gray-600 text-sm">
+                    <div className="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                      <Scale className="w-3 h-3 text-amber-500" />
+                    </div>
+                    Side-by-side comparison of up to 3
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-600 text-sm">
+                    <div className="w-5 h-5 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                      <Globe className="w-3 h-3 text-orange-500" />
+                    </div>
+                    Universities across 10+ countries
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-600 text-sm">
+                    <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                      <GraduationCap className="w-3 h-3 text-red-500" />
+                    </div>
+                    Filter by your IELTS / academic profile
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-sm">Free · No sign-up</span>
+                  <div className="flex items-center gap-2 text-amber-600 font-semibold group-hover:gap-3 transition-all">
+                    Open Compare
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>

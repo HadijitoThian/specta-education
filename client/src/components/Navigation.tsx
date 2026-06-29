@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ChevronDown, Menu, X, Gamepad2, GraduationCap } from "lucide-react";
+import { ChevronDown, Menu, X, Gamepad2, GraduationCap, BookOpen } from "lucide-react";
 import { useState, useEffect } from "react";
 
 interface NavigationProps {
@@ -117,9 +117,35 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             <GraduationCap className="w-4 h-4" />
             <span>Scholarships</span>
           </button>
-          <button onClick={() => handleNavClick("/compare")} className={`text-sm font-medium transition-colors ${isActive("compare") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
-            Compare
-          </button>
+          {/* SpecTa Tutor Dropdown — umbrella for syllabus-specific AI Teachers */}
+          <div className="relative group">
+            <button className={`text-sm font-semibold transition-colors flex items-center gap-1 ${isActive("igcse") || isActive("tutor") ? "text-violet-600" : "text-violet-600 hover:text-violet-700"}`}>
+              <BookOpen className="w-4 h-4" />
+              <span>SpecTa Tutor</span>
+              <span className="text-[10px] align-top bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded-full">NEW</span>
+              <ChevronDown className="w-3 h-3 transition-transform group-hover:rotate-180" />
+            </button>
+            <div className="absolute top-full left-0 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+              <div className="bg-white rounded-lg shadow-lg border border-border py-2 min-w-[320px]">
+                <div className="px-4 py-2 text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">AI Teacher · by syllabus</div>
+                <button onClick={() => handleNavClick("/igcse")} className="block w-full text-left px-4 py-2.5 text-sm font-medium text-violet-700 hover:bg-violet-50 transition-colors">
+                  🎓 IGCSE AI Teacher
+                  <span className="ml-2 text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-semibold">LIVE</span>
+                  <div className="text-[11px] text-muted-foreground font-normal mt-0.5">Cambridge Math, Physics, Economics, Business</div>
+                </button>
+                <button disabled className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground cursor-not-allowed opacity-60">
+                  🎯 GCE A Level AI Teacher
+                  <span className="ml-2 text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">SOON</span>
+                  <div className="text-[11px] font-normal mt-0.5">Q1 2026 · Cambridge / Edexcel</div>
+                </button>
+                <button disabled className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground cursor-not-allowed opacity-60">
+                  🇮🇩 Kurikulum Mandiri AI Teacher
+                  <span className="ml-2 text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">SOON</span>
+                  <div className="text-[11px] font-normal mt-0.5">Kurikulum nasional Indonesia</div>
+                </button>
+              </div>
+            </div>
+          </div>
           <button onClick={() => handleNavClick("/contact")} className={`text-sm font-medium transition-colors ${isActive("contact") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             Contact
           </button>
@@ -214,9 +240,26 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
               <GraduationCap className="w-4 h-4" />
               Scholarships
             </button>
-            <button onClick={() => handleNavClick("/compare")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
-              Compare Universities
-            </button>
+            {/* SpecTa Tutor (mobile) — same dropdown contents as desktop */}
+            <div className="space-y-2">
+              <span className="block text-sm font-semibold text-violet-700 flex items-center gap-2">
+                <BookOpen className="w-4 h-4" />
+                SpecTa Tutor
+                <span className="text-[10px] bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded-full">NEW</span>
+              </span>
+              <button onClick={() => handleNavClick("/igcse")} className="block w-full text-left text-sm font-medium text-violet-700 hover:text-violet-800 pl-4">
+                🎓 IGCSE AI Teacher
+                <span className="ml-2 text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">LIVE</span>
+              </button>
+              <div className="block w-full text-left text-sm text-muted-foreground pl-4 opacity-60">
+                🎯 GCE A Level AI Teacher
+                <span className="ml-2 text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">SOON</span>
+              </div>
+              <div className="block w-full text-left text-sm text-muted-foreground pl-4 opacity-60">
+                🇮🇩 Kurikulum Mandiri AI Teacher
+                <span className="ml-2 text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">SOON</span>
+              </div>
+            </div>
             <button onClick={() => handleNavClick("/contact")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
               Contact
             </button>
