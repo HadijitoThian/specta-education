@@ -75,10 +75,22 @@ export async function runCrmDistributorAgent(): Promise<{
   });
 
   try {
-    // Step 1: Assign unassigned leads
-    const assignResult = await assignUnassignedLeads();
-    leadsAssigned = assignResult.assigned;
-    errors += assignResult.errors;
+    // Step 1: Assign unassigned leads — gated by env flag.
+    //
+    // The owner asked (Sep 2026) to disable auto-assignment "for now" — admin
+    // wants to assign new leads to counselors manually from the CRM cockpit.
+    // Set CRM_AUTO_ASSIGN_ENABLED=true on Railway to re-enable round-robin.
+    //
+    // Follow-ups + escalations (steps 2 & 3) keep running — those operate on
+    // already-assigned leads and matter regardless of how the lead got assigned.
+    const autoAssignEnabled = String(process.env.CRM_AUTO_ASSIGN_ENABLED || "").toLowerCase() === "true";
+    if (autoAssignEnabled) {
+      const assignResult = await assignUnassignedLeads();
+      leadsAssigned = assignResult.assigned;
+      errors += assignResult.errors;
+    } else {
+      console.log("[CRM Agent] Auto-assignment SKIPPED (CRM_AUTO_ASSIGN_ENABLED not 'true'). New leads stay unassigned for admin to assign manually.");
+    }
 
     // Step 2: Process due follow-up actions
     const followUpResult = await processDueFollowUps();
