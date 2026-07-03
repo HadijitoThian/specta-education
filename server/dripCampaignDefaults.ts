@@ -49,7 +49,7 @@ export async function seedDefaultCampaigns(): Promise<void> {
             <li>✅ Rekomendasi jurusan & universitas yang lebih akurat</li>
           </ul>
           <div style="text-align: center; margin: 24px 0;">
-            <a href="https://spectaeducation.com/test/pro" style="display: inline-block; background: linear-gradient(135deg, #7c3aed, #a78bfa); color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">🚀 Upgrade ke Pro - Rp 79.000</a>
+            <a href="https://www.spectaeducation.com/test/pro" style="display: inline-block; background: linear-gradient(135deg, #7c3aed, #a78bfa); color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">🚀 Upgrade ke Pro - Rp 79.000</a>
           </div>
           <p style="color: #94a3b8; font-size: 13px;">Harga spesial untuk waktu terbatas!</p>
         `),
@@ -68,7 +68,7 @@ export async function seedDefaultCampaigns(): Promise<void> {
           </div>
           <p>Tes Pro hanya membutuhkan <strong>30-45 menit</strong> dan kamu akan mendapat laporan lengkap yang bisa dibagikan ke orang tua dan guru BK.</p>
           <div style="text-align: center; margin: 24px 0;">
-            <a href="https://spectaeducation.com/test/pro" style="display: inline-block; background: linear-gradient(135deg, #7c3aed, #a78bfa); color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">📋 Ambil Tes Pro Sekarang</a>
+            <a href="https://www.spectaeducation.com/test/pro" style="display: inline-block; background: linear-gradient(135deg, #7c3aed, #a78bfa); color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">📋 Ambil Tes Pro Sekarang</a>
           </div>
         `),
       });
@@ -89,7 +89,7 @@ export async function seedDefaultCampaigns(): Promise<void> {
             <p style="color: #92400e; font-size: 13px; margin: 0;">Gunakan kode: <strong>SPECTA25</strong></p>
           </div>
           <div style="text-align: center; margin: 24px 0;">
-            <a href="https://spectaeducation.com/test/pro" style="display: inline-block; background: linear-gradient(135deg, #ef4444, #f43f5e); color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">🔥 Klaim Diskon Sekarang</a>
+            <a href="https://www.spectaeducation.com/test/pro" style="display: inline-block; background: linear-gradient(135deg, #ef4444, #f43f5e); color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">🔥 Klaim Diskon Sekarang</a>
           </div>
           <p style="color: #94a3b8; font-size: 13px;">Jika kamu tidak tertarik, tidak apa-apa! Kami tidak akan mengirim email tentang ini lagi.</p>
         `),
@@ -121,8 +121,8 @@ export async function seedDefaultCampaigns(): Promise<void> {
           <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin: 16px 0;">
             <p style="margin: 8px 0;"><strong>1. 📝 Persiapkan IELTS</strong> — Kebanyakan universitas membutuhkan skor IELTS minimal 6.0</p>
             <p style="margin: 8px 0;"><strong>2. 📊 Jaga nilai akademik</strong> — GPA yang baik membuka lebih banyak pilihan</p>
-            <p style="margin: 8px 0;"><strong>3. 🎯 Tentukan jurusan</strong> — Coba <a href="https://spectaeducation.com/test" style="color: #7c3aed;">Tes Bakat AI</a> gratis kami!</p>
-            <p style="margin: 8px 0;"><strong>4. 💰 Cari beasiswa</strong> — Lihat daftar <a href="https://spectaeducation.com/scholarships" style="color: #7c3aed;">beasiswa</a> yang tersedia</p>
+            <p style="margin: 8px 0;"><strong>3. 🎯 Tentukan jurusan</strong> — Coba <a href="https://www.spectaeducation.com/test" style="color: #7c3aed;">Tes Bakat AI</a> gratis kami!</p>
+            <p style="margin: 8px 0;"><strong>4. 💰 Cari beasiswa</strong> — Lihat daftar <a href="https://www.spectaeducation.com/scholarships" style="color: #7c3aed;">beasiswa</a> yang tersedia</p>
           </div>
           <div style="text-align: center; margin: 24px 0;">
             <a href="https://wa.me/62818218388?text=Hi%20SpecTa!%20Saya%20ingin%20konsultasi%20tentang%20kuliah%20di%20luar%20negeri" style="display: inline-block; background: #25D366; color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">💬 Chat via WhatsApp</a>
@@ -143,17 +143,17 @@ export async function seedDefaultCampaigns(): Promise<void> {
             <div style="background: #eff6ff; border-radius: 12px; padding: 16px; border-left: 4px solid #3b82f6;">
               <strong>🎯 Quiz: Negara Mana yang Cocok?</strong>
               <p style="margin: 4px 0 0; color: #475569; font-size: 14px;">Jawab 10 pertanyaan singkat dan temukan negara yang paling cocok untuk kamu</p>
-              <a href="https://spectaeducation.com/quiz" style="color: #3b82f6; font-size: 14px;">Coba sekarang →</a>
+              <a href="https://www.spectaeducation.com/quiz" style="color: #3b82f6; font-size: 14px;">Coba sekarang →</a>
             </div>
             <div style="background: #f0fdf4; border-radius: 12px; padding: 16px; border-left: 4px solid #10b981;">
               <strong>🧠 Tes Bakat AI</strong>
               <p style="margin: 4px 0 0; color: #475569; font-size: 14px;">Temukan jurusan yang cocok berdasarkan minat dan bakatmu</p>
-              <a href="https://spectaeducation.com/test" style="color: #10b981; font-size: 14px;">Mulai tes →</a>
+              <a href="https://www.spectaeducation.com/test" style="color: #10b981; font-size: 14px;">Mulai tes →</a>
             </div>
             <div style="background: #fef3c7; border-radius: 12px; padding: 16px; border-left: 4px solid #f59e0b;">
               <strong>🏫 Bandingkan Universitas</strong>
               <p style="margin: 4px 0 0; color: #475569; font-size: 14px;">Bandingkan 2-3 universitas secara langsung dengan analisis AI</p>
-              <a href="https://spectaeducation.com/compare" style="color: #f59e0b; font-size: 14px;">Bandingkan →</a>
+              <a href="https://www.spectaeducation.com/compare" style="color: #f59e0b; font-size: 14px;">Bandingkan →</a>
             </div>
           </div>
         `),
@@ -236,9 +236,9 @@ export async function seedDefaultCampaigns(): Promise<void> {
             <p style="margin: 8px 0;">☐ CV/Resume yang up-to-date</p>
             <p style="margin: 8px 0;">☐ Proposal penelitian (untuk S2/S3)</p>
           </div>
-          <p>Belum punya skor IELTS? Cek program <a href="https://spectaeducation.com/ielts" style="color: #e53e3e;">IELTS SpecTa</a> dengan jaminan skor!</p>
+          <p>Belum punya skor IELTS? Cek program <a href="https://www.spectaeducation.com/ielts" style="color: #e53e3e;">IELTS SpecTa</a> dengan jaminan skor!</p>
           <div style="text-align: center; margin: 24px 0;">
-            <a href="https://spectaeducation.com/scholarships" style="display: inline-block; background: #7c3aed; color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">📋 Lihat Semua Beasiswa</a>
+            <a href="https://www.spectaeducation.com/scholarships" style="display: inline-block; background: #7c3aed; color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">📋 Lihat Semua Beasiswa</a>
           </div>
         `),
       });
@@ -287,7 +287,7 @@ function wrapEmailTemplate(content: string): string {
       </div>
       <div class="footer">
         <p>&copy; ${new Date().getFullYear()} SpecTa Education. All rights reserved.</p>
-        <p><a href="https://spectaeducation.com">spectaeducation.com</a></p>
+        <p><a href="https://www.spectaeducation.com">spectaeducation.com</a></p>
       </div>
       <div class="unsubscribe">
         <p>Tidak ingin menerima email ini? <a href="{{unsubscribe_url}}">Berhenti berlangganan</a></p>

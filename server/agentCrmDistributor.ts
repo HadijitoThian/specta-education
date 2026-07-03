@@ -632,7 +632,7 @@ function sendStudentFollowUp(data: any, dayOffset: number): Promise<boolean> {
         ${template.body}
       </div>
       <div style="text-align:center;color:#999;font-size:12px;margin-top:24px;padding-top:16px;border-top:1px solid #eee;">
-        <p>© ${new Date().getFullYear()} SpecTa Education • <a href="https://spectaeducation.com" style="color:#e53e3e;">spectaeducation.com</a></p>
+        <p>© ${new Date().getFullYear()} SpecTa Education • <a href="https://www.spectaeducation.com" style="color:#e53e3e;">spectaeducation.com</a></p>
       </div>
     </div>
   </div>

@@ -6,7 +6,10 @@
  * so crawlers get the correct title, description, OG tags, and canonical URL.
  */
 
-const BASE_URL = "https://spectaeducation.com";
+// MUST be the www subdomain — the apex 301-redirects to www, and Google
+// rejects canonicals that redirect. If this ever drifts back to the apex,
+// URL Inspection / Request Indexing starts refusing pages.
+const BASE_URL = "https://www.spectaeducation.com";
 const DEFAULT_OG_IMAGE = "/files/migrated/JkROfRrqqpCGwfuP.png";
 
 interface PageMeta {

@@ -174,7 +174,7 @@ export function registerXenditWebhook(app: Express) {
       });
 
       // Determine base URL for the access link
-      const baseUrl = process.env.VITE_APP_URL || (process.env.NODE_ENV === "production" ? "https://spectaeducation.com" : "http://localhost:3000");
+      const baseUrl = process.env.VITE_APP_URL || (process.env.NODE_ENV === "production" ? "https://www.spectaeducation.com" : "http://localhost:3000");
 
       // Send access link email via Resend
       await sendProAccessLinkEmail({

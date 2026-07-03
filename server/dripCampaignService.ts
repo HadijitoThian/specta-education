@@ -427,7 +427,7 @@ function personalizeContent(content: string, vars: {
   email: string;
   unsubscribeToken: string;
 }): string {
-  const baseUrl = process.env.VITE_APP_URL || (process.env.NODE_ENV === "production" ? "https://spectaeducation.com" : "http://localhost:3000");
+  const baseUrl = process.env.VITE_APP_URL || (process.env.NODE_ENV === "production" ? "https://www.spectaeducation.com" : "http://localhost:3000");
   const unsubscribeUrl = `${baseUrl}/unsubscribe?token=${vars.unsubscribeToken}`;
 
   return content

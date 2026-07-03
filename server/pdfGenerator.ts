@@ -1051,7 +1051,7 @@ export async function generatePdfReport(data: PdfReportData): Promise<Buffer> {
       bold: true,
       alignment: "center" as const,
       decoration: "underline" as const,
-      link: "https://spectaeducation.com/test/pro",
+      link: "https://www.spectaeducation.com/test/pro",
       margin: [0, 0, 0, 16] as [number, number, number, number],
     });
 

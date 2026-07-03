@@ -195,7 +195,7 @@ function emailWrapper(content: string): string {
       </div>
       <div class="footer">
         <p>&copy; ${new Date().getFullYear()} SpecTa Education. All rights reserved.</p>
-        <p><a href="https://spectaeducation.com">spectaeducation.com</a></p>
+        <p><a href="https://www.spectaeducation.com">spectaeducation.com</a></p>
       </div>
     </div>
   </div>
@@ -702,7 +702,7 @@ export async function sendAptitudeResultsEmail({
         <div style="margin-bottom: 16px;">
           <span style="display: inline-block; background: #ef4444; color: white; font-size: 12px; font-weight: bold; padding: 4px 14px; border-radius: 20px;">${isId ? "HEMAT Rp 20.000!" : "SAVE Rp 20,000!"}</span>
         </div>
-        <a href="https://spectaeducation.com/test/pro" style="display: inline-block; background: linear-gradient(90deg, #fbbf24, #f59e0b); color: #1e1b4b; text-decoration: none; padding: 14px 36px; border-radius: 12px; font-weight: 700; font-size: 16px;">🚀 ${isId ? "Upgrade ke Pro Sekarang" : "Upgrade to Pro Now"}</a>
+        <a href="https://www.spectaeducation.com/test/pro" style="display: inline-block; background: linear-gradient(90deg, #fbbf24, #f59e0b); color: #1e1b4b; text-decoration: none; padding: 14px 36px; border-radius: 12px; font-weight: 700; font-size: 16px;">🚀 ${isId ? "Upgrade ke Pro Sekarang" : "Upgrade to Pro Now"}</a>
         <p style="color: rgba(255,255,255,0.6); font-size: 11px; margin-top: 12px;">${isId ? "Pembayaran aman via Xendit • Hasil langsung ke email" : "Secure payment via Xendit • Results sent to your email"}</p>
       </div>
     </div>
@@ -913,7 +913,7 @@ export async function sendPartnershipApprovalEmail({
 
       <div class="footer">
         <p>&copy; ${new Date().getFullYear()} SpecTa Education AI Agent System</p>
-        <p><a href="https://spectaeducation.com">spectaeducation.com</a></p>
+        <p><a href="https://www.spectaeducation.com">spectaeducation.com</a></p>
       </div>
     </div>
   </div>
@@ -962,7 +962,7 @@ export async function sendPartnershipOutreachEmail({
       <p><strong>Hadi Jito Thian</strong><br>
       Founder & CEO<br>
       SpecTa Education<br>
-      <a href="https://spectaeducation.com">www.spectaeducation.com</a><br>
+      <a href="https://www.spectaeducation.com">www.spectaeducation.com</a><br>
       Jakarta, Indonesia</p>
     </div>
   </div>

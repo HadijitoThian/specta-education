@@ -23,7 +23,11 @@ import {
 import { sql, desc, eq, and } from "drizzle-orm";
 
 const ADMIN_EMAIL = "hadi@spectaeducation.com";
-const BASE_URL = "https://spectaeducation.com"; // No www - avoids 301 redirect overhead
+// MUST be the www subdomain. The apex 301-redirects to www, so pointing SEO
+// links at the apex means Google (and users clicking through) hit a redirect.
+// Worse, Google rejects canonicals that redirect — which broke Request
+// Indexing on /igcse/practice in July 2026 until we fixed this.
+const BASE_URL = "https://www.spectaeducation.com";
 
 // Static pages to audit — must match actual App.tsx routes
 const STATIC_PAGES = [

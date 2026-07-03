@@ -1252,7 +1252,7 @@ Return as JSON:
               fileName: input.fileName,
               source: "tracker",
               referenceNumber: application.referenceNumber || undefined,
-              dashboardUrl: "https://spectaeducation.com/admin",
+              dashboardUrl: "https://www.spectaeducation.com/admin",
             });
           }
         } catch (e) {
@@ -1535,7 +1535,7 @@ Return as JSON:
                 studentEmail: app.email,
                 referenceNumber: app.referenceNumber || '',
                 universities: app.selectedUniversities ? JSON.parse(app.selectedUniversities).map((u: any) => u.name || u.university).join(", ") : "N/A",
-                dashboardUrl: "https://spectaeducation.com/staff-dashboard",
+                dashboardUrl: "https://www.spectaeducation.com/staff-dashboard",
               }).catch(err => console.error("[Email] Counselor assignment email failed:", err));
             }
           }
@@ -1625,7 +1625,7 @@ Return as JSON:
                 fileName: docEntries.filter(d => d.url).map(d => d.type).join(", "),
                 source: "application",
                 referenceNumber,
-                dashboardUrl: "https://spectaeducation.com/admin",
+                dashboardUrl: "https://www.spectaeducation.com/admin",
               });
             } catch (e) {
               console.error("[Email] Failed to send document notification:", e);
@@ -2269,7 +2269,7 @@ Rules:
               actionType: "document_uploaded",
               actionDetails: `Document "${input.fileName}" (${input.documentType}) has been uploaded to your application.`,
               referenceNumber: appForNotif.referenceNumber || '',
-              trackUrl: `https://spectaeducation.com/track/${appForNotif.referenceNumber}`,
+              trackUrl: `https://www.spectaeducation.com/track/${appForNotif.referenceNumber}`,
             }).catch(err => console.error("[Email] Student notification failed:", err));
           }
           return { success: true, url };
@@ -2317,7 +2317,7 @@ Rules:
               actionType: "status_updated",
               actionDetails: `Your application status has been changed to "${input.status.replace(/_/g, " ").toUpperCase()}".`,
               referenceNumber: app.referenceNumber || '',
-              trackUrl: `https://spectaeducation.com/track/${app.referenceNumber}`,
+              trackUrl: `https://www.spectaeducation.com/track/${app.referenceNumber}`,
             }).catch(err => console.error("[Email] Student notification failed:", err));
           }
           return { success: true };
@@ -2358,7 +2358,7 @@ Rules:
                 actionType: "note_added",
                 actionDetails: input.content.substring(0, 200) + (input.content.length > 200 ? "..." : ""),
                 referenceNumber: appForNote.referenceNumber || '',
-                trackUrl: `https://spectaeducation.com/track/${appForNote.referenceNumber}`,
+                trackUrl: `https://www.spectaeducation.com/track/${appForNote.referenceNumber}`,
               }).catch(err => console.error("[Email] Student notification failed:", err));
             }
           }
@@ -2412,7 +2412,7 @@ Rules:
           isActive: true,
         });
         // Send welcome email
-        const loginUrl = `https://spectaeducation.com/staff-login`;
+        const loginUrl = `https://www.spectaeducation.com/staff-login`;
         sendStaffWelcomeEmail({
           to: input.email,
           name: input.name,
@@ -2450,7 +2450,7 @@ Rules:
         const passwordHash = await bcrypt.hash(input.newPassword, 10);
         await updateStaffAccount(input.id, { passwordHash, mustChangePassword: true } as any);
         // Send password reset email
-        const loginUrl = `https://spectaeducation.com/staff-login`;
+        const loginUrl = `https://www.spectaeducation.com/staff-login`;
         sendPasswordResetEmail({
           to: staff.email,
           name: staff.name,
@@ -3339,7 +3339,7 @@ IMPORTANT:
       }))
       .mutation(async ({ input }) => {
         const externalId = generateExternalId();
-        const baseUrl = process.env.VITE_APP_URL || (process.env.NODE_ENV === "production" ? "https://spectaeducation.com" : "http://localhost:3000");
+        const baseUrl = process.env.VITE_APP_URL || (process.env.NODE_ENV === "production" ? "https://www.spectaeducation.com" : "http://localhost:3000");
         const price = input.useDiscountPrice ? getProTestDiscountPrice() : getProTestPrice();
 
         // Create Xendit invoice
@@ -3398,7 +3398,7 @@ IMPORTANT:
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
         const [createdToken] = await createAccessTokens([{ token: tokenValue, status: 'unused', expiresAt }]);
         await updateAptitudeProOrderStatus(input.externalId, 'paid', { accessTokenId: createdToken?.id });
-        const baseUrl = process.env.VITE_APP_URL || 'https://spectaeducation.com';
+        const baseUrl = process.env.VITE_APP_URL || 'https://www.spectaeducation.com';
         const sent = await sendProAccessLinkEmail({ to: order.customerEmail, customerName: order.customerName, token: tokenValue, baseUrl });
         return { success: sent, email: order.customerEmail };
       }),
@@ -3413,7 +3413,7 @@ IMPORTANT:
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
         const [createdToken] = await createAccessTokens([{ token: tokenValue, status: 'unused', expiresAt }]);
         await updateAptitudeProOrderStatus(input.externalId, 'paid', { xenditInvoiceId: 'manual', paidAt: new Date(), accessTokenId: createdToken?.id });
-        const baseUrl = process.env.VITE_APP_URL || 'https://spectaeducation.com';
+        const baseUrl = process.env.VITE_APP_URL || 'https://www.spectaeducation.com';
         const sent = await sendProAccessLinkEmail({ to: order.customerEmail, customerName: order.customerName, token: tokenValue, baseUrl });
         return { success: sent, email: order.customerEmail };
       }),
@@ -6548,7 +6548,7 @@ Help the counselor with: answering questions about this student, drafting messag
           totalDocs,
           upcomingSessions,
           counselorName,
-          portalUrl: "https://spectaeducation.com/student/login",
+          portalUrl: "https://www.spectaeducation.com/student/login",
         });
         await logActivity({ leadId: input.leadId, activityType: "email_sent", title: `Weekly progress report sent to parent: ${input.parentEmail}`, staffEmail });
         return { success: true };
@@ -7190,7 +7190,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
             html: `
               <div style="font-family:Inter,Arial,sans-serif;background:#0f172a;padding:32px;border-radius:12px;max-width:600px;margin:0 auto;">
                 <div style="text-align:center;margin-bottom:24px;">
-                  <img src="https://spectaeducation.com/logo.png" alt="SpecTa Education" style="height:40px;" />
+                  <img src="https://www.spectaeducation.com/logo.png" alt="SpecTa Education" style="height:40px;" />
                 </div>
                 <h2 style="color:#a78bfa;font-size:22px;margin-bottom:8px;">📄 Documents Needed</h2>
                 <p style="color:#cbd5e1;font-size:15px;margin-bottom:20px;">Hi <strong style="color:#e2e8f0;">${studentName}</strong>,</p>
@@ -7204,7 +7204,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
                   Please log in to your student portal and upload these documents as soon as possible to avoid delays in your application.
                 </p>
                 <div style="text-align:center;margin-bottom:24px;">
-                  <a href="https://spectaeducation.com/student/dashboard" style="background:linear-gradient(135deg,#7c3aed,#3b82f6);color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Upload Documents Now →</a>
+                  <a href="https://www.spectaeducation.com/student/dashboard" style="background:linear-gradient(135deg,#7c3aed,#3b82f6);color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Upload Documents Now →</a>
                 </div>
                 <hr style="border:none;border-top:1px solid #1e293b;margin:20px 0;" />
                 <p style="color:#475569;font-size:12px;text-align:center;">SpecTa Education | Your Study Abroad Partner<br/>Need help? WhatsApp us at +62 818 218 388</p>
@@ -7386,7 +7386,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
         let sent = 0;
         let created = 0;
         const errors: string[] = [];
-        const portalUrl = "https://spectaeducation.com/student/login";
+        const portalUrl = "https://www.spectaeducation.com/student/login";
 
         for (const lead of crmLeads) {
           if (!lead.studentEmail) continue;
@@ -7747,7 +7747,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
         // Send invitation email via Resend
         try {
           const referrerName = dashboard?.lead?.studentName || "A friend";
-          const portalUrl = `https://spectaeducation.com/student/register?ref=${codeRow.code}`;
+          const portalUrl = `https://www.spectaeducation.com/student/register?ref=${codeRow.code}`;
           const emailHtml = `
 <!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px;">
