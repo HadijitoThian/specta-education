@@ -18,11 +18,36 @@
     <link rel="preload" as="image" href="https://www.spectaeducation.com/files/migrated/QxFYGzgmpzrKbZOs.jpg" fetchpriority="high" />
     <!-- Primary Meta Tags -->
     <title>SpecTa Education | Konsultan Studi Luar Negeri Indonesia</title>
+    <!-- Canonical URL — the inline script below sets this on every page load
+         so Google always sees a self-referencing canonical (fixes the
+         "Duplicate without user-selected canonical" report). Duplicate pages
+         (like /malaysia = /destinations/malaysia) get an override in CANONICAL_MAP. -->
+    <link rel="canonical" href="https://www.spectaeducation.com/" />
     <script>
-    // SEO: Immediately set page-specific title and meta description based on URL
-    // This runs before any framework code and ensures crawlers see the correct title
+    // SEO: Immediately set page-specific title, description AND canonical based
+    // on URL. Runs before any framework code so crawlers see correct values.
     (function(){
       var p=window.location.pathname.replace(/\/$/,'').replace(/\?.*$/,'');
+
+      // ── Canonical URL ──────────────────────────────────────────────────
+      // Default: self-referencing on the www domain. Duplicates map to their
+      // canonical sibling (e.g. /malaysia → /destinations/malaysia).
+      var CANONICAL_MAP={
+        '/malaysia':'/destinations/malaysia'
+      };
+      try{
+        var origin='https://www.spectaeducation.com';
+        var canonicalPath=CANONICAL_MAP[p]||(p||'/');
+        var canonicalHref=origin+canonicalPath;
+        var link=document.querySelector('link[rel="canonical"]');
+        if(!link){link=document.createElement('link');link.setAttribute('rel','canonical');document.head.appendChild(link);}
+        link.setAttribute('href',canonicalHref);
+        // Keep og:url in sync so social shares point at the canonical too.
+        var og=document.querySelector('meta[property="og:url"]');
+        if(og)og.setAttribute('content',canonicalHref);
+      }catch(e){/* ignore */}
+
+      // ── Page title + meta description ─────────────────────────────────
       var t={
         '':'SpecTa Education | Konsultan Studi Luar Negeri Indonesia',
         '/about':'About SpecTa Education - Konsultan Pendidikan Luar Negeri Terpercaya Sejak 2005',
@@ -46,10 +71,23 @@
         '/compare':'Compare Study Abroad Destinations - SpecTa Education Tool',
         '/book':'Book Free Consultation - SpecTa Education | Konsultasi Gratis',
         '/apply':'Quick Apply - University Application | SpecTa Education',
-        '/country-quiz':'Study Abroad Country Quiz - Find Your Perfect Destination | SpecTa Education',
-        '/aptitude-test':'Free Aptitude Test - Career Assessment | SpecTa Education',
+        '/play':'SpecTa Play - Educational Games & Assessments | SpecTa Education',
+        '/play/quiz':'Study Abroad Country Quiz - Find Your Perfect Destination | SpecTa Education',
+        '/play/aptitude':'Free Aptitude Test - Tes Bakat AI Jurusan Kuliah | SpecTa Education',
+        '/play/persona':'Personality Test - Discover Your Study Style | SpecTa Education',
+        '/test/pro':'Pro Aptitude Test - Detailed AI Career Report | SpecTa Education',
         '/simulator':'Study Abroad Life Simulator - SpecTa Education',
-        '/specta-play':'SpecTa Play - Educational Games | SpecTa Education'
+        '/faq':'FAQ - Study Abroad Questions Answered | SpecTa Education',
+        '/articles':'Articles & Guides - Study Abroad Resources | SpecTa Education',
+        '/ielts/tutor':'AI IELTS Tutor - Unlimited Writing & Speaking Practice | SpecTa Education',
+        '/ielts/mock-test':'IELTS Mock Test Rp 79k - Full 4-Skill AI-Graded Test | SpecTa Education',
+        '/igcse':'IGCSE AI Teacher - Math, Physics, Chemistry, Biology, Economics, Business | SpecTa Education',
+        '/igcse/practice':'IGCSE Exam Practice - Cambridge-Style Questions with AI Coach | SpecTa Education',
+        '/destinations/malaysia':'Study in Malaysia - Universities & Scholarships | SpecTa Education',
+        '/destinations/germany':'Study in Germany - Universities & Free Tuition | SpecTa Education',
+        '/destinations/france':'Study in France - Universities & Programs | SpecTa Education',
+        '/destinations/japan':'Study in Japan - Universities & MEXT Scholarship | SpecTa Education',
+        '/destinations/south-korea':'Study in South Korea - Universities & KGSP Scholarship | SpecTa Education'
       };
       var d={
         '':'Konsultan pendidikan luar negeri terpercaya sejak 2005. Kuliah di UK, Australia, USA & lebih. IELTS, beasiswa, visa. 1000+ pelajar terbantu. Konsultasi gratis!',
@@ -61,7 +99,16 @@
         '/destinations/usa':'Kuliah di Amerika bersama SpecTa Education. Panduan universitas top USA, program studi, beasiswa, dan proses visa F-1 untuk pelajar Indonesia.',
         '/destinations/canada':'Kuliah di Kanada bersama SpecTa Education. Panduan universitas top Kanada, program studi, beasiswa, dan jalur imigrasi untuk pelajar Indonesia.',
         '/scholarships':'Temukan beasiswa kuliah luar negeri 2026 bersama SpecTa Education. Informasi beasiswa penuh dan parsial untuk pelajar Indonesia di 10+ negara.',
-        '/contact':'Hubungi SpecTa Education untuk konsultasi gratis kuliah luar negeri. Kantor di Kelapa Gading, PIK, dan Gading Serpong. WhatsApp: +62-818-668-277.'
+        '/contact':'Hubungi SpecTa Education untuk konsultasi gratis kuliah luar negeri. Kantor di Kelapa Gading, PIK, dan Gading Serpong. WhatsApp: +62-818-668-277.',
+        '/faq':'Pertanyaan yang sering ditanyakan tentang kuliah luar negeri, IELTS, beasiswa, dan visa. Jawaban lengkap dari SpecTa Education.',
+        '/articles':'Artikel dan panduan tentang kuliah luar negeri, persiapan IELTS, beasiswa, dan aplikasi universitas. Sumber terpercaya SpecTa Education.',
+        '/ielts/tutor':'AI IELTS Tutor untuk latihan Writing & Speaking tanpa batas dengan feedback instan dan skor band. Rp 149k/2 minggu. SpecTa Education.',
+        '/ielts/mock-test':'Full IELTS mock test 4-skill dengan AI grading dan report PDF lengkap. Rp 79.000 sekali bayar. SpecTa Education.',
+        '/igcse':'IGCSE AI Teacher untuk Math, Physics, Chemistry, Biology, Economics dan Business. Kurikulum Cambridge, konversasi suara, whiteboard interaktif. Trial gratis 30 menit.',
+        '/igcse/practice':'Latihan soal ujian IGCSE dengan gaya Cambridge, dinilai step-by-step oleh AI coach. Materi lengkap semua topik 0580 Extended. SpecTa Education.',
+        '/destinations/malaysia':'Kuliah di Malaysia bersama SpecTa Education. Universitas terbaik, program studi, beasiswa 100%, dan biaya kuliah untuk pelajar Indonesia.',
+        '/play/aptitude':'Tes Bakat AI gratis - temukan jurusan kuliah dan karier ideal Anda. RIASEC + Multiple Intelligences + kepribadian. SpecTa Education.',
+        '/test/pro':'Pro Aptitude Test - laporan lengkap AI dengan rekomendasi jurusan dan universitas. PDF report detail. SpecTa Education.'
       };
       var title=t[p];
       if(!title&&p.indexOf('/blog/')===0){var s=p.split('/blog/')[1];if(s){title=s.replace(/-/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase()})+' | SpecTa Education Blog';}}

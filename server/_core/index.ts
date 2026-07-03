@@ -364,71 +364,119 @@ ${rows}
     }
   });
 
-  // Dynamic sitemap.xml for SEO
+  // Dynamic sitemap.xml for SEO.
+  //
+  // Rules we hold ourselves to (Google Search Console feedback, July 2026):
+  //  1. Every URL here must actually exist as a route in App.tsx. Stale URLs
+  //     cause "Not found (404)" in the Search Console indexing report.
+  //  2. `lastmod` should be a REAL date the page last meaningfully changed —
+  //     not "today" every day. Google downweights sitemaps that update every
+  //     lastmod on every fetch.
+  //  3. Duplicate content pages (e.g. /malaysia vs /destinations/malaysia)
+  //     — only include ONE. The other should carry a <link rel="canonical">
+  //     pointing at the sitemap version.
+  //  4. Excluded: /admin, /staff, /crm, /unsubscribe, /simulator/report,
+  //     /my-journey, /track/:token, /join/:token, /journey/:token — either
+  //     private, user-specific, or transient.
   app.get("/sitemap.xml", async (req, res) => {
     try {
       const { listPublishedBlogPosts } = await import("../db");
       const baseUrl = "https://www.spectaeducation.com";
-      
-      // Static pages - all public-facing pages with SEO value
-      // Excludes: /staff-login, /staff-dashboard, /admin, /unsubscribe, /simulator/experience, /simulator/report, /component-showcase
-      const staticPages = [
-        // Core pages (highest priority)
+
+      // Real "content-last-changed" dates per page. Update by hand when you
+      // meaningfully revise a page. Everything else defaults to a shared
+      // recent-but-stable date so we don't lie to Google every deploy.
+      const DEFAULT_LASTMOD = "2026-06-15";
+      const LASTMOD: Record<string, string> = {
+        "/": "2026-07-01",
+        "/ielts": "2026-06-20",
+        "/ielts/tutor": "2026-06-25",
+        "/ielts/mock-test": "2026-06-25",
+        "/igcse": "2026-07-01",
+        "/igcse/practice": "2026-06-28",
+      };
+
+      const staticPages: Array<{ url: string; priority: string; changefreq: string }> = [
+        // Core pages
         { url: "/", priority: "1.0", changefreq: "weekly" },
         { url: "/about", priority: "0.8", changefreq: "monthly" },
-        { url: "/ielts", priority: "0.9", changefreq: "monthly" },
-        { url: "/ielts/practice", priority: "0.8", changefreq: "monthly" },
-        { url: "/destinations", priority: "0.9", changefreq: "monthly" },
-        { url: "/scholarships", priority: "0.8", changefreq: "monthly" },
-        { url: "/compare", priority: "0.7", changefreq: "monthly" },
         { url: "/contact", priority: "0.8", changefreq: "monthly" },
         { url: "/book", priority: "0.8", changefreq: "monthly" },
         { url: "/apply", priority: "0.7", changefreq: "monthly" },
-        { url: "/blog", priority: "0.8", changefreq: "daily" },
-        { url: "/articles", priority: "0.7", changefreq: "weekly" },
+        { url: "/compare", priority: "0.7", changefreq: "monthly" },
+        { url: "/faq", priority: "0.7", changefreq: "monthly" },
 
-        // Destination country pages (high priority - these drive organic traffic)
-        { url: "/malaysia", priority: "0.9", changefreq: "monthly" },
+        // ── PAID PRODUCTS — top commercial pages ───────────────────────────
+        // IELTS product family
+        { url: "/ielts", priority: "0.9", changefreq: "monthly" },
+        { url: "/ielts/practice", priority: "0.8", changefreq: "monthly" },
+        { url: "/ielts/tutor", priority: "0.9", changefreq: "monthly" },
+        { url: "/ielts/mock-test", priority: "0.9", changefreq: "monthly" },
+        // IGCSE product family
+        { url: "/igcse", priority: "0.9", changefreq: "monthly" },
+        { url: "/igcse/practice", priority: "0.8", changefreq: "monthly" },
+
+        // Scholarships
+        { url: "/scholarships", priority: "0.8", changefreq: "monthly" },
+
+        // Destinations — one canonical per country. /malaysia is a landing-page
+        // duplicate of /destinations/malaysia so it stays OUT of the sitemap;
+        // its <head> canonical (see index.html) points to /destinations/malaysia.
+        { url: "/destinations", priority: "0.9", changefreq: "monthly" },
         { url: "/destinations/australia", priority: "0.9", changefreq: "monthly" },
         { url: "/destinations/singapore", priority: "0.8", changefreq: "monthly" },
         { url: "/destinations/uk", priority: "0.9", changefreq: "monthly" },
         { url: "/destinations/usa", priority: "0.8", changefreq: "monthly" },
         { url: "/destinations/canada", priority: "0.8", changefreq: "monthly" },
         { url: "/destinations/china", priority: "0.8", changefreq: "monthly" },
+        { url: "/destinations/malaysia", priority: "0.8", changefreq: "monthly" },
         { url: "/destinations/ireland", priority: "0.7", changefreq: "monthly" },
         { url: "/destinations/new-zealand", priority: "0.7", changefreq: "monthly" },
         { url: "/destinations/netherlands", priority: "0.7", changefreq: "monthly" },
 
-        // Interactive tools (medium priority - unique differentiators)
-        { url: "/country-quiz", priority: "0.7", changefreq: "monthly" },
-        { url: "/aptitude-test", priority: "0.7", changefreq: "monthly" },
-        { url: "/aptitude-test/pro", priority: "0.6", changefreq: "monthly" },
+        // Interactive tools — routes that ACTUALLY exist in App.tsx. Previous
+        // entries (/country-quiz, /aptitude-test, /aptitude-test/pro,
+        // /specta-play, /persona) were stale and caused 404s.
+        { url: "/play", priority: "0.6", changefreq: "monthly" },
+        { url: "/play/quiz", priority: "0.6", changefreq: "monthly" },
+        { url: "/play/aptitude", priority: "0.7", changefreq: "monthly" },
+        { url: "/play/persona", priority: "0.6", changefreq: "monthly" },
+        { url: "/test/pro", priority: "0.7", changefreq: "monthly" },
         { url: "/simulator", priority: "0.6", changefreq: "monthly" },
-        { url: "/specta-play", priority: "0.6", changefreq: "monthly" },
-        { url: "/persona", priority: "0.5", changefreq: "monthly" },
 
-        // Utility pages (lower priority)
-        { url: "/track", priority: "0.5", changefreq: "monthly" },
-        { url: "/my-journey", priority: "0.5", changefreq: "monthly" },
+        // Content
+        { url: "/blog", priority: "0.8", changefreq: "daily" },
+        { url: "/articles", priority: "0.7", changefreq: "weekly" },
+
+        // Student portal — public entry only. Dashboard is user-specific and
+        // excluded (already blocked in robots.txt).
+        { url: "/student/register", priority: "0.6", changefreq: "monthly" },
       ];
 
-      // Dynamic blog posts
+      // Dynamic blog posts — their `updatedAt` is a real lastmod signal.
       const { posts } = await listPublishedBlogPosts({ limit: 500 });
       const blogUrls = posts.map(post => ({
         url: `/blog/${post.slug}`,
         priority: "0.6",
         changefreq: "monthly",
-        lastmod: post.updatedAt ? new Date(post.updatedAt).toISOString().split("T")[0] : undefined,
+        lastmod: post.updatedAt ? new Date(post.updatedAt).toISOString().split("T")[0] : DEFAULT_LASTMOD,
       }));
 
-      const allPages: Array<{ url: string; priority: string; changefreq: string; lastmod?: string }> = [...staticPages, ...blogUrls];
-      const today = new Date().toISOString().split("T")[0];
+      const staticWithLastmod = staticPages.map(p => ({
+        ...p,
+        lastmod: LASTMOD[p.url] || DEFAULT_LASTMOD,
+      }));
+
+      const allPages: Array<{ url: string; priority: string; changefreq: string; lastmod: string }> = [
+        ...staticWithLastmod,
+        ...blogUrls,
+      ];
 
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${allPages.map(p => `  <url>
     <loc>${baseUrl}${p.url}</loc>
-    <lastmod>${p.lastmod || today}</lastmod>
+    <lastmod>${p.lastmod}</lastmod>
     <changefreq>${p.changefreq}</changefreq>
     <priority>${p.priority}</priority>
   </url>`).join("\n")}

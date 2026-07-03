@@ -1,6 +1,6 @@
 # SpecTa Education - Robots.txt
-# https://spectaeducation.com
-# Last updated: April 2026
+# https://www.spectaeducation.com
+# Last updated: July 2026
 
 # === ALLOW ALL STANDARD CRAWLERS ===
 User-agent: *
@@ -71,16 +71,20 @@ Allow: /articles
 Allow: /destinations
 Allow: /ielts
 Allow: /ielts/practice
+Allow: /ielts/mock-test
+Allow: /ielts/tutor
+Allow: /igcse
+Allow: /igcse/practice
 Allow: /scholarships
 Allow: /about
 Allow: /contact
 Allow: /test/pro
+Allow: /play
 Allow: /play/quiz
 Allow: /play/aptitude
 Allow: /play/persona
 Allow: /compare
 Allow: /simulator
-Allow: /simulator/experience
 Allow: /apply
 Allow: /book
 Allow: /book-consultation
@@ -88,8 +92,9 @@ Allow: /malaysia
 Allow: /faq
 Allow: /student/register
 
-# Sitemap location
-Sitemap: https://spectaeducation.com/sitemap.xml
+# Sitemap location — must match the canonical (www) domain, otherwise Google
+# fetches the sitemap through a redirect chain.
+Sitemap: https://www.spectaeducation.com/sitemap.xml
 
 # Crawl-delay for politeness
 Crawl-delay: 1
