@@ -25,7 +25,17 @@ export default function IgcsePractice() {
 
   const startAttempt = trpc.igcse.startAttempt.useMutation({
     onSuccess: (d) => setLocation(`/igcse/practice/attempt/${d.attemptId}`),
-    onError: (e) => alert(e?.message || "Couldn't start. Please try again."),
+    onError: (e: any) => {
+      // Anonymous visitors need to register / log in before they can attempt.
+      // The server-side auth error surfaces as UNAUTHORIZED — redirect them
+      // through the classroom's AuthGate rather than showing a raw alert.
+      const code = e?.data?.code || e?.shape?.data?.code;
+      if (code === "UNAUTHORIZED" || code === "FORBIDDEN") {
+        setLocation("/igcse/app");
+        return;
+      }
+      alert(e?.message || "Couldn't start. Please try again.");
+    },
   });
 
   useEffect(() => {
@@ -110,15 +120,19 @@ export default function IgcsePractice() {
   if (status.isLoading) {
     return <div className="min-h-screen grid place-items-center text-slate-400">Loading…</div>;
   }
-  if (!status.data?.loggedIn) {
-    // Send them to the gated app to log in / start a trial.
-    setLocation("/igcse/app");
-    return null;
-  }
+  // Anonymous visitors are NOT redirected away — this page is a public SEO
+  // surface (searches like "IGCSE math practice questions" should land here).
+  // The topic list + example questions come from public tRPC endpoints; only
+  // starting an attempt requires an account. If an anon user clicks "Start",
+  // startAttempt returns an auth error and the onError handler sends them to
+  // /igcse/app to register / log in.
+  const loggedIn = !!status.data?.loggedIn;
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <SEO title="IGCSE Exam Practice — SpecTa Education" description="Practice Cambridge IGCSE Math exam-style questions with AI coaching." noindex />
+      {/* No `noindex` — this page must be indexable. Only the private per-user
+          attempt page (IgcsePracticeAttempt) is noindex, which is correct. */}
+      <SEO title="IGCSE Exam Practice — SpecTa Education" description="Practice Cambridge IGCSE Math, Physics, Chemistry, Biology, Economics & Business exam-style questions with AI coaching. Free preview, Cambridge-style mark schemes." />
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
