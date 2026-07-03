@@ -224,6 +224,7 @@ import { notifyOwner } from "./_core/notification";
 import { socialMediaRouter } from "./socialMedia";
 import { adsAgentRouter } from "./adsAgent";
 import { ieltsAdminRouter } from "./ieltsAdminRouter";
+import { tutorAdminRouter } from "./tutorAdminRouter";
 import { ieltsRouter } from "./ieltsRouter";
 import { crmTeamRouter } from "./crmTeamRouter";
 import { crmStudentsRouter } from "./crmStudentsRouter";
@@ -1264,6 +1265,7 @@ Return as JSON:
 
   admin: router({
     ielts: ieltsAdminRouter,
+    tutor: tutorAdminRouter,
 
     /** Send the IELTS-practice follow-up DRAFT to yourself (or a given email) for review. */
     previewPracticeFollowup: protectedProcedure

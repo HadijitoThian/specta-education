@@ -833,6 +833,38 @@ export const ieltsAdminRouter = router({
         .map((a: any) => a.paymentRef)
         .filter((ref: string) => ref && !ref.startsWith("ADMIN-") && !ref.startsWith("COMP-"));
 
+      // 5) AI IELTS Tutor cross-reference — same email may also be a Tutor
+      //    student (via leads.studentEmail). Grab their subs + a sample of
+      //    recent sessions so admins see the whole picture in one place.
+      const { leads, tutorSubscriptions, tutorSessions } = await import("../drizzle/schema");
+      const leadRows = await db.select({
+        id: leads.id, studentName: leads.studentName,
+        studentEmail: leads.studentEmail, studentPhone: leads.studentPhone,
+      }).from(leads).where(sql`LOWER(${leads.studentEmail}) = ${emailLc}`).limit(5);
+
+      let tutorSubs: any[] = [];
+      let tutorSessionsRows: any[] = [];
+      if (leadRows.length > 0) {
+        const leadIds = leadRows.map(l => l.id);
+        tutorSubs = await db.select().from(tutorSubscriptions)
+          .where(sql`${tutorSubscriptions.leadId} IN (${sql.join(leadIds.map(id => sql`${id}`), sql`, `)})`)
+          .orderBy(desc(tutorSubscriptions.createdAt));
+        tutorSessionsRows = await db.select({
+          id: tutorSessions.id,
+          leadId: tutorSessions.leadId,
+          skill: tutorSessions.skill,
+          taskType: tutorSessions.taskType,
+          overallBand: tutorSessions.overallBand,
+          isFree: tutorSessions.isFree,
+          createdAt: tutorSessions.createdAt,
+        }).from(tutorSessions)
+          .where(sql`${tutorSessions.leadId} IN (${sql.join(leadIds.map(id => sql`${id}`), sql`, `)})`)
+          .orderBy(desc(tutorSessions.createdAt))
+          .limit(20);
+      }
+      const now = new Date();
+      const activeTutorSubs = tutorSubs.filter((s: any) => s.status === "active" && s.expiresAt && new Date(s.expiresAt) > now).length;
+
       return {
         email: emailLc,
         summary: {
@@ -842,9 +874,16 @@ export const ieltsAdminRouter = router({
           pendingAttempts: pendingAttempts.length,
           completedAttempts: completedAttempts.length,
           xenditPaymentRefs: xenditRefs,
+          tutorLeads: leadRows.length,
+          tutorSubsTotal: tutorSubs.length,
+          tutorSubsActive: activeTutorSubs,
+          tutorSessionsTotal: tutorSessionsRows.length,
         },
         users: userRows,
         attempts,
+        tutorLeads: leadRows,
+        tutorSubscriptions: tutorSubs,
+        tutorSessions: tutorSessionsRows,
       };
     }),
 

@@ -93,6 +93,11 @@ export default function AdminDashboard() {
                 <Sparkles className="w-4 h-4 mr-2" /> IELTS Mock Tests
               </Button>
             </Link>
+            <Link href="/admin/ielts-tutor">
+              <Button variant="outline" size="sm" className="bg-pink-50 border-pink-200 text-pink-700 hover:bg-pink-100">
+                <Sparkles className="w-4 h-4 mr-2" /> AI IELTS Tutor
+              </Button>
+            </Link>
             <span className="hidden sm:inline text-sm text-muted-foreground">Welcome, {user?.name || "Admin"}</span>
             <Button variant="outline" size="sm" onClick={() => logout()}>
               <LogOut className="w-4 h-4 mr-2" /> Logout
