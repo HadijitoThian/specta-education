@@ -364,6 +364,106 @@ ${rows}
     }
   });
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Legacy URL cleanup for Search Console health.
+  //
+  // Google Search Console (July 2026) flagged 16 pages as "Soft 404" and 2 as
+  // "Duplicate without canonical". Nearly all of them were leftover URLs from
+  // the pre-migration Manus/WordPress site that Google indexed years ago and
+  // keeps re-crawling. Since the React SPA returns 200 for ANY path (renders
+  // the shell before JS), Google saw an "empty" page and flagged Soft 404.
+  //
+  // The fix is: give the old URLs a real HTTP answer.
+  //  - Known migration mappings → 301 to the new URL (keeps the SEO equity)
+  //  - Dead-forever paths (wp-content, cdn-cgi) → 410 Gone (tells Google to
+  //    drop them permanently — faster than a 404 which they retry for months)
+  //  - Trailing-slash duplicates → 301 to the canonical (no trailing slash)
+  //
+  // These handlers MUST come before the SPA catch-all (serveStatic).
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // 1) Legacy WordPress paths — dead forever, no equivalent to redirect to.
+  //    Google flagged: /wp-content/uploads/2023/02/uk.jpg, /usa.jpg, etc.
+  app.get(/^\/wp-content\/.*/i, (_req, res) => {
+    res.status(410).type("text/plain").send("Gone. This URL is from the old WordPress site and no longer exists.");
+  });
+  app.get(/^\/wp-admin\/.*/i, (_req, res) => {
+    res.status(410).type("text/plain").send("Gone.");
+  });
+  app.get(/^\/wp-includes\/.*/i, (_req, res) => {
+    res.status(410).type("text/plain").send("Gone.");
+  });
+
+  // 2) Cloudflare email-obfuscation leftover — /cdn-cgi/l/email-protection.
+  //    Not our URL at all; Cloudflare injected it when we used to be behind CF.
+  app.get(/^\/cdn-cgi\/.*/i, (_req, res) => {
+    res.status(410).type("text/plain").send("Gone.");
+  });
+
+  // 3) Old Bahasa URL structure /pendidikan_ln/:country → /destinations/:country.
+  //    Google flagged: /pendidikan_ln/canada/, /australia/, /new-zealand/.
+  //    Preserves SEO equity for country pages via 301.
+  app.get(/^\/pendidikan_ln\/([^\/]+)\/?$/i, (req, res) => {
+    const slug = (req.params as any)[0] || "";
+    const target = slug ? `/destinations/${slug.toLowerCase()}` : "/destinations";
+    res.redirect(301, target);
+  });
+  // Bare /pendidikan_ln/ hub
+  app.get(/^\/pendidikan_ln\/?$/i, (_req, res) => {
+    res.redirect(301, "/destinations");
+  });
+
+  // 4) Old Bahasa blog article slugs that no longer exist.
+  //    Google flagged: /kehidupan-mahasiswa-i-australia-panduan-lengkap-2026
+  //    We don't know the exact mapping to new content, so 301 to /blog which
+  //    is closest-related and lets us keep SEO signals in the domain.
+  const LEGACY_BAHASA_ARTICLE = /^\/(kehidupan-mahasiswa|panduan-kuliah|tips-kuliah|info-beasiswa|cara-daftar)-.*$/i;
+  app.get(LEGACY_BAHASA_ARTICLE, (_req, res) => {
+    res.redirect(301, "/blog");
+  });
+
+  // 5) Trailing-slash normalization. Google treats /blog and /blog/ as two
+  //    URLs. We picked "no trailing slash" as our canonical form. 301 the
+  //    slashed variant to the clean one, except the root "/" itself.
+  //    Skip API/tRPC paths so those keep their exact shape.
+  app.use((req, res, next) => {
+    if (req.method !== "GET" && req.method !== "HEAD") return next();
+    if (req.path === "/") return next();
+    if (!req.path.endsWith("/")) return next();
+    if (req.path.startsWith("/api/") || req.path.startsWith("/trpc/") || req.path.startsWith("/files/")) return next();
+    const q = req.url.slice(req.path.length); // preserve ?query and #hash
+    return res.redirect(301, req.path.replace(/\/+$/, "") + q);
+  });
+
+  // 6) Blog-post existence check. If Google asks for /blog/:slug and that
+  //    slug doesn't exist in our DB, return a real 404 so Google drops it
+  //    instead of thinking the empty SPA shell is a Soft 404.
+  //
+  //    IMPORTANT: real posts still fall through to the SPA (we call next()
+  //    only when the post exists), so nothing normal breaks.
+  app.get("/blog/:slug", async (req, res, next) => {
+    try {
+      const { getBlogPostBySlug } = await import("../db");
+      const slug = req.params.slug;
+      if (!slug || slug.length > 200) return next();
+      const post = await getBlogPostBySlug(slug);
+      if (post) return next(); // valid post → let the SPA render it
+      // Slug doesn't match a real post. Give Google a real 404.
+      res.status(404).type("text/html; charset=utf-8").send(
+        `<!doctype html><html lang="en"><head><meta charset="utf-8"/>` +
+        `<title>Post not found | SpecTa Education</title>` +
+        `<meta name="robots" content="noindex"/>` +
+        `<link rel="canonical" href="https://www.spectaeducation.com/blog"/>` +
+        `</head><body>` +
+        `<h1>This blog post no longer exists.</h1>` +
+        `<p><a href="/blog">See all articles →</a></p>` +
+        `</body></html>`
+      );
+    } catch {
+      return next(); // on DB error, don't 404 real posts — fail open to SPA
+    }
+  });
+
   // Dynamic sitemap.xml for SEO.
   //
   // Rules we hold ourselves to (Google Search Console feedback, July 2026):
