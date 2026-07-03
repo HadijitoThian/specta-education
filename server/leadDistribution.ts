@@ -87,9 +87,23 @@ async function assign(db: Db, leadId: number, c: Counsellor, studentName: string
   }
 }
 
-/** Auto-assign a single (new) lead. Best-effort; no-op if it's already assigned or no counsellors. */
+/**
+ * Auto-assign a single (new) lead. Best-effort; no-op if it's already assigned
+ * or no counsellors.
+ *
+ * GATED by CRM_AUTO_ASSIGN_ENABLED — owner's rule: new leads stay unassigned
+ * so an admin can pick who gets them. Set the Railway env
+ * `CRM_AUTO_ASSIGN_ENABLED=true` to re-enable round-robin distribution.
+ * (The manual "distribute backlog" admin button uses `distributeUnassigned`
+ * directly and is NOT gated — admin explicitly asked for it.)
+ */
 export async function distributeOne(leadId: number): Promise<{ ok: boolean; counsellorId?: number }> {
   try {
+    const autoAssignEnabled = String(process.env.CRM_AUTO_ASSIGN_ENABLED || "").toLowerCase() === "true";
+    if (!autoAssignEnabled) {
+      // New leads stay unassigned; admin will assign them manually in /crm.
+      return { ok: false };
+    }
     const db = await getDb();
     if (!db) return { ok: false };
     const [lead] = await db.select({ id: leads.id, name: leads.studentName, assigned: leads.assignedCounselorId }).from(leads).where(eq(leads.id, leadId)).limit(1);
