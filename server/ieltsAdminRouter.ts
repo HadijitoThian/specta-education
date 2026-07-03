@@ -8,7 +8,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { nanoid } from "nanoid";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 
 import {
   ieltsMockTests,
@@ -775,6 +775,77 @@ export const ieltsAdminRouter = router({
       });
       const attemptId = (inserted as any)[0]?.insertId as number;
       return { attemptToken, attemptId };
+    }),
+
+  /**
+   * Admin: look up every IELTS Mock attempt tied to a given customer email.
+   * Use case: a customer emails claiming "I paid but haven't gotten access" —
+   * paste their email here to see (a) whether any attempts exist under that
+   * email at all, (b) which are paid vs pending, (c) what the paymentRef is,
+   * (d) whether it's tied to a real user account.
+   *
+   * Matches on BOTH customerEmail (the form field) AND user.email (the linked
+   * account) so we catch attempts either way.
+   */
+  lookupCustomerByEmail: protectedProcedure
+    .input(z.object({ email: z.string().email() }))
+    .query(async ({ input, ctx }) => {
+      assertAdmin(ctx);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { ieltsMockAttempts, ieltsMockTests, users } = await import("../drizzle/schema");
+      const emailLc = input.email.trim().toLowerCase();
+
+      // 1) Find users with this email.
+      const userRows = await db.select({
+        id: users.id, name: users.name, email: users.email, createdAt: users.createdAt,
+      })
+      .from(users)
+      .where(eq(users.email, emailLc))
+      .limit(5);
+
+      // 2) Find attempts by customerEmail OR by userId.
+      const attemptRows = await db.execute(sql`
+        SELECT
+          a.id, a.userId, a.testId, a.attemptToken, a.paymentRef, a.customerName,
+          a.customerEmail, a.status, a.paidAt, a.startedAt, a.completedAt,
+          a.createdAt, a.updatedAt,
+          t.code AS testCode, t.title AS testTitle,
+          u.email AS userEmail, u.name AS userName
+        FROM ieltsMockAttempts a
+        LEFT JOIN ieltsMockTests t ON t.id = a.testId
+        LEFT JOIN users u ON u.id = a.userId
+        WHERE LOWER(a.customerEmail) = ${emailLc}
+           OR LOWER(u.email) = ${emailLc}
+        ORDER BY a.createdAt DESC
+      `);
+      const attempts: any[] = Array.isArray(attemptRows[0]) ? attemptRows[0] as any[] : (attemptRows as any);
+
+      // 3) Categorise for a quick summary.
+      const paidAttempts = attempts.filter((a: any) => !!a.paidAt);
+      const pendingAttempts = attempts.filter((a: any) => !a.paidAt);
+      const completedAttempts = attempts.filter((a: any) => a.status === "completed");
+
+      // 4) Also find any Xendit invoice references (payment refs starting with
+      //    XENDIT-, IELTS-MOCK-, etc.) so we know what to search on the Xendit
+      //    dashboard if needed.
+      const xenditRefs = paidAttempts
+        .map((a: any) => a.paymentRef)
+        .filter((ref: string) => ref && !ref.startsWith("ADMIN-") && !ref.startsWith("COMP-"));
+
+      return {
+        email: emailLc,
+        summary: {
+          users: userRows.length,
+          totalAttempts: attempts.length,
+          paidAttempts: paidAttempts.length,
+          pendingAttempts: pendingAttempts.length,
+          completedAttempts: completedAttempts.length,
+          xenditPaymentRefs: xenditRefs,
+        },
+        users: userRows,
+        attempts,
+      };
     }),
 
   /**

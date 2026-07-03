@@ -316,6 +316,9 @@ export default function AdminIeltsTests() {
           </div>
         )}
 
+        {/* Customer lookup by email — 'did this person actually pay?' */}
+        <CustomerLookupCard />
+
         {/* Email a complimentary Mock Test to a specific student (e.g. a paid customer who lost access) */}
         <div className="bg-white border border-gray-200 rounded-xl p-5 mb-8">
           <h2 className="font-semibold text-gray-900">📧 Email a free Mock Test to a student</h2>
@@ -708,4 +711,193 @@ function bufferToBase64(buf: ArrayBuffer): string {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
+}
+
+// ── Customer lookup card ────────────────────────────────────────────────────
+// "Did this person really pay?" — paste a customer email, get every IELTS mock
+// attempt tied to that email (via customerEmail field OR via linked user
+// account). Shows paid vs pending, payment refs (so admin can search Xendit),
+// dates, and current status of each attempt.
+function CustomerLookupCard() {
+  const [email, setEmail] = useState("");
+  const [q, setQ] = useState<string | null>(null);
+  const lookup = trpc.admin.ielts.lookupCustomerByEmail.useQuery(
+    { email: q || "" },
+    { enabled: !!q && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(q), retry: false },
+  );
+
+  const onSearch = () => {
+    const e = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) { alert("Please enter a valid email."); return; }
+    setQ(e);
+  };
+
+  const fmt = (d: any) => d ? new Date(d).toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
+      <h2 className="font-semibold text-gray-900">🔍 Look up customer by email</h2>
+      <p className="text-xs text-gray-500 mt-0.5 mb-3">
+        A customer says they paid but you can't find them? Paste their email — you'll see every attempt tied to that address (via the form field or their user account), whether it's paid, and the Xendit payment reference to search on the Xendit dashboard.
+      </p>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <input
+          type="email"
+          placeholder="customer@email.com"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && onSearch()}
+          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+        />
+        <button
+          onClick={onSearch}
+          disabled={lookup.isFetching}
+          className="bg-slate-800 hover:bg-slate-900 disabled:bg-slate-400 text-white text-sm font-medium px-5 py-2 rounded-lg whitespace-nowrap"
+        >
+          {lookup.isFetching ? "Searching…" : "Look up"}
+        </button>
+      </div>
+
+      {lookup.error && (
+        <div className="mt-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-sm text-rose-700">
+          {lookup.error.message}
+        </div>
+      )}
+
+      {lookup.data && (
+        <div className="mt-4 space-y-4">
+          {/* Summary strip */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+            <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
+              <div className="text-slate-500 uppercase tracking-wider font-semibold">User accounts</div>
+              <div className="text-xl font-extrabold text-slate-900 mt-0.5">{lookup.data.summary.users}</div>
+            </div>
+            <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
+              <div className="text-slate-500 uppercase tracking-wider font-semibold">Total attempts</div>
+              <div className="text-xl font-extrabold text-slate-900 mt-0.5">{lookup.data.summary.totalAttempts}</div>
+            </div>
+            <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3">
+              <div className="text-emerald-700 uppercase tracking-wider font-semibold">Paid</div>
+              <div className="text-xl font-extrabold text-emerald-800 mt-0.5">{lookup.data.summary.paidAttempts}</div>
+            </div>
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
+              <div className="text-amber-700 uppercase tracking-wider font-semibold">Pending</div>
+              <div className="text-xl font-extrabold text-amber-800 mt-0.5">{lookup.data.summary.pendingAttempts}</div>
+            </div>
+            <div className="rounded-lg bg-violet-50 border border-violet-200 p-3">
+              <div className="text-violet-700 uppercase tracking-wider font-semibold">Completed</div>
+              <div className="text-xl font-extrabold text-violet-800 mt-0.5">{lookup.data.summary.completedAttempts}</div>
+            </div>
+          </div>
+
+          {/* Xendit refs — quick copy for admin to paste into Xendit dashboard */}
+          {lookup.data.summary.xenditPaymentRefs.length > 0 && (
+            <div className="rounded-lg bg-slate-50 border border-slate-200 p-3">
+              <div className="text-xs text-slate-600 mb-1">
+                <strong>Xendit payment refs</strong> (paste into Xendit → Invoices → search by external_id):
+              </div>
+              <ul className="text-xs font-mono space-y-0.5">
+                {lookup.data.summary.xenditPaymentRefs.map((r: string, i: number) => (
+                  <li key={i} className="flex items-center gap-2">
+                    <code className="bg-white border border-slate-200 rounded px-1.5 py-0.5">{r}</code>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* User accounts */}
+          {lookup.data.users.length > 0 && (
+            <div className="rounded-lg border border-slate-200 overflow-hidden">
+              <div className="bg-slate-50 border-b border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">
+                Linked user account{lookup.data.users.length > 1 ? "s" : ""}
+              </div>
+              <table className="w-full text-xs">
+                <thead className="bg-white text-slate-500 uppercase tracking-wider">
+                  <tr>
+                    <th className="text-left px-3 py-2">User ID</th>
+                    <th className="text-left px-3 py-2">Name</th>
+                    <th className="text-left px-3 py-2">Email</th>
+                    <th className="text-left px-3 py-2">Signed up</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lookup.data.users.map((u: any, i: number) => (
+                    <tr key={i} className="border-t border-slate-100">
+                      <td className="px-3 py-2 font-mono">#{u.id}</td>
+                      <td className="px-3 py-2">{u.name || "—"}</td>
+                      <td className="px-3 py-2">{u.email}</td>
+                      <td className="px-3 py-2 text-slate-500">{fmt(u.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Attempts table */}
+          <div className="rounded-lg border border-slate-200 overflow-hidden">
+            <div className="bg-slate-50 border-b border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 flex items-center justify-between">
+              <span>Attempts for {lookup.data.email}</span>
+              {lookup.data.attempts.length === 0 && (
+                <span className="text-rose-700 font-normal">
+                  ⚠️ No attempts found — this customer has NEVER purchased or been assigned a mock test under this email.
+                </span>
+              )}
+            </div>
+            {lookup.data.attempts.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-white text-slate-500 uppercase tracking-wider">
+                    <tr>
+                      <th className="text-left px-3 py-2">#</th>
+                      <th className="text-left px-3 py-2">Test</th>
+                      <th className="text-left px-3 py-2">Status</th>
+                      <th className="text-left px-3 py-2">Paid?</th>
+                      <th className="text-left px-3 py-2">Payment ref</th>
+                      <th className="text-left px-3 py-2">customerEmail</th>
+                      <th className="text-left px-3 py-2">Created</th>
+                      <th className="text-left px-3 py-2">Token</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lookup.data.attempts.map((a: any) => (
+                      <tr key={a.id} className="border-t border-slate-100">
+                        <td className="px-3 py-2 font-mono">#{a.id}</td>
+                        <td className="px-3 py-2">
+                          <div className="font-medium">{a.testCode || "—"}</div>
+                          <div className="text-slate-500 text-[10px]">{a.testTitle}</div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                            a.status === "completed" ? "bg-violet-100 text-violet-800"
+                            : a.status === "ready" ? "bg-emerald-100 text-emerald-800"
+                            : a.status === "awaiting_payment" ? "bg-amber-100 text-amber-800"
+                            : "bg-slate-100 text-slate-700"
+                          }`}>{a.status}</span>
+                        </td>
+                        <td className="px-3 py-2">
+                          {a.paidAt
+                            ? <span className="text-emerald-700 font-semibold">✓ {fmt(a.paidAt)}</span>
+                            : <span className="text-rose-700 font-semibold">✗ unpaid</span>}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-[10px]">{a.paymentRef || "—"}</td>
+                        <td className="px-3 py-2">{a.customerEmail || <span className="text-slate-400">(via user account)</span>}</td>
+                        <td className="px-3 py-2 text-slate-500">{fmt(a.createdAt)}</td>
+                        <td className="px-3 py-2 font-mono text-[10px]">
+                          <a href={`/ielts/mock-test/take/${a.attemptToken}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                            {String(a.attemptToken).slice(0, 8)}…
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
