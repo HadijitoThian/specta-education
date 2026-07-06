@@ -768,6 +768,15 @@ function ListeningRunner({
   const [previewing, setPreviewing] = useState(true);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [audioFinished, setAudioFinished] = useState(false);
+  // Mobile browsers (Android WebView, Redmi/Xiaomi Mi Browser, Safari iOS)
+  // block autoplay when a `src` gets attached without a user gesture in
+  // the same tick. Symptom: student sees "Done" and 0/40 answered — the
+  // silent autoplay-rejection was falsely marked ended by the stall
+  // detector. Fix: EVERY section waits for a physical "Start audio" tap
+  // now. audioArmed=true means the student has tapped Start.
+  const [audioArmed, setAudioArmed] = useState(false);
+  // Surfaces load/playback errors instead of swallowing them silently.
+  const [audioError, setAudioError] = useState<string | null>(null);
 
   // Countdown ticker for preview period.
   useEffect(() => {
@@ -780,10 +789,13 @@ function ListeningRunner({
     return () => clearInterval(t);
   }, [previewing, previewLeft]);
 
-  // Reset preview when changing sections.
+  // Reset preview + audio state when changing sections. Each new section
+  // needs its own explicit user tap to start audio.
   useEffect(() => {
     setPreviewing(true);
     setPreviewLeft(PREVIEW_SECONDS);
+    setAudioArmed(false);
+    setAudioError(null);
   }, [sectionIdx]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastPositionRef = useRef(0);
@@ -951,7 +963,16 @@ function ListeningRunner({
               Use the preview seconds to read every question — you'll catch
               answers faster.
             </li>
+            <li>
+              When preview ends, tap the blue <strong>▶ Start audio</strong>{" "}
+              button at the top. The audio plays once and can't be paused.
+            </li>
             <li>Answers are case-insensitive and auto-saved as you type.</li>
+            <li>
+              If the audio doesn't play, try opening this test link in{" "}
+              <strong>Chrome</strong> instead — some phone browsers block
+              audio unless you tap directly.
+            </li>
           </ul>
         </div>
 
@@ -1025,11 +1046,16 @@ function ListeningRunner({
             )}
             {section.audioUrl ? (
               <>
-                {/* Hidden audio element — no native controls. */}
+                {/* Hidden audio element — no native controls.
+                    src is only attached AFTER the student taps "Start audio"
+                    (audioArmed=true). This is required because mobile browsers
+                    (Android WebView, Xiaomi Mi Browser, Safari iOS) treat
+                    attaching src + autoPlay after a countdown as a non-gesture
+                    play attempt and silently block it. */}
                 <audio
                   ref={audioRef}
-                  src={previewing ? undefined : section.audioUrl}
-                  autoPlay={!previewing}
+                  src={audioArmed ? section.audioUrl : undefined}
+                  autoPlay={audioArmed}
                   onTimeUpdate={() => {
                     if (audioRef.current) {
                       lastPositionRef.current = audioRef.current.currentTime;
@@ -1053,17 +1079,25 @@ function ListeningRunner({
                     }
                   }}
                   onEnded={() => setAudioFinished(true)}
+                  onError={() => setAudioError(
+                    "The audio failed to load. Tap 'Retry audio' below, or try a different browser (Chrome recommended)."
+                  )}
                 />
-                {/* Hidden stalled-detector — keeps the audio-finished
-                    fallback alive but doesn't render anything visible. */}
-                <div className="hidden">
-                  <ListeningAudioStatus
-                    playing={!previewing && !audioFinished}
-                    finished={audioFinished}
-                    audioRef={audioRef}
-                    onForceFinished={() => setAudioFinished(true)}
-                  />
-                </div>
+                {/* Hidden stalled-detector — only runs once audioArmed AND
+                    the student has actually heard playback start (ct > 1).
+                    Previously it could fire on autoplay-blocked audio and
+                    falsely mark the section "Done" without the student
+                    hearing anything. */}
+                {audioArmed ? (
+                  <div className="hidden">
+                    <ListeningAudioStatus
+                      playing={audioArmed && !audioFinished}
+                      finished={audioFinished}
+                      audioRef={audioRef}
+                      onForceFinished={() => setAudioFinished(true)}
+                    />
+                  </div>
+                ) : null}
               </>
             ) : null}
           </div>
@@ -1081,6 +1115,56 @@ function ListeningRunner({
                 className="ml-2 underline font-semibold hover:text-amber-700 shrink-0"
               >
                 Skip →
+              </button>
+            </div>
+          ) : !audioArmed && !audioFinished ? (
+            // Preview ended and audio isn't playing yet — student must tap to
+            // start. This is the fix for the mobile autoplay-blocked bug.
+            <div className="mt-2 bg-blue-600 rounded-lg px-3 py-3 flex items-center justify-between gap-3">
+              <div className="text-white text-sm">
+                <div className="font-semibold">Preview ended — tap to start the audio</div>
+                <div className="text-blue-100 text-xs mt-0.5">
+                  This plays once and can't be paused, so make sure your
+                  volume is up first.
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setAudioError(null);
+                  setAudioArmed(true);
+                  // Best-effort call to .play() from the click handler so the
+                  // browser accepts the gesture even if the src attribute
+                  // isn't reflected yet.
+                  setTimeout(() => {
+                    audioRef.current?.play().catch((e: any) => {
+                      setAudioError(
+                        "Your browser blocked audio. Try a different browser (Chrome) or turn off battery-saver."
+                      );
+                    });
+                  }, 50);
+                }}
+                className="bg-white text-blue-700 font-bold px-4 py-2 rounded-lg shadow shrink-0 flex items-center gap-1.5 text-sm"
+              >
+                ▶ Start audio
+              </button>
+            </div>
+          ) : null}
+          {audioError ? (
+            <div className="mt-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-800 flex items-center justify-between gap-2">
+              <span>{audioError}</span>
+              <button
+                onClick={() => {
+                  setAudioError(null);
+                  setAudioArmed(false);
+                  // Re-arm on next tick so the browser sees a fresh gesture.
+                  setTimeout(() => {
+                    setAudioArmed(true);
+                    setTimeout(() => audioRef.current?.play().catch(() => {}), 50);
+                  }, 30);
+                }}
+                className="underline font-semibold shrink-0"
+              >
+                Retry audio
               </button>
             </div>
           ) : null}
