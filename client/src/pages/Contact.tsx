@@ -309,7 +309,6 @@ export default function Contact() {
       <Footer />
 
       {/* Wall-E Style Chatbot Button */}
-      <ChatBotButton onClick={() => setIsChatOpen(true)} />
 
       {/* Chat Modal */}
       <AnimatePresence>

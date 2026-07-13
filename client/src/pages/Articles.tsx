@@ -255,7 +255,6 @@ export default function Articles() {
       </AnimatePresence>
 
       {/* Wall-E Style Chatbot Button */}
-      <ChatBotButton onClick={() => setIsChatOpen(true)} />
 
       {/* Chat Modal */}
       <AnimatePresence>

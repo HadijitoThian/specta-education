@@ -982,7 +982,6 @@ export default function Home() {
 
       {/* Wall-E Style Chatbot Button — lazy loaded, below the fold */}
       <Suspense fallback={null}>
-        <ChatBotButton onClick={handleOpenChat} />
       </Suspense>
 
       {/* Chat Modal */}

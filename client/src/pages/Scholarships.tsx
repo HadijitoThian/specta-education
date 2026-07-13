@@ -986,7 +986,6 @@ export default function Scholarships() {
       <Footer />
 
       {/* Chatbot */}
-      <ChatBotButton onClick={() => setIsChatOpen(true)} />
       <AnimatePresence>
         {isChatOpen && (
           <motion.div

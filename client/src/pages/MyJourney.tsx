@@ -106,7 +106,6 @@ export default function MyJourney() {
       </section>
 
       <Footer />
-      <ChatBotButton onClick={() => setIsChatOpen(true)} />
       {isChatOpen && (
         <div className="fixed bottom-24 right-6 z-50 w-[380px] max-h-[600px] rounded-2xl shadow-2xl overflow-hidden">
           <ChatBot />

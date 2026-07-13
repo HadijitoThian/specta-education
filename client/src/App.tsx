@@ -254,6 +254,12 @@ function Router() {
   );
 }
 
+// Global chat widget — mounted once at the app root so every public page
+// automatically gets the SpecTa AI assistant floating button + modal.
+// See client/src/components/GlobalChatBot.tsx for the route skip list
+// (admin, staff, active exam, private lesson pages, etc.).
+const GlobalChatBot = lazy(() => import("./components/GlobalChatBot"));
+
 function App() {
   return (
     <ErrorBoundary>
@@ -262,6 +268,9 @@ function App() {
           <TooltipProvider>
             <Toaster />
             <Router />
+            <Suspense fallback={null}>
+              <GlobalChatBot />
+            </Suspense>
           </TooltipProvider>
         </MascotAgentProvider>
       </ThemeProvider>

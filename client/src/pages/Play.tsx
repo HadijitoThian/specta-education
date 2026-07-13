@@ -448,7 +448,6 @@ export default function Play() {
       <Footer />
 
       {/* Chatbot */}
-      <ChatBotButton onClick={() => setIsChatOpen(true)} />
       <AnimatePresence>
         {isChatOpen && (
           <motion.div

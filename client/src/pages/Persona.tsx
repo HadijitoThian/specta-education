@@ -348,7 +348,6 @@ export default function Persona() {
             <p className="text-white/50 text-sm mt-4">No sign-up required • Share on Instagram</p>
           </div>
         </div>
-        <ChatBotButton onClick={() => setIsChatOpen(true)} />
         <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
       </div>
     );
@@ -440,7 +439,6 @@ export default function Persona() {
             </div>
           </div>
         </div>
-        <ChatBotButton onClick={() => setIsChatOpen(true)} />
         <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
       </div>
     );
@@ -498,7 +496,6 @@ export default function Persona() {
             </button>
           </div>
         </div>
-        <ChatBotButton onClick={() => setIsChatOpen(true)} />
         <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
       </div>
     );
@@ -532,7 +529,6 @@ export default function Persona() {
             ))}
           </div>
         </div>
-        <ChatBotButton onClick={() => setIsChatOpen(true)} />
         <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
       </div>
     );
@@ -795,7 +791,6 @@ export default function Persona() {
       )}
 
       <Footer />
-      <ChatBotButton onClick={() => setIsChatOpen(true)} />
       <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
 
       {/* CSS for confetti animation */}
