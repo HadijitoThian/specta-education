@@ -485,14 +485,24 @@
     }
     </script>
 
-    <!-- Google Analytics GA4 - SpecTa Education -->
-    <!-- Replace G-XXXXXXXXXX with your actual GA4 Measurement ID -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-SPECTAEDU01"></script>
+    <!-- Google Tag — SpecTa Education Google Ads (AW-956384648)
+         Loads gtag.js globally so Google Ads sees pageviews and can detect the
+         tag as "installed" (fixes the "tag wasn't detected on www.spectaeducation.com"
+         warning in the Google Ads dashboard). Conversion events are fired
+         separately via client/src/lib/googleAds.ts on real business actions
+         (student registration, mock test purchase, tutor subscription, IGCSE
+         subscription) — those need conversion LABELS set as Railway env vars
+         (VITE_GOOGLE_ADS_LEAD_LABEL / _PURCHASE_LABEL) once created in
+         Google Ads → Goals → Conversion actions.
+
+         If we later add a real GA4 property, we can add a second gtag('config',
+         'G-XXXXXXXXXX') call after the AW config — one tag, two destinations. -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-956384648"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-SPECTAEDU01', {
+      gtag('config', 'AW-956384648', {
         page_path: window.location.pathname,
         send_page_view: true
       });
