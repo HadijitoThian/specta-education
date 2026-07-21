@@ -485,24 +485,28 @@
     }
     </script>
 
-    <!-- Google Tag — SpecTa Education Google Ads (AW-956384648)
-         Loads gtag.js globally so Google Ads sees pageviews and can detect the
-         tag as "installed" (fixes the "tag wasn't detected on www.spectaeducation.com"
-         warning in the Google Ads dashboard). Conversion events are fired
-         separately via client/src/lib/googleAds.ts on real business actions
-         (student registration, mock test purchase, tutor subscription, IGCSE
-         subscription) — those need conversion LABELS set as Railway env vars
-         (VITE_GOOGLE_ADS_LEAD_LABEL / _PURCHASE_LABEL) once created in
-         Google Ads → Goals → Conversion actions.
+    <!-- Google Tag — one gtag.js loader, TWO destinations (Google Ads + GA4).
+         Loads globally so both properties see every pageview.
 
-         If we later add a real GA4 property, we can add a second gtag('config',
-         'G-XXXXXXXXXX') call after the AW config — one tag, two destinations. -->
+         AW-956384648 = SpecTa Education Google Ads account (paid ads, conversions,
+                        Smart Bidding). Conversion labels live in client/src/lib/
+                        googleAds.ts and fire on real business events (mock test
+                        purchase, tutor subscription, IGCSE subscription, student
+                        registration, WhatsApp click).
+
+         G-WE4LBHKBLX  = SpecTa Education GA4 property (behavior analytics,
+                        audience segments, funnel reports). Linked to the Google
+                        Ads account so audiences + goal imports flow both ways. -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-956384648"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', 'AW-956384648', {
+        page_path: window.location.pathname,
+        send_page_view: true
+      });
+      gtag('config', 'G-WE4LBHKBLX', {
         page_path: window.location.pathname,
         send_page_view: true
       });

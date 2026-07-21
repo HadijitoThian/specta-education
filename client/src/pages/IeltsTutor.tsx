@@ -72,13 +72,19 @@ export default function IeltsTutor() {
     },
   });
 
-  // Fire a Google Ads "purchase" conversion once a paid subscription is active
-  // (dormant unless VITE_GOOGLE_ADS_ID + PURCHASE_LABEL are set).
+  // Fire the "AI Tutor subscribed" Google Ads conversion once a paid
+  // subscription is active. Value uses the actual plan price (Rp 149k for w2
+  // or Rp 249k for m1) so Smart Bidding sees real IDR, not an average.
+  // Skips FREE- subs (admin-issued free passes shouldn't count as revenue).
   useEffect(() => {
     const sub = (status.data as any)?.subscription;
     if (justPaid && sub && !sub.isFree && !convFiredRef.current) {
       convFiredRef.current = true;
-      fireConversion("purchase", { value: PLAN_VALUE[sub.plan] ?? 149000, currency: "IDR" });
+      fireConversion("tutor", {
+        value: PLAN_VALUE[sub.plan] ?? 199000,
+        currency: "IDR",
+        transactionId: sub.xenditInvoiceId || undefined,
+      });
       // Clean the ?paid=1 off the URL so a refresh doesn't re-fire.
       try { window.history.replaceState({}, "", "/ielts/tutor"); } catch { /* ignore */ }
     }

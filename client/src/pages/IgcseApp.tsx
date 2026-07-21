@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { SEO } from "@/components/SEO";
+import { fireConversion } from "@/lib/googleAds";
 
 const PURPLE = "#7c3aed";
 const PINK = "#db2777";
@@ -61,6 +62,7 @@ export default function IgcseApp() {
   const utils = trpc.useUtils();
   const status = trpc.igcse.status.useQuery(undefined, { retry: false });
   const pollsRef = useRef(0);
+  const convFiredRef = useRef(false);
   const justPaid = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("paid") === "1";
 
   // After returning from Xendit with ?paid=1, briefly poll status so the new
@@ -84,6 +86,22 @@ export default function IgcseApp() {
     }
   }, [justPaid]);
 
+  // Fire the "IGCSE subscribed" Google Ads conversion once the subscription
+  // is confirmed active (webhook flipped status → paid). Rp 299k m1 plan.
+  // xenditInvoiceId as transaction_id keeps double-firings (page reload,
+  // back button) from double-counting.
+  useEffect(() => {
+    const sub = (status.data as any)?.subscription;
+    if (justPaid && sub && !convFiredRef.current) {
+      convFiredRef.current = true;
+      fireConversion("igcse", {
+        value: 299000,
+        currency: "IDR",
+        transactionId: sub.xenditInvoiceId || undefined,
+      });
+    }
+  }, [status.data, justPaid]);
+
   if (status.isLoading) {
     return <div className="min-h-screen grid place-items-center text-slate-400">Loading…</div>;
   }
@@ -100,7 +118,13 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
   const [err, setErr] = useState<string | null>(null);
   const set = (k: string, v: string) => setF(s => ({ ...s, [k]: v }));
 
-  const register = trpc.studentPortal.selfRegister.useMutation({ onSuccess: onAuthed, onError: e => setErr(e.message) });
+  // Fire the "Student registered" Google Ads conversion on a NEW signup (not
+  // login). Silent no-op if the lead label isn't wired up yet (2026-07-04:
+  // Google Ads UI wouldn't surface the snippet in the setup session).
+  const register = trpc.studentPortal.selfRegister.useMutation({
+    onSuccess: () => { fireConversion("lead"); onAuthed(); },
+    onError: e => setErr(e.message),
+  });
   const login = trpc.studentPortal.login.useMutation({ onSuccess: onAuthed, onError: e => setErr(e.message) });
   const busy = register.isPending || login.isPending;
 

@@ -260,6 +260,12 @@ function Router() {
 // (admin, staff, active exam, private lesson pages, etc.).
 const GlobalChatBot = lazy(() => import("./components/GlobalChatBot"));
 
+// Global click delegation for WhatsApp conversion tracking — mounted once
+// so every wa.me link on every page fires the Google Ads WhatsApp-click
+// conversion without each caller having to know about it. Same "opt-out
+// at the root" pattern as GlobalChatBot.
+const GlobalConversionTracking = lazy(() => import("./components/GlobalConversionTracking"));
+
 function App() {
   return (
     <ErrorBoundary>
@@ -270,6 +276,9 @@ function App() {
             <Router />
             <Suspense fallback={null}>
               <GlobalChatBot />
+            </Suspense>
+            <Suspense fallback={null}>
+              <GlobalConversionTracking />
             </Suspense>
           </TooltipProvider>
         </MascotAgentProvider>

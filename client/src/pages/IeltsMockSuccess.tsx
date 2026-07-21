@@ -26,13 +26,14 @@ export default function IeltsMockSuccess() {
     if (attemptQuery.isFetched) setPollCount(n => n + 1);
   }, [attemptQuery.isFetched]);
 
-  // Fire a Google Ads "purchase" conversion once payment is confirmed
-  // (dormant unless VITE_GOOGLE_ADS_ID + PURCHASE_LABEL are set).
+  // Fire the "Mock Test purchased" Google Ads conversion once payment is
+  // confirmed. Rp 79k, keyed to the attempt token so a page reload / back
+  // button doesn't fire it twice (Google dedupes by transaction_id).
   useEffect(() => {
     const status = attemptQuery.data?.attempt?.status;
     if (status && status !== "awaiting_payment" && !firedRef.current) {
       firedRef.current = true;
-      fireConversion("purchase", { value: 79000, currency: "IDR", transactionId: token });
+      fireConversion("mockTest", { value: 79000, currency: "IDR", transactionId: token });
     }
   }, [attemptQuery.data?.attempt?.status, token]);
 
