@@ -15,16 +15,65 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Megaphone, Loader2, Download, Trash2, ArrowLeft, Plus, Copy, Lightbulb, Check } from "lucide-react";
 
-const LANDING_PAGES = [
-  { path: "/ielts/tutor", label: "AI IELTS Tutor (product)" },
-  { path: "/ielts", label: "IELTS Preparation" },
-  { path: "/scholarships", label: "Scholarships" },
-  { path: "/destinations", label: "Study Destinations" },
-  { path: "/destinations/australia", label: "Study in Australia" },
-  { path: "/book", label: "Book Consultation" },
-  { path: "/contact", label: "Contact / Free Consult" },
-  { path: "/play/aptitude", label: "Tes Bakat AI" },
+/**
+ * Every landing page that's a valid Google Ads destination.
+ *
+ * Grouped for the picker via <optgroup>. Order = business importance:
+ * paid products first, then IELTS/IGCSE catalogs, then study-abroad
+ * destinations, then lead-capture pages, then tools.
+ *
+ * When adding a new product/page, drop it in the right group so admins
+ * find it fast. Every path must be a real, indexable route from App.tsx.
+ */
+const LANDING_PAGES: Array<{ path: string; label: string; group: string }> = [
+  // ── PAID PRODUCTS — highest ROAS potential ────────────────────────────
+  { group: "Paid products",  path: "/ielts/mock-test", label: "IELTS Mock Test — Rp 79k (one-off)" },
+  { group: "Paid products",  path: "/ielts/tutor",     label: "AI IELTS Tutor — Rp 149-249k (subscription)" },
+  { group: "Paid products",  path: "/igcse",           label: "IGCSE AI Teacher — Rp 299k/mo (subscription)" },
+  { group: "Paid products",  path: "/test/pro",        label: "Tes Bakat AI Pro — Rp 79k (career report)" },
+
+  // ── IELTS suite ─────────────────────────────────────────────────────
+  { group: "IELTS",          path: "/ielts",           label: "IELTS Preparation (classroom courses)" },
+  { group: "IELTS",          path: "/ielts/practice",  label: "IELTS Practice Test (free — lead capture)" },
+
+  // ── IGCSE suite ─────────────────────────────────────────────────────
+  { group: "IGCSE",          path: "/igcse/practice",  label: "IGCSE Exam Practice (Cambridge-style Qs)" },
+
+  // ── Study abroad — 10 country pages + hub ───────────────────────────
+  { group: "Study abroad",   path: "/destinations",           label: "Study Destinations (all countries)" },
+  { group: "Study abroad",   path: "/destinations/australia", label: "Study in Australia" },
+  { group: "Study abroad",   path: "/destinations/uk",        label: "Study in United Kingdom" },
+  { group: "Study abroad",   path: "/destinations/usa",       label: "Study in USA" },
+  { group: "Study abroad",   path: "/destinations/canada",    label: "Study in Canada" },
+  { group: "Study abroad",   path: "/destinations/singapore", label: "Study in Singapore" },
+  { group: "Study abroad",   path: "/destinations/malaysia",  label: "Study in Malaysia" },
+  { group: "Study abroad",   path: "/destinations/new-zealand", label: "Study in New Zealand" },
+  { group: "Study abroad",   path: "/destinations/ireland",   label: "Study in Ireland" },
+  { group: "Study abroad",   path: "/destinations/netherlands", label: "Study in Netherlands" },
+  { group: "Study abroad",   path: "/destinations/china",     label: "Study in China" },
+
+  // ── Lead capture pages ─────────────────────────────────────────────
+  { group: "Lead capture",   path: "/scholarships",    label: "Scholarships (Beasiswa)" },
+  { group: "Lead capture",   path: "/book",            label: "Book Free Consultation" },
+  { group: "Lead capture",   path: "/contact",         label: "Contact / Free Consult" },
+  { group: "Lead capture",   path: "/apply",           label: "Quick Apply (university application)" },
+
+  // ── Free tools (lead magnets — for retargeting audiences) ──────────
+  { group: "Free tools",     path: "/play/aptitude",   label: "Tes Bakat AI — free version (upsell to Pro)" },
+  { group: "Free tools",     path: "/play/quiz",       label: "Country match quiz" },
+  { group: "Free tools",     path: "/compare",         label: "Compare Study Destinations" },
+  { group: "Free tools",     path: "/simulator",       label: "Study Abroad Life Simulator" },
 ];
+
+/** Group the flat list into optgroup-friendly structure. */
+const LANDING_PAGES_GROUPED: Array<{ group: string; items: Array<{ path: string; label: string }> }> =
+  Array.from(
+    LANDING_PAGES.reduce((acc, p) => {
+      if (!acc.has(p.group)) acc.set(p.group, []);
+      acc.get(p.group)!.push({ path: p.path, label: p.label });
+      return acc;
+    }, new Map<string, Array<{ path: string; label: string }>>())
+  ).map(([group, items]) => ({ group, items }));
 
 type Campaign = any;
 
@@ -36,7 +85,10 @@ export default function AdsCopilot() {
   // Brief form
   const [product, setProduct] = useState("");
   const [goal, setGoal] = useState("");
-  const [landingPath, setLandingPath] = useState("/contact");
+  // Default to Mock Test — highest-ROAS one-off product with a clear
+  // conversion (Rp 79k purchase), so a fresh admin's first campaign
+  // naturally lands on a good target.
+  const [landingPath, setLandingPath] = useState("/ielts/mock-test");
   const [budget, setBudget] = useState("");
 
   const generate = trpc.marketing.generateCampaign.useMutation({
@@ -218,7 +270,13 @@ export default function AdsCopilot() {
             <Input placeholder="What to advertise (e.g. IELTS preparation course)" value={product} onChange={e => setProduct(e.target.value)} />
             <Input placeholder="Goal (e.g. book free consultations)" value={goal} onChange={e => setGoal(e.target.value)} />
             <select value={landingPath} onChange={e => setLandingPath(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-              {LANDING_PAGES.map(l => <option key={l.path} value={l.path}>{l.label} ({l.path})</option>)}
+              {LANDING_PAGES_GROUPED.map(g => (
+                <optgroup key={g.group} label={g.group}>
+                  {g.items.map(l => (
+                    <option key={l.path} value={l.path}>{l.label} ({l.path})</option>
+                  ))}
+                </optgroup>
+              ))}
             </select>
             <Input placeholder="Daily budget Rp (optional)" inputMode="numeric" value={budget} onChange={e => setBudget(e.target.value)} />
           </div>

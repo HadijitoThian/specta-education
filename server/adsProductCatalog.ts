@@ -121,15 +121,15 @@ export const PRODUCT_CATALOG: readonly ProductBrief[] = [
     primaryConversionAction: "WhatsApp clicked",
   },
   {
-    key: "aptitude-test",
-    label: "Tes Bakat AI (Aptitude Test)",
-    description: "RIASEC + Multiple Intelligences. Free tier + Rp 79k Pro.",
+    key: "aptitude-pro",
+    label: "Tes Bakat AI Pro (Aptitude Test)",
+    description: "Full RIASEC + MI report — Rp 79k. Sends buyers straight to Pro.",
     product:
-      "SpecTa Tes Bakat AI — asesmen bakat dan karier untuk siswa SMA yang bingung pilih jurusan. RIASEC + Multiple Intelligences + AI matching ke jurusan dan universitas. Free tier tersedia, Pro report PDF lengkap Rp 79.000.",
-    goal: "Get students (or worried parents) to complete the free aptitude test, upgrade to Pro (Rp 79k).",
-    landingPath: "/play/aptitude",
+      "SpecTa Tes Bakat AI Pro — Rp 79.000. Laporan lengkap tes bakat + karier untuk siswa SMA/mahasiswa: RIASEC Interest Assessment, Gardner Multiple Intelligences, personality profiling, dan AI matching ke 3-5 jurusan universitas + prediksi karier ideal. PDF report profesional dikirim ke email.",
+    goal: "Get one-off Pro purchases (Rp 79.000). Buyers pay via Xendit invoice and receive the PDF report.",
+    landingPath: "/test/pro",
     suggestedDailyBudgetIdr: 50000,
-    priceLabel: "gratis · Pro Rp 79k",
+    priceLabel: "Rp 79k · Pro report",
     primaryConversionAction: "Mock Test purchased",
   },
 ] as const;
