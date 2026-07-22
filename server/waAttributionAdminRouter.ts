@@ -99,18 +99,26 @@ export const waAttributionAdminRouter = router({
           createdBy: (ctx.user as any)?.id,
         });
       } catch (e: any) {
-        // Expose the real DB error instead of pretending everything is a
-        // duplicate-code conflict. The user hit this masking bug when trying
-        // fresh unique codes over and over on 2026-07-04 — turned out the
-        // wa_campaigns table hadn't been initialised at all.
-        const raw = e?.message || String(e);
-        const looksLikeDupe = /Duplicate entry|UNIQUE constraint|already exists/i.test(raw);
-        console.error("[wa-admin] createCampaign failed:", raw);
+        // Walk the error chain to find the actual MySQL error text.
+        // mysql2 puts it in `.sqlMessage`; Drizzle wraps its own message on top.
+        // Without unwrapping, we just see "Failed query: INSERT INTO …" with
+        // zero clue what actually broke.
+        const raw =
+          e?.cause?.sqlMessage ||
+          e?.sqlMessage ||
+          e?.cause?.message ||
+          e?.message ||
+          String(e);
+        const code = e?.cause?.code || e?.code;
+        const looksLikeDupe =
+          code === "ER_DUP_ENTRY" ||
+          /Duplicate entry|UNIQUE constraint|already exists/i.test(raw);
+        console.error("[wa-admin] createCampaign failed:", { code, raw, err: e });
         throw new TRPCError({
           code: looksLikeDupe ? "CONFLICT" : "INTERNAL_SERVER_ERROR",
           message: looksLikeDupe
             ? `Code "${input.code}" already exists — pick a different slug.`
-            : `Create failed: ${raw}`,
+            : `Create failed [${code || "unknown"}]: ${raw}`,
         });
       }
       const base = (process.env.APP_URL || "https://www.spectaeducation.com").replace(/\/+$/, "");
