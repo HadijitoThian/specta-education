@@ -429,15 +429,62 @@ export async function applyRecommendation(rec: { type: AdRec["type"]; resourceNa
 }
 
 // ── D3 Advisor scheduler: daily email of suggestions (you approve in-app) ─────
+// Persistence: `lastOptDay` USED to be in-memory only — which meant every
+// Railway redeploy reset it, and the 2-minute-after-startup fire (setTimeout
+// below) would send a fresh email. When we shipped 10+ deploys in one afternoon
+// the owner got 10+ spam emails. Now we persist via a DB marker so restarts
+// don't re-fire, and we skip the immediate startup fire entirely.
 let optStarted = false;
-let lastOptDay = "";
+
+/** Marker table row key. */
+const OPT_MARKER_KEY = "google_ads_advisor_last_email_day";
+
+async function readLastOptDay(): Promise<string> {
+  try {
+    const { getDb } = await import("./db");
+    const db = await getDb();
+    if (!db) return "";
+    // Reuse the growth_digests table's periodLabel column as a simple KV
+    // store — cheaper than a new table for a single row. Row identified by
+    // a sentinel periodLabel starting with "_meta:".
+    const { sql } = await import("drizzle-orm");
+    const rows: any = await db.execute(sql`
+      SELECT summary FROM growth_digests
+      WHERE periodLabel = ${"_meta:" + OPT_MARKER_KEY}
+      LIMIT 1
+    `);
+    const list: any[] = Array.isArray(rows[0]) ? rows[0] : rows;
+    return list?.[0]?.summary || "";
+  } catch { return ""; }
+}
+
+async function writeLastOptDay(day: string): Promise<void> {
+  try {
+    const { getDb } = await import("./db");
+    const db = await getDb();
+    if (!db) return;
+    const { sql } = await import("drizzle-orm");
+    // Upsert the sentinel row.
+    await db.execute(sql`
+      INSERT INTO growth_digests (periodLabel, summary, wins, todos, spendTotal)
+      VALUES (${"_meta:" + OPT_MARKER_KEY}, ${day}, ${""}, ${""}, ${"0"})
+      ON DUPLICATE KEY UPDATE summary = ${day}
+    `);
+  } catch (e) {
+    console.warn("[GoogleAds] failed to persist advisor last-run day:", (e as Error).message);
+  }
+}
 
 async function optTick() {
   if (!isGoogleAdsConfigured() || process.env.GOOGLE_ADS_OPTIMIZER_ENABLED !== "true") return;
   const now = new Date(Date.now() + 7 * 60 * 60 * 1000); // WIB
   const day = now.toISOString().slice(0, 10);
-  if (now.getUTCHours() < 7 || lastOptDay === day) return; // once daily, after ~07:00 WIB
-  lastOptDay = day;
+  if (now.getUTCHours() < 7) return; // wait for 07:00 WIB
+  const lastDay = await readLastOptDay();
+  if (lastDay === day) return; // already emailed today (survives restarts now)
+  await writeLastOptDay(day); // claim the day BEFORE emailing so a slow
+                              // getRecommendations doesn't allow a concurrent
+                              // second tick to also send.
   try {
     const recs = await getRecommendations();
     if (recs.length) {
@@ -462,7 +509,11 @@ export function startGoogleAdsOptimizer() {
   optStarted = true;
   console.log("[GoogleAds] optimizer (Advisor) on — daily suggestions emailed for your approval.");
   setInterval(() => { void optTick(); }, 60 * 60 * 1000);
-  setTimeout(() => { void optTick(); }, 120 * 1000);
+  // NOTE: removed the 2-min-after-startup fire. That was the cause of the
+  // "spam-on-every-deploy" bug — every Railway redeploy would trigger a fresh
+  // email regardless of whether one had already been sent today. The hourly
+  // interval + DB-persisted lastOptDay is enough. Owner will get the first
+  // email of the day between 07:00 and 08:00 WIB on the next daily tick.
 }
 
 // ── Daily auto-sync scheduler (only runs when credentials exist) ──────────────
