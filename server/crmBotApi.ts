@@ -83,6 +83,11 @@ export function registerCrmBotRoutes(app: Express) {
       const existing = await findLeadByPhone(db, b.phone);
       const fill = (cur: any, val: any) => (cur && String(cur).trim() ? cur : (val ?? cur ?? null));
 
+      // Optional: waSessionId links this signup to a specific /wa/:code
+      // click. When supplied, we backfill the lead's GCLID + UTMs from the
+      // stored click so downstream offline-conversion upload works.
+      const waSessionId: string | null = b.waSessionId ? String(b.waSessionId) : null;
+
       if (existing) {
         const patch: Record<string, unknown> = {
           studentName: fill(existing.studentName === "WhatsApp lead" ? null : existing.studentName, b.name) ?? existing.studentName,
@@ -98,6 +103,11 @@ export function registerCrmBotRoutes(app: Express) {
         let journeyToken = existing.journeyToken;
         if (!journeyToken) { journeyToken = nanoid(16); patch.journeyToken = journeyToken; }
         await db.update(leads).set(patch).where(eq(leads.id, existing.id));
+        if (waSessionId) {
+          const { attachSessionToLead } = await import("./waAttribution");
+          await attachSessionToLead(waSessionId, existing.id).catch(err =>
+            console.error("[BotAPI] attachSessionToLead (existing) failed:", err?.message));
+        }
         return res.json({ ok: true, id: existing.id, journeyToken, created: false });
       }
 
@@ -122,6 +132,11 @@ export function registerCrmBotRoutes(app: Express) {
       await db.insert(crmActivityTimeline).values({
         leadId: id, activityType: "whatsapp", title: "Captured via WhatsApp (Emma)", staffEmail: null,
       });
+      if (waSessionId) {
+        const { attachSessionToLead } = await import("./waAttribution");
+        await attachSessionToLead(waSessionId, id).catch(err =>
+          console.error("[BotAPI] attachSessionToLead (new) failed:", err?.message));
+      }
       void distributeOne(id); // even split across offices/counsellors (best-effort)
       return res.json({ ok: true, id, journeyToken, created: true });
     } catch (e: any) {

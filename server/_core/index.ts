@@ -464,6 +464,121 @@ ${rows}
     }
   });
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // WhatsApp click-to-conversion tracking (server/waAttribution.ts).
+  //
+  //  GET  /wa/:code                  — logs the click, generates a session,
+  //                                    redirects to wa.me with [REF:WA-xxx]
+  //                                    in the pre-filled message.
+  //  GET  /api/wa/lookup/:sessionId  — Emma bot calls this to identify the
+  //                                    campaign / product / GCLID for a
+  //                                    session she just saw in a first
+  //                                    message. Auth via x-crm-key header
+  //                                    (same shared secret as crmBotApi).
+  //  POST /api/wa/message-received   — Emma reports she saw a message with
+  //                                    a REF; stamps messagedAt so the
+  //                                    admin funnel view knows "clicked but
+  //                                    silent" vs "clicked and messaged."
+  //
+  // These sit before serveStatic so they win over the SPA catch-all.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  app.get("/wa/:code", async (req, res) => {
+    try {
+      const { getCampaignByCode, createSessionAndBuildUrl } = await import("../waAttribution");
+      const { parseAttribution } = await import("../attribution");
+
+      const code = String(req.params.code || "").trim().toLowerCase();
+      const campaign = await getCampaignByCode(code);
+      if (!campaign) {
+        // Unknown code → fall back to the generic contact page so the
+        // student isn't left staring at a 404. Log so we can spot ads
+        // still pointing at retired codes.
+        console.warn(`[wa] unknown campaign code: ${code}`);
+        return res.redirect(302, "/contact");
+      }
+
+      const attribution = parseAttribution({ req });
+      const ipAddress =
+        (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0].trim() ||
+        req.socket?.remoteAddress ||
+        undefined;
+
+      const { whatsappUrl } = await createSessionAndBuildUrl({
+        campaign,
+        attribution,
+        referrer: (req.headers.referer as string) || undefined,
+        userAgent: (req.headers["user-agent"] as string) || undefined,
+        ipAddress: ipAddress?.slice(0, 45),
+      });
+
+      // 302 (temporary) — some browsers cache 301s and would skip our
+      // logging on the second visit.
+      res.set("Cache-Control", "no-store");
+      return res.redirect(302, whatsappUrl);
+    } catch (e) {
+      console.error("[wa] redirect failed:", (e as Error).message);
+      return res.redirect(302, "/contact");
+    }
+  });
+
+  function botAuthed(req: express.Request): boolean {
+    const key = process.env.CRM_BOT_API_KEY;
+    return !!key && req.headers["x-crm-key"] === key;
+  }
+
+  app.get("/api/wa/lookup/:sessionId", async (req, res) => {
+    if (!botAuthed(req)) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const { getSession, getCampaignByCode } = await import("../waAttribution");
+      const session = await getSession(String(req.params.sessionId || ""));
+      if (!session) return res.status(404).json({ error: "Not found" });
+      const campaign = await getCampaignByCode(session.campaignCode);
+      return res.json({
+        sessionId: session.sessionId,
+        campaignCode: session.campaignCode,
+        campaignName: campaign?.name || session.campaignCode,
+        product: session.product,
+        platform: session.platform,
+        greeting: campaign?.greeting ?? null,
+        gclid: session.gclid,
+        utm: {
+          source: session.utmSource,
+          medium: session.utmMedium,
+          campaign: session.utmCampaign,
+          term: session.utmTerm,
+          content: session.utmContent,
+        },
+        clickedAt: session.clickedAt,
+        leadId: session.leadId,
+      });
+    } catch (e) {
+      console.error("[wa lookup] failed:", (e as Error).message);
+      return res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/wa/message-received", express.json(), async (req, res) => {
+    if (!botAuthed(req)) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const sessionId = String(req.body?.sessionId || "");
+      if (!sessionId) return res.status(400).json({ error: "Missing sessionId" });
+      const { getDb } = await import("../db");
+      const { sql } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) return res.status(500).json({ error: "DB unavailable" });
+      await db.execute(sql`
+        UPDATE wa_sessions
+        SET messagedAt = COALESCE(messagedAt, NOW())
+        WHERE sessionId = ${sessionId}
+      `);
+      return res.json({ ok: true });
+    } catch (e) {
+      console.error("[wa message-received] failed:", (e as Error).message);
+      return res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // Dynamic sitemap.xml for SEO.
   //
   // Rules we hold ourselves to (Google Search Console feedback, July 2026):

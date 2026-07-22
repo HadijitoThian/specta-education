@@ -11,6 +11,42 @@ import {
 import crypto from "crypto";
 
 /**
+ * Fire-and-forget: record a WhatsApp-tracked conversion and (if we captured a
+ * GCLID at click time) upload the offline conversion to Google Ads so Smart
+ * Bidding sees the eventual payment attributed back to the original ad click.
+ *
+ * Safe to call for any lead — if the lead never came through a /wa/:code
+ * link, recordConversion returns null and this is a silent no-op.
+ */
+function fireOfflineConversion(
+  leadId: number,
+  kind: "mockTest" | "tutor" | "igcse",
+  valueIdr: number,
+): void {
+  (async () => {
+    try {
+      const { recordConversion, uploadOfflineConversion } = await import("./waAttribution");
+      const record = await recordConversion({ leadId, conversionKind: kind, valueIdr });
+      if (!record) return; // no wa_session tied to this lead
+      if (!record.gclid) return; // came via WhatsApp but not from a paid ad click
+      const result = await uploadOfflineConversion({
+        sessionId: record.sessionId,
+        gclid: record.gclid,
+        conversionKind: kind,
+        valueIdr,
+      });
+      if (result.ok) {
+        console.log(`[wa offline] uploaded ${kind} conversion Rp ${valueIdr} for session ${record.sessionId}`);
+      } else {
+        console.warn(`[wa offline] upload failed for ${record.sessionId}: ${result.error}`);
+      }
+    } catch (e) {
+      console.error("[wa offline] error:", (e as Error).message);
+    }
+  })();
+}
+
+/**
  * Register the Xendit webhook endpoint on the Express app.
  * This must be called BEFORE the Vite/static middleware so the route is reachable.
  */
@@ -77,6 +113,13 @@ export function registerXenditWebhook(app: Express) {
             content: `Lead #${sub.leadId} activated ${plan?.label || sub.plan}. Expires ${expiresAt.toISOString().slice(0, 10)}. Order: ${externalId}`,
           });
           console.log(`[Xendit Webhook][Tutor] Subscription activated: ${externalId}`);
+
+          // WhatsApp attribution: record the conversion + push offline
+          // conversion to Google Ads if this lead came from a tracked
+          // /wa/:code click. Fire-and-forget — never block the webhook.
+          const amount = plan?.amount ?? 199000;
+          fireOfflineConversion(sub.leadId, "tutor", amount);
+
           return res.status(200).json({ received: true, tutor: true, success: true });
         }
         if (body.status === "EXPIRED" || body.status === "FAILED") {
@@ -114,6 +157,14 @@ export function registerXenditWebhook(app: Express) {
             content: `Lead #${sub.leadId} activated ${plan?.label || sub.plan}. Expires ${expiresAt.toISOString().slice(0, 10)}. Order: ${externalId}`,
           });
           console.log(`[Xendit Webhook][IGCSE] Subscription activated: ${externalId}`);
+
+          // WhatsApp attribution: same as Tutor branch above. IGCSE plans
+          // vary in price (Standard vs Premium) but the offline conversion
+          // uploader just needs the real IDR amount so Smart Bidding sees
+          // ROAS honestly.
+          const amount = plan?.amount ?? 299000;
+          fireOfflineConversion(sub.leadId, "igcse", amount);
+
           return res.status(200).json({ received: true, igcse: true, success: true });
         }
         if (body.status === "EXPIRED" || body.status === "FAILED") {

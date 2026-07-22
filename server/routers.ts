@@ -224,6 +224,7 @@ import { notifyOwner } from "./_core/notification";
 import { socialMediaRouter } from "./socialMedia";
 import { adsAgentRouter } from "./adsAgent";
 import { ieltsAdminRouter } from "./ieltsAdminRouter";
+import { waAttributionAdminRouter } from "./waAttributionAdminRouter";
 import { tutorAdminRouter } from "./tutorAdminRouter";
 import { ieltsRouter } from "./ieltsRouter";
 import { crmTeamRouter } from "./crmTeamRouter";
@@ -1266,6 +1267,7 @@ Return as JSON:
   admin: router({
     ielts: ieltsAdminRouter,
     tutor: tutorAdminRouter,
+    waAttribution: waAttributionAdminRouter,
 
     /** Send the IELTS-practice follow-up DRAFT to yourself (or a given email) for review. */
     previewPracticeFollowup: protectedProcedure
@@ -8200,6 +8202,14 @@ import("./db").then(async m => {
     await m.ensureIgcseSubscriptionsSchema();
   } catch (e) {
     console.error('[IGCSE] ensureIgcseSubscriptionsSchema failed:', e);
+  }
+  // WhatsApp attribution schema (wa_sessions + wa_campaigns) — powers
+  // /wa/:code trackable links and Google Ads offline conversion upload.
+  try {
+    const { ensureWaAttributionSchema } = await import("./waAttribution");
+    await ensureWaAttributionSchema();
+  } catch (e) {
+    console.error('[waAttribution] schema init failed:', e);
   }
   try {
     const r1 = await seedIgcseTopicsIfEmpty();
