@@ -247,6 +247,13 @@ export const tutorSubscriptions = mysqlTable("tutor_subscriptions", {
   xenditInvoiceId: varchar("xenditInvoiceId", { length: 120 }),
   startsAt: timestamp("startsAt"),
   expiresAt: timestamp("expiresAt"),
+  // Attribution captured at checkout so Xendit webhook can upload offline
+  // conversion to Google Ads regardless of what the browser did.
+  gclid: varchar("gclid", { length: 512 }),
+  utmSource: varchar("utmSource", { length: 120 }),
+  utmMedium: varchar("utmMedium", { length: 120 }),
+  utmCampaign: varchar("utmCampaign", { length: 160 }),
+  conversionUploadedAt: timestamp("conversionUploadedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -2387,6 +2394,13 @@ export const ieltsMockAttempts = mysqlTable("ieltsMockAttempts", {
   ]).default("awaiting_payment").notNull(),
   startedAt: timestamp("startedAt"),
   completedAt: timestamp("completedAt"),
+  // Attribution captured at checkout so Xendit webhook can upload offline
+  // conversion to Google Ads regardless of what the browser did.
+  gclid: varchar("gclid", { length: 512 }),
+  utmSource: varchar("utmSource", { length: 120 }),
+  utmMedium: varchar("utmMedium", { length: 120 }),
+  utmCampaign: varchar("utmCampaign", { length: 160 }),
+  conversionUploadedAt: timestamp("conversionUploadedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -2603,6 +2617,13 @@ export const igcseSubscriptions = mysqlTable("igcse_subscriptions", {
   xenditInvoiceId: varchar("xenditInvoiceId", { length: 120 }),
   startsAt: timestamp("startsAt"),
   expiresAt: timestamp("expiresAt"),
+  // Attribution captured at checkout so Xendit webhook can upload offline
+  // conversion to Google Ads regardless of what the browser did.
+  gclid: varchar("gclid", { length: 512 }),
+  utmSource: varchar("utmSource", { length: 120 }),
+  utmMedium: varchar("utmMedium", { length: 120 }),
+  utmCampaign: varchar("utmCampaign", { length: 160 }),
+  conversionUploadedAt: timestamp("conversionUploadedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

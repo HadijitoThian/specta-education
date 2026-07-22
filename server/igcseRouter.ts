@@ -173,6 +173,19 @@ export const igcseRouter = router({
       // Dedup subjects defensively.
       const subjectsSelected = Array.from(new Set(input.subjects));
 
+      // Capture marketing attribution so the Xendit webhook can upload an
+      // offline conversion to Google Ads on payment. Prefer the current
+      // browser's specta_attr cookie; fall back to the lead row's stamped
+      // signup-time attribution.
+      const { parseAttribution } = await import("./attribution");
+      const cookieAttr = parseAttribution(ctx);
+      const attribution = {
+        gclid: cookieAttr.gclid || (lead as any).gclid || null,
+        utmSource: cookieAttr.utmSource || (lead as any).utmSource || null,
+        utmMedium: cookieAttr.utmMedium || (lead as any).utmMedium || null,
+        utmCampaign: cookieAttr.utmCampaign || (lead as any).utmCampaign || null,
+      };
+
       const externalId = igcseExternalId();
       await createIgcseSubscription({
         leadId,
@@ -186,6 +199,10 @@ export const igcseRouter = router({
         parentEmail: input.parentEmail,
         parentName: input.parentName || null,
         xenditInvoiceId: externalId,
+        gclid: attribution.gclid?.slice(0, 512) ?? null,
+        utmSource: attribution.utmSource?.slice(0, 120) ?? null,
+        utmMedium: attribution.utmMedium?.slice(0, 120) ?? null,
+        utmCampaign: attribution.utmCampaign?.slice(0, 160) ?? null,
       });
       // Never redirect a paying customer to localhost if APP_URL is unset.
       const base = ENV.appUrl?.replace(/\/+$/, "")

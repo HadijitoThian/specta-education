@@ -85,6 +85,14 @@ export const ieltsRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       try {
+        // Read the marketing attribution cookie so we can stamp GCLID + UTMs
+        // onto the new attempt row. The Xendit webhook later reads these on
+        // payment and uploads an offline conversion to Google Ads — critical
+        // because browser-side gtag misses students who don't return to the
+        // /success page (mobile banking flow, adblockers, etc.).
+        const { parseAttribution } = await import("./attribution");
+        const attribution = parseAttribution(ctx);
+
         // GUEST checkout: no account required. The buyer fills name/email on
         // the form; we email them a payment link, then (on payment) the secret
         // take-test link. createIeltsMockInvoice resolves/creates the owning
@@ -96,6 +104,7 @@ export const ieltsRouter = router({
           customerName: input.customerName.trim(),
           customerEmail: input.customerEmail.trim(),
           customerPhone: input.customerPhone?.trim() || undefined,
+          attribution,
         });
         return {
           trial: false as const,

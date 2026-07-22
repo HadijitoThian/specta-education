@@ -397,3 +397,122 @@ export function startGoogleAdsScheduler() {
   setInterval(() => { void tick(); }, 60 * 60 * 1000); // hourly check, runs once/day
   setTimeout(() => { void tick(); }, 60 * 1000);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OFFLINE CONVERSION IMPORT
+//
+// Real-world problem: browser-side gtag conversion firing misses ~30-50% of
+// actual payments because:
+//   - Students pay via mobile banking app and never return to /success page
+//   - Adblockers block gtag entirely (15-25% of users)
+//   - Slow-loading success page → student closes tab before fire
+//   - The tag ID was wrong for weeks before we noticed
+//
+// Fix: fire conversions FROM THE SERVER on the Xendit webhook. Every paid
+// order gets uploaded to Google Ads regardless of what the browser did.
+//
+// Requires GCLID → so we capture it from the specta_attr cookie at checkout
+// time and store it on the payment entity. If GCLID is missing (organic,
+// direct, or Meta traffic) the upload is skipped — Google Ads can only
+// attribute clicks it knows about.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** In-memory cache of conversion-action names → their Google Ads resource names.
+ *  Populated on first upload; cleared every hour to pick up new actions. */
+let conversionActionCache: { at: number; byName: Map<string, string> } | null = null;
+
+async function getConversionActionByName(env: Env, name: string): Promise<string | null> {
+  if (conversionActionCache && Date.now() - conversionActionCache.at < 60 * 60 * 1000) {
+    return conversionActionCache.byName.get(name) || null;
+  }
+  const rows = await search(env, `
+    SELECT conversion_action.id, conversion_action.name, conversion_action.resource_name
+    FROM conversion_action
+    WHERE conversion_action.status = 'ENABLED'
+  `);
+  const map = new Map<string, string>();
+  for (const r of rows) {
+    const rn = r.conversionAction?.resourceName;
+    const nm = r.conversionAction?.name;
+    if (rn && nm) map.set(nm, rn);
+  }
+  conversionActionCache = { at: Date.now(), byName: map };
+  return map.get(name) || null;
+}
+
+/** The 4 conversion action names the site uses.
+ *  Must match what the owner named them in Google Ads → Goals → Conversion actions. */
+export type ConversionKind =
+  | "Mock Test purchased"
+  | "AI Tutor subscribed"
+  | "IGCSE subscribed"
+  | "Student registered";
+
+/**
+ * Upload one conversion to Google Ads. Idempotent: Google dedupes by
+ * `gclid + conversionAction + gclidDateTime` so re-running with the same
+ * order is safe. Value is in IDR (not micros — the API takes floats).
+ *
+ * Returns:
+ *   { uploaded: true }  — Google accepted
+ *   { uploaded: false, reason }  — skipped or Google rejected (logged)
+ *
+ * NEVER throws — callers should be able to fire-and-forget from a webhook.
+ */
+export async function uploadOfflineConversion(input: {
+  kind: ConversionKind;
+  gclid: string | null | undefined;
+  valueIdr: number;
+  occurredAt: Date;
+  orderId?: string | null;
+}): Promise<{ uploaded: boolean; reason?: string }> {
+  try {
+    const env = readEnv();
+    if (!env) return { uploaded: false, reason: "Google Ads not configured" };
+    if (!input.gclid) return { uploaded: false, reason: "no gclid (organic/direct/other-source click)" };
+    if (!(input.valueIdr > 0)) return { uploaded: false, reason: "value must be > 0" };
+
+    const conversionAction = await getConversionActionByName(env, input.kind);
+    if (!conversionAction) {
+      console.error(`[GoogleAds] uploadOfflineConversion: conversion action "${input.kind}" not found in account`);
+      return { uploaded: false, reason: `conversion action "${input.kind}" not found in Google Ads account` };
+    }
+
+    // Google Ads accepts either RFC3339 with timezone or "yyyy-MM-dd HH:mm:ss+ZZ:ZZ".
+    // We use Jakarta local time (WIB, +07:00) to match how sales are reported to owner.
+    const dt = new Date(input.occurredAt.getTime() + 7 * 60 * 60 * 1000)
+      .toISOString().replace("T", " ").replace(/\.\d+Z$/, "+07:00");
+
+    const body = {
+      conversions: [{
+        gclid: input.gclid,
+        conversionAction,
+        conversionDateTime: dt,
+        conversionValue: input.valueIdr,
+        currencyCode: "IDR",
+        ...(input.orderId ? { orderId: String(input.orderId).slice(0, 64) } : {}),
+      }],
+      partialFailure: true,
+      validateOnly: false,
+    };
+
+    const res = await fetch(
+      `${BASE}/customers/${env.customerId}:uploadClickConversions`,
+      { method: "POST", headers: await headers(env), body: JSON.stringify(body) },
+    );
+    const data = await res.json().catch(() => ({} as any));
+    if (!res.ok) {
+      console.error("[GoogleAds] uploadOfflineConversion failed:", res.status, JSON.stringify(data).slice(0, 400));
+      return { uploaded: false, reason: `${res.status} ${JSON.stringify(data).slice(0, 200)}` };
+    }
+    if (data?.partialFailureError) {
+      console.warn("[GoogleAds] uploadOfflineConversion partial failure:", JSON.stringify(data.partialFailureError).slice(0, 400));
+      return { uploaded: false, reason: `partial: ${data.partialFailureError.message || "unknown"}` };
+    }
+    console.log(`[GoogleAds] conversion uploaded: ${input.kind} value=${input.valueIdr} order=${input.orderId || "n/a"} gclid=${input.gclid.slice(0, 12)}…`);
+    return { uploaded: true };
+  } catch (e) {
+    console.error("[GoogleAds] uploadOfflineConversion crashed:", (e as Error).message);
+    return { uploaded: false, reason: (e as Error).message };
+  }
+}

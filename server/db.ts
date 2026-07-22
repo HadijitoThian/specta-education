@@ -553,6 +553,38 @@ export async function ensureMarketingSchema(): Promise<void> {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `));
 
+    // ── Attribution columns on the 3 payment entities ──────────────────────
+    // Capture GCLID + UTMs at checkout so the Xendit webhook can upload
+    // offline conversions to Google Ads. Without this, browser-side gtag is
+    // the only tracking, which misses ~30-50% of real payments (adblockers,
+    // students who don't return to /success, mobile-banking-app payment flows).
+    // Idempotent — safe to re-run every deploy.
+    for (const stmt of [
+      "ALTER TABLE ieltsMockAttempts ADD COLUMN gclid VARCHAR(512) NULL",
+      "ALTER TABLE ieltsMockAttempts ADD COLUMN utmSource VARCHAR(120) NULL",
+      "ALTER TABLE ieltsMockAttempts ADD COLUMN utmMedium VARCHAR(120) NULL",
+      "ALTER TABLE ieltsMockAttempts ADD COLUMN utmCampaign VARCHAR(160) NULL",
+      "ALTER TABLE ieltsMockAttempts ADD COLUMN conversionUploadedAt TIMESTAMP NULL",
+      "ALTER TABLE tutor_subscriptions ADD COLUMN gclid VARCHAR(512) NULL",
+      "ALTER TABLE tutor_subscriptions ADD COLUMN utmSource VARCHAR(120) NULL",
+      "ALTER TABLE tutor_subscriptions ADD COLUMN utmMedium VARCHAR(120) NULL",
+      "ALTER TABLE tutor_subscriptions ADD COLUMN utmCampaign VARCHAR(160) NULL",
+      "ALTER TABLE tutor_subscriptions ADD COLUMN conversionUploadedAt TIMESTAMP NULL",
+      "ALTER TABLE igcse_subscriptions ADD COLUMN gclid VARCHAR(512) NULL",
+      "ALTER TABLE igcse_subscriptions ADD COLUMN utmSource VARCHAR(120) NULL",
+      "ALTER TABLE igcse_subscriptions ADD COLUMN utmMedium VARCHAR(120) NULL",
+      "ALTER TABLE igcse_subscriptions ADD COLUMN utmCampaign VARCHAR(160) NULL",
+      "ALTER TABLE igcse_subscriptions ADD COLUMN conversionUploadedAt TIMESTAMP NULL",
+    ]) {
+      try { await db.execute(sql.raw(stmt)); }
+      catch (e: any) {
+        // MySQL 8 returns ER_DUP_FIELDNAME on second run; anything else worth logging.
+        if (!/Duplicate column|already exists/i.test(e?.message || "")) {
+          console.error("[Growth] attribution column ALTER failed:", stmt, "-", e?.message);
+        }
+      }
+    }
+
   } catch (e) {
     console.error("[Growth] ensureMarketingSchema failed:", (e as Error).message);
   }

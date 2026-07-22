@@ -215,6 +215,17 @@ export type CreateIeltsMockInvoiceParams = {
   customerEmail: string;
   customerPhone?: string;
   appUrl?: string; // override APP_URL if needed
+  /**
+   * Marketing attribution captured from the specta_attr cookie at checkout.
+   * Written onto the attempt row so the Xendit webhook can upload an offline
+   * conversion to Google Ads on payment (avoiding the browser-only pixel gap).
+   */
+  attribution?: {
+    utmSource?: string;
+    utmMedium?: string;
+    utmCampaign?: string;
+    gclid?: string;
+  };
 };
 
 /**
@@ -293,6 +304,12 @@ export async function createIeltsMockInvoice(
     customerName: params.customerName,
     customerEmail: params.customerEmail,
     status: "awaiting_payment",
+    // Attribution — see CreateIeltsMockInvoiceParams docs. Truncated to column
+    // widths at write time to survive extra-long UTM tags from partner links.
+    gclid: (params.attribution?.gclid || null)?.slice(0, 512) ?? null,
+    utmSource: (params.attribution?.utmSource || null)?.slice(0, 120) ?? null,
+    utmMedium: (params.attribution?.utmMedium || null)?.slice(0, 120) ?? null,
+    utmCampaign: (params.attribution?.utmCampaign || null)?.slice(0, 160) ?? null,
   });
   const attemptId = (insertResult as any)[0]?.insertId as number;
   if (!attemptId) {
