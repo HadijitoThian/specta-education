@@ -27,6 +27,54 @@ import { fireConversion } from "@/lib/googleAds";
  * carry `data-wa="<code>"` (or use the /wa/<code> URL directly in ad
  * creatives) to get full attribution.
  */
+/**
+ * URL-path → campaign-code mapping used for AUTO-ROUTING bare wa.me links.
+ *
+ * When a user clicks a bare `wa.me/62818218388?text=...` link anywhere on the
+ * site (of which there are ~30 across ~17 files), we look up the current page
+ * path here and reroute through /wa/:code so the click gets attributed with
+ * GCLID + UTMs. Every code below is auto-seeded on server startup
+ * (see server/waAttribution.ts → seedDefaultWaCampaigns) so we're never
+ * routing to a missing campaign.
+ *
+ * Falls through to "general" if the current page doesn't match — better to
+ * have GENERIC attribution than none at all.
+ */
+function autoWaCodeForPath(pathname: string): string {
+  const p = pathname.toLowerCase().replace(/\/+$/, "") || "/";
+
+  // Country pages — /destinations/:country
+  const country = p.match(/^\/destinations\/([a-z-]+)$/)?.[1];
+  if (country) {
+    const map: Record<string, string> = {
+      "australia": "country-au", "uk": "country-uk", "usa": "country-us",
+      "canada": "country-ca", "singapore": "country-sg", "malaysia": "country-my",
+      "new-zealand": "country-nz", "ireland": "country-ie",
+      "netherlands": "country-nl", "china": "country-cn",
+    };
+    if (map[country]) return map[country];
+  }
+  if (p === "/malaysia") return "country-my"; // legacy standalone Malaysia page
+
+  // Product pages
+  if (p === "/ielts")               return "ielts-consult";
+  if (p === "/ielts/practice")      return "ielts-consult";
+  if (p === "/ielts/tutor")         return "ielts-tutor";
+  if (p === "/ielts/mock-test")     return "ielts-mock";
+  if (p === "/igcse")               return "igcse";
+  if (p === "/igcse/practice")      return "igcse";
+  if (p === "/scholarships")        return "scholarships";
+  if (p === "/destinations")        return "study-abroad";
+  if (p === "/book")                return "book-consult";
+  if (p === "/book-consultation")   return "book-consult";
+  if (p === "/contact")             return "general";
+  if (p === "/apply")               return "book-consult";
+  if (p.startsWith("/play/aptitude") || p.startsWith("/test/pro")) return "aptitude";
+
+  // Home + everything else → generic
+  return "general";
+}
+
 export default function GlobalConversionTracking() {
   useEffect(() => {
     let lastFireAt = 0;
@@ -49,15 +97,19 @@ export default function GlobalConversionTracking() {
         fireConversion("whatsapp", { value: 25000, currency: "IDR" });
       }
 
-      // If the link is tagged with data-wa="<code>", reroute through our
-      // attribution endpoint so a wa_session row gets created with the
-      // current GCLID + UTMs BEFORE the WhatsApp app opens. Without this
-      // reroute the GCLID is lost the moment the browser hands off.
-      const waCode = anchor.getAttribute("data-wa");
-      if (waCode) {
+      // Choose a campaign code:
+      //   - explicit `data-wa="..."` wins (marketing team can override)
+      //   - else derive from current URL (auto-attribution for bare wa.me
+      //     links that haven't been migrated yet — no per-page code changes)
+      const explicit = anchor.getAttribute("data-wa");
+      const waCode = explicit || autoWaCodeForPath(window.location.pathname);
+
+      // Reroute through our attribution endpoint so a wa_session row gets
+      // created with the current GCLID + UTMs BEFORE the WhatsApp app opens.
+      // Without this the GCLID is lost the moment the browser hands off.
+      // Skip if we're already ON /wa/:code (prevent redirect loops).
+      if (!window.location.pathname.startsWith("/wa/")) {
         e.preventDefault();
-        // Full URL so the server can respond with a 302 redirect. Same-tab
-        // navigation matches user expectation for tapping a WhatsApp button.
         window.location.href = `/wa/${encodeURIComponent(waCode)}`;
       }
     };

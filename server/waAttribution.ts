@@ -245,6 +245,67 @@ export async function setCampaignActive(id: number, isActive: boolean): Promise<
   await db.execute(sql`UPDATE wa_campaigns SET isActive = ${isActive} WHERE id = ${id}`);
 }
 
+// ── DEFAULT CAMPAIGN SEED ──────────────────────────────────────────────────
+/**
+ * Auto-created "generic" trackable codes so bare wa.me links across the site
+ * can be rerouted through /wa/:code without owner having to hand-create every
+ * one in /admin/wa-links. Idempotent — safe to run on every deploy.
+ *
+ * Codes match the URL-path → intent mapping used by GlobalConversionTracking
+ * on the client. When adding a new landing page that will have a WhatsApp
+ * button, add a code here so its clicks flow through attribution.
+ */
+export async function seedDefaultWaCampaigns(defaultPhone: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const target = (defaultPhone || "").replace(/\D/g, "");
+  if (target.length < 10) return; // no default phone yet — nothing to seed
+
+  const defaults: Array<{
+    code: string;
+    name: string;
+    product: WaProduct;
+    platform: WaPlatform;
+    greeting: string;
+  }> = [
+    { code: "general",         name: "General inquiry (fallback)",           product: "consult",       platform: "direct",     greeting: "Halo, saya mau info tentang SpecTa Education" },
+    { code: "ielts-consult",   name: "IELTS classroom — free consultation",  product: "ielts_course",  platform: "direct",     greeting: "Halo, saya mau info tentang kursus IELTS SpecTa" },
+    { code: "ielts-register",  name: "IELTS classroom — registration",       product: "ielts_course",  platform: "direct",     greeting: "Halo, saya mau daftar kursus IELTS SpecTa" },
+    { code: "ielts-tutor",     name: "AI IELTS Tutor — inquiry",             product: "tutor",         platform: "direct",     greeting: "Halo, saya mau info tentang AI IELTS Tutor SpecTa" },
+    { code: "ielts-mock",      name: "IELTS Mock Test — inquiry",            product: "mock",          platform: "direct",     greeting: "Halo, saya mau info tentang IELTS Mock Test SpecTa" },
+    { code: "igcse",           name: "IGCSE AI Teacher — inquiry",           product: "igcse",         platform: "direct",     greeting: "Halo, saya mau info tentang IGCSE AI Teacher SpecTa" },
+    { code: "study-abroad",    name: "Study abroad — general",               product: "study_abroad",  platform: "direct",     greeting: "Halo, saya mau info kuliah luar negeri" },
+    { code: "scholarships",    name: "Scholarships (beasiswa)",              product: "scholarship",   platform: "direct",     greeting: "Halo, saya mau info beasiswa kuliah luar negeri" },
+    { code: "book-consult",    name: "Book free consultation",               product: "consult",       platform: "direct",     greeting: "Halo, saya mau book konsultasi 30 menit gratis" },
+    { code: "aptitude",        name: "Tes Bakat AI — inquiry",               product: "aptitude",      platform: "direct",     greeting: "Halo, saya mau info tentang Tes Bakat AI SpecTa" },
+    // Country-specific — mapped from /destinations/:country
+    { code: "country-au",      name: "Study in Australia",                   product: "study_abroad",  platform: "direct",     greeting: "Halo, saya mau info kuliah di Australia" },
+    { code: "country-uk",      name: "Study in UK",                          product: "study_abroad",  platform: "direct",     greeting: "Halo, saya mau info kuliah di UK" },
+    { code: "country-us",      name: "Study in USA",                         product: "study_abroad",  platform: "direct",     greeting: "Halo, saya mau info kuliah di USA" },
+    { code: "country-ca",      name: "Study in Canada",                      product: "study_abroad",  platform: "direct",     greeting: "Halo, saya mau info kuliah di Kanada" },
+    { code: "country-sg",      name: "Study in Singapore",                   product: "study_abroad",  platform: "direct",     greeting: "Halo, saya mau info kuliah di Singapura" },
+    { code: "country-my",      name: "Study in Malaysia",                    product: "study_abroad",  platform: "direct",     greeting: "Halo, saya mau info kuliah di Malaysia" },
+    { code: "country-nz",      name: "Study in New Zealand",                 product: "study_abroad",  platform: "direct",     greeting: "Halo, saya mau info kuliah di Selandia Baru" },
+    { code: "country-ie",      name: "Study in Ireland",                     product: "study_abroad",  platform: "direct",     greeting: "Halo, saya mau info kuliah di Irlandia" },
+    { code: "country-nl",      name: "Study in Netherlands",                 product: "study_abroad",  platform: "direct",     greeting: "Halo, saya mau info kuliah di Belanda" },
+    { code: "country-cn",      name: "Study in China",                       product: "study_abroad",  platform: "direct",     greeting: "Halo, saya mau info kuliah di China" },
+  ];
+
+  for (const c of defaults) {
+    try {
+      await db.execute(sql`
+        INSERT INTO wa_campaigns (code, name, product, platform, greeting, targetPhone, isActive)
+        VALUES (${c.code}, ${c.name}, ${c.product}, ${c.platform}, ${c.greeting}, ${target}, TRUE)
+      `);
+    } catch (e: any) {
+      // Duplicate = already seeded on a previous deploy. Fine.
+      if (!/Duplicate|already exists/i.test(e?.message || "")) {
+        console.error("[waAttribution] seed default campaign failed:", c.code, e?.message);
+      }
+    }
+  }
+}
+
 // ── SESSION CREATION ──────────────────────────────────────────────────────
 
 /**

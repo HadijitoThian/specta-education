@@ -8206,8 +8206,13 @@ import("./db").then(async m => {
   // WhatsApp attribution schema (wa_sessions + wa_campaigns) — powers
   // /wa/:code trackable links and Google Ads offline conversion upload.
   try {
-    const { ensureWaAttributionSchema } = await import("./waAttribution");
+    const { ensureWaAttributionSchema, seedDefaultWaCampaigns } = await import("./waAttribution");
     await ensureWaAttributionSchema();
+    // Seed the ~20 standard campaign codes (ielts-consult, study-abroad,
+    // scholarships, per-country, etc.) so bare wa.me links across the site
+    // can be rerouted through /wa/:code without owner having to hand-create
+    // each one in /admin/wa-links. Idempotent — dupes silently skipped.
+    await seedDefaultWaCampaigns(process.env.WA_DEFAULT_PHONE || "62818218388");
   } catch (e) {
     console.error('[waAttribution] schema init failed:', e);
   }
