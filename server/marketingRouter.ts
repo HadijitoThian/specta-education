@@ -27,6 +27,7 @@ import {
   replaceMonthlySpend,
 } from "./db";
 import { generateCampaign, campaignToCsv, type GeneratedCampaign } from "./adsCopilot";
+import { PRODUCT_CATALOG, getProduct, productKeys } from "./adsProductCatalog";
 import { generatePerformanceDigest, runGeoMonitor, analyzeContentGaps } from "./growthInsights";
 import { listGrowthDigests, listGeoSnapshots } from "./db";
 import { isGoogleAdsConfigured, getStatus as googleAdsStatus, syncPerformance, pushCampaignLive, getRecommendations, applyRecommendation } from "./googleAdsApi";
@@ -340,6 +341,117 @@ export const marketingRouter = router({
       try { return await pushCampaignLive(c); }
       catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
     }),
+
+  // ── 1-CLICK PRODUCT CAMPAIGN LAUNCHER ────────────────────────────────────
+  // Owner-facing shortcut over generateCampaign + googleAdsPush. The admin
+  // picks a product from the catalog, we do everything: LLM writes the ads,
+  // save as draft, push to Google Ads as PAUSED. Result: campaign is
+  // sitting in the account ready for owner to review and enable.
+  //
+  // Safety: pushCampaignLive respects GOOGLE_ADS_DAILY_CAP_IDR — if the
+  // requested budget exceeds the cap, it gets clamped. Campaigns are ALWAYS
+  // created PAUSED. No spend can happen until the owner clicks Enable in
+  // the Google Ads UI.
+
+  /** Catalog of pre-baked product briefs the owner can pick from. */
+  productCatalog: protectedProcedure.query(async ({ ctx }) => {
+    requireAdmin(ctx);
+    return PRODUCT_CATALOG.map(p => ({
+      key: p.key,
+      label: p.label,
+      description: p.description,
+      priceLabel: p.priceLabel,
+      landingPath: p.landingPath,
+      suggestedDailyBudgetIdr: p.suggestedDailyBudgetIdr,
+    }));
+  }),
+
+  /**
+   * Generate + push a campaign for one product in a single call. Returns the
+   * saved ad_campaigns row + the Google Ads resource name so the owner can
+   * click straight through to review in the Google Ads UI.
+   */
+  launchProductCampaign: protectedProcedure
+    .input(z.object({
+      productKey: z.enum(productKeys() as [string, ...string[]]),
+      dailyBudgetIdr: z.number().int().positive().max(10_000_000).optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      const p = getProduct(input.productKey);
+      if (!p) throw new TRPCError({ code: "BAD_REQUEST", message: "Unknown product" });
+      if (!isGoogleAdsConfigured()) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Google Ads API isn't configured. Set GOOGLE_ADS_* env vars first.",
+        });
+      }
+
+      const dailyBudget = input.dailyBudgetIdr ?? p.suggestedDailyBudgetIdr;
+
+      // 1) Generate (LLM writes the ads)
+      let gen: GeneratedCampaign;
+      try {
+        gen = await generateCampaign({
+          product: p.product,
+          goal: p.goal,
+          landingPath: p.landingPath,
+          dailyBudget,
+        });
+      } catch (e) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `LLM generation failed: ${(e as Error).message}`,
+        });
+      }
+
+      // 2) Save as draft (so we can re-run pushCampaignLive later if needed)
+      const saved = await createAdCampaign({
+        name: gen.campaignName || `${p.label} — ${new Date().toISOString().slice(0, 10)}`,
+        product: p.key.slice(0, 120),
+        goal: p.goal.slice(0, 255),
+        landingPath: p.landingPath.slice(0, 255),
+        dailyBudget: String(dailyBudget) as any,
+        payload: gen as any,
+        status: "draft",
+        createdBy: ctx.user.id,
+      });
+      if (!saved) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Could not save draft" });
+
+      // 3) Push live (PAUSED) to Google Ads
+      try {
+        const pushed = await pushCampaignLive(saved);
+        // Mark as pushed in DB so it shows in the launched list.
+        await updateAdCampaign(saved.id, { status: "live" });
+        return {
+          campaignId: saved.id,
+          name: saved.name,
+          product: p.key,
+          dailyBudgetIdr: dailyBudget,
+          googleAdsResourceName: pushed.campaignResourceName,
+          landingPath: p.landingPath,
+          adGroupCount: gen.adGroups.length,
+          keywordCount: gen.adGroups.reduce((s, g) => s + g.keywords.length, 0),
+          negativeCount: gen.negativeKeywords.length,
+          headlineCount: gen.responsiveSearchAd.headlines.length,
+        };
+      } catch (e) {
+        // Draft is saved — owner can retry push later via googleAdsPush.
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Draft saved (id=${saved.id}) but Google Ads push failed: ${(e as Error).message}. You can retry the push from the campaigns list.`,
+        });
+      }
+    }),
+
+  /** List campaigns the owner launched via the 1-click flow (recent-first). */
+  launchedCampaigns: protectedProcedure.query(async ({ ctx }) => {
+    requireAdmin(ctx);
+    const all = await listAdCampaigns();
+    return all
+      .filter(c => c.product && PRODUCT_CATALOG.some(p => p.key === c.product))
+      .slice(0, 100);
+  }),
 
   /** D3 Advisor: AI optimization suggestions (read-only — you approve each). */
   adsRecommendations: protectedProcedure.query(async ({ ctx }) => {

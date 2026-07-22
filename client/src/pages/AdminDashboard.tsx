@@ -98,6 +98,11 @@ export default function AdminDashboard() {
                 <Sparkles className="w-4 h-4 mr-2" /> AI IELTS Tutor
               </Button>
             </Link>
+            <Link href="/admin/ads-launcher">
+              <Button variant="outline" size="sm" className="bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100">
+                <Sparkles className="w-4 h-4 mr-2" /> Ads Launcher
+              </Button>
+            </Link>
             <Link href="/admin/wa-links">
               <Button variant="outline" size="sm" className="bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100">
                 <Sparkles className="w-4 h-4 mr-2" /> WA Attribution

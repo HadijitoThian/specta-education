@@ -123,6 +123,7 @@ const AgentCommandCenter = lazyWithReload(() => import("./pages/AgentCommandCent
 const SocialMediaManager = lazyWithReload(() => import("./pages/SocialMediaManager"));
 const AdsAgent = lazyWithReload(() => import("./pages/AdsAgent"));
 const AdminIeltsTests = lazyWithReload(() => import("./pages/AdminIeltsTests"));
+const AdminAdsLauncher = lazyWithReload(() => import("./pages/AdminAdsLauncher"));
 const AdminWaLinks = lazyWithReload(() => import("./pages/AdminWaLinks"));
 const AdminIeltsTutor = lazyWithReload(() => import("./pages/AdminIeltsTutor"));
 const IeltsMockTest = lazyWithReload(() => import("./pages/IeltsMockTest"));
@@ -242,6 +243,7 @@ function Router() {
         <Route path={"/admin/ads-agent"} component={AdsAgent} />
         <Route path={"/admin/ielts-tests"} component={AdminIeltsTests} />
         <Route path={"/admin/ielts-tutor"} component={AdminIeltsTutor} />
+        <Route path={"/admin/ads-launcher"} component={AdminAdsLauncher} />
         <Route path={"/admin/wa-links"} component={AdminWaLinks} />
         <Route path={"/ielts/mock-test"} component={IeltsMockTest} />
         <Route path={"/ielts/redeem/:token"} component={IeltsFreeRedeem} />
