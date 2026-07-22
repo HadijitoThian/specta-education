@@ -98,10 +98,19 @@ export const waAttributionAdminRouter = router({
           targetPhone,
           createdBy: (ctx.user as any)?.id,
         });
-      } catch (e) {
+      } catch (e: any) {
+        // Expose the real DB error instead of pretending everything is a
+        // duplicate-code conflict. The user hit this masking bug when trying
+        // fresh unique codes over and over on 2026-07-04 — turned out the
+        // wa_campaigns table hadn't been initialised at all.
+        const raw = e?.message || String(e);
+        const looksLikeDupe = /Duplicate entry|UNIQUE constraint|already exists/i.test(raw);
+        console.error("[wa-admin] createCampaign failed:", raw);
         throw new TRPCError({
-          code: "CONFLICT",
-          message: `Could not create campaign — code "${input.code}" may already exist.`,
+          code: looksLikeDupe ? "CONFLICT" : "INTERNAL_SERVER_ERROR",
+          message: looksLikeDupe
+            ? `Code "${input.code}" already exists — pick a different slug.`
+            : `Create failed: ${raw}`,
         });
       }
       const base = (process.env.APP_URL || "https://www.spectaeducation.com").replace(/\/+$/, "");
