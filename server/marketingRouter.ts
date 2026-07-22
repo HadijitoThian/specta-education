@@ -30,7 +30,7 @@ import { generateCampaign, campaignToCsv, type GeneratedCampaign } from "./adsCo
 import { PRODUCT_CATALOG, getProduct, productKeys } from "./adsProductCatalog";
 import { generatePerformanceDigest, runGeoMonitor, analyzeContentGaps } from "./growthInsights";
 import { listGrowthDigests, listGeoSnapshots } from "./db";
-import { isGoogleAdsConfigured, getStatus as googleAdsStatus, syncPerformance, pushCampaignLive, getRecommendations, applyRecommendation } from "./googleAdsApi";
+import { isGoogleAdsConfigured, getStatus as googleAdsStatus, syncPerformance, pushCampaignLive, getRecommendations, applyRecommendation, listLiveCampaigns } from "./googleAdsApi";
 
 // Stages that count as "reached a consultation" (everything past new_lead, on-pipeline).
 const POST_CONSULT = new Set([
@@ -451,6 +451,22 @@ export const marketingRouter = router({
     return all
       .filter(c => c.product && PRODUCT_CATALOG.some(p => p.key === c.product))
       .slice(0, 100);
+  }),
+
+  /**
+   * Snapshot of every campaign currently in the Google Ads account — status,
+   * destination URLs, ad-group count, and last-30-day metrics. Answers "what
+   * do I actually have running right now?" without opening Google Ads UI.
+   */
+  liveGoogleAdsCampaigns: protectedProcedure.query(async ({ ctx }) => {
+    requireAdmin(ctx);
+    if (!isGoogleAdsConfigured()) return { configured: false as const, campaigns: [] };
+    try {
+      const campaigns = await listLiveCampaigns();
+      return { configured: true as const, campaigns };
+    } catch (e) {
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message });
+    }
   }),
 
   /** D3 Advisor: AI optimization suggestions (read-only — you approve each). */

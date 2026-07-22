@@ -115,6 +115,104 @@ export async function getStatus(): Promise<{ configured: boolean; ok?: boolean; 
   }
 }
 
+// ── Live-campaign inventory (for the admin "what's running right now" view) ─
+
+export interface LiveCampaignSummary {
+  campaignName: string;
+  campaignId: string;
+  status: string;        // ENABLED / PAUSED / REMOVED
+  channelType: string;   // SEARCH / DISPLAY / PERFORMANCE_MAX / etc.
+  dailyBudgetIdr: number;
+  adGroupCount: number;
+  /** Distinct destination URLs the campaign sends clicks to. May be zero if
+   *  the campaign has no ads yet, or many if the ad group has multiple RSAs. */
+  destinations: string[];
+  /** Whether the destinations point at wa.me / api.whatsapp.com. */
+  goesToWhatsApp: boolean;
+  metricsLast30d: {
+    clicks: number;
+    impressions: number;
+    costIdr: number;
+    conversions: number;
+  };
+}
+
+/** List every campaign in the account with its destination URLs + basic metrics. */
+export async function listLiveCampaigns(): Promise<LiveCampaignSummary[]> {
+  const env = readEnv();
+  if (!env) throw new Error("Google Ads not configured");
+
+  // 1) Campaigns with budget + status + metrics (last 30 days).
+  const camps = await search(env, `
+    SELECT campaign.id, campaign.name, campaign.status,
+           campaign.advertising_channel_type,
+           campaign_budget.amount_micros,
+           metrics.clicks, metrics.impressions,
+           metrics.cost_micros, metrics.conversions
+    FROM campaign
+    WHERE segments.date DURING LAST_30_DAYS
+      AND campaign.status != 'REMOVED'
+  `);
+
+  const campMap = new Map<string, LiveCampaignSummary>();
+  for (const r of camps) {
+    const id = String(r.campaign?.id || "");
+    if (!id) continue;
+    const cur = campMap.get(id) || {
+      campaignName: r.campaign?.name || "(unnamed)",
+      campaignId: id,
+      status: r.campaign?.status || "UNKNOWN",
+      channelType: r.campaign?.advertisingChannelType || "UNKNOWN",
+      dailyBudgetIdr: Math.round(Number(r.campaignBudget?.amountMicros || 0) / 1e6),
+      adGroupCount: 0,
+      destinations: [] as string[],
+      goesToWhatsApp: false,
+      metricsLast30d: { clicks: 0, impressions: 0, costIdr: 0, conversions: 0 },
+    };
+    cur.metricsLast30d.clicks += Number(r.metrics?.clicks || 0);
+    cur.metricsLast30d.impressions += Number(r.metrics?.impressions || 0);
+    cur.metricsLast30d.costIdr += Number(r.metrics?.costMicros || 0) / 1e6;
+    cur.metricsLast30d.conversions += Number(r.metrics?.conversions || 0);
+    campMap.set(id, cur);
+  }
+
+  // 2) Ad-group count per campaign.
+  const ags = await search(env, `
+    SELECT campaign.id, ad_group.id
+    FROM ad_group
+    WHERE ad_group.status != 'REMOVED' AND campaign.status != 'REMOVED'
+  `);
+  for (const r of ags) {
+    const cid = String(r.campaign?.id || "");
+    const cur = campMap.get(cid);
+    if (cur) cur.adGroupCount += 1;
+  }
+
+  // 3) Distinct final URLs across all ads in each campaign — this is where
+  //    click money actually lands.
+  const ads = await search(env, `
+    SELECT campaign.id, ad_group_ad.ad.final_urls
+    FROM ad_group_ad
+    WHERE ad_group_ad.status != 'REMOVED' AND campaign.status != 'REMOVED'
+  `);
+  for (const r of ads) {
+    const cid = String(r.campaign?.id || "");
+    const cur = campMap.get(cid);
+    if (!cur) continue;
+    const urls: string[] = r.adGroupAd?.ad?.finalUrls || [];
+    for (const u of urls) {
+      if (!cur.destinations.includes(u)) cur.destinations.push(u);
+      if (/wa\.me|api\.whatsapp\.com|chat\.whatsapp\.com/i.test(u)) cur.goesToWhatsApp = true;
+    }
+  }
+
+  // Round IDR sums for cleaner display.
+  const out = Array.from(campMap.values())
+    .map(c => ({ ...c, metricsLast30d: { ...c.metricsLast30d, costIdr: Math.round(c.metricsLast30d.costIdr) } }))
+    .sort((a, b) => (a.status === "ENABLED" && b.status !== "ENABLED" ? -1 : 1));
+  return out;
+}
+
 // ── D1: pull performance into marketing_spend ────────────────────────────────
 const slug = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 

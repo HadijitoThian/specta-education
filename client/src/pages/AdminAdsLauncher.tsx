@@ -54,11 +54,163 @@ export default function AdminAdsLauncher() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-8">
+        <LiveCampaignsCard />
         <LauncherCard />
         <LaunchedList />
       </main>
     </div>
   );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Live campaigns — "what's actually in the Google Ads account right now"
+// ────────────────────────────────────────────────────────────────────────────
+
+function LiveCampaignsCard() {
+  const q = trpc.marketing.liveGoogleAdsCampaigns.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000, // 5 min — Google Ads API isn't cheap to hit
+  });
+
+  if (q.isLoading) {
+    return (
+      <section className="bg-white border border-slate-200 rounded-lg p-6">
+        <div className="text-sm text-slate-400">Loading current Google Ads campaigns…</div>
+      </section>
+    );
+  }
+  if (q.error) {
+    return (
+      <section className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
+        Can't reach Google Ads API: {q.error.message}
+      </section>
+    );
+  }
+  if (!q.data?.configured) {
+    return (
+      <section className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-900">
+        Google Ads API isn't configured. Set the <code>GOOGLE_ADS_*</code> env vars on Railway to see live campaigns here.
+      </section>
+    );
+  }
+
+  const campaigns = q.data.campaigns;
+  const enabled = campaigns.filter(c => c.status === "ENABLED");
+  const paused = campaigns.filter(c => c.status === "PAUSED");
+  const enabledCount = enabled.length;
+  const pausedCount = paused.length;
+
+  const enabledWhatsApp = enabled.filter(c => c.goesToWhatsApp).length;
+  const enabledWebsite = enabled.filter(c => !c.goesToWhatsApp).length;
+
+  return (
+    <section className="bg-white border border-slate-200 rounded-lg p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="font-semibold text-slate-900">What's currently running in Google Ads</h2>
+          <p className="text-sm text-slate-500">
+            Live snapshot from the Google Ads API — where each campaign sends clicks and how it's performing.
+          </p>
+        </div>
+        <div className="flex gap-4 text-sm">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-emerald-600">{enabledCount}</div>
+            <div className="text-xs text-slate-500">enabled</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-amber-600">{pausedCount}</div>
+            <div className="text-xs text-slate-500">paused</div>
+          </div>
+        </div>
+      </div>
+
+      {enabledCount > 0 && (
+        <div className="mb-4 grid grid-cols-2 gap-3">
+          <div className="p-3 rounded border border-emerald-200 bg-emerald-50">
+            <div className="text-xs text-emerald-800 uppercase tracking-wide">CTAs go to WhatsApp</div>
+            <div className="text-2xl font-bold text-emerald-900">{enabledWhatsApp} <span className="text-sm font-normal">/ {enabledCount} enabled</span></div>
+          </div>
+          <div className="p-3 rounded border border-blue-200 bg-blue-50">
+            <div className="text-xs text-blue-800 uppercase tracking-wide">CTAs go to website</div>
+            <div className="text-2xl font-bold text-blue-900">{enabledWebsite} <span className="text-sm font-normal">/ {enabledCount} enabled</span></div>
+          </div>
+        </div>
+      )}
+
+      {campaigns.length === 0 ? (
+        <div className="text-sm text-slate-500 py-6 text-center">
+          No campaigns in the Google Ads account.
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase text-slate-500 border-b border-slate-200">
+                <th className="py-2 pr-2">Status</th>
+                <th className="py-2 pr-2">Campaign</th>
+                <th className="py-2 pr-2">Destination</th>
+                <th className="py-2 pr-2 text-right">Budget/day</th>
+                <th className="py-2 pr-2 text-right">Clicks 30d</th>
+                <th className="py-2 pr-2 text-right">Cost 30d</th>
+                <th className="py-2 pr-2 text-right">Conv 30d</th>
+              </tr>
+            </thead>
+            <tbody>
+              {campaigns.map((c: any) => (
+                <tr key={c.campaignId} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="py-2 pr-2">
+                    <StatusPill status={c.status} />
+                  </td>
+                  <td className="py-2 pr-2">
+                    <div className="font-medium">{c.campaignName}</div>
+                    <div className="text-xs text-slate-500">{c.channelType.replace(/_/g, " ").toLowerCase()} · {c.adGroupCount} ad group{c.adGroupCount === 1 ? "" : "s"}</div>
+                  </td>
+                  <td className="py-2 pr-2">
+                    {c.destinations.length === 0 ? (
+                      <span className="text-xs text-slate-400">no ads yet</span>
+                    ) : (
+                      <div className="space-y-1">
+                        {c.goesToWhatsApp && (
+                          <span className="inline-block px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[11px] font-semibold mr-1">→ WhatsApp</span>
+                        )}
+                        {!c.goesToWhatsApp && (
+                          <span className="inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-[11px] font-semibold mr-1">→ Website</span>
+                        )}
+                        {c.destinations.slice(0, 3).map((u: string, i: number) => (
+                          <div key={i} className="text-xs text-slate-500 font-mono break-all">{u}</div>
+                        ))}
+                        {c.destinations.length > 3 && (
+                          <div className="text-xs text-slate-400">+ {c.destinations.length - 3} more</div>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                  <td className="py-2 pr-2 text-right text-xs">Rp {c.dailyBudgetIdr.toLocaleString("id-ID")}</td>
+                  <td className="py-2 pr-2 text-right text-xs">{c.metricsLast30d.clicks.toLocaleString("id-ID")}</td>
+                  <td className="py-2 pr-2 text-right text-xs">Rp {c.metricsLast30d.costIdr.toLocaleString("id-ID")}</td>
+                  <td className="py-2 pr-2 text-right text-xs">{c.metricsLast30d.conversions.toFixed(1)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="mt-3 text-xs text-slate-500">
+        Data cached 5 min · pulled directly from Google Ads API · click{" "}
+        <a href="https://ads.google.com/aw/campaigns" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+          Manage in Google Ads
+        </a>{" "}to change status / budget.
+      </div>
+    </section>
+  );
+}
+
+function StatusPill({ status }: { status: string }) {
+  const s = status.toUpperCase();
+  if (s === "ENABLED") return <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[11px] font-semibold">🟢 ENABLED</span>;
+  if (s === "PAUSED")  return <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[11px] font-semibold">⏸ PAUSED</span>;
+  return <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-semibold">{s}</span>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
