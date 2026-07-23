@@ -61,11 +61,163 @@ export default function AdminAdsLauncher() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-8">
+        <AgentActivityCard />
         <LiveCampaignsCard />
         <LauncherCard />
         <LaunchedList />
       </main>
     </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// AI Ads Agent activity — daily audit results + pending suggestions
+// ────────────────────────────────────────────────────────────────────────────
+
+function AgentActivityCard() {
+  const utils = trpc.useUtils();
+  const pending = trpc.marketing.adsMonitorLog.useQuery({ limit: 50, onlyPending: true }, {
+    refetchOnWindowFocus: false, staleTime: 60 * 1000,
+  });
+  const recent = trpc.marketing.adsMonitorLog.useQuery({ limit: 20, onlyPending: false }, {
+    refetchOnWindowFocus: false, staleTime: 60 * 1000,
+  });
+  const [showHistory, setShowHistory] = useState(false);
+
+  const audit = trpc.marketing.runAdsAudit.useMutation({
+    onSuccess: (r: any) => {
+      const auto = r.autoPaused + r.autoNegativesAdded;
+      alert(`✅ Audit complete.\n\n${r.campaignsAudited} campaigns checked.\n${auto} action${auto === 1 ? "" : "s"} taken automatically.\n${r.suggestions.length} suggestion${r.suggestions.length === 1 ? "" : "s"} queued for review.`);
+      pending.refetch();
+      recent.refetch();
+      utils.marketing.liveGoogleAdsCampaigns.invalidate();
+    },
+    onError: (e) => alert(`❌ ${e.message}`),
+  });
+
+  const ack = trpc.marketing.acknowledgeAdsAction.useMutation({
+    onSuccess: () => { pending.refetch(); recent.refetch(); },
+    onError: (e) => alert(`❌ ${e.message}`),
+  });
+
+  const auto = (recent.data || []).filter((l: any) => l.executedAutomatically).length;
+  const suggestionCount = pending.data?.length || 0;
+
+  return (
+    <section className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-6">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+            🤖 AI Ads Agent
+            <span className="text-xs font-normal text-slate-500">daily audit + autonomous actions</span>
+          </h2>
+          <p className="text-sm text-slate-600 mt-1">
+            Watches every enabled campaign every day. Auto-pauses waste, auto-adds standard negatives (when enabled),
+            queues risky calls for you to review. Undo anything in the campaign editor below.
+          </p>
+        </div>
+        <button
+          onClick={() => audit.mutate()}
+          disabled={audit.isPending}
+          className="px-4 py-2 rounded bg-indigo-600 text-white text-sm font-semibold disabled:opacity-50"
+        >
+          {audit.isPending ? "Auditing…" : "Run audit now"}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="bg-white rounded border border-slate-200 p-3">
+          <div className="text-2xl font-bold text-amber-600">{suggestionCount}</div>
+          <div className="text-xs text-slate-500 mt-1">Suggestions pending your review</div>
+        </div>
+        <div className="bg-white rounded border border-slate-200 p-3">
+          <div className="text-2xl font-bold text-emerald-600">{auto}</div>
+          <div className="text-xs text-slate-500 mt-1">Auto-actions in last 20 events</div>
+        </div>
+        <div className="bg-white rounded border border-slate-200 p-3">
+          <div className="text-2xl font-bold text-slate-700">
+            {pending.isLoading ? "…" : (recent.data?.[0] ? new Date(recent.data[0].createdAt as any).toLocaleDateString() : "—")}
+          </div>
+          <div className="text-xs text-slate-500 mt-1">Last audit run</div>
+        </div>
+      </div>
+
+      {pending.isLoading && <div className="text-sm text-slate-400">Loading agent activity…</div>}
+
+      {pending.data && pending.data.length > 0 && (
+        <div className="bg-white rounded border border-amber-200 p-4">
+          <h3 className="font-semibold text-sm text-slate-900 mb-3">📋 Pending suggestions ({pending.data.length})</h3>
+          <div className="space-y-3">
+            {pending.data.map((s: any) => (
+              <div key={s.id} className="border border-slate-200 rounded p-3 bg-slate-50">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="text-xs font-mono text-indigo-700 uppercase mb-1">
+                      {s.action.replace(/^suggest_/, "").replace(/_/g, " ")}
+                    </div>
+                    <div className="font-medium text-sm">{s.campaignName}</div>
+                    {s.target && (
+                      <div className="text-xs text-slate-500 mt-1 font-mono">→ {s.target}</div>
+                    )}
+                    <div className="text-xs text-slate-600 mt-2">{s.reason}</div>
+                    <div className="text-xs text-slate-400 mt-1">
+                      Flagged {new Date(s.createdAt).toLocaleString("id-ID")}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => ack.mutate({ id: s.id })}
+                    disabled={ack.isPending}
+                    className="text-xs px-3 py-1 rounded border border-slate-300 hover:bg-slate-100 whitespace-nowrap"
+                  >
+                    Reviewed ✓
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 text-xs text-slate-500">
+            💡 To act on a suggestion: scroll down to <strong>What's currently running</strong>, click the matching campaign row to open its editor, then apply the change (URL / pause / budget / negative). Mark "Reviewed" here once done or if you disagree with the suggestion.
+          </div>
+        </div>
+      )}
+
+      {pending.data && pending.data.length === 0 && !pending.isLoading && (
+        <div className="bg-white rounded border border-emerald-200 p-4 text-sm text-emerald-800">
+          🎉 No pending suggestions. Every campaign looks healthy at last audit.
+        </div>
+      )}
+
+      <div className="mt-4">
+        <button
+          onClick={() => setShowHistory(!showHistory)}
+          className="text-xs text-slate-500 hover:text-slate-700 underline"
+        >
+          {showHistory ? "▾ Hide" : "▸ Show"} recent history ({recent.data?.length || 0})
+        </button>
+        {showHistory && recent.data && recent.data.length > 0 && (
+          <div className="mt-2 space-y-1 max-h-80 overflow-y-auto">
+            {recent.data.map((r: any) => (
+              <div key={r.id} className="text-xs bg-white rounded border border-slate-200 p-2 flex items-start gap-2">
+                <span className={`px-1.5 py-0.5 rounded font-semibold shrink-0 ${r.executedAutomatically ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                  {r.executedAutomatically ? "AUTO" : "SUGGESTED"}
+                </span>
+                <div className="flex-1">
+                  <span className="font-mono text-indigo-700">{r.action.replace(/^suggest_/, "").replace(/_/g, " ")}</span>
+                  <span className="text-slate-500 mx-1">·</span>
+                  <span className="text-slate-700">{r.campaignName}</span>
+                  {r.target && <span className="text-slate-400 font-mono ml-2">{r.target}</span>}
+                  <div className="text-slate-400">{new Date(r.createdAt).toLocaleString("id-ID")}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 text-xs text-slate-500 border-t border-indigo-200 pt-3">
+        <strong>Automatic actions off by default.</strong> To let the agent auto-pause waste keywords and auto-add negatives without asking, set Railway env var <code>ADS_MONITOR_AUTO_APPLY=true</code>. Recommended after 2-3 weeks of watching the suggestions to build trust.
+      </div>
+    </section>
   );
 }
 

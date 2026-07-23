@@ -563,6 +563,37 @@ export const marketingRouter = router({
       catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
     }),
 
+  // ── AI ADS MONITOR (autonomous daily audit + suggestion log) ────────────
+
+  /** Read the AI Agent's recent actions + pending suggestions. */
+  adsMonitorLog: protectedProcedure
+    .input(z.object({
+      limit: z.number().int().min(1).max(500).default(50),
+      onlyPending: z.boolean().default(false),
+    }))
+    .query(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      const { listMonitorLog } = await import("./adsMonitor");
+      return listMonitorLog(input);
+    }),
+
+  /** Mark an agent suggestion as reviewed (dismisses it from pending list). */
+  acknowledgeAdsAction: protectedProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      const { acknowledgeMonitorAction } = await import("./adsMonitor");
+      await acknowledgeMonitorAction(input.id);
+      return { ok: true };
+    }),
+
+  /** Trigger an audit on demand (bypasses the once-daily throttle). */
+  runAdsAudit: protectedProcedure.mutation(async ({ ctx }) => {
+    requireAdmin(ctx);
+    const { runAdsAudit } = await import("./adsMonitor");
+    return runAdsAudit();
+  }),
+
   /** D3 Advisor: AI optimization suggestions (read-only — you approve each). */
   adsRecommendations: protectedProcedure.query(async ({ ctx }) => {
     requireAdmin(ctx);

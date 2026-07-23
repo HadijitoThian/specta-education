@@ -8180,6 +8180,21 @@ startGoogleAdsScheduler();
 // OFF unless GOOGLE_ADS_OPTIMIZER_ENABLED=true.
 startGoogleAdsOptimizer();
 
+// AI Ads Monitor — daily audit of every enabled campaign. Auto-pauses
+// wasteful keywords + adds standard negatives (opt-in via
+// ADS_MONITOR_AUTO_APPLY=true), always queues higher-risk suggestions
+// for owner review in /admin/ads-launcher. Guarded by DB marker so
+// redeploys don't re-run the audit.
+(async () => {
+  try {
+    const { startAdsMonitor, ensureAdsMonitorSchema } = await import("./adsMonitor");
+    await ensureAdsMonitorSchema();
+    startAdsMonitor();
+  } catch (e) {
+    console.error("[adsMonitor] startup failed:", (e as Error).message);
+  }
+})();
+
 // AI Tutor landing imagery — generate once via DeepInfra (idempotent).
 startTutorImages();
 
