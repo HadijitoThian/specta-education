@@ -81,12 +81,52 @@ async function headers(env: Env): Promise<Record<string, string>> {
   };
 }
 
+/**
+ * Extract the human-readable failure reason(s) from a Google Ads REST error
+ * response. The raw response is a nested JSON blob buried under
+ * error.details[*].errors[*].message — showing the whole blob in an alert()
+ * is unreadable and hides the actual field-level problem. This walks it and
+ * returns a comma-joined summary of the actual errors.
+ */
+function unwrapGoogleAdsError(bodyText: string, status: number, action: string): Error {
+  try {
+    const parsed = JSON.parse(bodyText);
+    const items = Array.isArray(parsed) ? parsed : [parsed];
+    const reasons: string[] = [];
+    for (const item of items) {
+      const err = item.error || item;
+      const details = err?.details || [];
+      for (const d of details) {
+        const inner = d.errors || [];
+        for (const e of inner) {
+          const codeParts: string[] = [];
+          if (e.errorCode) {
+            for (const [k, v] of Object.entries(e.errorCode)) codeParts.push(`${k}=${v}`);
+          }
+          const loc = e.location?.fieldPathElements
+            ? e.location.fieldPathElements.map((p: any) => p.fieldName).filter(Boolean).join(".")
+            : "";
+          reasons.push(
+            `${codeParts.join(",")} @ ${loc || "?"}: ${e.message || "(no message)"}`
+          );
+        }
+      }
+      if (reasons.length === 0 && err?.message) reasons.push(err.message);
+    }
+    return new Error(
+      `${action} failed [${status}]: ${reasons.length ? reasons.join(" | ") : bodyText.slice(0, 300)}`
+    );
+  } catch {
+    return new Error(`${action} failed [${status}]: ${bodyText.slice(0, 300)}`);
+  }
+}
+
 /** Run a GAQL query (searchStream) and return the flattened result rows. */
 async function search(env: Env, query: string): Promise<any[]> {
   const res = await fetch(`${BASE}/customers/${env.customerId}/googleAds:searchStream`, {
     method: "POST", headers: await headers(env), body: JSON.stringify({ query }),
   });
-  if (!res.ok) throw new Error(`GAQL failed: ${res.status} ${await res.text()}`);
+  if (!res.ok) throw unwrapGoogleAdsError(await res.text(), res.status, "GAQL");
   const batches = await res.json();
   const out: any[] = [];
   for (const b of Array.isArray(batches) ? batches : [batches]) {
@@ -99,7 +139,7 @@ async function mutate(env: Env, resource: string, operations: any[]): Promise<an
   const res = await fetch(`${BASE}/customers/${env.customerId}/${resource}:mutate`, {
     method: "POST", headers: await headers(env), body: JSON.stringify({ operations }),
   });
-  if (!res.ok) throw new Error(`${resource} mutate failed: ${res.status} ${await res.text()}`);
+  if (!res.ok) throw unwrapGoogleAdsError(await res.text(), res.status, `${resource}:mutate`);
   return res.json();
 }
 
@@ -698,9 +738,20 @@ export async function updateAdFinalUrls(input: {
 
   // 1) Fetch each ad's full content — need headlines/descriptions/etc so
   //    we can recreate it perfectly with just the URL changed.
-  const idFromRn = (rn: string) => rn.split("/").pop() || "";
+  //
+  // BUG-FIX (2026-07-04): AdGroupAd resource names look like
+  //   customers/{cid}/adGroupAds/{adGroupId}~{adId}
+  // so the tail after the last "/" is "{adGroupId}~{adId}" (contains "~").
+  // My earlier code passed that whole tail to `ad_group_ad.ad.id IN (…)`
+  // which Google Ads rejects with `BAD_VALUE @ ?: Error in WHERE clause:
+  // invalid value ~.` We need JUST the ad-id half (after the "~").
+  const idFromRn = (rn: string) => {
+    const tail = rn.split("/").pop() || "";
+    const adId = tail.includes("~") ? (tail.split("~").pop() || "") : tail;
+    return /^\d+$/.test(adId) ? adId : "";
+  };
   const ids = input.adResourceNames.map(idFromRn).filter(Boolean);
-  if (ids.length === 0) throw new Error("No valid ad resource names");
+  if (ids.length === 0) throw new Error("Could not extract valid ad IDs from the given resource names");
 
   // Only query Responsive Search Ad fields — Google Ads API v21 removed the
   // `expanded_text_ad.*` fields entirely (ETAs were deprecated in June 2022).
