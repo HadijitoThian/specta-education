@@ -468,7 +468,6 @@ export async function sendMockTestUpsellEmail(params: {
   const base = params.appUrl.replace(/\/+$/, "");
   const tutorUrl = `${base}/ielts/tutor`;
   const unsubUrl = `${base}/unsubscribe?email=${encodeURIComponent(to)}`;
-  const logo = "https://www.spectaeducation.com/files/migrated/QxrYSewOYzAuPIEN.jpeg";
 
   // Band-aware framing — feels much more personal than a generic upsell.
   const band = params.overallBand;
@@ -492,11 +491,9 @@ export async function sendMockTestUpsellEmail(params: {
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
   <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
     <div style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
-      <div style="text-align:center;padding:22px 24px 6px 24px;">
-        <a href="https://www.spectaeducation.com" style="text-decoration:none;">
-          <img src="${logo}" alt="SpecTa Education"
-               width="140" height="46" border="0"
-               style="height:46px;width:auto;display:inline-block;object-fit:contain;color:#4338ca;font-size:20px;font-weight:800;font-family:Arial,sans-serif;" />
+      <div style="text-align:center;padding:24px 24px 8px 24px;line-height:1;">
+        <a href="https://www.spectaeducation.com" style="text-decoration:none;display:inline-block;">
+          <span style="font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:800;letter-spacing:-0.5px;color:#4338ca;">SpecTa</span><span style="font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:400;letter-spacing:-0.3px;color:#6b7280;margin-left:6px;">Education</span>
         </a>
       </div>
       <div style="background:linear-gradient(135deg,#db2777,#9333ea);padding:24px 30px;text-align:center;color:white;">
