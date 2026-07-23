@@ -690,15 +690,111 @@ export async function updateAdFinalUrls(input: {
   if (!/^https?:\/\//i.test(url)) throw new Error("Final URL must start with http:// or https://");
   if (!input.adResourceNames.length) return { updated: 0 };
 
-  const operations = input.adResourceNames.map(rn => ({
-    update: {
-      resourceName: rn,
-      ad: { finalUrls: [url] },
-    },
-    updateMask: "ad.final_urls",
-  }));
-  await mutate(env, "adGroupAds", operations);
-  return { updated: input.adResourceNames.length };
+  // Google Ads API constraint: Ad.final_urls is IMMUTABLE on existing ads.
+  // (The Google Ads UI's "edit final URL" hides this by doing remove+create
+  // behind the scenes.) We do the same: fetch full ad content, create a
+  // twin ad in the same ad group with the new URL, then remove the old one.
+  // Batched via googleAds:mutate so both ops happen atomically per pair.
+
+  // 1) Fetch each ad's full content — need headlines/descriptions/etc so
+  //    we can recreate it perfectly with just the URL changed.
+  const idFromRn = (rn: string) => rn.split("/").pop() || "";
+  const ids = input.adResourceNames.map(idFromRn).filter(Boolean);
+  if (ids.length === 0) throw new Error("No valid ad resource names");
+
+  const rows = await search(env, `
+    SELECT ad_group.resource_name, ad_group_ad.resource_name,
+           ad_group_ad.status, ad_group_ad.ad.type,
+           ad_group_ad.ad.responsive_search_ad.headlines,
+           ad_group_ad.ad.responsive_search_ad.descriptions,
+           ad_group_ad.ad.responsive_search_ad.path1,
+           ad_group_ad.ad.responsive_search_ad.path2,
+           ad_group_ad.ad.expanded_text_ad.headline_part1,
+           ad_group_ad.ad.expanded_text_ad.headline_part2,
+           ad_group_ad.ad.expanded_text_ad.headline_part3,
+           ad_group_ad.ad.expanded_text_ad.description,
+           ad_group_ad.ad.expanded_text_ad.description2,
+           ad_group_ad.ad.expanded_text_ad.path1,
+           ad_group_ad.ad.expanded_text_ad.path2
+    FROM ad_group_ad
+    WHERE ad_group_ad.ad.id IN (${ids.join(",")})
+      AND ad_group_ad.status != 'REMOVED'
+  `);
+  if (rows.length === 0) throw new Error("None of those ads exist / are already removed");
+
+  // 2) Build a single mutate batch: (create new, remove old) per ad. Google
+  //    Ads' generic googleAds:mutate endpoint atomically handles mixed ops.
+  const mutateOperations: any[] = [];
+  let created = 0;
+
+  for (const r of rows) {
+    const adGroupRn = r.adGroup?.resourceName;
+    const oldRn = r.adGroupAd?.resourceName;
+    const type = r.adGroupAd?.ad?.type;
+    if (!adGroupRn || !oldRn) continue;
+
+    let newAd: any = null;
+    if (type === "RESPONSIVE_SEARCH_AD") {
+      const rsa = r.adGroupAd?.ad?.responsiveSearchAd || {};
+      newAd = {
+        finalUrls: [url],
+        responsiveSearchAd: {
+          headlines: rsa.headlines || [],
+          descriptions: rsa.descriptions || [],
+          ...(rsa.path1 ? { path1: rsa.path1 } : {}),
+          ...(rsa.path2 ? { path2: rsa.path2 } : {}),
+        },
+      };
+    } else if (type === "EXPANDED_TEXT_AD") {
+      const eta = r.adGroupAd?.ad?.expandedTextAd || {};
+      newAd = {
+        finalUrls: [url],
+        expandedTextAd: {
+          headlinePart1: eta.headlinePart1 || "",
+          headlinePart2: eta.headlinePart2 || "",
+          ...(eta.headlinePart3 ? { headlinePart3: eta.headlinePart3 } : {}),
+          description: eta.description || "",
+          ...(eta.description2 ? { description2: eta.description2 } : {}),
+          ...(eta.path1 ? { path1: eta.path1 } : {}),
+          ...(eta.path2 ? { path2: eta.path2 } : {}),
+        },
+      };
+    } else {
+      // Unsupported ad type — skip. Owner can update from Google Ads UI.
+      continue;
+    }
+
+    // Create the twin with the new URL. Keep same status as original.
+    mutateOperations.push({
+      adGroupAdOperation: {
+        create: {
+          adGroup: adGroupRn,
+          status: r.adGroupAd?.status || "ENABLED",
+          ad: newAd,
+        },
+      },
+    });
+    // Then remove the old one. Google Ads API executes ops in order.
+    mutateOperations.push({
+      adGroupAdOperation: { remove: oldRn },
+    });
+    created++;
+  }
+
+  if (mutateOperations.length === 0) {
+    throw new Error("None of the ads are a supported type (Responsive Search Ad or Expanded Text Ad)");
+  }
+
+  // 3) Fire the batch via the generic googleAds:mutate endpoint.
+  const res = await fetch(
+    `${BASE}/customers/${env.customerId}/googleAds:mutate`,
+    { method: "POST", headers: await headers(env), body: JSON.stringify({ mutateOperations }) },
+  );
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`googleAds:mutate failed: ${res.status} ${errText.slice(0, 500)}`);
+  }
+  return { updated: created };
 }
 
 /** Pause a single keyword by its criterion resource name. Idempotent-ish. */
