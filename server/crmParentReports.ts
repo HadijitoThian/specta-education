@@ -150,10 +150,11 @@ export async function generateDraftsForWeek(weekOf: string): Promise<{ created: 
   return { created, skipped };
 }
 
+/** SpecTa Education logo — hardcoded absolute production URL (email clients
+ *  need HTTPS-absolute URLs and we know this CDN path is stable). Same file
+ *  as the site nav / admin dashboard. */
 function logoUrl(): string {
-  const base = (ENV.appUrl?.replace(/\/+$/, "") || "https://www.spectaeducation.com");
-  const abs = /^https?:\/\//i.test(base) ? base : `https://${base}`;
-  return `${abs}/files/migrated/QxrYSewOYzAuPIEN.jpeg`;
+  return "https://www.spectaeducation.com/files/migrated/QxrYSewOYzAuPIEN.jpeg";
 }
 
 function esc(s: string): string {
@@ -183,7 +184,11 @@ export function renderParentEmailHtml(snap: ReportSnapshot, parentName: string |
   return `
 <div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;background:#f6f7f9;padding:20px;">
   <div style="text-align:center;padding:8px 0 16px;">
-    <img src="${logoUrl()}" alt="SpecTa Education" style="height:42px;object-fit:contain;" />
+    <a href="https://www.spectaeducation.com" style="text-decoration:none;">
+      <img src="${logoUrl()}" alt="SpecTa Education"
+           width="128" height="42" border="0"
+           style="height:42px;width:auto;display:inline-block;object-fit:contain;color:#E91E8C;font-size:20px;font-weight:800;font-family:Arial,sans-serif;" />
+    </a>
   </div>
   <div style="background:linear-gradient(135deg,#E91E8C,#9C27B0);padding:22px 20px;border-radius:12px 12px 0 0;text-align:center;">
     <div style="color:#fff;font-size:20px;font-weight:700;">Weekly Progress Report</div>

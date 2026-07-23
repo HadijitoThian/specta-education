@@ -470,11 +470,18 @@ async function sendReportEmail(opts: {
   const bandRow = (label: string, value: number) =>
     `<tr><td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;color:#475569;">${label}</td><td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;color:#0f172a;">${value.toFixed(1)}</td></tr>`;
 
-  const logo = `${ENV.appUrl.replace(/\/+$/, "")}/files/migrated/QxrYSewOYzAuPIEN.jpeg`;
+  // Hardcoded absolute logo URL — same brand mark as site nav + admin.
+  // Emails need HTTPS-absolute URLs and email clients treat this CDN path as
+  // known-good so images render on first open (no "load images" prompt).
+  const logo = "https://www.spectaeducation.com/files/migrated/QxrYSewOYzAuPIEN.jpeg";
   const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f8fafc;">
 <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
   <div style="text-align:center;padding:22px 24px 6px 24px;">
-    <img src="${logo}" alt="SpecTa Education" height="46" style="height:46px;object-fit:contain;" />
+    <a href="https://www.spectaeducation.com" style="text-decoration:none;">
+      <img src="${logo}" alt="SpecTa Education"
+           width="140" height="46" border="0"
+           style="height:46px;width:auto;display:inline-block;object-fit:contain;color:#4338ca;font-size:20px;font-weight:800;font-family:Arial,sans-serif;" />
+    </a>
   </div>
   <div style="background:linear-gradient(135deg,#1d4ed8,#4338ca,#7c3aed);padding:28px 24px;color:#fff;">
     <div style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;opacity:0.85;">SpecTa IELTS Mock Report</div>

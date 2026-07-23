@@ -30,9 +30,13 @@ function appBaseUrl(): string {
   return /^https?:\/\//i.test(u) ? u : `https://${u}`;
 }
 
-/** SpecTa logo (self-hosted on R2; absolute URL for email clients). */
+/** SpecTa Education logo — absolute production URL. Hardcoded (not derived
+ *  from ENV.appUrl) because email clients need an absolute HTTPS URL and
+ *  we know the www.spectaeducation.com CDN serves this JPEG at 336×121.
+ *  Same file used by Navigation.tsx and AdminDashboard.tsx — single source
+ *  of visual truth for the SpecTa brand mark. */
 function logoUrl(): string {
-  return `${appBaseUrl()}/files/migrated/QxrYSewOYzAuPIEN.jpeg`;
+  return "https://www.spectaeducation.com/files/migrated/QxrYSewOYzAuPIEN.jpeg";
 }
 
 /** A bulletproof, email-client-safe CTA button. */
@@ -46,7 +50,11 @@ function brandedEmail(opts: { badge: string; title: string; bodyHtml: string }):
 <div style="max-width:600px;margin:0 auto;padding:24px 12px;">
   <div style="background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 8px 24px rgba(15,23,42,0.06);">
     <div style="text-align:center;padding:22px 24px 6px 24px;">
-      <img src="${logoUrl()}" alt="SpecTa Education" height="46" style="height:46px;object-fit:contain;" />
+      <a href="https://www.spectaeducation.com" style="text-decoration:none;">
+        <img src="${logoUrl()}" alt="SpecTa Education"
+             width="140" height="46" border="0"
+             style="height:46px;width:auto;display:inline-block;object-fit:contain;color:#4338ca;font-size:20px;font-weight:800;font-family:Arial,sans-serif;" />
+      </a>
     </div>
     <div style="background:linear-gradient(135deg,#1d4ed8,#4338ca,#7c3aed);padding:22px 24px;color:#ffffff;">
       <div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.85;">${opts.badge}</div>
