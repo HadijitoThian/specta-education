@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "SpecTa Education (full-stack dev)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"],
+      "port": 3000
+    },
+    {
+      "name": "Practice Result Preview",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--yes", "serve", "preview", "-l", "4318"],
+      "port": 4318
+    }
+  ]
+}

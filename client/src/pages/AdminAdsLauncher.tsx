@@ -469,6 +469,9 @@ function CampaignEditor({
 
   return (
     <div className="space-y-6">
+      {/* ── Row 0: AI Health Diagnosis ────────────────────────────────── */}
+      <HealthDiagnosisCard campaignId={campaignId} />
+
       {/* ── Row 1: Landing URL + Campaign controls ────────────────────── */}
       <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-white rounded border border-slate-200 p-4">
@@ -693,6 +696,132 @@ function CampaignEditor({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Health Diagnosis — why isn't this campaign getting impressions?
+// ────────────────────────────────────────────────────────────────────────────
+
+function HealthDiagnosisCard({ campaignId }: { campaignId: string }) {
+  const q = trpc.marketing.diagnoseCampaignHealth.useQuery(
+    { campaignId },
+    { refetchOnWindowFocus: false, staleTime: 5 * 60 * 1000 },
+  );
+
+  if (q.isLoading) {
+    return (
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded p-4 text-sm text-slate-500">
+        🩺 Diagnosing campaign health…
+      </div>
+    );
+  }
+  if (q.error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded p-4 text-sm text-red-700">
+        Health check failed: {q.error.message}
+      </div>
+    );
+  }
+  const d = q.data;
+  if (!d) return null;
+
+  const pct = (v: number | null) => (v == null ? "—" : `${Math.round(v * 100)}%`);
+  const severityColor = (s: string) =>
+    s === "critical" ? "bg-red-50 border-red-200 text-red-800"
+    : s === "warning" ? "bg-amber-50 border-amber-200 text-amber-800"
+    : "bg-emerald-50 border-emerald-200 text-emerald-800";
+  const severityIcon = (s: string) =>
+    s === "critical" ? "🚨" : s === "warning" ? "⚠️" : "✅";
+
+  const activeKws = d.keywords.filter(k => k.impressions > 0).length;
+
+  return (
+    <div className="bg-white border border-slate-200 rounded p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold text-sm">🩺 AI Health Diagnosis · last 7 days</h3>
+        <button
+          onClick={() => q.refetch()}
+          className="text-xs text-indigo-600 hover:underline"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {/* Diagnoses */}
+      <div className="space-y-2 mb-4">
+        {d.diagnoses.map((diag, i) => (
+          <div key={i} className={`border rounded p-3 text-xs ${severityColor(diag.severity)}`}>
+            <div className="font-semibold">{severityIcon(diag.severity)} {diag.reason}</div>
+            <div className="mt-1 opacity-90">{diag.detail}</div>
+            <div className="mt-2 pt-2 border-t border-current border-opacity-20">
+              <strong>Fix:</strong> {diag.suggestedFix}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Impression share panel */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-center mb-3">
+        <div className="bg-slate-50 border border-slate-200 rounded p-2">
+          <div className="text-[10px] uppercase text-slate-500">Impression Share</div>
+          <div className="font-bold text-slate-900">{pct(d.impressionShare.searchImpressionShare)}</div>
+        </div>
+        <div className="bg-slate-50 border border-slate-200 rounded p-2">
+          <div className="text-[10px] uppercase text-slate-500">Lost to Budget</div>
+          <div className="font-bold text-slate-900">{pct(d.impressionShare.lostToBudget)}</div>
+        </div>
+        <div className="bg-slate-50 border border-slate-200 rounded p-2">
+          <div className="text-[10px] uppercase text-slate-500">Lost to Rank</div>
+          <div className="font-bold text-slate-900">{pct(d.impressionShare.lostToRank)}</div>
+        </div>
+        <div className="bg-slate-50 border border-slate-200 rounded p-2">
+          <div className="text-[10px] uppercase text-slate-500">Top of Page</div>
+          <div className="font-bold text-slate-900">{pct(d.impressionShare.topImpressionShare)}</div>
+        </div>
+        <div className="bg-slate-50 border border-slate-200 rounded p-2">
+          <div className="text-[10px] uppercase text-slate-500">Absolute Top</div>
+          <div className="font-bold text-slate-900">{pct(d.impressionShare.absoluteTopImpressionShare)}</div>
+        </div>
+      </div>
+
+      {/* Metrics + keyword liveness */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center mb-3">
+        <div className="bg-slate-50 border border-slate-200 rounded p-2">
+          <div className="text-[10px] uppercase text-slate-500">Impressions</div>
+          <div className="font-bold text-slate-900">{d.metrics.impressions.toLocaleString()}</div>
+        </div>
+        <div className="bg-slate-50 border border-slate-200 rounded p-2">
+          <div className="text-[10px] uppercase text-slate-500">Clicks</div>
+          <div className="font-bold text-slate-900">{d.metrics.clicks.toLocaleString()}</div>
+        </div>
+        <div className="bg-slate-50 border border-slate-200 rounded p-2">
+          <div className="text-[10px] uppercase text-slate-500">Spend</div>
+          <div className="font-bold text-slate-900">Rp {d.metrics.costIdr.toLocaleString()}</div>
+        </div>
+        <div className="bg-slate-50 border border-slate-200 rounded p-2">
+          <div className="text-[10px] uppercase text-slate-500">Live keywords</div>
+          <div className="font-bold text-slate-900">{activeKws} / {d.keywords.length}</div>
+        </div>
+      </div>
+
+      {/* Search terms — what people actually typed */}
+      {d.searchTerms.length > 0 && (
+        <details className="text-xs">
+          <summary className="cursor-pointer text-slate-600 hover:text-slate-900">
+            Show top {d.searchTerms.length} search queries that triggered ads
+          </summary>
+          <div className="mt-2 bg-slate-50 border border-slate-200 rounded p-2 max-h-48 overflow-y-auto">
+            {d.searchTerms.map((s, i) => (
+              <div key={i} className="flex justify-between border-b border-slate-100 py-1 last:border-b-0">
+                <span className="font-mono text-slate-700">{s.text}</span>
+                <span className="text-slate-500 tabular-nums">{s.impressions} impr · {s.clicks} clicks</span>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
     </div>
   );
 }

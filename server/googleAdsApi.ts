@@ -693,6 +693,202 @@ export async function getCampaignDetail(campaignId: string): Promise<{
   return { campaignName, status: campaignStatus, ads, keywords, negatives };
 }
 
+// ── Campaign health diagnosis ────────────────────────────────────────────────
+export interface CampaignHealthReport {
+  campaignId: string;
+  campaignName: string;
+  status: string;
+  window: "LAST_7_DAYS" | "LAST_30_DAYS";
+  /** Impression share metrics from Google Ads. 0..1 fractions (e.g. 0.03 = 3%). */
+  impressionShare: {
+    /** Share of eligible impressions we actually won. Below 0.10 = severe underdelivery. */
+    searchImpressionShare: number | null;
+    /** Share LOST because our budget ran out too early. High = raise budget. */
+    lostToBudget: number | null;
+    /** Share LOST because our Ad Rank (bid × Quality Score) was too low. High = bid up or improve QS. */
+    lostToRank: number | null;
+    /** Top-of-page + absolute-top share — how prominently we show when we DO show. */
+    topImpressionShare: number | null;
+    absoluteTopImpressionShare: number | null;
+  };
+  metrics: { impressions: number; clicks: number; costIdr: number; conversions: number };
+  /** Per-keyword impression counts so we can see which keywords are dead vs alive. */
+  keywords: Array<{ text: string; matchType: string; impressions: number; clicks: number; status: string }>;
+  /** Actual search queries that TRIGGERED our ads — reveals intent mismatch. */
+  searchTerms: Array<{ text: string; impressions: number; clicks: number }>;
+  /** Plain-English diagnoses ranked most-likely-cause first. */
+  diagnoses: Array<{
+    severity: "critical" | "warning" | "info";
+    reason: string;      // short label
+    detail: string;      // full explanation
+    suggestedFix: string;
+  }>;
+}
+
+/**
+ * Diagnose why a Google Ads campaign isn't performing. Pulls impression share,
+ * per-keyword impressions, and actual search terms — then applies rules to
+ * surface the specific reason(s) it's underdelivering. This is what the Google
+ * Ads UI shows scattered across 5 different screens, distilled into one call.
+ */
+export async function diagnoseCampaignHealth(campaignId: string): Promise<CampaignHealthReport | null> {
+  const env = readEnv();
+  if (!env) throw new Error("Google Ads not configured");
+  const cid = campaignId.replace(/\D/g, "");
+  if (!cid) return null;
+
+  // Campaign shell + impression share metrics (last 7d — more sensitive than 30d).
+  const camps = await search(env, `
+    SELECT campaign.id, campaign.name, campaign.status,
+           metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions,
+           metrics.search_impression_share,
+           metrics.search_budget_lost_impression_share,
+           metrics.search_rank_lost_impression_share,
+           metrics.search_top_impression_share,
+           metrics.search_absolute_top_impression_share
+    FROM campaign
+    WHERE campaign.id = ${cid}
+      AND segments.date DURING LAST_7_DAYS
+    LIMIT 1
+  `);
+  if (!camps.length) return null;
+  const c = camps[0];
+  const isEnabled = (c.campaign?.status || "") === "ENABLED";
+
+  // Per-keyword impressions — dead keywords vs alive ones.
+  const kwRows = await search(env, `
+    SELECT ad_group_criterion.keyword.text,
+           ad_group_criterion.keyword.match_type,
+           ad_group_criterion.status,
+           metrics.impressions, metrics.clicks
+    FROM keyword_view
+    WHERE campaign.id = ${cid}
+      AND ad_group_criterion.status != 'REMOVED'
+      AND segments.date DURING LAST_7_DAYS
+  `);
+  const keywords = kwRows.map((r: any) => ({
+    text: r.adGroupCriterion?.keyword?.text || "",
+    matchType: String(r.adGroupCriterion?.keyword?.matchType || "").toLowerCase(),
+    impressions: Number(r.metrics?.impressions || 0),
+    clicks: Number(r.metrics?.clicks || 0),
+    status: r.adGroupCriterion?.status || "UNKNOWN",
+  })).filter(k => k.text);
+
+  // Search terms — actual queries that fired our ads.
+  const stRows = await search(env, `
+    SELECT search_term_view.search_term,
+           metrics.impressions, metrics.clicks
+    FROM search_term_view
+    WHERE campaign.id = ${cid}
+      AND segments.date DURING LAST_7_DAYS
+    ORDER BY metrics.impressions DESC
+    LIMIT 30
+  `).catch(() => []); // search_term_view sometimes returns 0 rows for new campaigns
+  const searchTerms = stRows.map((r: any) => ({
+    text: r.searchTermView?.searchTerm || "",
+    impressions: Number(r.metrics?.impressions || 0),
+    clicks: Number(r.metrics?.clicks || 0),
+  })).filter(s => s.text);
+
+  const impressionShare = {
+    searchImpressionShare: c.metrics?.searchImpressionShare != null ? Number(c.metrics.searchImpressionShare) : null,
+    lostToBudget: c.metrics?.searchBudgetLostImpressionShare != null ? Number(c.metrics.searchBudgetLostImpressionShare) : null,
+    lostToRank: c.metrics?.searchRankLostImpressionShare != null ? Number(c.metrics.searchRankLostImpressionShare) : null,
+    topImpressionShare: c.metrics?.searchTopImpressionShare != null ? Number(c.metrics.searchTopImpressionShare) : null,
+    absoluteTopImpressionShare: c.metrics?.searchAbsoluteTopImpressionShare != null ? Number(c.metrics.searchAbsoluteTopImpressionShare) : null,
+  };
+  const metrics = {
+    impressions: Number(c.metrics?.impressions || 0),
+    clicks: Number(c.metrics?.clicks || 0),
+    costIdr: Math.round(Number(c.metrics?.costMicros || 0) / 1e6),
+    conversions: Number(c.metrics?.conversions || 0),
+  };
+
+  // ── Diagnoses ──────────────────────────────────────────────────────────────
+  const diagnoses: CampaignHealthReport["diagnoses"] = [];
+
+  if (!isEnabled) {
+    diagnoses.push({
+      severity: "critical",
+      reason: `Campaign is ${c.campaign?.status}`,
+      detail: `The campaign isn't ENABLED so nothing will serve.`,
+      suggestedFix: `Set the campaign to ENABLED from the admin campaign editor.`,
+    });
+  }
+
+  // Rank-lost > 50%: bid or Quality Score problem.
+  if (impressionShare.lostToRank != null && impressionShare.lostToRank > 0.5) {
+    diagnoses.push({
+      severity: "critical",
+      reason: "Losing >50% of impressions to Ad Rank",
+      detail: `${Math.round(impressionShare.lostToRank * 100)}% of eligible impressions are lost because our Ad Rank (bid × Quality Score) is too low. Competitors are outbidding us OR our Quality Score is weak (poor ad↔landing message match, or low expected CTR).`,
+      suggestedFix: `Options: (a) raise the bid/budget so the auto-bidder can compete; (b) tighten the ad→landing page message match (same headline promise on both); (c) narrow keywords to longer-tail, less competitive ones.`,
+    });
+  }
+
+  // Budget-lost > 30%: budget-starved.
+  if (impressionShare.lostToBudget != null && impressionShare.lostToBudget > 0.3) {
+    diagnoses.push({
+      severity: "critical",
+      reason: "Losing >30% of impressions to budget",
+      detail: `${Math.round(impressionShare.lostToBudget * 100)}% of eligible impressions are lost because the daily budget runs out before demand does.`,
+      suggestedFix: `Raise the daily budget by 2-3× and re-check in 3-5 days.`,
+    });
+  }
+
+  // Very low impression volume — either budget starved OR no search demand.
+  if (metrics.impressions < 20 && diagnoses.length === 0) {
+    const activeKws = keywords.filter(k => k.impressions > 0).length;
+    if (activeKws === 0) {
+      diagnoses.push({
+        severity: "critical",
+        reason: "Zero keywords received any impressions",
+        detail: `None of the ${keywords.length} keywords in this campaign got even one impression in the last 7 days. Either search demand for these terms is essentially zero in the targeted geo, OR the match types are too restrictive (all "exact"), OR the campaign was disapproved silently.`,
+        suggestedFix: `(1) Check Google Keyword Planner for actual search volume on these terms. (2) Widen match types from Exact → Phrase, or add Broad Match variants. (3) Consider whether the product's target buyer actually searches these terms — for example, IGCSE parents rarely type "AI Teacher"; they type "les IGCSE" or "guru IGCSE Cambridge".`,
+      });
+    } else {
+      diagnoses.push({
+        severity: "warning",
+        reason: "Only a handful of keywords are alive",
+        detail: `Only ${activeKws} of ${keywords.length} keywords got any impressions. The rest are effectively dead weight.`,
+        suggestedFix: `Pause the 0-impression keywords, keep only the ones showing traffic, and add long-tail variants of the active ones.`,
+      });
+    }
+  }
+
+  // No search terms triggered — same as above but from a different angle.
+  if (searchTerms.length === 0 && metrics.impressions < 5) {
+    diagnoses.push({
+      severity: "warning",
+      reason: "No real user searches triggered this campaign",
+      detail: `Google's search term report is empty for the last 7 days — no one has typed anything that matched our keywords closely enough to fire an ad.`,
+      suggestedFix: `Symptom of "keywords describe the product, not the customer intent". Rewrite keywords from the buyer's mouth: what would a Jakarta parent Google when their kid needs IGCSE help?`,
+    });
+  }
+
+  // Everything looks healthy.
+  if (diagnoses.length === 0) {
+    diagnoses.push({
+      severity: "info",
+      reason: "Campaign is delivering normally",
+      detail: `Impression share, budget, and keyword coverage all look healthy for the last 7 days.`,
+      suggestedFix: `Focus on conversion optimization (landing page, ad copy) rather than delivery.`,
+    });
+  }
+
+  return {
+    campaignId: cid,
+    campaignName: c.campaign?.name || "",
+    status: c.campaign?.status || "UNKNOWN",
+    window: "LAST_7_DAYS",
+    impressionShare,
+    metrics,
+    keywords: keywords.sort((a, b) => b.impressions - a.impressions),
+    searchTerms,
+    diagnoses,
+  };
+}
+
 /** Update the final URL of one or more ads. Used to fix landing-page mismatches. */
 export async function updateAdFinalUrls(input: {
   adResourceNames: string[];

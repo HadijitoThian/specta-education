@@ -39,6 +39,7 @@ import {
   applyRecommendation,
   listLiveCampaigns,
   getCampaignDetail,
+  diagnoseCampaignHealth,
   updateAdFinalUrls,
   pauseKeyword,
   enableKeyword,
@@ -493,6 +494,16 @@ export const marketingRouter = router({
       requireAdmin(ctx);
       if (!isGoogleAdsConfigured()) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Google Ads not configured" });
       try { return await getCampaignDetail(input.campaignId); }
+      catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
+    }),
+
+  /** Diagnose WHY a campaign isn't performing (impression share, dead keywords, etc.). */
+  diagnoseCampaignHealth: protectedProcedure
+    .input(z.object({ campaignId: z.string().min(1) }))
+    .query(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      if (!isGoogleAdsConfigured()) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Google Ads not configured" });
+      try { return await diagnoseCampaignHealth(input.campaignId); }
       catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
     }),
 
