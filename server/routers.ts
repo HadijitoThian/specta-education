@@ -8187,6 +8187,12 @@ startGoogleAdsOptimizer();
 // redeploys don't re-run the audit.
 (async () => {
   try {
+    // system_flags table is the proper daily-dedupe store for BOTH the
+    // Advisor (googleAdsApi) and the Ads Monitor emails. Creating it here
+    // covers both — previous piggyback on growth_digests was silently
+    // failing and caused the "spam on every deploy" bug.
+    const { ensureSystemFlagsSchema } = await import("./systemFlags");
+    await ensureSystemFlagsSchema();
     const { startAdsMonitor, ensureAdsMonitorSchema } = await import("./adsMonitor");
     await ensureAdsMonitorSchema();
     startAdsMonitor();

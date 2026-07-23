@@ -381,54 +381,46 @@ export async function acknowledgeMonitorAction(id: number): Promise<void> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Daily scheduler — same anti-spam pattern as googleAdsApi optimizer
+// Daily scheduler — now properly guarded against redeploy-spam.
+//
+// Two independent kill switches:
+//   ADS_MONITOR_ENABLED=false  — skip the scheduler entirely (no audit, no email)
+//   ADS_MONITOR_EMAIL_ENABLED=false — run the audit but never send the digest
+//
+// Default is emails ENABLED unless owner explicitly opts out.
+//
+// Daily dedupe uses the proper system_flags table (flagKey is PRIMARY KEY,
+// unlike the earlier growth_digests hack that silently failed).
 // ─────────────────────────────────────────────────────────────────────────────
 
-const MARKER_KEY = "ads_monitor_last_run_day";
-
-async function readLastRunDay(): Promise<string> {
-  try {
-    const db = await getDb();
-    if (!db) return "";
-    const rows: any = await db.execute(sql`
-      SELECT summary FROM growth_digests WHERE periodLabel = ${"_meta:" + MARKER_KEY} LIMIT 1
-    `);
-    const list: any[] = Array.isArray(rows[0]) ? rows[0] : rows;
-    return list?.[0]?.summary || "";
-  } catch { return ""; }
-}
-
-async function writeLastRunDay(day: string): Promise<void> {
-  try {
-    const db = await getDb();
-    if (!db) return;
-    await db.execute(sql`
-      INSERT INTO growth_digests (periodLabel, summary, wins, todos, spendTotal)
-      VALUES (${"_meta:" + MARKER_KEY}, ${day}, ${""}, ${""}, ${"0"})
-      ON DUPLICATE KEY UPDATE summary = ${day}
-    `);
-  } catch (e) {
-    console.warn("[adsMonitor] persist lastRunDay failed:", (e as Error).message);
-  }
-}
+const MARKER_KEY = "ads_monitor_last_email_day";
 
 let started = false;
 
 async function tick(): Promise<void> {
   if (!isGoogleAdsConfigured()) return;
+  if (process.env.ADS_MONITOR_ENABLED === "false") return;
   const now = new Date(Date.now() + 7 * 60 * 60 * 1000); // WIB
   const day = now.toISOString().slice(0, 10);
   if (now.getUTCHours() < 8) return; // 08:00 WIB and later
-  const last = await readLastRunDay();
-  if (last === day) return;
-  await writeLastRunDay(day);
+
+  const { readFlag, writeFlag } = await import("./systemFlags");
+  const last = await readFlag(MARKER_KEY);
+  if (last === day) return; // already ran today
+  await writeFlag(MARKER_KEY, day); // claim BEFORE audit so concurrent ticks
+                                    // (unlikely, but safer) can't double-fire.
 
   try {
     const audit = await runAdsAudit();
     console.log(`[adsMonitor] daily audit — ${audit.campaignsAudited} campaigns · ${audit.autoPaused} auto-paused · ${audit.autoNegativesAdded} auto-negatives · ${audit.suggestions.length} suggestions`);
 
-    // Weekly-summary style email — only if there's something interesting.
-    if (audit.autoPaused > 0 || audit.autoNegativesAdded > 0 || audit.suggestions.length > 0) {
+    const emailAllowed = process.env.ADS_MONITOR_EMAIL_ENABLED !== "false";
+    const anythingInteresting =
+      audit.autoPaused > 0 ||
+      audit.autoNegativesAdded > 0 ||
+      audit.suggestions.length > 0;
+
+    if (emailAllowed && anythingInteresting) {
       const autoLines: string[] = [];
       if (audit.autoPaused > 0) autoLines.push(`- ${audit.autoPaused} wasteful keyword${audit.autoPaused === 1 ? "" : "s"} paused automatically`);
       if (audit.autoNegativesAdded > 0) autoLines.push(`- ${audit.autoNegativesAdded} negative keyword${audit.autoNegativesAdded === 1 ? "" : "s"} added automatically`);
@@ -454,11 +446,14 @@ export function startAdsMonitor(): void {
     console.log("[adsMonitor] off — Google Ads API not configured.");
     return;
   }
+  if (process.env.ADS_MONITOR_ENABLED === "false") {
+    console.log("[adsMonitor] off — ADS_MONITOR_ENABLED=false in env.");
+    return;
+  }
   started = true;
   const autoApply = process.env.ADS_MONITOR_AUTO_APPLY === "true";
-  console.log(`[adsMonitor] on — daily audit at 08:00 WIB · auto-apply=${autoApply ? "ON" : "OFF (suggestions only)"}`);
+  const emailOn = process.env.ADS_MONITOR_EMAIL_ENABLED !== "false";
+  console.log(`[adsMonitor] on — daily audit at 08:00 WIB · auto-apply=${autoApply ? "ON" : "OFF (suggestions only)"} · email=${emailOn ? "ON" : "OFF"}`);
   // Hourly checks; the daily marker ensures we only actually run once per day.
   setInterval(() => { void tick(); }, 60 * 60 * 1000);
-  // No startup-fire — this is a monitor, not a redeploy-triggered email.
-  // First run happens at the next hourly tick after 08:00 WIB.
 }
