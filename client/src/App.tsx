@@ -75,6 +75,9 @@ const CountryPage = lazyWithReload(() => import("./pages/CountryPage"));
 const Malaysia = lazyWithReload(() => import("./pages/Malaysia"));
 const Articles = lazyWithReload(() => import("./pages/Articles"));
 const Contact = lazyWithReload(() => import("./pages/Contact"));
+const Terms = lazyWithReload(() => import("./pages/Terms"));
+const Privacy = lazyWithReload(() => import("./pages/Privacy"));
+const Refund = lazyWithReload(() => import("./pages/Refund"));
 const Compare = lazyWithReload(() => import("./pages/Compare"));
 const Apply = lazyWithReload(() => import("./pages/Apply"));
 const BookConsultation = lazyWithReload(() => import("./pages/BookConsultation"));
@@ -182,6 +185,9 @@ function Router() {
         <Route path={"/malaysia"} component={Malaysia} />
         <Route path={"/articles"} component={Articles} />
         <Route path={"/contact"} component={Contact} />
+        <Route path={"/terms"} component={Terms} />
+        <Route path={"/privacy"} component={Privacy} />
+        <Route path={"/refund"} component={Refund} />
         <Route path={"/compare"} component={Compare} />
         <Route path={"/apply"} component={Apply} />
         <Route path={"/book"} component={BookConsultation} />

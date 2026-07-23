@@ -202,6 +202,12 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
               <a href="#pricing" className="px-6 py-3 rounded-xl font-semibold border border-slate-300">See Pricing</a>
             </div>
             <p className="text-sm text-slate-500 mt-3">✅ Free 1 Writing + 1 Speaking · no credit card</p>
+            {/* Pricing disclosure — required by Google Ads policy for any subscription
+                offer. Must be visible without scrolling so the paid tier isn't hidden. */}
+            <p className="text-xs text-slate-500 mt-1">
+              After the free evaluation: <strong>Rp 149.000 / 2 minggu</strong> or <strong>Rp 249.000 / bulan</strong>. Cancel any time.
+              See <a href="/terms" className="underline">Terms</a> and <a href="/refund" className="underline">Refund Policy</a>.
+            </p>
           </div>
           <div className="lg:pl-6">{AuthCard}</div>
         </div>
@@ -307,11 +313,16 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
                 {p.tag && <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] font-semibold text-white px-3 py-0.5 rounded-full" style={{ background: PINK }}>{p.tag}</span>}
                 <div className="font-semibold text-slate-700">{p.label}</div>
                 <div className="text-3xl font-extrabold my-2">{p.price}</div>
-                <div className="text-xs text-slate-500">{p.per}</div>
+                <div className="text-xs text-slate-500">{p.per} · <strong>renews {p.id === "w2" ? "every 2 weeks" : "monthly"}</strong> · cancel anytime</div>
                 <ul className="text-sm text-slate-600 mt-4 space-y-1 text-left">
                   {["Unlimited Writing", "Unlimited Speaking", "Corrections + model answers", "Track your band"].map(x => <li key={x} className="flex gap-2"><span style={{ color: PINK }}>✓</span>{x}</li>)}
                 </ul>
-                <button onClick={() => goForm("signup")} className="w-full mt-5 py-2.5 rounded-lg text-white font-semibold" style={{ background: p.tag ? PINK : PURPLE }}>Start Free</button>
+                {/* CTA states the recurring price — required by Google Ads policy so
+                    "Start Free" can't be read as the whole offer. */}
+                <button onClick={() => goForm("signup")} className="w-full mt-5 py-2.5 rounded-lg text-white font-semibold leading-tight" style={{ background: p.tag ? PINK : PURPLE }}>
+                  Start Free
+                  <span className="block text-[11px] font-normal opacity-90">then {p.price} {p.id === "w2" ? "/ 2 weeks" : "/ month"}</span>
+                </button>
               </div>
             ))}
           </div>
@@ -344,7 +355,43 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
         </div>
       </section>
 
-      <footer className="text-center text-xs text-slate-400 py-6">© {new Date().getFullYear()} SpecTa Education · AI IELTS Tutor</footer>
+      {/* Legal footer — required by Google Ads policy for subscription products.
+          Terms / Privacy / Refund + business address + contact resolve the
+          "Evasive Ad Content" flag on the AI IELTS Tutor campaign. */}
+      <footer className="bg-slate-50 border-t border-slate-200 mt-4">
+        <div className="max-w-5xl mx-auto px-4 py-8 text-sm text-slate-600">
+          <div className="grid gap-6 md:grid-cols-3">
+            <div>
+              <div className="font-bold text-slate-900">SpecTa Education</div>
+              <div className="text-xs text-slate-500 mt-1">Trusted study-abroad &amp; IELTS consultant since 2005.</div>
+              <div className="text-xs text-slate-500 mt-2">
+                Jl. Kelapa Nias Raya QE1 No. 14<br />
+                Kelapa Gading, Jakarta Utara 14240<br />
+                Indonesia
+              </div>
+            </div>
+            <div>
+              <div className="font-semibold text-slate-900">Contact</div>
+              <ul className="text-xs text-slate-600 mt-2 space-y-1">
+                <li>Email: <a href="mailto:info@spectaeducation.com" className="underline">info@spectaeducation.com</a></li>
+                <li>WhatsApp: <a href="https://wa.me/62818218388" className="underline">+62 818 218 388</a></li>
+                <li><a href="/contact" className="underline">All offices &amp; contact form</a></li>
+              </ul>
+            </div>
+            <div>
+              <div className="font-semibold text-slate-900">Legal</div>
+              <ul className="text-xs text-slate-600 mt-2 space-y-1">
+                <li><a href="/terms" className="underline">Terms of Service</a></li>
+                <li><a href="/privacy" className="underline">Privacy Policy</a></li>
+                <li><a href="/refund" className="underline">Refund &amp; Cancellation</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className="mt-6 pt-4 border-t border-slate-200 text-center text-xs text-slate-400">
+            © {new Date().getFullYear()} SpecTa Education · AI IELTS Tutor — subscription Rp 149.000 / 2 minggu or Rp 249.000 / bulan · cancel any time.
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
