@@ -1137,27 +1137,63 @@ export async function updateCampaignBudget(input: {
 // attribute clicks it knows about.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** In-memory cache of conversion-action names → their Google Ads resource names.
- *  Populated on first upload; cleared every hour to pick up new actions. */
-let conversionActionCache: { at: number; byName: Map<string, string> } | null = null;
+/** In-memory cache of conversion-action names/labels → their Google Ads
+ *  resource names. Populated on first upload; refreshed hourly. */
+let conversionActionCache: { at: number; byName: Map<string, string>; byLabel: Map<string, string> } | null = null;
+
+/** Map from ConversionKind → the client-side label (tag snippet suffix). Labels
+ *  are permanent per Google Ads action, so this is the safest way to hop from
+ *  our internal kind to the actual Google Ads action, independent of UI names. */
+const KIND_TO_LABEL: Record<string, string> = {
+  "Mock Test purchased": "6BE9CJav_tMcEIiLhcgD",
+  "AI Tutor subscribed": "rM1JCOjU_tMcEIiLhcgD",
+  "IGCSE subscribed": "yINBCJq6-9McEIiLhcgD",
+  "Tes Bakat AI Pro purchased": "mZcWCJ6krtUcEIiLhcgD",
+  "Student registered": "",  // no label yet — created but not in use
+};
+
+/** Resolve an action to its Google Ads resource_name. Prefers matching by
+ *  LABEL (the AW-.../XXXX suffix in the tag snippet) — labels are unique,
+ *  permanent, and survive UI renames. Falls back to name matching for
+ *  backwards compatibility. */
+async function resolveConversionAction(env: Env, opts: { label?: string; name?: string }): Promise<string | null> {
+  // Refresh cache hourly OR whenever we don't have the requested lookup key.
+  const cacheFresh = conversionActionCache && Date.now() - conversionActionCache.at < 60 * 60 * 1000;
+  if (!cacheFresh) {
+    const rows = await search(env, `
+      SELECT conversion_action.id, conversion_action.name, conversion_action.resource_name,
+             conversion_action.tag_snippets
+      FROM conversion_action
+      WHERE conversion_action.status = 'ENABLED'
+    `);
+    const byName = new Map<string, string>();
+    const byLabel = new Map<string, string>();
+    for (const r of rows) {
+      const ca = r.conversionAction || {};
+      const rn = ca.resourceName;
+      if (!rn) continue;
+      if (ca.name) byName.set(String(ca.name), rn);
+      // Pull label out of every tag snippet variant (event_snippet, event_snippet_wl, etc).
+      for (const s of (ca.tagSnippets || []) as any[]) {
+        const raw = String(s?.eventSnippet || s?.event_snippet || "");
+        const m = raw.match(/AW-\d+\/([A-Za-z0-9_\-]+)/);
+        if (m && !byLabel.has(m[1])) byLabel.set(m[1], rn);
+      }
+    }
+    conversionActionCache = { at: Date.now(), byName, byLabel };
+  }
+  if (opts.label) {
+    const hit = conversionActionCache!.byLabel.get(opts.label);
+    if (hit) return hit;
+  }
+  if (opts.name) {
+    return conversionActionCache!.byName.get(opts.name) || null;
+  }
+  return null;
+}
 
 async function getConversionActionByName(env: Env, name: string): Promise<string | null> {
-  if (conversionActionCache && Date.now() - conversionActionCache.at < 60 * 60 * 1000) {
-    return conversionActionCache.byName.get(name) || null;
-  }
-  const rows = await search(env, `
-    SELECT conversion_action.id, conversion_action.name, conversion_action.resource_name
-    FROM conversion_action
-    WHERE conversion_action.status = 'ENABLED'
-  `);
-  const map = new Map<string, string>();
-  for (const r of rows) {
-    const rn = r.conversionAction?.resourceName;
-    const nm = r.conversionAction?.name;
-    if (rn && nm) map.set(nm, rn);
-  }
-  conversionActionCache = { at: Date.now(), byName: map };
-  return map.get(name) || null;
+  return resolveConversionAction(env, { name });
 }
 
 /** The 4 conversion action names the site uses.
@@ -1293,9 +1329,13 @@ export async function uploadOfflineConversion(input: {
     if (!input.gclid) return { uploaded: false, reason: "no gclid (organic/direct/other-source click)" };
     if (!(input.valueIdr > 0)) return { uploaded: false, reason: "value must be > 0" };
 
-    const conversionAction = await getConversionActionByName(env, input.kind);
+    // Prefer label lookup — labels are unique + permanent across renames /
+    // duplicate cleanups, unlike names. Falls back to name lookup for kinds
+    // that don't have a label mapped yet.
+    const label = KIND_TO_LABEL[input.kind];
+    const conversionAction = await resolveConversionAction(env, { label, name: input.kind });
     if (!conversionAction) {
-      console.error(`[GoogleAds] uploadOfflineConversion: conversion action "${input.kind}" not found in account`);
+      console.error(`[GoogleAds] uploadOfflineConversion: conversion action "${input.kind}" (label=${label || "-"}) not found in account`);
       return { uploaded: false, reason: `conversion action "${input.kind}" not found in Google Ads account` };
     }
 
