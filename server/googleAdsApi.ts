@@ -548,6 +548,275 @@ export function startGoogleAdsScheduler() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// CAMPAIGN MANAGEMENT — read + mutate from the admin without leaving the app
+//
+// Owner shouldn't have to open Google Ads UI to change a landing URL, pause a
+// wasteful keyword, or add negatives — we built the launcher, we should build
+// the fixer too. These functions plus their tRPC wrappers power the campaign-
+// management UI on /admin/ads-launcher.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CampaignAdSummary {
+  resourceName: string;
+  adId: string;
+  adGroupName: string;
+  status: string;         // ENABLED / PAUSED
+  type: string;           // RESPONSIVE_SEARCH_AD / EXPANDED_TEXT_AD / ...
+  finalUrls: string[];
+  headlineCount: number;
+  descriptionCount: number;
+}
+
+export interface CampaignKeywordRow {
+  criterionResourceName: string;
+  adGroupName: string;
+  text: string;
+  matchType: string;      // BROAD / PHRASE / EXACT
+  status: string;         // ENABLED / PAUSED
+  cost30dIdr: number;
+  clicks30d: number;
+  impressions30d: number;
+  ctr30d: number;
+  conversions30d: number;
+  isNegative: boolean;    // whether this is a NEGATIVE keyword
+}
+
+/** Full detail for one campaign — ads, keywords (incl. negatives), current metrics. */
+export async function getCampaignDetail(campaignId: string): Promise<{
+  campaignName: string;
+  status: string;
+  ads: CampaignAdSummary[];
+  keywords: CampaignKeywordRow[];
+  negatives: string[];   // campaign-level negatives, flat list
+} | null> {
+  const env = readEnv();
+  if (!env) throw new Error("Google Ads not configured");
+  const cid = campaignId.replace(/\D/g, "");
+  if (!cid) return null;
+
+  // Campaign basics.
+  const camps = await search(env, `
+    SELECT campaign.id, campaign.name, campaign.status
+    FROM campaign
+    WHERE campaign.id = ${cid} LIMIT 1
+  `);
+  if (!camps.length) return null;
+  const campaignName = camps[0].campaign?.name || "";
+  const campaignStatus = camps[0].campaign?.status || "UNKNOWN";
+
+  // Ads with final URLs.
+  const adRows = await search(env, `
+    SELECT ad_group.name, ad_group_ad.resource_name, ad_group_ad.status,
+           ad_group_ad.ad.id, ad_group_ad.ad.type, ad_group_ad.ad.final_urls,
+           ad_group_ad.ad.responsive_search_ad.headlines,
+           ad_group_ad.ad.responsive_search_ad.descriptions
+    FROM ad_group_ad
+    WHERE campaign.id = ${cid} AND ad_group_ad.status != 'REMOVED'
+  `);
+  const ads: CampaignAdSummary[] = adRows.map((r: any) => ({
+    resourceName: r.adGroupAd?.resourceName || "",
+    adId: String(r.adGroupAd?.ad?.id || ""),
+    adGroupName: r.adGroup?.name || "",
+    status: r.adGroupAd?.status || "UNKNOWN",
+    type: r.adGroupAd?.ad?.type || "UNKNOWN",
+    finalUrls: r.adGroupAd?.ad?.finalUrls || [],
+    headlineCount: (r.adGroupAd?.ad?.responsiveSearchAd?.headlines || []).length,
+    descriptionCount: (r.adGroupAd?.ad?.responsiveSearchAd?.descriptions || []).length,
+  }));
+
+  // Keywords with last-30d performance.
+  const kwRows = await search(env, `
+    SELECT ad_group.name, ad_group_criterion.resource_name,
+           ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type,
+           ad_group_criterion.status, ad_group_criterion.negative,
+           metrics.cost_micros, metrics.clicks, metrics.impressions,
+           metrics.conversions
+    FROM keyword_view
+    WHERE campaign.id = ${cid}
+      AND segments.date DURING LAST_30_DAYS
+      AND ad_group_criterion.status != 'REMOVED'
+  `);
+  // Aggregate rows by resource name (Google returns per-day rows).
+  const kwMap = new Map<string, CampaignKeywordRow>();
+  for (const r of kwRows) {
+    const rn = r.adGroupCriterion?.resourceName || "";
+    if (!rn) continue;
+    const cur = kwMap.get(rn) || {
+      criterionResourceName: rn,
+      adGroupName: r.adGroup?.name || "",
+      text: r.adGroupCriterion?.keyword?.text || "",
+      matchType: r.adGroupCriterion?.keyword?.matchType || "UNKNOWN",
+      status: r.adGroupCriterion?.status || "UNKNOWN",
+      cost30dIdr: 0, clicks30d: 0, impressions30d: 0,
+      ctr30d: 0, conversions30d: 0,
+      isNegative: !!r.adGroupCriterion?.negative,
+    };
+    cur.cost30dIdr += Number(r.metrics?.costMicros || 0) / 1e6;
+    cur.clicks30d += Number(r.metrics?.clicks || 0);
+    cur.impressions30d += Number(r.metrics?.impressions || 0);
+    cur.conversions30d += Number(r.metrics?.conversions || 0);
+    kwMap.set(rn, cur);
+  }
+  const keywords = Array.from(kwMap.values()).map(k => ({
+    ...k,
+    cost30dIdr: Math.round(k.cost30dIdr),
+    ctr30d: k.impressions30d > 0 ? Number(((k.clicks30d / k.impressions30d) * 100).toFixed(2)) : 0,
+  })).sort((a, b) => b.cost30dIdr - a.cost30dIdr);
+
+  // Campaign-level negatives (separate table from keyword_view).
+  const negRows = await search(env, `
+    SELECT campaign_criterion.keyword.text
+    FROM campaign_criterion
+    WHERE campaign.id = ${cid}
+      AND campaign_criterion.negative = TRUE
+      AND campaign_criterion.type = 'KEYWORD'
+      AND campaign_criterion.status != 'REMOVED'
+  `);
+  const negatives = negRows
+    .map((r: any) => r.campaignCriterion?.keyword?.text)
+    .filter((t: any): t is string => !!t);
+
+  return { campaignName, status: campaignStatus, ads, keywords, negatives };
+}
+
+/** Update the final URL of one or more ads. Used to fix landing-page mismatches. */
+export async function updateAdFinalUrls(input: {
+  adResourceNames: string[];
+  newFinalUrl: string;
+}): Promise<{ updated: number }> {
+  const env = readEnv();
+  if (!env) throw new Error("Google Ads not configured");
+  const url = input.newFinalUrl.trim();
+  if (!/^https?:\/\//i.test(url)) throw new Error("Final URL must start with http:// or https://");
+  if (!input.adResourceNames.length) return { updated: 0 };
+
+  const operations = input.adResourceNames.map(rn => ({
+    update: {
+      resourceName: rn,
+      ad: { finalUrls: [url] },
+    },
+    updateMask: "ad.final_urls",
+  }));
+  await mutate(env, "adGroupAds", operations);
+  return { updated: input.adResourceNames.length };
+}
+
+/** Pause a single keyword by its criterion resource name. Idempotent-ish. */
+export async function pauseKeyword(criterionResourceName: string): Promise<{ ok: true }> {
+  const env = readEnv();
+  if (!env) throw new Error("Google Ads not configured");
+  await mutate(env, "adGroupCriteria", [{
+    update: { resourceName: criterionResourceName, status: "PAUSED" },
+    updateMask: "status",
+  }]);
+  return { ok: true };
+}
+
+/** Re-enable a paused keyword. */
+export async function enableKeyword(criterionResourceName: string): Promise<{ ok: true }> {
+  const env = readEnv();
+  if (!env) throw new Error("Google Ads not configured");
+  await mutate(env, "adGroupCriteria", [{
+    update: { resourceName: criterionResourceName, status: "ENABLED" },
+    updateMask: "status",
+  }]);
+  return { ok: true };
+}
+
+/**
+ * Add campaign-level negative keywords. Match type defaults to BROAD so a
+ * negative "gratis" blocks any query containing that word — which is
+ * usually what you want for lead-quality negatives.
+ */
+export async function addNegativeKeywords(input: {
+  campaignId: string;
+  keywords: string[];
+  matchType?: "BROAD" | "PHRASE" | "EXACT";
+}): Promise<{ added: number; skipped: string[] }> {
+  const env = readEnv();
+  if (!env) throw new Error("Google Ads not configured");
+  const cid = input.campaignId.replace(/\D/g, "");
+  if (!cid) throw new Error("Bad campaign id");
+  const matchType = input.matchType || "BROAD";
+  const clean = Array.from(new Set(
+    input.keywords.map(k => k.trim().toLowerCase()).filter(k => k && k.length <= 80)
+  ));
+  if (!clean.length) return { added: 0, skipped: [] };
+
+  const operations = clean.map(k => ({
+    create: {
+      campaign: `customers/${env.customerId}/campaigns/${cid}`,
+      negative: true,
+      keyword: { text: k, matchType },
+      status: "ENABLED",
+    },
+  }));
+
+  try {
+    await mutate(env, "campaignCriteria", operations);
+    return { added: clean.length, skipped: [] };
+  } catch (e: any) {
+    // Some may already exist — retry one-by-one to skip duplicates.
+    let added = 0;
+    const skipped: string[] = [];
+    for (const k of clean) {
+      try {
+        await mutate(env, "campaignCriteria", [{
+          create: {
+            campaign: `customers/${env.customerId}/campaigns/${cid}`,
+            negative: true,
+            keyword: { text: k, matchType },
+            status: "ENABLED",
+          },
+        }]);
+        added++;
+      } catch (err: any) {
+        skipped.push(k);
+      }
+    }
+    if (added === 0 && skipped.length === clean.length) {
+      throw new Error(`Could not add any negatives: ${(e as Error).message}`);
+    }
+    return { added, skipped };
+  }
+}
+
+/** Change campaign status: ENABLED / PAUSED. */
+export async function setCampaignStatus(campaignId: string, status: "ENABLED" | "PAUSED"): Promise<{ ok: true }> {
+  const env = readEnv();
+  if (!env) throw new Error("Google Ads not configured");
+  const cid = campaignId.replace(/\D/g, "");
+  await mutate(env, "campaigns", [{
+    update: { resourceName: `customers/${env.customerId}/campaigns/${cid}`, status },
+    updateMask: "status",
+  }]);
+  return { ok: true };
+}
+
+/** Update daily budget for a campaign (in IDR, converted to micros). */
+export async function updateCampaignBudget(input: {
+  campaignId: string;
+  newDailyBudgetIdr: number;
+}): Promise<{ ok: true }> {
+  const env = readEnv();
+  if (!env) throw new Error("Google Ads not configured");
+  const cid = input.campaignId.replace(/\D/g, "");
+  // Look up the budget resource this campaign uses.
+  const rows = await search(env, `
+    SELECT campaign_budget.resource_name
+    FROM campaign WHERE campaign.id = ${cid} LIMIT 1
+  `);
+  const budgetRn = rows?.[0]?.campaignBudget?.resourceName;
+  if (!budgetRn) throw new Error("Campaign has no budget resource");
+  const microsCapped = Math.min(input.newDailyBudgetIdr, env.dailyCapIdr || Infinity);
+  await mutate(env, "campaignBudgets", [{
+    update: { resourceName: budgetRn, amountMicros: String(Math.round(microsCapped) * 1_000_000) },
+    updateMask: "amount_micros",
+  }]);
+  return { ok: true };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // OFFLINE CONVERSION IMPORT
 //
 // Real-world problem: browser-side gtag conversion firing misses ~30-50% of

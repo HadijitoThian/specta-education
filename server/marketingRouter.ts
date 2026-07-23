@@ -30,7 +30,22 @@ import { generateCampaign, campaignToCsv, type GeneratedCampaign } from "./adsCo
 import { PRODUCT_CATALOG, getProduct, productKeys } from "./adsProductCatalog";
 import { generatePerformanceDigest, runGeoMonitor, analyzeContentGaps } from "./growthInsights";
 import { listGrowthDigests, listGeoSnapshots } from "./db";
-import { isGoogleAdsConfigured, getStatus as googleAdsStatus, syncPerformance, pushCampaignLive, getRecommendations, applyRecommendation, listLiveCampaigns } from "./googleAdsApi";
+import {
+  isGoogleAdsConfigured,
+  getStatus as googleAdsStatus,
+  syncPerformance,
+  pushCampaignLive,
+  getRecommendations,
+  applyRecommendation,
+  listLiveCampaigns,
+  getCampaignDetail,
+  updateAdFinalUrls,
+  pauseKeyword,
+  enableKeyword,
+  addNegativeKeywords,
+  setCampaignStatus,
+  updateCampaignBudget,
+} from "./googleAdsApi";
 
 // Stages that count as "reached a consultation" (everything past new_lead, on-pipeline).
 const POST_CONSULT = new Set([
@@ -468,6 +483,85 @@ export const marketingRouter = router({
       throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message });
     }
   }),
+
+  // ── CAMPAIGN MANAGEMENT (edit from admin, no Google Ads UI needed) ─────
+
+  /** Full detail for one campaign — ads, keywords + metrics, negatives. */
+  campaignDetail: protectedProcedure
+    .input(z.object({ campaignId: z.string().min(1) }))
+    .query(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      if (!isGoogleAdsConfigured()) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Google Ads not configured" });
+      try { return await getCampaignDetail(input.campaignId); }
+      catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
+    }),
+
+  /** Bulk-update Final URL for a set of ads. Used to fix wrong landing pages. */
+  updateAdFinalUrls: protectedProcedure
+    .input(z.object({
+      adResourceNames: z.array(z.string()).min(1).max(50),
+      newFinalUrl: z.string().url(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      try { return await updateAdFinalUrls(input); }
+      catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
+    }),
+
+  /** Pause a single keyword (advertiser-level ad_group_criterion). */
+  pauseKeyword: protectedProcedure
+    .input(z.object({ criterionResourceName: z.string().min(1) }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      try { return await pauseKeyword(input.criterionResourceName); }
+      catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
+    }),
+
+  /** Re-enable a paused keyword. */
+  enableKeyword: protectedProcedure
+    .input(z.object({ criterionResourceName: z.string().min(1) }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      try { return await enableKeyword(input.criterionResourceName); }
+      catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
+    }),
+
+  /** Add campaign-level negative keywords (max 100 at a time). */
+  addNegativeKeywords: protectedProcedure
+    .input(z.object({
+      campaignId: z.string().min(1),
+      keywords: z.array(z.string().min(1).max(80)).min(1).max(100),
+      matchType: z.enum(["BROAD", "PHRASE", "EXACT"]).default("BROAD"),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      try { return await addNegativeKeywords(input); }
+      catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
+    }),
+
+  /** Enable / pause a whole campaign. */
+  setCampaignStatus: protectedProcedure
+    .input(z.object({
+      campaignId: z.string().min(1),
+      status: z.enum(["ENABLED", "PAUSED"]),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      try { return await setCampaignStatus(input.campaignId, input.status); }
+      catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
+    }),
+
+  /** Change a campaign's daily budget (respects GOOGLE_ADS_DAILY_CAP_IDR). */
+  updateCampaignBudget: protectedProcedure
+    .input(z.object({
+      campaignId: z.string().min(1),
+      newDailyBudgetIdr: z.number().int().positive().max(10_000_000),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      try { return await updateCampaignBudget(input); }
+      catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
+    }),
 
   /** D3 Advisor: AI optimization suggestions (read-only — you approve each). */
   adsRecommendations: protectedProcedure.query(async ({ ctx }) => {

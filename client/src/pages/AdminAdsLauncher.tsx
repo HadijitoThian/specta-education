@@ -1,7 +1,14 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+
+// Suggested negatives per product — click a chip, they're added instantly.
+const NEGATIVE_PRESETS: Record<string, string[]> = {
+  general:      ["gratis", "free", "download", "pdf", "kunci jawaban", "materi", "youtube", "video", "job", "lowongan", "kerja"],
+  ielts:        ["gratis", "free", "cara belajar", "materi", "download", "pdf", "tips", "soal", "contoh", "kunci jawaban", "video", "youtube", "harga", "job", "lowongan"],
+  studyabroad:  ["gratis", "job", "lowongan", "kerja", "part time", "visa kerja", "cara membuat", "cara mengurus"],
+};
 
 /**
  * /admin/ads-launcher — 1-click Google Ads campaign creation.
@@ -67,6 +74,7 @@ export default function AdminAdsLauncher() {
 // ────────────────────────────────────────────────────────────────────────────
 
 function LiveCampaignsCard() {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const q = trpc.marketing.liveGoogleAdsCampaigns.useQuery(undefined, {
     refetchOnWindowFocus: false,
     staleTime: 5 * 60 * 1000, // 5 min — Google Ads API isn't cheap to hit
@@ -157,39 +165,56 @@ function LiveCampaignsCard() {
             </thead>
             <tbody>
               {campaigns.map((c: any) => (
-                <tr key={c.campaignId} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="py-2 pr-2">
-                    <StatusPill status={c.status} />
-                  </td>
-                  <td className="py-2 pr-2">
-                    <div className="font-medium">{c.campaignName}</div>
-                    <div className="text-xs text-slate-500">{c.channelType.replace(/_/g, " ").toLowerCase()} · {c.adGroupCount} ad group{c.adGroupCount === 1 ? "" : "s"}</div>
-                  </td>
-                  <td className="py-2 pr-2">
-                    {c.destinations.length === 0 ? (
-                      <span className="text-xs text-slate-400">no ads yet</span>
-                    ) : (
-                      <div className="space-y-1">
-                        {c.goesToWhatsApp && (
-                          <span className="inline-block px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[11px] font-semibold mr-1">→ WhatsApp</span>
-                        )}
-                        {!c.goesToWhatsApp && (
-                          <span className="inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-[11px] font-semibold mr-1">→ Website</span>
-                        )}
-                        {c.destinations.slice(0, 3).map((u: string, i: number) => (
-                          <div key={i} className="text-xs text-slate-500 font-mono break-all">{u}</div>
-                        ))}
-                        {c.destinations.length > 3 && (
-                          <div className="text-xs text-slate-400">+ {c.destinations.length - 3} more</div>
-                        )}
+                <React.Fragment key={c.campaignId}>
+                  <tr className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => setExpandedId(expandedId === c.campaignId ? null : c.campaignId)}>
+                    <td className="py-2 pr-2">
+                      <StatusPill status={c.status} />
+                    </td>
+                    <td className="py-2 pr-2">
+                      <div className="font-medium flex items-center gap-2">
+                        <span>{expandedId === c.campaignId ? "▾" : "▸"}</span>
+                        {c.campaignName}
                       </div>
-                    )}
-                  </td>
-                  <td className="py-2 pr-2 text-right text-xs">Rp {c.dailyBudgetIdr.toLocaleString("id-ID")}</td>
-                  <td className="py-2 pr-2 text-right text-xs">{c.metricsLast30d.clicks.toLocaleString("id-ID")}</td>
-                  <td className="py-2 pr-2 text-right text-xs">Rp {c.metricsLast30d.costIdr.toLocaleString("id-ID")}</td>
-                  <td className="py-2 pr-2 text-right text-xs">{c.metricsLast30d.conversions.toFixed(1)}</td>
-                </tr>
+                      <div className="text-xs text-slate-500 ml-4">{c.channelType.replace(/_/g, " ").toLowerCase()} · {c.adGroupCount} ad group{c.adGroupCount === 1 ? "" : "s"}</div>
+                    </td>
+                    <td className="py-2 pr-2">
+                      {c.destinations.length === 0 ? (
+                        <span className="text-xs text-slate-400">no ads yet</span>
+                      ) : (
+                        <div className="space-y-1">
+                          {c.goesToWhatsApp && (
+                            <span className="inline-block px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[11px] font-semibold mr-1">→ WhatsApp</span>
+                          )}
+                          {!c.goesToWhatsApp && (
+                            <span className="inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-[11px] font-semibold mr-1">→ Website</span>
+                          )}
+                          {c.destinations.slice(0, 3).map((u: string, i: number) => (
+                            <div key={i} className="text-xs text-slate-500 font-mono break-all">{u}</div>
+                          ))}
+                          {c.destinations.length > 3 && (
+                            <div className="text-xs text-slate-400">+ {c.destinations.length - 3} more</div>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-2 pr-2 text-right text-xs">Rp {c.dailyBudgetIdr.toLocaleString("id-ID")}</td>
+                    <td className="py-2 pr-2 text-right text-xs">{c.metricsLast30d.clicks.toLocaleString("id-ID")}</td>
+                    <td className="py-2 pr-2 text-right text-xs">Rp {c.metricsLast30d.costIdr.toLocaleString("id-ID")}</td>
+                    <td className="py-2 pr-2 text-right text-xs">{c.metricsLast30d.conversions.toFixed(1)}</td>
+                  </tr>
+                  {expandedId === c.campaignId && (
+                    <tr className="border-b border-slate-100">
+                      <td colSpan={7} className="p-4 bg-slate-50">
+                        <CampaignEditor
+                          campaignId={c.campaignId}
+                          campaignName={c.campaignName}
+                          currentStatus={c.status}
+                          currentBudgetIdr={c.dailyBudgetIdr}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
@@ -211,6 +236,313 @@ function StatusPill({ status }: { status: string }) {
   if (s === "ENABLED") return <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[11px] font-semibold">🟢 ENABLED</span>;
   if (s === "PAUSED")  return <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[11px] font-semibold">⏸ PAUSED</span>;
   return <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-semibold">{s}</span>;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// CampaignEditor — the expanded row: change URL, pause keywords, add negatives
+// ────────────────────────────────────────────────────────────────────────────
+
+function CampaignEditor({
+  campaignId,
+  campaignName,
+  currentStatus,
+  currentBudgetIdr,
+}: {
+  campaignId: string;
+  campaignName: string;
+  currentStatus: string;
+  currentBudgetIdr: number;
+}) {
+  const utils = trpc.useUtils();
+  const detail = trpc.marketing.campaignDetail.useQuery({ campaignId }, {
+    refetchOnWindowFocus: false,
+    staleTime: 60 * 1000,
+  });
+
+  const [newUrl, setNewUrl] = useState("");
+  const [newBudget, setNewBudget] = useState<number | "">("");
+  const [newNegatives, setNewNegatives] = useState("");
+
+  const refreshAll = () => {
+    detail.refetch();
+    utils.marketing.liveGoogleAdsCampaigns.invalidate();
+  };
+
+  const updateUrl = trpc.marketing.updateAdFinalUrls.useMutation({
+    onSuccess: (d) => { alert(`✅ Updated ${d.updated} ad(s). Give Google Ads ~5 min to reflect it.`); setNewUrl(""); refreshAll(); },
+    onError: (e) => alert(`❌ ${e.message}`),
+  });
+  const pauseKw = trpc.marketing.pauseKeyword.useMutation({
+    onSuccess: () => { refreshAll(); },
+    onError: (e) => alert(`❌ ${e.message}`),
+  });
+  const enableKw = trpc.marketing.enableKeyword.useMutation({
+    onSuccess: () => { refreshAll(); },
+    onError: (e) => alert(`❌ ${e.message}`),
+  });
+  const addNegs = trpc.marketing.addNegativeKeywords.useMutation({
+    onSuccess: (d) => {
+      alert(`✅ Added ${d.added} negative(s)${d.skipped.length ? ` (${d.skipped.length} skipped as duplicates)` : ""}.`);
+      setNewNegatives("");
+      refreshAll();
+    },
+    onError: (e) => alert(`❌ ${e.message}`),
+  });
+  const setStatus = trpc.marketing.setCampaignStatus.useMutation({
+    onSuccess: () => { refreshAll(); },
+    onError: (e) => alert(`❌ ${e.message}`),
+  });
+  const setBudget = trpc.marketing.updateCampaignBudget.useMutation({
+    onSuccess: () => { alert("✅ Budget updated."); setNewBudget(""); refreshAll(); },
+    onError: (e) => alert(`❌ ${e.message}`),
+  });
+
+  if (detail.isLoading) return <div className="text-sm text-slate-400">Loading campaign details…</div>;
+  if (detail.error) return <div className="text-sm text-red-600">Can't load: {detail.error.message}</div>;
+  if (!detail.data) return <div className="text-sm text-slate-400">No detail available.</div>;
+
+  const { ads, keywords, negatives } = detail.data;
+  const activeKeywords = keywords.filter((k: any) => !k.isNegative);
+  // Detect the most-common current URL to preselect the field.
+  const currentUrls = Array.from(new Set(ads.flatMap((a: any) => a.finalUrls)));
+
+  // Presets — guess based on campaign name.
+  const presetKey =
+    /ielts/i.test(campaignName)         ? "ielts" :
+    /studi|study|abroad|destination/i.test(campaignName) ? "studyabroad" :
+    "general";
+  const presetNegs = NEGATIVE_PRESETS[presetKey] || NEGATIVE_PRESETS.general;
+  const alreadyNegative = new Set(negatives.map(n => n.toLowerCase()));
+  const availablePresets = presetNegs.filter(n => !alreadyNegative.has(n.toLowerCase()));
+
+  return (
+    <div className="space-y-6">
+      {/* ── Row 1: Landing URL + Campaign controls ────────────────────── */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="bg-white rounded border border-slate-200 p-4">
+          <h3 className="font-semibold text-sm mb-2">🎯 Landing URL (Final URL)</h3>
+          <p className="text-xs text-slate-500 mb-3">
+            Where clicks go. All ads in this campaign share this. Change here → applies to every ad.
+          </p>
+          <div className="mb-2">
+            <div className="text-xs text-slate-600 mb-1">Current:</div>
+            {currentUrls.length === 0 ? (
+              <div className="text-xs text-slate-400 italic">no ads yet</div>
+            ) : (
+              currentUrls.map((u: unknown, i: number) => (
+                <div key={i} className="text-xs font-mono text-slate-700 break-all bg-slate-50 p-2 rounded mb-1">{String(u)}</div>
+              ))
+            )}
+          </div>
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <label className="text-xs text-slate-600 block">New URL (with https://)</label>
+              <input
+                value={newUrl}
+                onChange={(e) => setNewUrl(e.target.value)}
+                placeholder="https://www.spectaeducation.com/ielts/mock-test"
+                className="mt-1 w-full border border-slate-300 rounded px-3 py-2 text-sm"
+              />
+            </div>
+            <button
+              onClick={() => {
+                if (!newUrl || ads.length === 0) return;
+                if (!window.confirm(`Update Final URL for all ${ads.length} ad(s) in "${campaignName}" to:\n\n${newUrl}\n\n?`)) return;
+                updateUrl.mutate({
+                  adResourceNames: ads.map((a: any) => a.resourceName),
+                  newFinalUrl: newUrl,
+                });
+              }}
+              disabled={!newUrl || updateUrl.isPending || ads.length === 0}
+              className="px-4 py-2 rounded bg-blue-600 text-white text-sm font-semibold disabled:opacity-50"
+            >
+              {updateUrl.isPending ? "Updating…" : `Update ${ads.length} ad${ads.length === 1 ? "" : "s"}`}
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded border border-slate-200 p-4">
+          <h3 className="font-semibold text-sm mb-2">⚙️ Campaign controls</h3>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="text-xs text-slate-600 w-24">Status:</div>
+              <StatusPill status={currentStatus} />
+              <button
+                onClick={() => {
+                  const target = currentStatus === "ENABLED" ? "PAUSED" : "ENABLED";
+                  if (!window.confirm(`${target === "ENABLED" ? "Enable" : "Pause"} "${campaignName}"?`)) return;
+                  setStatus.mutate({ campaignId, status: target as any });
+                }}
+                disabled={setStatus.isPending}
+                className="text-xs px-3 py-1 rounded border border-slate-300 hover:bg-slate-50"
+              >
+                {currentStatus === "ENABLED" ? "Pause" : "Enable"}
+              </button>
+            </div>
+
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <label className="text-xs text-slate-600 block">Daily budget (IDR) — current: Rp {currentBudgetIdr.toLocaleString("id-ID")}</label>
+                <input
+                  type="number"
+                  value={newBudget}
+                  onChange={(e) => setNewBudget(e.target.value === "" ? "" : Number(e.target.value))}
+                  placeholder={String(currentBudgetIdr)}
+                  className="mt-1 w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  if (!newBudget || newBudget <= 0) return;
+                  if (!window.confirm(`Change daily budget to Rp ${Number(newBudget).toLocaleString("id-ID")}?`)) return;
+                  setBudget.mutate({ campaignId, newDailyBudgetIdr: Number(newBudget) });
+                }}
+                disabled={!newBudget || setBudget.isPending}
+                className="px-4 py-2 rounded bg-slate-800 text-white text-sm font-semibold disabled:opacity-50"
+              >
+                {setBudget.isPending ? "…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Row 2: Keywords table ─────────────────────────────────────── */}
+      <div className="bg-white rounded border border-slate-200 p-4">
+        <h3 className="font-semibold text-sm mb-2">🔑 Keywords (last 30 days) — click Pause to stop wasteful ones</h3>
+        {activeKeywords.length === 0 ? (
+          <div className="text-xs text-slate-400 py-4 text-center">No keywords found.</div>
+        ) : (
+          <div className="overflow-x-auto max-h-96">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-white">
+                <tr className="text-left text-xs uppercase text-slate-500 border-b border-slate-200">
+                  <th className="py-2 pr-2">Keyword</th>
+                  <th className="py-2 pr-2">Match</th>
+                  <th className="py-2 pr-2 text-right">Cost 30d</th>
+                  <th className="py-2 pr-2 text-right">Clicks</th>
+                  <th className="py-2 pr-2 text-right">CTR</th>
+                  <th className="py-2 pr-2 text-right">Conv</th>
+                  <th className="py-2 pr-2">Status</th>
+                  <th className="py-2 pr-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {activeKeywords.map((k: any) => {
+                  const isWaste = k.cost30dIdr > 5000 && k.conversions30d === 0 && k.clicks30d >= 3;
+                  return (
+                    <tr key={k.criterionResourceName} className={`border-b border-slate-100 ${isWaste ? "bg-red-50" : ""}`}>
+                      <td className="py-2 pr-2 font-mono text-xs">{k.text}</td>
+                      <td className="py-2 pr-2 text-xs text-slate-500">{k.matchType.toLowerCase()}</td>
+                      <td className="py-2 pr-2 text-right text-xs">Rp {k.cost30dIdr.toLocaleString("id-ID")}</td>
+                      <td className="py-2 pr-2 text-right text-xs">{k.clicks30d}</td>
+                      <td className="py-2 pr-2 text-right text-xs">{k.ctr30d.toFixed(2)}%</td>
+                      <td className="py-2 pr-2 text-right text-xs">{k.conversions30d.toFixed(1)}</td>
+                      <td className="py-2 pr-2"><StatusPill status={k.status} /></td>
+                      <td className="py-2 pr-2 text-right">
+                        {k.status === "ENABLED" ? (
+                          <button
+                            onClick={() => pauseKw.mutate({ criterionResourceName: k.criterionResourceName })}
+                            disabled={pauseKw.isPending}
+                            className="text-xs px-2 py-1 rounded border border-amber-300 text-amber-700 hover:bg-amber-50"
+                          >
+                            Pause
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => enableKw.mutate({ criterionResourceName: k.criterionResourceName })}
+                            disabled={enableKw.isPending}
+                            className="text-xs px-2 py-1 rounded border border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                          >
+                            Enable
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="mt-2 text-xs text-slate-500">
+          🔴 Red rows = spent &gt;Rp 5k with 0 conversions over 3+ clicks — likely waste. Consider pausing.
+        </div>
+      </div>
+
+      {/* ── Row 3: Negative keywords ──────────────────────────────────── */}
+      <div className="bg-white rounded border border-slate-200 p-4">
+        <h3 className="font-semibold text-sm mb-2">🚫 Negative keywords (block junk clicks)</h3>
+
+        {availablePresets.length > 0 && (
+          <div className="mb-4">
+            <div className="text-xs text-slate-600 mb-2">
+              Quick-add commonly-recommended negatives for this campaign type:
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {availablePresets.map(n => (
+                <button
+                  key={n}
+                  onClick={() => addNegs.mutate({ campaignId, keywords: [n], matchType: "BROAD" })}
+                  disabled={addNegs.isPending}
+                  className="text-xs px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 border border-slate-300"
+                >
+                  + {n}
+                </button>
+              ))}
+              <button
+                onClick={() => {
+                  if (!window.confirm(`Add ALL ${availablePresets.length} recommended negatives at once?`)) return;
+                  addNegs.mutate({ campaignId, keywords: availablePresets, matchType: "BROAD" });
+                }}
+                disabled={addNegs.isPending}
+                className="text-xs px-3 py-1 rounded bg-slate-800 text-white font-semibold hover:bg-slate-900"
+              >
+                + Add all {availablePresets.length}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2 items-end mb-3">
+          <div className="flex-1">
+            <label className="text-xs text-slate-600 block">Custom negatives (comma or newline separated)</label>
+            <textarea
+              value={newNegatives}
+              onChange={(e) => setNewNegatives(e.target.value)}
+              placeholder="tips, review, jurusan lain"
+              rows={2}
+              className="mt-1 w-full border border-slate-300 rounded px-3 py-2 text-sm font-mono"
+            />
+          </div>
+          <button
+            onClick={() => {
+              const list = newNegatives.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+              if (!list.length) return;
+              addNegs.mutate({ campaignId, keywords: list, matchType: "BROAD" });
+            }}
+            disabled={!newNegatives.trim() || addNegs.isPending}
+            className="px-4 py-2 rounded bg-red-600 text-white text-sm font-semibold disabled:opacity-50"
+          >
+            {addNegs.isPending ? "Adding…" : "Add"}
+          </button>
+        </div>
+
+        {negatives.length > 0 && (
+          <div>
+            <div className="text-xs text-slate-600 mb-2">Currently blocking ({negatives.length}):</div>
+            <div className="flex flex-wrap gap-1">
+              {negatives.map((n: string, i: number) => (
+                <span key={i} className="inline-block px-2 py-0.5 rounded bg-red-50 text-red-700 text-[11px] font-mono border border-red-200">
+                  {n}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ────────────────────────────────────────────────────────────────────────────
