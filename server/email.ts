@@ -71,12 +71,16 @@ export async function sendEmail({
   html,
   text,
   attachments,
+  bcc,
 }: {
   to: string;
   subject: string;
   html: string;
   text?: string;
   attachments?: Array<{ filename: string; content: Buffer; contentType?: string }>;
+  /** Optional BCC — used to silently CC the owner on important customer emails
+   *  (aptitude reports, mock test results) so we have a copy. */
+  bcc?: string | string[];
 }): Promise<boolean> {
   if (!ENV.resendApiKey) {
     console.warn(`[Email] Skipped sending to ${to}: Resend API key not configured`);
@@ -114,6 +118,11 @@ export async function sendEmail({
     if (text) body.text = text;
     if (resendAttachments && resendAttachments.length > 0) {
       body.attachments = resendAttachments;
+    }
+    if (bcc) {
+      const list = Array.isArray(bcc) ? bcc : [bcc];
+      const clean = list.map(a => a.trim()).filter(a => a && a !== to);
+      if (clean.length) body.bcc = clean;
     }
 
     const response = await fetch(`${RESEND_API_BASE}/emails`, {
@@ -490,6 +499,7 @@ export async function sendAptitudeResultsEmail({
   aiAnalysis,
   pdfBuffer,
   isPro = false,
+  bcc,
 }: {
   to: string;
   studentName: string;
@@ -500,6 +510,9 @@ export async function sendAptitudeResultsEmail({
   aiAnalysis: any;
   pdfBuffer?: Buffer;
   isPro?: boolean;
+  /** Silently copy the owner (or another address) — used so the founder always
+   *  receives a copy of PRO aptitude reports for QA + follow-up. */
+  bcc?: string | string[];
 }): Promise<boolean> {
   const isId = language === "id";
 
@@ -733,6 +746,7 @@ export async function sendAptitudeResultsEmail({
       : `🧠 Your AI Aptitude Test Results - ${studentName} | SpecTa Education`,
     html,
     attachments,
+    bcc,
   });
 }
 

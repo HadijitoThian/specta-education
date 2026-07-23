@@ -3153,6 +3153,9 @@ IMPORTANT:
         }
 
         // Send premium results email with PDF attachment (isPro = true, no upsell)
+        // BCC the owner so we always have a copy of every PRO report for QA
+        // + manual follow-up. Set APTITUDE_PRO_BCC=false to disable.
+        const ownerBcc = process.env.APTITUDE_PRO_BCC === "false" ? undefined : (process.env.APTITUDE_PRO_BCC || ENV.ownerEmail || undefined);
         sendAptitudeResultReliable({
           to: input.studentEmail,
           studentName: input.studentName,
@@ -3163,6 +3166,7 @@ IMPORTANT:
           aiAnalysis,
           pdfBuffer,
           isPro: true,
+          bcc: ownerBcc,
         });
 
         return {
@@ -3458,7 +3462,13 @@ IMPORTANT:
     // (the result is saved; the email is sent fire-and-forget and may have
     // failed or gone to spam). Regenerates the PDF and re-emails it.
     resendAptitudeResult: protectedProcedure
-      .input(z.object({ email: z.string().email() }))
+      .input(z.object({
+        email: z.string().email(),
+        /** Optional override — send the report to this address instead of the
+         *  original student. Used by the owner to pull a copy of any student's
+         *  report to their own inbox for QA / follow-up. */
+        toOverride: z.string().email().optional(),
+      }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
         const rows = await getAptitudeResultsByEmail(input.email.trim());
@@ -3474,12 +3484,13 @@ IMPORTANT:
         try {
           pdfBuffer = await generatePdfReport({ studentName: r.studentName, language, hollandCode, riasecScores, miScores, aiAnalysis, isPro: true });
         } catch (e) { console.error('[AptitudeResend] PDF generation failed:', e); }
+        const destination = input.toOverride?.trim() || r.studentEmail;
         try {
-          await sendAptitudeResultsEmail({ to: r.studentEmail, studentName: r.studentName, language, hollandCode, riasecScores, miScores, aiAnalysis, pdfBuffer, isPro: true });
+          await sendAptitudeResultsEmail({ to: destination, studentName: r.studentName, language, hollandCode, riasecScores, miScores, aiAnalysis, pdfBuffer, isPro: true });
         } catch (e) {
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Email failed to send: ${(e as Error).message}` });
         }
-        return { sent: true as const, email: r.studentEmail, name: r.studentName, completedAt: r.createdAt };
+        return { sent: true as const, email: destination, originalStudentEmail: r.studentEmail, name: r.studentName, completedAt: r.createdAt };
       }),
   }),
 

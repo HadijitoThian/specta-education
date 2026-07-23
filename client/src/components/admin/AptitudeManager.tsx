@@ -22,6 +22,7 @@ export default function AptitudeManager() {
   const [accessEmail, setAccessEmail] = useState("");
   const [accessName, setAccessName] = useState("");
   const [resendEmail, setResendEmail] = useState("");
+  const [resendToOverride, setResendToOverride] = useState("");
 
   // Read-only "did this student complete the test?" lookup
   const [lookupInput, setLookupInput] = useState("");
@@ -121,14 +122,22 @@ export default function AptitudeManager() {
 
         <div className="bg-white border border-gray-200 rounded-xl p-5">
           <h3 className="font-semibold text-sm text-gray-900">🔁 Resend a completed result</h3>
-          <p className="text-xs text-gray-500 mt-0.5 mb-3">Student finished but never got the email? Their result is saved — regenerate the PDF and re-send it.</p>
+          <p className="text-xs text-gray-500 mt-0.5 mb-3">Student finished but never got the email? Their result is saved — regenerate the PDF and re-send it. Leave the "Send to" blank to send to the original student, or enter your own email to receive a copy.</p>
           <div className="space-y-2">
+            <label className="text-[11px] font-medium text-gray-600 block">Student's original email (to look up the report)</label>
             <input type="email" placeholder="student@email.com" value={resendEmail} onChange={e => setResendEmail(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+            <label className="text-[11px] font-medium text-gray-600 block mt-2">Send to (optional — leave blank to send to student)</label>
+            <input type="email" placeholder="your-email@example.com (optional)" value={resendToOverride} onChange={e => setResendToOverride(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
             <button
-              onClick={() => { if (!emailValid(resendEmail.trim())) return toast.error("Enter a valid email."); resendResult.mutate({ email: resendEmail.trim() }); }}
+              onClick={() => {
+                if (!emailValid(resendEmail.trim())) return toast.error("Enter a valid student email.");
+                const override = resendToOverride.trim();
+                if (override && !emailValid(override)) return toast.error("Enter a valid override email or leave it blank.");
+                resendResult.mutate({ email: resendEmail.trim(), toOverride: override || undefined });
+              }}
               disabled={resendResult.isPending}
               className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white text-sm font-medium px-4 py-2 rounded-lg"
-            >{resendResult.isPending ? "Sending…" : "Resend result"}</button>
+            >{resendResult.isPending ? "Sending…" : (resendToOverride.trim() ? "Send copy to me" : "Resend to student")}</button>
           </div>
         </div>
       </div>
