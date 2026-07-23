@@ -16,7 +16,7 @@ import { sendMockTestUpsellEmail } from "./resendService";
 let started = false;
 const BATCH_PER_TICK = 30; // ~30/hour drip — protects sender reputation
 // Bump this suffix to re-send the preview after editing the email template.
-const PREVIEW_KEY = "mock_test_upsell_preview_v1";
+const PREVIEW_KEY = "mock_test_upsell_preview_v2";
 
 /**
  * Email ONE copy of the draft to the owner (or MOCK_UPSELL_PREVIEW_TO) so
