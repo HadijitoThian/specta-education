@@ -3485,12 +3485,16 @@ IMPORTANT:
           pdfBuffer = await generatePdfReport({ studentName: r.studentName, language, hollandCode, riasecScores, miScores, aiAnalysis, isPro: true });
         } catch (e) { console.error('[AptitudeResend] PDF generation failed:', e); }
         const destination = input.toOverride?.trim() || r.studentEmail;
+        // Always BCC the owner on admin-triggered resends — the whole point of
+        // hitting Resend from admin is usually "let me also verify what the
+        // student sees", so the owner should get a copy automatically.
+        const ownerBcc = ENV.ownerEmail && ENV.ownerEmail !== destination ? ENV.ownerEmail : undefined;
         try {
-          await sendAptitudeResultsEmail({ to: destination, studentName: r.studentName, language, hollandCode, riasecScores, miScores, aiAnalysis, pdfBuffer, isPro: true });
+          await sendAptitudeResultsEmail({ to: destination, studentName: r.studentName, language, hollandCode, riasecScores, miScores, aiAnalysis, pdfBuffer, isPro: true, bcc: ownerBcc });
         } catch (e) {
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Email failed to send: ${(e as Error).message}` });
         }
-        return { sent: true as const, email: destination, originalStudentEmail: r.studentEmail, name: r.studentName, completedAt: r.createdAt };
+        return { sent: true as const, email: destination, originalStudentEmail: r.studentEmail, name: r.studentName, completedAt: r.createdAt, ownerCopied: !!ownerBcc };
       }),
   }),
 
