@@ -702,20 +702,16 @@ export async function updateAdFinalUrls(input: {
   const ids = input.adResourceNames.map(idFromRn).filter(Boolean);
   if (ids.length === 0) throw new Error("No valid ad resource names");
 
+  // Only query Responsive Search Ad fields — Google Ads API v21 removed the
+  // `expanded_text_ad.*` fields entirely (ETAs were deprecated in June 2022).
+  // Our launcher only ever generates RSAs anyway, so this is safe.
   const rows = await search(env, `
     SELECT ad_group.resource_name, ad_group_ad.resource_name,
            ad_group_ad.status, ad_group_ad.ad.type,
            ad_group_ad.ad.responsive_search_ad.headlines,
            ad_group_ad.ad.responsive_search_ad.descriptions,
            ad_group_ad.ad.responsive_search_ad.path1,
-           ad_group_ad.ad.responsive_search_ad.path2,
-           ad_group_ad.ad.expanded_text_ad.headline_part1,
-           ad_group_ad.ad.expanded_text_ad.headline_part2,
-           ad_group_ad.ad.expanded_text_ad.headline_part3,
-           ad_group_ad.ad.expanded_text_ad.description,
-           ad_group_ad.ad.expanded_text_ad.description2,
-           ad_group_ad.ad.expanded_text_ad.path1,
-           ad_group_ad.ad.expanded_text_ad.path2
+           ad_group_ad.ad.responsive_search_ad.path2
     FROM ad_group_ad
     WHERE ad_group_ad.ad.id IN (${ids.join(",")})
       AND ad_group_ad.status != 'REMOVED'
@@ -745,22 +741,11 @@ export async function updateAdFinalUrls(input: {
           ...(rsa.path2 ? { path2: rsa.path2 } : {}),
         },
       };
-    } else if (type === "EXPANDED_TEXT_AD") {
-      const eta = r.adGroupAd?.ad?.expandedTextAd || {};
-      newAd = {
-        finalUrls: [url],
-        expandedTextAd: {
-          headlinePart1: eta.headlinePart1 || "",
-          headlinePart2: eta.headlinePart2 || "",
-          ...(eta.headlinePart3 ? { headlinePart3: eta.headlinePart3 } : {}),
-          description: eta.description || "",
-          ...(eta.description2 ? { description2: eta.description2 } : {}),
-          ...(eta.path1 ? { path1: eta.path1 } : {}),
-          ...(eta.path2 ? { path2: eta.path2 } : {}),
-        },
-      };
     } else {
-      // Unsupported ad type — skip. Owner can update from Google Ads UI.
+      // Only RSAs are supported — ETAs are deprecated (2022) and other
+      // formats (image/video/app) can't be edited via this generic flow.
+      // Owner can update those from Google Ads UI in the rare case they
+      // exist.
       continue;
     }
 
