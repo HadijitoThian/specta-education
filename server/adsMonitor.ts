@@ -420,7 +420,13 @@ async function tick(): Promise<void> {
       audit.autoNegativesAdded > 0 ||
       audit.suggestions.length > 0;
 
-    if (emailAllowed && anythingInteresting) {
+    // ── EMAIL SENDING HARD-DISABLED (2026-07-04) ─────────────────────────
+    // Same reasoning as googleAdsApi.optTick — owner tolerance for
+    // ads emails is zero right now. Audit still runs, results still land
+    // in the ads_monitor_log table and appear in /admin/ads-launcher's
+    // pending-suggestions panel. Just no email.
+    // Owner can flip this back on by removing the `false && ` guard below.
+    if (false && emailAllowed && anythingInteresting) {
       const autoLines: string[] = [];
       if (audit.autoPaused > 0) autoLines.push(`- ${audit.autoPaused} wasteful keyword${audit.autoPaused === 1 ? "" : "s"} paused automatically`);
       if (audit.autoNegativesAdded > 0) autoLines.push(`- ${audit.autoNegativesAdded} negative keyword${audit.autoNegativesAdded === 1 ? "" : "s"} added automatically`);
@@ -434,6 +440,8 @@ async function tick(): Promise<void> {
           (suggestionLines.length ? `Suggestions for your review:\n${suggestionLines.join("\n\n")}\n\n` : "") +
           `Review + apply at spectaeducation.com/admin/ads-launcher.`,
       });
+    } else if (anythingInteresting) {
+      console.log(`[adsMonitor] ${audit.autoPaused} auto-paused + ${audit.autoNegativesAdded} auto-negatives + ${audit.suggestions.length} suggestions — email suppressed by hardcoded safety switch. See /admin/ads-launcher.`);
     }
   } catch (e) {
     console.error("[adsMonitor] audit failed:", (e as Error).message);

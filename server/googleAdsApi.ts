@@ -491,6 +491,21 @@ async function optTick() {
 
   try {
     const recs = await getRecommendations();
+    // ── EMAIL SENDING HARD-DISABLED (2026-07-04) ─────────────────────────
+    // Owner got 10+ duplicate emails over 4 hours from this emailer and
+    // TWO successive marker-persistence "fixes" both failed silently. Until
+    // we can verify with the new system_flags table for a full week without
+    // regressions, no emails from this path.
+    //
+    // Recommendations still available in-app at /admin → Ads Co-pilot →
+    // AI Recommendations. Owner can flip this back on by removing the
+    // early return below when ready.
+    if (recs.length) {
+      console.log(`[GoogleAds] advisor found ${recs.length} suggestion(s) — email suppressed by hardcoded safety switch. See /admin → Ads Co-pilot.`);
+      return;
+    }
+    // Kept the notifyOwner call intact but unreachable so the intent survives
+    // the next refactor. Remove the `return` above to re-enable.
     if (recs.length) {
       await notifyOwner({
         title: `Google Ads — ${recs.length} optimization suggestion(s)`,
