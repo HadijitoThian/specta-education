@@ -3350,7 +3350,18 @@ IMPORTANT:
         utmMedium: z.string().max(120).optional(),
         utmCampaign: z.string().max(160).optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        // Anti-abuse: block role-based emails, gibberish names, per-IP rate
+        // limit. Runs BEFORE Xendit / email so bots can't burn our quota.
+        const { validateGuestCheckout, extractClientIp } = await import("./antiAbuse");
+        const ip = extractClientIp((ctx as any).req?.headers || {});
+        const abuse = validateGuestCheckout({
+          customerName: input.name,
+          customerEmail: input.email,
+          ip,
+        });
+        if (abuse) throw new TRPCError({ code: abuse.code, message: abuse.message });
+
         const externalId = generateExternalId();
         const baseUrl = process.env.VITE_APP_URL || (process.env.NODE_ENV === "production" ? "https://www.spectaeducation.com" : "http://localhost:3000");
         const price = input.useDiscountPrice ? getProTestDiscountPrice() : getProTestPrice();

@@ -36,6 +36,7 @@ import {
   IELTS_MOCK_PRICE,
   createIeltsMockInvoice,
 } from "./ieltsMockService";
+import { validateGuestCheckout, extractClientIp } from "./antiAbuse";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -85,6 +86,17 @@ export const ieltsRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       try {
+        // Anti-abuse: block role-based emails (info@, admin@, e-shop@…),
+        // gibberish names (bot-generated random strings), and per-IP rate
+        // limit. Runs BEFORE Xendit / email so bots can't burn our quota.
+        const ip = extractClientIp((ctx as any).req?.headers || {});
+        const abuse = validateGuestCheckout({
+          customerName: input.customerName,
+          customerEmail: input.customerEmail,
+          ip,
+        });
+        if (abuse) throw new TRPCError({ code: abuse.code, message: abuse.message });
+
         // Read the marketing attribution cookie so we can stamp GCLID + UTMs
         // onto the new attempt row. The Xendit webhook later reads these on
         // payment and uploads an offline conversion to Google Ads — critical
