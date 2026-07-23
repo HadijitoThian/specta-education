@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { trpc } from "@/lib/trpc";
+import { getAttribution } from "@/lib/attribution";
 import { Crown, Brain, Sparkles, Users, Target, Palette, BarChart3, ArrowRight, Loader2, CheckCircle, Clock, Zap } from "lucide-react";
 
 type Lang = "id" | "en";
@@ -91,12 +92,17 @@ export default function ProUpsellCard({ lang, studentName, studentEmail, student
   const handlePurchase = async () => {
     if (!name.trim() || !email.trim()) return;
     try {
+      const attr = getAttribution();
       const result = await createOrderMutation.mutateAsync({
         name: name.trim(),
         email: email.trim(),
         phone: phone.trim() || undefined,
         source: "upsell",
         useDiscountPrice: isDiscounted,
+        gclid: attr?.gclid,
+        utmSource: attr?.utmSource,
+        utmMedium: attr?.utmMedium,
+        utmCampaign: attr?.utmCampaign,
       });
       window.location.href = result.invoiceUrl;
     } catch (err) {

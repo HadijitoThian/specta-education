@@ -587,6 +587,13 @@ export async function ensureMarketingSchema(): Promise<void> {
       "ALTER TABLE igcse_subscriptions ADD COLUMN utmMedium VARCHAR(120) NULL",
       "ALTER TABLE igcse_subscriptions ADD COLUMN utmCampaign VARCHAR(160) NULL",
       "ALTER TABLE igcse_subscriptions ADD COLUMN conversionUploadedAt TIMESTAMP NULL",
+      // Tes Bakat AI Pro — same attribution columns so the aptitude PRO
+      // purchase can drive Google Ads offline conversion upload.
+      "ALTER TABLE aptitudeProOrders ADD COLUMN gclid VARCHAR(512) NULL",
+      "ALTER TABLE aptitudeProOrders ADD COLUMN utmSource VARCHAR(120) NULL",
+      "ALTER TABLE aptitudeProOrders ADD COLUMN utmMedium VARCHAR(120) NULL",
+      "ALTER TABLE aptitudeProOrders ADD COLUMN utmCampaign VARCHAR(160) NULL",
+      "ALTER TABLE aptitudeProOrders ADD COLUMN conversionUploadedAt TIMESTAMP NULL",
     ]) {
       try { await db.execute(sql.raw(stmt)); }
       catch (e: any) {

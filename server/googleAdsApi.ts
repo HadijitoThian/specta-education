@@ -1166,6 +1166,7 @@ export type ConversionKind =
   | "Mock Test purchased"
   | "AI Tutor subscribed"
   | "IGCSE subscribed"
+  | "Tes Bakat AI Pro purchased"
   | "Student registered";
 
 /**

@@ -63,7 +63,7 @@ function fireOfflineConversion(
  * conversionUploadedAt is stamped on success so webhook retries don't re-fire.
  */
 function fireWebCheckoutConversion(input: {
-  table: "mock" | "tutor" | "igcse";
+  table: "mock" | "tutor" | "igcse" | "aptitudePro";
   entityId: number;
   gclid?: string | null;
   valueIdr: number;
@@ -77,6 +77,7 @@ function fireWebCheckoutConversion(input: {
         mock: "Mock Test purchased",
         tutor: "AI Tutor subscribed",
         igcse: "IGCSE subscribed",
+        aptitudePro: "Tes Bakat AI Pro purchased",
       } as const;
       const result = await uploadOfflineConversion({
         kind: kindByTable[input.table],
@@ -95,6 +96,7 @@ function fireWebCheckoutConversion(input: {
         const tableName =
           input.table === "mock" ? "ieltsMockAttempts" :
           input.table === "tutor" ? "tutor_subscriptions" :
+          input.table === "aptitudePro" ? "aptitudeProOrders" :
           "igcse_subscriptions";
         await db.execute(sql.raw(
           `UPDATE ${tableName} SET conversionUploadedAt = NOW() WHERE id = ${input.entityId}`
@@ -360,6 +362,20 @@ export function registerXenditWebhook(app: Express) {
         title: `💰 New Pro Test Purchase: ${order.customerName}`,
         content: `${order.customerName} (${order.customerEmail}) just purchased Tes Bakat AI Pro for ${formattedAmount}. Access link has been sent automatically. Order: ${externalId}`,
       });
+
+      // Google Ads offline conversion upload — this is what makes the sale
+      // appear as a "Conversion" in Google Ads / smart bidding, matched back
+      // to the original ad click via GCLID. Runs only if we captured a GCLID
+      // at checkout AND haven't already uploaded this order.
+      if (!order.conversionUploadedAt) {
+        fireWebCheckoutConversion({
+          table: "aptitudePro",
+          entityId: order.id,
+          gclid: order.gclid,
+          valueIdr: order.amount,
+          orderId: externalId,
+        });
+      }
 
       console.log(`[Xendit Webhook] Payment processed successfully for ${externalId}`);
       return res.status(200).json({ received: true, success: true });

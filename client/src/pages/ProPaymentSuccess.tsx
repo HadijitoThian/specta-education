@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { SEO } from '@/components/SEO';
 import { useSearch, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { fireConversion } from "@/lib/googleAds";
 import { motion } from "framer-motion";
 import { CheckCircle, Mail, Clock, ArrowRight } from "lucide-react";
 
@@ -16,6 +17,21 @@ export default function ProPaymentSuccess() {
     { externalId: orderId || "" },
     { enabled: !!orderId, refetchInterval: 3000 }
   );
+
+  // Fire browser-side Google Ads conversion the first time we see this
+  // order transition to "paid". The ref makes sure the 3-second polling
+  // interval can't double-fire (Google also dedupes by transaction_id).
+  const conversionFiredRef = useRef(false);
+  useEffect(() => {
+    if (orderQuery.data?.status === "paid" && orderId && !conversionFiredRef.current) {
+      conversionFiredRef.current = true;
+      // Value must match the Google Ads Conversion Action for "Tes Bakat AI Pro
+      // purchased". Server-side offline upload (see xenditWebhook.ts) fires
+      // the SAME conversion action + orderId, so browser + server dedupe
+      // cleanly at Google's end — belt-and-braces attribution.
+      fireConversion("aptitudePro", { value: 79000, currency: "IDR", transactionId: orderId });
+    }
+  }, [orderQuery.data?.status, orderId]);
 
   useEffect(() => {
     document.title = "Payment Successful - Tes Bakat AI Pro";

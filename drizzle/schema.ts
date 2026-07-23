@@ -778,6 +778,13 @@ export const aptitudeProOrders = mysqlTable("aptitudeProOrders", {
   accessTokenId: int("accessTokenId"), // links to aptitudeAccessTokens.id after payment
   paidAt: timestamp("paidAt"),
   source: varchar("source", { length: 50 }).default("landing").notNull(), // "landing" or "upsell"
+  // Attribution captured at checkout so the Xendit webhook can upload the
+  // offline conversion to Google Ads regardless of what the browser did.
+  gclid: varchar("gclid", { length: 512 }),
+  utmSource: varchar("utmSource", { length: 120 }),
+  utmMedium: varchar("utmMedium", { length: 120 }),
+  utmCampaign: varchar("utmCampaign", { length: 160 }),
+  conversionUploadedAt: timestamp("conversionUploadedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

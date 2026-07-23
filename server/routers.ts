@@ -3343,6 +3343,12 @@ IMPORTANT:
         phone: z.string().optional(),
         source: z.enum(["landing", "upsell"]).default("landing"),
         useDiscountPrice: z.boolean().default(false),
+        // Attribution — captured client-side from URL params + sessionStorage
+        // so the Xendit webhook can upload the offline conversion to Google Ads.
+        gclid: z.string().max(512).optional(),
+        utmSource: z.string().max(120).optional(),
+        utmMedium: z.string().max(120).optional(),
+        utmCampaign: z.string().max(160).optional(),
       }))
       .mutation(async ({ input }) => {
         const externalId = generateExternalId();
@@ -3371,6 +3377,10 @@ IMPORTANT:
           amount: price,
           status: "pending",
           source: input.source,
+          gclid: input.gclid || null,
+          utmSource: input.utmSource || null,
+          utmMedium: input.utmMedium || null,
+          utmCampaign: input.utmCampaign || null,
         });
 
         return {

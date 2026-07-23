@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { trpc } from "@/lib/trpc";
+import { getAttribution } from "@/lib/attribution";
 import {
   Brain, Sparkles, Users, Target, Palette, BarChart3, Crown,
   CheckCircle, ArrowRight, Loader2, Clock, ShieldCheck, FileText,
@@ -82,12 +83,19 @@ export default function ProLandingPage({ lang, setLang }: ProLandingPageProps) {
   const handlePurchase = async () => {
     if (!name.trim() || !email.trim()) return;
     try {
+      // Pass first-touch attribution so the Xendit webhook can upload the
+      // offline conversion back to Google Ads on successful payment.
+      const attr = getAttribution();
       const result = await createOrderMutation.mutateAsync({
         name: name.trim(),
         email: email.trim(),
         phone: phone.trim() || undefined,
         source: "landing",
         useDiscountPrice: isDiscounted,
+        gclid: attr?.gclid,
+        utmSource: attr?.utmSource,
+        utmMedium: attr?.utmMedium,
+        utmCampaign: attr?.utmCampaign,
       });
       window.location.href = result.invoiceUrl;
     } catch (err) {

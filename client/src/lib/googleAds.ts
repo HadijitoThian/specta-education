@@ -19,12 +19,13 @@ const AW_ID =
   (import.meta.env.VITE_GOOGLE_ADS_ID as string | undefined) ||
   "AW-956384648";
 
-/** All 5 conversion types the site can fire. Keep in sync with Google Ads. */
+/** All 6 conversion types the site can fire. Keep in sync with Google Ads. */
 export type ConversionKind =
   | "lead"          // Student registered (Sign-up)   — funnel entry
   | "mockTest"      // Mock Test purchased  Rp  79k   — Purchase
   | "tutor"         // AI Tutor subscribed  Rp 199k   — Purchase
   | "igcse"         // IGCSE subscribed     Rp 299k   — Purchase
+  | "aptitudePro"   // Tes Bakat AI Pro Rp 79k        — Purchase
   | "whatsapp";     // WhatsApp clicked                — Contact
 
 /**
@@ -48,6 +49,14 @@ const LABELS: Record<ConversionKind, string> = {
   igcse:
     (import.meta.env.VITE_GOOGLE_ADS_IGCSE_LABEL as string | undefined) ||
     "yINBCJq6-9McEIiLhcgD",
+  // aptitudePro (Tes Bakat AI Pro purchased) — needs a Google Ads Conversion
+  // Action created. Until VITE_GOOGLE_ADS_APTITUDE_PRO_LABEL is set, browser
+  // firing is a no-op — but the SERVER-SIDE offline upload (see
+  // xenditWebhook.ts) still records the sale to Google Ads via a
+  // conversion action named "Tes Bakat AI Pro purchased" (set that name
+  // in Google Ads > Conversions), so bidding still learns from the sale.
+  aptitudePro:
+    (import.meta.env.VITE_GOOGLE_ADS_APTITUDE_PRO_LABEL as string | undefined) || "",
   whatsapp:
     (import.meta.env.VITE_GOOGLE_ADS_WHATSAPP_LABEL as string | undefined) ||
     "UGXtCIKG-tMcEIiLhcgD",
