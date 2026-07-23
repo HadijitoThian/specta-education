@@ -49,14 +49,14 @@ const LABELS: Record<ConversionKind, string> = {
   igcse:
     (import.meta.env.VITE_GOOGLE_ADS_IGCSE_LABEL as string | undefined) ||
     "yINBCJq6-9McEIiLhcgD",
-  // aptitudePro (Tes Bakat AI Pro purchased) — needs a Google Ads Conversion
-  // Action created. Until VITE_GOOGLE_ADS_APTITUDE_PRO_LABEL is set, browser
-  // firing is a no-op — but the SERVER-SIDE offline upload (see
-  // xenditWebhook.ts) still records the sale to Google Ads via a
-  // conversion action named "Tes Bakat AI Pro purchased" (set that name
-  // in Google Ads > Conversions), so bidding still learns from the sale.
+  // aptitudePro (Tes Bakat AI Pro purchased) — Google Ads Conversion Action
+  // created 2026-07-23 by owner. Label baked in so browser firing works
+  // out of the box; env var can still override for future re-issues.
+  // The SERVER-SIDE offline upload path (xenditWebhook.ts) matches on
+  // action NAME "Tes Bakat AI Pro purchased", not this label.
   aptitudePro:
-    (import.meta.env.VITE_GOOGLE_ADS_APTITUDE_PRO_LABEL as string | undefined) || "",
+    (import.meta.env.VITE_GOOGLE_ADS_APTITUDE_PRO_LABEL as string | undefined) ||
+    "mZcWCJ6krtUcEIiLhcgD",
   whatsapp:
     (import.meta.env.VITE_GOOGLE_ADS_WHATSAPP_LABEL as string | undefined) ||
     "UGXtCIKG-tMcEIiLhcgD",
