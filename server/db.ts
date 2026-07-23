@@ -427,6 +427,18 @@ export async function ensureMarketingSchema(): Promise<void> {
         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `));
+    // Mock-test buyers → AI IELTS Tutor upsell dedupe table. One row per
+    // email once they've received the upsell (so we never spam them twice).
+    await db.execute(sql.raw(`
+      CREATE TABLE IF NOT EXISTS mock_test_upsells (
+        email VARCHAR(320) NOT NULL PRIMARY KEY,
+        attemptId INT NULL,
+        overallBand DECIMAL(2,1) NULL,
+        sentAt TIMESTAMP NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_mock_upsell_sent (sentAt)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `));
     // ── IGCSE AI Teacher tables ─────────────────────────────────────────────
     await db.execute(sql.raw(`
       CREATE TABLE IF NOT EXISTS igcse_topics (
@@ -939,6 +951,68 @@ export async function recordPracticeFollowupSent(email: string): Promise<void> {
   if (!db) return;
   await db.execute(sql`
     INSERT INTO practice_followups (email, sentAt) VALUES (${email.toLowerCase().trim()}, NOW())
+    ON DUPLICATE KEY UPDATE sentAt = NOW()
+  `);
+}
+
+/**
+ * Mock Test buyers who completed their test ≥24h ago and haven't received
+ * the AI IELTS Tutor upsell email yet. Returns their name + email + overall
+ * band + completion date so the email can be personalised ("Your band was 6.5
+ * — here's how to push it to 7.5 with unlimited Writing + Speaking practice…").
+ *
+ * Cap age at 90 days — after that they've moved on and an upsell feels stale.
+ * Requires the attempt to have completedAt AND paidAt (both real customers
+ * only — free comp attempts are excluded).
+ */
+export async function getMockTestUpsellCandidates(
+  limit = 30,
+): Promise<Array<{ email: string; name: string | null; attemptId: number; overallBand: number | null; completedAt: Date }>> {
+  const db = await getDb();
+  if (!db) return [];
+  const lim = Math.max(1, Math.min(100, Math.floor(limit)));
+  const rows: any = await db.execute(sql`
+    SELECT a.id AS attemptId,
+           LOWER(a.customerEmail) AS email,
+           a.customerName AS name,
+           s.overallBand AS overallBand,
+           a.completedAt AS completedAt
+    FROM ieltsMockAttempts a
+    LEFT JOIN ieltsMockScores s ON s.attemptId = a.id
+    LEFT JOIN mock_test_upsells m ON m.email = LOWER(a.customerEmail)
+    WHERE a.status = 'completed'
+      AND a.paidAt IS NOT NULL
+      AND a.completedAt IS NOT NULL
+      AND a.customerEmail IS NOT NULL
+      AND a.customerEmail <> ''
+      AND a.completedAt <= NOW() - INTERVAL 24 HOUR
+      AND a.completedAt >= NOW() - INTERVAL 90 DAY
+      AND m.email IS NULL
+      AND a.paymentRef NOT LIKE 'ADMIN-%'
+      AND a.paymentRef NOT LIKE 'COMP-%'
+    ORDER BY a.completedAt DESC
+    LIMIT ${sql.raw(String(lim))}
+  `);
+  const list: any[] = Array.isArray(rows[0]) ? rows[0] : rows;
+  return (list as any[]).map(r => ({
+    email: String(r.email),
+    name: r.name ?? null,
+    attemptId: Number(r.attemptId),
+    overallBand: r.overallBand != null ? Number(r.overallBand) : null,
+    completedAt: new Date(r.completedAt),
+  }));
+}
+
+/** Mark a Mock Test buyer as upsold so we never re-email them. */
+export async function recordMockTestUpsellSent(
+  email: string,
+  meta: { attemptId?: number; overallBand?: number | null } = {},
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.execute(sql`
+    INSERT INTO mock_test_upsells (email, attemptId, overallBand, sentAt)
+    VALUES (${email.toLowerCase().trim()}, ${meta.attemptId ?? null}, ${meta.overallBand ?? null}, NOW())
     ON DUPLICATE KEY UPDATE sentAt = NOW()
   `);
 }

@@ -253,6 +253,7 @@ import { sosmedRouter } from "./sosmedRouter";
 import { startCrmReportScheduler } from "./crmReportScheduler";
 import { startTutorReminderScheduler } from "./tutorReminderScheduler";
 import { startPracticeFollowupScheduler } from "./practiceFollowupScheduler";
+import { startMockTestUpsellScheduler } from "./mockTestUpsellScheduler";
 import { startArticleProducerScheduler } from "./articleProducer";
 import { startGrowthInsightsScheduler } from "./growthInsights";
 import { startGoogleAdsScheduler, startGoogleAdsOptimizer } from "./googleAdsApi";
@@ -8163,6 +8164,10 @@ startTutorReminderScheduler();
 // IELTS Practice → product follow-up: one email to free-practice takers
 // inviting them to the Mock Test + AI Tutor (dedup via practice_followups).
 startPracticeFollowupScheduler();
+
+// Mock Test → AI IELTS Tutor upsell: one email to paid Mock Test completers
+// 24h+ after they finish (dedup via mock_test_upsells).
+startMockTestUpsellScheduler();
 
 // Article Producer scheduler (SEO/GEO): weekly review-ready blog drafts.
 // OFF unless ARTICLE_PRODUCER_ENABLED=true (no token spend until opted in).

@@ -447,3 +447,117 @@ export async function sendPracticeFollowupEmail(params: {
     return false;
   }
 }
+
+/**
+ * Upsell email to Mock Test buyers: "You just took our Mock Test — here's how
+ * to push your band higher with unlimited AI Tutor practice." Personalised
+ * with their overall band when we have it. One-time per buyer.
+ *
+ * Targeting philosophy: this is a soft nudge, not a hard sell. The buyer
+ * ALREADY paid us Rp 79k so trust is real — the goal is to convert them into
+ * the recurring Tutor subscription that compounds their prep.
+ */
+export async function sendMockTestUpsellEmail(params: {
+  to: string;
+  name?: string | null;
+  overallBand?: number | null;
+  appUrl: string;
+}): Promise<boolean> {
+  const { to } = params;
+  const name = (params.name || "").trim() || "there";
+  const base = params.appUrl.replace(/\/+$/, "");
+  const tutorUrl = `${base}/ielts/tutor`;
+  const unsubUrl = `${base}/unsubscribe?email=${encodeURIComponent(to)}`;
+  const logo = "https://www.spectaeducation.com/files/migrated/QxrYSewOYzAuPIEN.jpeg";
+
+  // Band-aware framing — feels much more personal than a generic upsell.
+  const band = params.overallBand;
+  const openingBahasa = band != null
+    ? `Selamat! Kamu baru saja menyelesaikan IELTS Mock Test kami dengan overall band <strong>${band.toFixed(1)}</strong>. 🎉`
+    : `Selamat! Kamu baru saja menyelesaikan IELTS Mock Test kami. 🎉`;
+  const nextStepBahasa = band != null && band < 7
+    ? `Target band 7.0+? Kelemahan paling umum di skor ${band.toFixed(1)} biasanya di <strong>Writing & Speaking</strong> — dua skill yang paling sulit dilatih sendirian tanpa examiner feedback.`
+    : band != null
+    ? `Skor ${band.toFixed(1)} itu solid! Untuk konsistensi + naik lagi ke 7.5-8.0, latihan Writing & Speaking dengan feedback instan adalah kunci.`
+    : `Untuk mengejar target band impianmu, latihan konsisten Writing & Speaking dengan AI feedback adalah cara tercepat.`;
+
+  const subject = band != null
+    ? `Band ${band.toFixed(1)} — ini cara push ke band impianmu 🎯`
+    : `Langkah berikutnya setelah Mock Test-mu 🎯`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+    <div style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+      <div style="text-align:center;padding:22px 24px 6px 24px;">
+        <a href="https://www.spectaeducation.com" style="text-decoration:none;">
+          <img src="${logo}" alt="SpecTa Education"
+               width="140" height="46" border="0"
+               style="height:46px;width:auto;display:inline-block;object-fit:contain;color:#4338ca;font-size:20px;font-weight:800;font-family:Arial,sans-serif;" />
+        </a>
+      </div>
+      <div style="background:linear-gradient(135deg,#db2777,#9333ea);padding:24px 30px;text-align:center;color:white;">
+        <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;opacity:0.85;">SpecTa AI IELTS Tutor</div>
+        <h1 style="color:white;margin:6px 0 0 0;font-size:24px;line-height:1.25;">${band != null ? `Band ${band.toFixed(1)} — bagus, sekarang push ke atas 🚀` : `Siap tingkatkan band-mu? 🚀`}</h1>
+      </div>
+      <div style="padding:30px;">
+        <p style="color:#374151;font-size:16px;line-height:1.6;margin:0 0 14px;">Hai <strong>${name}</strong>,</p>
+        <p style="color:#374151;font-size:14px;line-height:1.6;margin:0 0 14px;">${openingBahasa}</p>
+        <p style="color:#374151;font-size:14px;line-height:1.6;margin:0 0 22px;">${nextStepBahasa}</p>
+
+        <!-- Value prop card -->
+        <div style="border:1px solid #f5d0e8;border-radius:14px;padding:22px;margin:0 0 20px;background:linear-gradient(180deg,#fdf2fa,#fce7f3);">
+          <h2 style="color:#9d174d;margin:0 0 10px;font-size:18px;">🎤 AI IELTS Tutor — latihan tanpa batas</h2>
+          <ul style="color:#374151;font-size:14px;line-height:1.7;padding-left:18px;margin:0 0 18px;">
+            <li><strong>Writing:</strong> Task 1 + Task 2, AI grading sesuai IELTS rubric, feedback per criterion + contoh jawaban band 8.</li>
+            <li><strong>Speaking:</strong> Latihan Part 1/2/3, rekam suaramu, AI transkrip + skor pronunciation + fluency + coherence.</li>
+            <li><strong>Full Speaking Mock Test:</strong> simulasi ujian resmi, 11-14 menit, evaluasi lengkap.</li>
+            <li><strong>Unlimited:</strong> berapapun kali kamu latihan, harga sama.</li>
+          </ul>
+          <div style="text-align:center;">
+            <a href="${tutorUrl}"
+               style="display:inline-block;background:#db2777;color:white;text-decoration:none;padding:14px 32px;border-radius:12px;font-weight:bold;font-size:15px;">
+              Mulai Free Trial (1× Writing + 1× Speaking) →
+            </a>
+          </div>
+          <p style="color:#831843;font-size:12px;line-height:1.5;margin:14px 0 0;text-align:center;">
+            Rp 149.000 / 2 minggu · Rp 249.000 / bulan · batalkan kapan aja.
+          </p>
+        </div>
+
+        <div style="border-left:4px solid #db2777;padding:8px 14px;background:#fdf2fa;border-radius:0 8px 8px 0;margin:0 0 6px;">
+          <p style="color:#831843;font-size:13px;line-height:1.6;margin:0;">
+            <strong>Kenapa AI Tutor lebih efisien dari kursus?</strong><br/>
+            Kursus tatap muka Rp 3-8 juta, 8-16 minggu, jadwal fixed. AI Tutor Rp 149-249k, kapanpun, sebanyak yang kamu mau. Cocok kalau kamu punya tanggal tes yang dekat atau sudah punya dasar dan tinggal polish.
+          </p>
+        </div>
+      </div>
+      <div style="background:#f9fafb;padding:18px 32px;text-align:center;border-top:1px solid #e5e7eb;">
+        <p style="color:#9ca3af;font-size:12px;margin:0 0 6px;">© ${new Date().getFullYear()} SpecTa Education • Sejak 2005 • 1000+ pelajar terbantu</p>
+        <p style="color:#c0c4cc;font-size:11px;margin:0;"><a href="${unsubUrl}" style="color:#c0c4cc;">Berhenti berlangganan email marketing</a></p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  try {
+    const response = await fetch(`${RESEND_API_BASE}/emails`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ENV.resendApiKey}` },
+      body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html }),
+    });
+    if (!response.ok) {
+      console.error("[Resend] Mock Test upsell failed:", response.status, await response.text());
+      return false;
+    }
+    console.log(`[Resend] Mock Test upsell sent to ${to} (band=${band ?? "n/a"})`);
+    return true;
+  } catch (err) {
+    console.error("[Resend] Mock Test upsell error:", err);
+    return false;
+  }
+}
