@@ -40,6 +40,7 @@ import {
   listLiveCampaigns,
   getCampaignDetail,
   diagnoseCampaignHealth,
+  listConversionActions,
   updateAdFinalUrls,
   pauseKeyword,
   enableKeyword,
@@ -494,6 +495,16 @@ export const marketingRouter = router({
       requireAdmin(ctx);
       if (!isGoogleAdsConfigured()) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Google Ads not configured" });
       try { return await getCampaignDetail(input.campaignId); }
+      catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
+    }),
+
+  /** List every Google Ads conversion action with its label + 30d counters —
+   *  answers "which of the duplicates is real, and does my code point at it?" */
+  listConversionActions: protectedProcedure
+    .query(async ({ ctx }) => {
+      requireAdmin(ctx);
+      if (!isGoogleAdsConfigured()) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Google Ads not configured" });
+      try { return await listConversionActions(); }
       catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
     }),
 

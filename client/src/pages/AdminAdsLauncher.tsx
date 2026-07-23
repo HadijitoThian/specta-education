@@ -62,6 +62,7 @@ export default function AdminAdsLauncher() {
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-8">
         <AgentActivityCard />
+        <ConversionActionsAudit />
         <LiveCampaignsCard />
         <LauncherCard />
         <LaunchedList />
@@ -703,6 +704,169 @@ function CampaignEditor({
 // ────────────────────────────────────────────────────────────────────────────
 // Health Diagnosis — why isn't this campaign getting impressions?
 // ────────────────────────────────────────────────────────────────────────────
+
+// ────────────────────────────────────────────────────────────────────────────
+// Conversion Actions Audit — every action + its label + status + fire count
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The 5 labels our client code fires to today. Kept in sync with
+ * client/src/lib/googleAds.ts so the audit can flag mismatches (e.g. "your
+ * code fires to label X, but that action is INACTIVE — you probably meant
+ * the (1) duplicate which is ACTIVE").
+ */
+const CLIENT_FIRE_LABELS: Record<string, string> = {
+  mockTest: "6BE9CJav_tMcEIiLhcgD",
+  tutor: "rM1JCOjU_tMcEIiLhcgD",
+  igcse: "yINBCJq6-9McEIiLhcgD",
+  aptitudePro: "mZcWCJ6krtUcEIiLhcgD",
+  whatsapp: "UGXtCIKG-tMcEIiLhcgD",
+};
+
+function ConversionActionsAudit() {
+  const q = trpc.marketing.listConversionActions.useQuery(undefined, {
+    refetchOnWindowFocus: false, staleTime: 5 * 60 * 1000,
+  });
+
+  if (q.isLoading) {
+    return (
+      <div className="bg-white border border-slate-200 rounded p-4 text-sm text-slate-500">
+        Loading conversion actions from Google Ads…
+      </div>
+    );
+  }
+  if (q.error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded p-4 text-sm text-red-700">
+        Can't load conversion actions: {q.error.message}
+      </div>
+    );
+  }
+  const actions = q.data || [];
+  if (!actions.length) {
+    return (
+      <div className="bg-white border border-slate-200 rounded p-4 text-sm text-slate-500">
+        No conversion actions found in this Google Ads account.
+      </div>
+    );
+  }
+
+  // Which labels does our client code point at? Reverse-lookup to detect
+  // "code fires here → but this action is orphaned/duplicate".
+  const clientLabels = new Set(Object.values(CLIENT_FIRE_LABELS));
+  const kindByLabel = new Map(Object.entries(CLIENT_FIRE_LABELS).map(([k, v]) => [v, k]));
+
+  return (
+    <div className="bg-white border border-slate-200 rounded p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="font-semibold text-sm">🎯 Conversion Actions Audit</h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Every action in the account + its label + whether your site code fires to it. Flags duplicates and orphans.
+          </p>
+        </div>
+        <button onClick={() => q.refetch()} className="text-xs text-indigo-600 hover:underline">
+          Refresh
+        </button>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-slate-200 text-left text-slate-500">
+              <th className="py-2 pr-2">Name</th>
+              <th className="py-2 pr-2">Category</th>
+              <th className="py-2 pr-2">Status</th>
+              <th className="py-2 pr-2">Label</th>
+              <th className="py-2 pr-2">Code fires here?</th>
+              <th className="py-2 pr-2 text-right">30d convs</th>
+            </tr>
+          </thead>
+          <tbody>
+            {actions.map(a => {
+              const codeFiresHere = a.eventLabel && clientLabels.has(a.eventLabel);
+              const kind = a.eventLabel ? kindByLabel.get(a.eventLabel) : null;
+              const isDuplicate = / \(\d+\)$/.test(a.name);
+              const isEnabled = a.status === "ENABLED";
+              return (
+                <tr key={a.id} className="border-b border-slate-100">
+                  <td className="py-2 pr-2 font-medium text-slate-900">
+                    {a.name}
+                    {isDuplicate && (
+                      <span className="ml-1 text-[10px] text-amber-600" title="Name ends in (n) — likely an auto-created duplicate">⚠️ dup</span>
+                    )}
+                  </td>
+                  <td className="py-2 pr-2 text-slate-600">{a.category.replace(/_/g, " ").toLowerCase()}</td>
+                  <td className="py-2 pr-2">
+                    <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${isEnabled ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"}`}>
+                      {a.status}
+                    </span>
+                    {!a.includeInConversionsMetric && (
+                      <span className="ml-1 text-[10px] text-slate-500" title="Not counted in 'Conversions' metric — Smart Bidding ignores it">excluded</span>
+                    )}
+                  </td>
+                  <td className="py-2 pr-2 font-mono text-slate-600 whitespace-nowrap">
+                    {a.eventLabel || <span className="text-slate-400 italic">no label</span>}
+                  </td>
+                  <td className="py-2 pr-2">
+                    {codeFiresHere ? (
+                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${isEnabled ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>
+                        ✅ {kind}{!isEnabled && " (⚠️ but action is orphaned)"}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+                  <td className="py-2 pr-2 text-right tabular-nums text-slate-700">{a.conversions30d.toFixed(0)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Diagnoses */}
+      <div className="mt-4 space-y-2">
+        {(() => {
+          const diags: Array<{ kind: "warn" | "ok"; msg: string }> = [];
+          // For each client label, find where it points.
+          for (const [kind, label] of Object.entries(CLIENT_FIRE_LABELS)) {
+            const target = actions.find(a => a.eventLabel === label);
+            if (!target) {
+              diags.push({ kind: "warn", msg: `Code kind "${kind}" fires to label ${label} — but no conversion action in the account has that label. Nothing is recording.` });
+              continue;
+            }
+            if (target.status !== "ENABLED") {
+              diags.push({ kind: "warn", msg: `Code kind "${kind}" fires to "${target.name}" — but that action is ${target.status}. Fire is not being counted.` });
+              continue;
+            }
+            if (!target.includeInConversionsMetric) {
+              diags.push({ kind: "warn", msg: `Code kind "${kind}" fires to "${target.name}" — it's enabled but NOT included in the "Conversions" metric. Smart Bidding ignores it. Fix: edit action → include in Conversions = Yes.` });
+              continue;
+            }
+            diags.push({ kind: "ok", msg: `"${kind}" → "${target.name}" — healthy, ${target.conversions30d.toFixed(0)} convs in 30d.` });
+          }
+          // Duplicate detection.
+          const nameCounts = new Map<string, number>();
+          for (const a of actions) {
+            const base = a.name.replace(/ \(\d+\)$/, "");
+            nameCounts.set(base, (nameCounts.get(base) || 0) + 1);
+          }
+          nameCounts.forEach((count, base) => {
+            if (count > 1) {
+              diags.push({ kind: "warn", msg: `"${base}" has ${count} versions — clean up duplicates (keep the one your code fires to, delete the others).` });
+            }
+          });
+          return diags.map((d, i) => (
+            <div key={i} className={`text-xs px-3 py-2 rounded border ${d.kind === "warn" ? "bg-amber-50 border-amber-200 text-amber-800" : "bg-emerald-50 border-emerald-200 text-emerald-800"}`}>
+              {d.kind === "warn" ? "⚠️" : "✅"} {d.msg}
+            </div>
+          ));
+        })()}
+      </div>
+    </div>
+  );
+}
 
 function HealthDiagnosisCard({ campaignId }: { campaignId: string }) {
   const q = trpc.marketing.diagnoseCampaignHealth.useQuery(

@@ -1169,6 +1169,106 @@ export type ConversionKind =
   | "Tes Bakat AI Pro purchased"
   | "Student registered";
 
+// ── Conversion action audit ─────────────────────────────────────────────────
+export interface ConversionActionSummary {
+  id: string;
+  resourceName: string;
+  name: string;
+  status: string;         // ENABLED / REMOVED / HIDDEN
+  category: string;       // PURCHASE / SIGN_UP / LEAD / ...
+  type: string;           // WEBPAGE / UPLOAD_CLICKS / GOOGLE_ANALYTICS_4_CUSTOM / ...
+  includeInConversionsMetric: boolean;
+  countingType: string;   // ONE_PER_CLICK / MANY_PER_CLICK
+  defaultValueIdr: number | null;
+  /** Extracted from tag_snippets.event_snippet if present — the "XXXX" in
+   *  send_to: AW-956384648/XXXX. This is the ONE thing you can't get from
+   *  the UI without clicking 5 screens deep. */
+  eventLabel: string | null;
+  /** last 30d conversions from Google Ads' own metric for this action. */
+  conversions30d: number;
+}
+
+/**
+ * Pull every conversion action in the account with its label + counters.
+ * Answers "which of the duplicate actions is the real one, and which label
+ * does my client code need to fire to?" in one call — no more digging
+ * through the Google Ads UI.
+ */
+export async function listConversionActions(): Promise<ConversionActionSummary[]> {
+  const env = readEnv();
+  if (!env) throw new Error("Google Ads not configured");
+
+  // Basics + tag snippet (contains the label).
+  const rows = await search(env, `
+    SELECT conversion_action.id,
+           conversion_action.resource_name,
+           conversion_action.name,
+           conversion_action.status,
+           conversion_action.category,
+           conversion_action.type,
+           conversion_action.include_in_conversions_metric,
+           conversion_action.counting_type,
+           conversion_action.value_settings.default_value,
+           conversion_action.tag_snippets
+    FROM conversion_action
+    WHERE conversion_action.status != 'REMOVED'
+  `);
+
+  // Metrics — separate query because segments.date joins to different data.
+  const metricRows = await search(env, `
+    SELECT conversion_action.id, metrics.all_conversions
+    FROM conversion_action
+    WHERE conversion_action.status != 'REMOVED'
+      AND segments.date DURING LAST_30_DAYS
+  `).catch(() => []);
+  const metricsById = new Map<string, number>();
+  for (const r of metricRows) {
+    const id = String(r.conversionAction?.id || "");
+    if (!id) continue;
+    metricsById.set(id, (metricsById.get(id) || 0) + Number(r.metrics?.allConversions || 0));
+  }
+
+  const out: ConversionActionSummary[] = [];
+  for (const r of rows) {
+    const ca = r.conversionAction || {};
+    const id = String(ca.id || "");
+    if (!id) continue;
+
+    // Extract label from tag_snippets.event_snippet. The snippet is HTML with:
+    //   send_to: 'AW-956384648/XXXX'
+    // Grab the first match.
+    let eventLabel: string | null = null;
+    const snippets: any[] = ca.tagSnippets || [];
+    for (const s of snippets) {
+      const raw = String(s?.eventSnippet || s?.event_snippet || "");
+      const m = raw.match(/AW-\d+\/([A-Za-z0-9_\-]+)/);
+      if (m) { eventLabel = m[1]; break; }
+    }
+
+    out.push({
+      id,
+      resourceName: String(ca.resourceName || ""),
+      name: String(ca.name || ""),
+      status: String(ca.status || "UNKNOWN"),
+      category: String(ca.category || ""),
+      type: String(ca.type || ""),
+      includeInConversionsMetric: Boolean(ca.includeInConversionsMetric),
+      countingType: String(ca.countingType || ""),
+      defaultValueIdr: ca.valueSettings?.defaultValue != null ? Number(ca.valueSettings.defaultValue) : null,
+      eventLabel,
+      conversions30d: metricsById.get(id) || 0,
+    });
+  }
+
+  // Sort: enabled first, then alphabetical.
+  out.sort((a, b) => {
+    if (a.status === "ENABLED" && b.status !== "ENABLED") return -1;
+    if (a.status !== "ENABLED" && b.status === "ENABLED") return 1;
+    return a.name.localeCompare(b.name);
+  });
+  return out;
+}
+
 /**
  * Upload one conversion to Google Ads. Idempotent: Google dedupes by
  * `gclid + conversionAction + gclidDateTime` so re-running with the same
