@@ -1048,7 +1048,7 @@ const AD_GROUP_PRESETS: Record<string, { landingPath: string; groups: PresetAdGr
         ],
         descriptions: [
           "Simulasi IELTS lengkap 4 skill. AI grading sesuai rubrik resmi. Hasil dalam menit.",
-          "Rp 79.000 sekali bayar, no subscription. PDF report komprehensif dengan feedback per skill.",
+          "Rp 79.000 sekali bayar. PDF report komprehensif dengan feedback per skill.",
           "Dari SpecTa Education. Sudah dipercaya 10.000+ siswa Indonesia sejak 2005.",
           "Kerjakan di HP/laptop. Cek prediksi band-mu sebelum tes IELTS resmi.",
         ],
@@ -1315,12 +1315,19 @@ function ExpandStructureCard({
         onClick={() => {
           if (toAdd.length === 0) return alert("Select at least one ad group first.");
           if (!window.confirm(`Add ${toAdd.length} new ad group(s) to "${campaignName}"?\n\n${toAdd.map(g => `• ${g.name} (${g.keywords.length} keywords)`).join("\n")}\n\nFinal URL: ${finalUrl}\n\nAd groups will be ENABLED immediately.`)) return;
+          // Defensive: truncate to Google Ads limits BEFORE hitting the
+          // Zod validator. Real limits: name ≤120, keyword ≤80, headline
+          // ≤30, description ≤90. Any preset that accidentally exceeds
+          // these gets silently trimmed instead of blowing up validation.
           addMutation.mutate({
             campaignId,
             adGroups: toAdd.map(g => ({
-              name: g.name,
-              keywords: g.keywords,
-              rsa: { headlines: g.headlines, descriptions: g.descriptions },
+              name: g.name.slice(0, 120),
+              keywords: g.keywords.map(k => ({ text: k.text.slice(0, 80), matchType: k.matchType })),
+              rsa: {
+                headlines: g.headlines.map(h => h.slice(0, 30)),
+                descriptions: g.descriptions.map(d => d.slice(0, 90)),
+              },
               finalUrl,
             })),
           });
