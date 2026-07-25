@@ -419,22 +419,51 @@ export async function addAdGroupsToCampaign(input: {
 
   const result: AddAdGroupsResult = { campaignId: cid, created: [], errors: [] };
 
+  // Prefetch existing ad groups in this campaign so we can (a) skip
+  // recreating one that already exists and (b) reuse its resource name
+  // to add keywords/ads on retry. Solves the common case where a
+  // previous run created an ad group but the RSA got disapproved
+  // (POLICY_FINDING) — retrying should heal the empty group, not
+  // fail with DUPLICATE_ADGROUP_NAME.
+  const existingRows = await search(env, `
+    SELECT ad_group.id, ad_group.name, ad_group.resource_name
+    FROM ad_group
+    WHERE campaign.id = ${cid} AND ad_group.status != 'REMOVED'
+  `);
+  const existingByName = new Map<string, string>();
+  for (const r of existingRows) {
+    const nm = r.adGroup?.name;
+    const rn = r.adGroup?.resourceName;
+    if (nm && rn) existingByName.set(nm.toLowerCase(), rn);
+  }
+
   for (const ag of input.adGroups) {
     try {
       const bidMicros = ag.cpcBidMicros || String(2000 * 1_000_000);
-      // 1) Create the ad group
-      const agRes = await mutate(env, "adGroups", [{
-        create: {
-          name: String(ag.name).slice(0, 120),
-          campaign: campaignRN,
-          status: "ENABLED",
-          type: "SEARCH_STANDARD",
-          cpcBidMicros: bidMicros,
-        },
-      }]);
-      const agRN = agRes.results[0].resourceName;
+      const trimmedName = String(ag.name).slice(0, 120);
+      const existingRN = existingByName.get(trimmedName.toLowerCase());
+      let agRN: string;
+      let reusedExisting = false;
 
-      // 2) Add keywords
+      if (existingRN) {
+        // 1a) Reuse existing empty/partial ad group instead of failing
+        agRN = existingRN;
+        reusedExisting = true;
+      } else {
+        // 1b) Create the ad group
+        const agRes = await mutate(env, "adGroups", [{
+          create: {
+            name: trimmedName,
+            campaign: campaignRN,
+            status: "ENABLED",
+            type: "SEARCH_STANDARD",
+            cpcBidMicros: bidMicros,
+          },
+        }]);
+        agRN = agRes.results[0].resourceName;
+      }
+
+      // 2) Add keywords (skip individual dup-key errors so retries heal)
       const kwOps = (ag.keywords || []).slice(0, 100).map(k => ({
         create: {
           adGroup: agRN,
@@ -445,7 +474,15 @@ export async function addAdGroupsToCampaign(input: {
           },
         },
       }));
-      if (kwOps.length) await mutate(env, "adGroupCriteria", kwOps);
+      if (kwOps.length) {
+        try {
+          await mutate(env, "adGroupCriteria", kwOps);
+        } catch (e) {
+          // On retry, keywords may already exist — swallow that specific error
+          const msg = (e as Error).message;
+          if (!/DUPLICATE|already exists/i.test(msg)) throw e;
+        }
+      }
 
       // 3) Create the RSA (if provided) — pointing at finalUrl
       let adCreated = false;
@@ -471,7 +508,7 @@ export async function addAdGroupsToCampaign(input: {
       }
 
       result.created.push({
-        name: ag.name,
+        name: ag.name + (reusedExisting ? " (reused existing)" : ""),
         adGroupResourceName: agRN,
         keywordsAdded: kwOps.length,
         adCreated,
