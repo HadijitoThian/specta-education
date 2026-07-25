@@ -8,12 +8,41 @@
  *     email — the result is saved; we regenerate the PDF and re-send)
  *   - Orders table with resend-link / mark-paid actions
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 const emailValid = (e: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
+
+// ── Regen jobs in-flight tracker ──────────────────────────────────────
+// Since regen is fire-and-forget (browser gets instant response, server
+// runs 3-5 min), we track dispatched jobs in localStorage so the UI can
+// show "🚀 Job running for X (2m ago)" and disable duplicate clicks.
+// Auto-clears after 10 min (jobs longer than that = probably failed).
+const JOB_STORE_KEY = "spectaAptitudeRegenJobs";
+const JOB_MAX_AGE_MS = 10 * 60 * 1000;
+
+type RegenJob = { studentEmail: string; sendTo: string; startedAt: number; name?: string };
+
+function loadRunningJobs(): RegenJob[] {
+  try {
+    const raw = localStorage.getItem(JOB_STORE_KEY);
+    if (!raw) return [];
+    const jobs: RegenJob[] = JSON.parse(raw);
+    const now = Date.now();
+    return jobs.filter(j => now - j.startedAt < JOB_MAX_AGE_MS);
+  } catch { return []; }
+}
+function saveRunningJobs(jobs: RegenJob[]) {
+  try { localStorage.setItem(JOB_STORE_KEY, JSON.stringify(jobs)); } catch {}
+}
+function formatElapsed(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  return `${m}m ${s % 60}s ago`;
+}
 
 export default function AptitudeManager() {
   const utils = trpc.useUtils();
@@ -23,6 +52,22 @@ export default function AptitudeManager() {
   const [accessName, setAccessName] = useState("");
   const [resendEmail, setResendEmail] = useState("");
   const [resendToOverride, setResendToOverride] = useState("");
+
+  // In-flight regen jobs (persists across refresh via localStorage)
+  const [runningJobs, setRunningJobs] = useState<RegenJob[]>(() => loadRunningJobs());
+  // Force re-render every 5s so the "Xm Ys ago" labels stay fresh + expired jobs auto-clear
+  const [, setNowTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => {
+      setNowTick(n => n + 1);
+      // Auto-clear expired jobs
+      const jobs = loadRunningJobs();
+      if (jobs.length !== runningJobs.length) {
+        setRunningJobs(jobs);
+      }
+    }, 5000);
+    return () => clearInterval(t);
+  }, [runningJobs.length]);
 
   // Read-only "did this student complete the test?" lookup
   const [lookupInput, setLookupInput] = useState("");
@@ -42,13 +87,29 @@ export default function AptitudeManager() {
   });
   const regenerateAnalysis = trpc.aptitude.regenerateAptitudeAnalysis.useMutation({
     onSuccess: (d: any) => {
+      // Add to in-flight jobs so UI shows "🚀 Job running for X (Ns ago)"
+      // and duplicate clicks for the same email are blocked.
+      const newJob: RegenJob = {
+        studentEmail: d.originalStudentEmail,
+        sendTo: d.email,
+        startedAt: Date.now(),
+        name: d.name,
+      };
+      const jobs = loadRunningJobs().filter(j => j.studentEmail !== newJob.studentEmail).concat([newJob]);
+      saveRunningJobs(jobs);
+      setRunningJobs(jobs);
       toast.success(
         `🚀 Regen JOB STARTED for ${d.name}. Fresh PDF → ${d.email} in 2-6 min. You'll get an owner-notification email when done (success or failure). Watch Railway logs: filter "RegenJob".`,
         { duration: 12000 },
       );
+      // Clear the inputs so it's clearer that the action was received
+      setResendEmail("");
     },
     onError: e => toast.error(`❌ ${e.message}`, { duration: 10000 }),
   });
+
+  // Check if a regen is currently in flight for this student
+  const activeJob = runningJobs.find(j => j.studentEmail.toLowerCase() === resendEmail.trim().toLowerCase());
   const resendLink = trpc.aptitude.resendProAccessLink.useMutation({
     onSuccess: d => { toast.success(`✅ Access link resent to ${d.email}`); utils.aptitude.listProOrders.invalidate(); },
     onError: e => toast.error(`❌ ${e.message}`),
@@ -178,13 +239,57 @@ export default function AptitudeManager() {
                 if (!emailValid(resendEmail.trim())) return toast.error("Enter a valid student email.");
                 const override = resendToOverride.trim();
                 if (override && !emailValid(override)) return toast.error("Enter a valid override email or leave it blank.");
+                if (activeJob) return toast.error(`Job already running for ${resendEmail.trim()} (started ${formatElapsed(Date.now() - activeJob.startedAt)}). Wait for it to complete before retrying.`);
                 if (!window.confirm(`Regenerate FULL analysis for ${resendEmail.trim()}?\n\nThis will START a background job that:\n1. Re-runs the AI analysis (3 attempts with retry)\n2. Overwrites the saved analysis in DB\n3. Generates a fresh 10-15 page PDF\n4. Emails it to ${override || "the student"} (BCC you)\n\nThe browser returns immediately. The job runs on server for 2-6 min.\nYou'll get an owner-notification email when done (success OR failure).\nContinue?`)) return;
                 regenerateAnalysis.mutate({ email: resendEmail.trim(), toOverride: override || undefined, sendApology: true });
               }}
-              disabled={regenerateAnalysis.isPending}
-              className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 text-white text-sm font-semibold px-6 py-2 rounded-lg whitespace-nowrap"
-            >{regenerateAnalysis.isPending ? "Starting job…" : "🔥 Regenerate + Send"}</button>
+              disabled={regenerateAnalysis.isPending || !!activeJob}
+              className="bg-orange-600 hover:bg-orange-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white text-sm font-semibold px-6 py-2 rounded-lg whitespace-nowrap"
+            >{regenerateAnalysis.isPending ? "Starting…" : activeJob ? `⏳ Running (${formatElapsed(Date.now() - activeJob.startedAt)})` : "🔥 Regenerate + Send"}</button>
           </div>
+
+          {/* In-flight regen jobs panel — persists across refresh via localStorage */}
+          {runningJobs.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-orange-200">
+              <div className="text-[11px] font-semibold text-orange-900 uppercase tracking-wide mb-2">
+                🚀 Regen jobs in flight ({runningJobs.length})
+              </div>
+              <div className="space-y-2">
+                {runningJobs.map(j => {
+                  const elapsedMs = Date.now() - j.startedAt;
+                  const isProbablyDone = elapsedMs > 6 * 60 * 1000;  // >6 min = probably finished
+                  return (
+                    <div key={j.studentEmail + j.startedAt} className="flex items-center justify-between gap-3 bg-white border border-orange-200 rounded-lg px-3 py-2 text-xs">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-slate-900 truncate">
+                          {j.name || j.studentEmail}
+                          <span className="ml-2 text-slate-500 font-normal">→ {j.sendTo}</span>
+                        </div>
+                        <div className="text-slate-500 mt-0.5">
+                          {isProbablyDone
+                            ? <span className="text-emerald-700 font-medium">Probably done · check email + Railway logs</span>
+                            : <>Started {formatElapsed(elapsedMs)} · check email in {Math.max(0, 5 - Math.floor(elapsedMs / 60000))}-{Math.max(1, 6 - Math.floor(elapsedMs / 60000))} min</>
+                          }
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const filtered = runningJobs.filter(x => !(x.studentEmail === j.studentEmail && x.startedAt === j.startedAt));
+                          saveRunningJobs(filtered);
+                          setRunningJobs(filtered);
+                        }}
+                        className="text-slate-400 hover:text-slate-600 text-[10px] px-2 py-1 rounded"
+                        title="Remove from list (doesn't cancel the server job)"
+                      >Clear</button>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="text-[10px] text-slate-500 mt-2">
+                💡 Jobs auto-clear from this list after 10 min. Server-side job continues regardless. Confirm success via the owner-notification email or Railway logs (filter: <code>RegenJob</code>).
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
