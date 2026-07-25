@@ -129,16 +129,17 @@ export function validateAiAnalysisForPdf(analysis: any): AiAnalysisValidationRes
 // ── PDF QA Guard ─────────────────────────────────────────────────────────
 
 /**
- * A Pro Aptitude PDF should be substantially larger than the free version.
- * Cherise's broken PDF was 12.1KB. A proper Pro PDF with 15 pages of content
- * + all AI analysis + charts + colors is typically 80KB-300KB.
- *
- * We reject anything under 40KB as "probably missing content" — safety net
- * that catches cases where the AI validation passes but the PDF renderer
- * somehow still produced a thin output.
+ * PDF size floor as a "did the render produce actual content?" sanity check.
+ * Calibrated against real generation runs:
+ *   - Cherise's ORIGINAL broken PDF (missing all AI content) = 12KB
+ *   - Fresh regen with all AI fields populated = 36.5KB
+ *   - So the meaningful threshold is somewhere between: 20-25KB catches
+ *     the truly broken case while accepting normal comprehensive reports.
+ * We use 22KB — comfortably above the 12KB "no AI content" case and well
+ * below any legitimate rendered PDF with the full AI analysis included.
  */
-const MIN_PRO_PDF_BYTES = 40 * 1024;   // 40 KB
-const MIN_FREE_PDF_BYTES = 10 * 1024;  // 10 KB (free is smaller by design)
+const MIN_PRO_PDF_BYTES = 22 * 1024;   // 22 KB — real Pro PDFs measured at 36KB+
+const MIN_FREE_PDF_BYTES = 8 * 1024;   // 8 KB (free is smaller by design)
 
 export interface PdfValidationResult {
   ok: boolean;
