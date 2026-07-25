@@ -3004,17 +3004,10 @@ IMPORTANT:
 - Be warm, encouraging, professional, and thorough throughout
 - This is a PREMIUM paid assessment — quality must exceed free online tests`;
 
-        const aiResponse = await invokeLLM({ model: "deepseek-v4-pro",
-          messages: [
-            { role: "system", content: "You are a world-class career psychologist providing premium aptitude assessments. Always respond with valid JSON only, no markdown formatting." },
-            { role: "user", content: aiPrompt },
-          ],
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: "pro_aptitude_analysis",
-              strict: true,
-              schema: {
+        // JSON schema for the AI response — passed into the reliable runner below.
+        // (Previously used inline with invokeLLM; extracted so the retry loop
+        // can pass it into runAptitudeAiAnalysisReliably().)
+        const proAptitudeJsonSchema = {
                 type: "object",
                 properties: {
                   personalitySnapshot: {
@@ -3077,18 +3070,35 @@ IMPORTANT:
                 },
                 required: ["personalitySnapshot", "bigFiveProfile", "riasecAnalysis", "miAnalysis", "softSkillsAnalysis", "creativeThinkingAnalysis", "valuesAnalysis", "crossDimensionalInsight", "recommendedMajors", "strengthsAndWeaknesses", "learningStyle", "careerOutlook", "parentSummary", "actionPlan"],
                 additionalProperties: false
-              }
-            }
-          }
-        });
+        };
 
-        let aiAnalysis;
+        // Run the AI analysis via the reliable runner — retries up to 3× with
+        // schema validation on each attempt. THROWS if all attempts fail
+        // (instead of silently swallowing the error like the old code did,
+        // which produced the Cherise Felica broken-PDF incident: aiAnalysis
+        // became { error: "..." } → all PDF sections skipped → 4-page PDF).
+        const { runAptitudeAiAnalysisReliably, validateGeneratedPdf } = await import("./aptitudeAiReliability");
+        let aiAnalysis: any;
         try {
-          const rawContent = aiResponse.choices?.[0]?.message?.content;
-          const content = typeof rawContent === "string" ? rawContent : "{}";
-          aiAnalysis = JSON.parse(content);
-        } catch {
-          aiAnalysis = { error: "Failed to parse AI analysis" };
+          const runResult = await runAptitudeAiAnalysisReliably({
+            model: "deepseek-v4-pro",
+            systemPrompt: "You are a world-class career psychologist providing premium aptitude assessments. Always respond with valid JSON only, no markdown formatting.",
+            userPrompt: aiPrompt,
+            jsonSchema: proAptitudeJsonSchema,
+            maxAttempts: 3,
+            studentName: input.studentName,
+            studentEmail: input.studentEmail,
+          });
+          aiAnalysis = runResult.analysis;
+        } catch (aiErr) {
+          // Owner already notified inside runAptitudeAiAnalysisReliably.
+          // Save the raw error state so admin can see + retry via Aptitude Manager.
+          aiAnalysis = { error: (aiErr as Error).message, generatedAt: new Date().toISOString(), needsRetry: true };
+          // Bubble up to the client — better a clear error than a broken PDF.
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Analisis AI sedang bermasalah — tim kami sudah dinotifikasi. Report kamu akan dikirim ulang dalam <1 jam.",
+          });
         }
 
         // Save to database (reuse existing table)
@@ -3137,6 +3147,22 @@ IMPORTANT:
             isPro: true,
           });
           console.log(`[AptitudePro] PDF generated for ${input.studentName} (${pdfBuffer.length} bytes)`);
+
+          // ── PDF QA GUARD ──────────────────────────────────────────────
+          // Reject any PDF <40KB — that's the size threshold below which we
+          // KNOW content sections are missing (Cherise's broken PDF was 12KB).
+          // If it fails, notify owner + throw (client sees clear error, admin
+          // can retry) rather than silently emailing a broken PDF to buyer.
+          const pdfCheck = validateGeneratedPdf(pdfBuffer, true);
+          if (!pdfCheck.ok) {
+            console.error(`[AptitudePro] 🚨 PDF QA guard REJECTED PDF for ${input.studentEmail}: ${pdfCheck.reason}`);
+            notifyOwner({
+              title: `🚨 Aptitude Pro PDF too thin for ${input.studentName}`,
+              content: `PDF generated at only ${(pdfCheck.sizeBytes / 1024).toFixed(1)}KB — likely missing content sections. Order externalId (if any): TBD. Please investigate + regenerate via admin > Aptitude Manager > Resend result. Reason: ${pdfCheck.reason}`,
+            }).catch(() => {});
+            pdfBuffer = undefined;  // don't send broken PDF; email will go without attachment + we'll follow up
+            throw new Error(`PDF QA guard rejected output: ${pdfCheck.reason}`);
+          }
 
           // Upload PDF to S3 for download link
           pdfUrl = await generateAndUploadPdfReport({
@@ -3501,10 +3527,36 @@ IMPORTANT:
         const aiAnalysis = parse(r.aiAnalysis, {});
         const language = (r.language as any) || 'id';
         const hollandCode = r.hollandCode || '';
+        // Import the AI reliability + PDF QA guard helpers (same ones used
+        // in the live analyzeProResults flow — keeps admin resend consistent).
+        const { validateAiAnalysisForPdf, validateGeneratedPdf } = await import("./aptitudeAiReliability");
+
+        // If saved AI analysis is broken (Cherise-style incident: no snapshot,
+        // no majors, etc.), warn admin instead of shipping the same bad PDF.
+        const aiCheck = validateAiAnalysisForPdf(aiAnalysis);
+        if (!aiCheck.ok) {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: `Cannot resend: saved AI analysis is incomplete (missing: ${aiCheck.missingFields.join(", ")}). This student needs a FULL re-analysis — go to Admin > Aptitude Manager > "Regenerate analysis" (coming soon) or contact them to re-take.`,
+          });
+        }
+
         let pdfBuffer: Buffer | undefined;
         try {
           pdfBuffer = await generatePdfReport({ studentName: r.studentName, language, hollandCode, riasecScores, miScores, aiAnalysis, isPro: true });
-        } catch (e) { console.error('[AptitudeResend] PDF generation failed:', e); }
+          // PDF QA guard — same as in the live flow. Rejects thin PDFs (<40KB).
+          const pdfCheck = validateGeneratedPdf(pdfBuffer, true);
+          if (!pdfCheck.ok) {
+            console.error(`[AptitudeResend] 🚨 PDF QA guard REJECTED for ${r.studentEmail}: ${pdfCheck.reason}`);
+            throw new TRPCError({
+              code: 'INTERNAL_SERVER_ERROR',
+              message: `PDF QA failed (${(pdfCheck.sizeBytes / 1024).toFixed(1)}KB, expected ≥40KB): ${pdfCheck.reason}`,
+            });
+          }
+        } catch (e) {
+          console.error('[AptitudeResend] PDF generation failed:', e);
+          throw e; // don't silently send bad PDF — throw so admin sees the error
+        }
         const destination = input.toOverride?.trim() || r.studentEmail;
         // Always BCC the owner on admin-triggered resends — the whole point of
         // hitting Resend from admin is usually "let me also verify what the
