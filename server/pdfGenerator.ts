@@ -134,10 +134,31 @@ interface PdfReportData {
   isPro?: boolean;
 }
 
-// ========== Strip emoji ==========
-function stripEmoji(text: string): string {
-  if (!text) return "";
-  return text
+// ========== Safe string coercion ==========
+// Every text field flowing into pdfmake must be a string. AI responses
+// occasionally return numbers (salaryRange: 5000000) or nested objects
+// (careers: [{name:"..."}]). pdfmake internally calls .replace() on text
+// values — passing a non-string throws "text2.replace is not a function"
+// and aborts PDF generation (the exact bug hit for susankus@yahoo.com regen).
+function safeStr(value: any): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.map(v => safeStr(v)).join(", ");
+  if (typeof value === "object") {
+    if (typeof value.text === "string") return value.text;
+    if (typeof value.name === "string") return value.name;
+    if (typeof value.label === "string") return value.label;
+    try { return JSON.stringify(value); } catch { return ""; }
+  }
+  return String(value);
+}
+
+// ========== Strip emoji (now bulletproof to non-string input) ==========
+function stripEmoji(text: any): string {
+  const s = safeStr(text);
+  if (!s) return "";
+  return s
     .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, "")
     .replace(/[\u2600-\u27BF]/g, "")
     .replace(/[\uFE00-\uFE0F]/g, "")
@@ -248,7 +269,9 @@ function scoreBar(label: string, score: number, barColor: string, bgColor: strin
 }
 
 function majorCard(m: any, index: number, isId: boolean): Content {
-  const cs = m.compatibilityScore || 0;
+  // Coerce compatibilityScore — AI sometimes returns it as a string like "85%".
+  const csRaw = m.compatibilityScore;
+  const cs = typeof csRaw === "number" ? csRaw : parseInt(String(csRaw || "0"), 10) || 0;
   const pillColor = cs >= 85 ? C.green : cs >= 70 ? C.teal : C.amber;
   const items: Content[] = [];
 
@@ -270,7 +293,7 @@ function majorCard(m: any, index: number, isId: boolean): Content {
         layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
         width: 26,
       },
-      { text: m.name || "", fontSize: 12, color: C.dark, bold: true, width: "*", margin: [8, 3, 0, 0] as [number, number, number, number] },
+      { text: safeStr(m.name), fontSize: 12, color: C.dark, bold: true, width: "*", margin: [8, 3, 0, 0] as [number, number, number, number] },
       {
         table: {
           widths: [60],
@@ -301,12 +324,12 @@ function majorCard(m: any, index: number, isId: boolean): Content {
     });
   }
 
-  // Careers as pills
-  if (m.careers?.length) {
+  // Careers as pills — safeStr each entry in case AI returned objects/numbers
+  if (Array.isArray(m.careers) && m.careers.length) {
     items.push({
       columns: [
         { text: isId ? "Karir: " : "Careers: ", fontSize: 8.5, color: C.teal, bold: true, width: 40 },
-        { text: m.careers.join("  |  "), fontSize: 8.5, color: C.gray, width: "*" },
+        { text: m.careers.map((c: any) => safeStr(c)).join("  |  "), fontSize: 8.5, color: C.gray, width: "*" },
       ],
       margin: [34, 0, 0, 4] as [number, number, number, number],
     });
