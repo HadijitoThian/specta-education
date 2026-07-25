@@ -3571,11 +3571,12 @@ IMPORTANT:
       }),
 
     // ---- Admin: REGENERATE full AI analysis for a broken/thin Pro result ----
-    // Cherise-incident backfill: for students whose original AI call failed
-    // silently (aiAnalysis saved as { error: "..." } → 4-page PDF shipped),
-    // this action re-runs the full AI analysis using the reliable runner,
-    // saves the fresh analysis, generates a new PDF, and emails it with an
-    // apology cover note. Also BCCs owner for verification.
+    // Cherise-incident backfill. FIRE-AND-FORGET pattern: returns immediately
+    // so browser doesn't block for 5+ minutes on the AI retry loop. The
+    // actual work runs in the background; owner gets notified via email
+    // (BCC on the fresh PDF) when done, OR notifyOwner alert if it fails.
+    //
+    // Every step logs so we can trace via Railway logs without ambiguity.
     regenerateAptitudeAnalysis: protectedProcedure
       .input(z.object({
         email: z.string().email(),
@@ -3682,69 +3683,105 @@ IMPORTANT: Every section must be deeply personal, reference their specific answe
           additionalProperties: false,
         };
 
-        const { runAptitudeAiAnalysisReliably, validateGeneratedPdf } = await import("./aptitudeAiReliability");
-
-        let freshAnalysis: any;
-        try {
-          const runResult = await runAptitudeAiAnalysisReliably({
-            model: "deepseek-v4-pro",
-            systemPrompt: "You are a world-class career psychologist providing premium aptitude assessments. Always respond with valid JSON only, no markdown formatting.",
-            userPrompt: regenPrompt,
-            jsonSchema: regenSchema,
-            maxAttempts: 3,
-            studentName: r.studentName,
-            studentEmail: r.studentEmail,
-          });
-          freshAnalysis = runResult.analysis;
-        } catch (e) {
-          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `AI regeneration failed: ${(e as Error).message}` });
-        }
-
-        // Save the fresh analysis to the existing result row
-        const { updateAptitudeResultAnalysis } = await import("./db");
-        await updateAptitudeResultAnalysis(r.id, freshAnalysis);
-
-        // Generate fresh PDF + QA check
-        let pdfBuffer: Buffer;
-        try {
-          pdfBuffer = await generatePdfReport({ studentName: r.studentName, language, hollandCode, riasecScores, miScores, aiAnalysis: freshAnalysis, isPro: true });
-          const pdfCheck = validateGeneratedPdf(pdfBuffer, true);
-          if (!pdfCheck.ok) {
-            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Regenerated PDF still too thin (${(pdfCheck.sizeBytes / 1024).toFixed(1)}KB): ${pdfCheck.reason}. Check pdfGenerator.ts template — may be broken.` });
-          }
-        } catch (e) {
-          if (e instanceof TRPCError) throw e;
-          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `PDF regeneration failed: ${(e as Error).message}` });
-        }
-
-        // Email the fresh PDF (with apology cover note if requested)
+        // Compute destination upfront so the sync response can tell owner
+        // where the fresh PDF will land once the background job finishes.
         const destination = input.toOverride?.trim() || r.studentEmail;
-        const ownerBcc = ENV.ownerEmail && ENV.ownerEmail !== destination ? ENV.ownerEmail : undefined;
-        try {
-          await sendAptitudeResultsEmail({
-            to: destination,
-            studentName: r.studentName,
-            language,
-            hollandCode,
-            riasecScores,
-            miScores,
-            aiAnalysis: freshAnalysis,
-            pdfBuffer,
-            isPro: true,
-            bcc: ownerBcc,
-          });
-        } catch (e) {
-          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Email failed: ${(e as Error).message}` });
-        }
 
+        // ── FIRE-AND-FORGET BACKGROUND JOB ──────────────────────────────
+        // The AI + PDF pipeline takes 3-5 minutes. Blocking the tRPC
+        // request for that long causes browser timeouts + zero visibility.
+        // Instead, spawn the work in the background and return immediately.
+        // Every step logs via console.log so we can trace via Railway logs.
+        // On success: fresh PDF arrives in owner + student inbox.
+        // On failure: notifyOwner alert fires.
+        void (async () => {
+          const jobStart = Date.now();
+          const jobTag = `[RegenJob:${r.id}:${r.studentEmail}]`;
+          console.log(`${jobTag} 🚀 Starting background regeneration for ${r.studentName}`);
+
+          try {
+            // Step 1: AI analysis (with retries)
+            console.log(`${jobTag} 🧠 Step 1/4 — running AI analysis (may take 1-5 min with retries)`);
+            const { runAptitudeAiAnalysisReliably, validateGeneratedPdf } = await import("./aptitudeAiReliability");
+            const runResult = await runAptitudeAiAnalysisReliably({
+              model: "deepseek-v4-pro",
+              systemPrompt: "You are a world-class career psychologist providing premium aptitude assessments. Always respond with valid JSON only, no markdown formatting.",
+              userPrompt: regenPrompt,
+              jsonSchema: regenSchema,
+              maxAttempts: 3,
+              studentName: r.studentName,
+              studentEmail: r.studentEmail,
+            });
+            const freshAnalysis = runResult.analysis;
+            console.log(`${jobTag} ✅ Step 1/4 done — AI validated in ${runResult.attemptsUsed} attempt(s), majors=${(freshAnalysis.recommendedMajors || []).length}`);
+
+            // Step 2: Save to DB
+            console.log(`${jobTag} 💾 Step 2/4 — saving fresh analysis to DB`);
+            const { updateAptitudeResultAnalysis } = await import("./db");
+            await updateAptitudeResultAnalysis(r.id, freshAnalysis);
+            console.log(`${jobTag} ✅ Step 2/4 done — DB updated`);
+
+            // Step 3: Generate PDF + QA guard
+            console.log(`${jobTag} 📄 Step 3/4 — generating PDF`);
+            const pdfBuffer = await generatePdfReport({
+              studentName: r.studentName,
+              language,
+              hollandCode,
+              riasecScores,
+              miScores,
+              aiAnalysis: freshAnalysis,
+              isPro: true,
+            });
+            console.log(`${jobTag} 📄 PDF generated: ${(pdfBuffer.length / 1024).toFixed(1)}KB`);
+            const pdfCheck = validateGeneratedPdf(pdfBuffer, true);
+            if (!pdfCheck.ok) {
+              throw new Error(`PDF QA guard rejected: ${pdfCheck.reason}`);
+            }
+            console.log(`${jobTag} ✅ Step 3/4 done — PDF passed QA (${(pdfBuffer.length / 1024).toFixed(1)}KB)`);
+
+            // Step 4: Email
+            console.log(`${jobTag} 📧 Step 4/4 — emailing PDF to ${destination}`);
+            const ownerBcc = ENV.ownerEmail && ENV.ownerEmail !== destination ? ENV.ownerEmail : undefined;
+            await sendAptitudeResultsEmail({
+              to: destination,
+              studentName: r.studentName,
+              language,
+              hollandCode,
+              riasecScores,
+              miScores,
+              aiAnalysis: freshAnalysis,
+              pdfBuffer,
+              isPro: true,
+              bcc: ownerBcc,
+            });
+            const totalSec = Math.round((Date.now() - jobStart) / 1000);
+            console.log(`${jobTag} ✅✅✅ Step 4/4 done — email sent. Total: ${totalSec}s`);
+
+            // Notify owner of success so they know it's ready to check
+            notifyOwner({
+              title: `✅ Aptitude regen SUCCESS: ${r.studentName}`,
+              content: `Fresh ${(pdfBuffer.length / 1024).toFixed(1)}KB PDF with ${(freshAnalysis.recommendedMajors || []).length} majors emailed to ${destination}${ownerBcc ? ` (BCC'd to ${ownerBcc})` : ""}. Total regen time: ${totalSec}s. Check inbox now.`,
+            }).catch(() => {});
+          } catch (jobErr) {
+            const totalSec = Math.round((Date.now() - jobStart) / 1000);
+            const msg = (jobErr as Error).message;
+            console.error(`${jobTag} 🚨 REGEN FAILED after ${totalSec}s: ${msg}`);
+            notifyOwner({
+              title: `🚨 Aptitude regen FAILED: ${r.studentName}`,
+              content: `Background regen for ${r.studentEmail} failed after ${totalSec}s.\n\nError: ${msg}\n\nCheck Railway logs for full trace (filter: [RegenJob:${r.id}]). Retry via admin > Regenerate FULL AI analysis.`,
+            }).catch(() => {});
+          }
+        })();
+
+        // Return immediately — the background job runs on the server for
+        // up to 5-6 minutes; owner gets email + notification when done.
         return {
-          regenerated: true as const,
+          regenerated: false as const,  // job dispatched, not completed
+          jobStarted: true as const,
           email: destination,
           originalStudentEmail: r.studentEmail,
           name: r.studentName,
-          pdfSizeKb: Math.round(pdfBuffer.length / 1024),
-          recommendedMajorsCount: (freshAnalysis.recommendedMajors || []).length,
-          ownerCopied: !!ownerBcc,
+          message: `Regeneration job started for ${r.studentName}. Fresh PDF will arrive at ${destination} in 2-6 minutes. You'll also get an owner-notification email when it completes (success or failure).`,
         };
       }),
   }),

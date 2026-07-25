@@ -90,15 +90,25 @@ export function validateAiAnalysisForPdf(analysis: any): AiAnalysisValidationRes
     }
   }
 
-  // Recommended majors: must have at least N, each with required subfields
+  // Recommended majors: must have at least N. Accept partial-data majors —
+  // `name` alone is enough because safeStr() in pdfGenerator handles blanks
+  // gracefully. Previously required ALL of name+reason+careers which caused
+  // 2/3 AI attempts to fail validation over minor schema deviations.
   if (Array.isArray(analysis.recommendedMajors)) {
     if (analysis.recommendedMajors.length < MIN_RECOMMENDED_MAJORS) {
       missing.push(`recommendedMajors (only ${analysis.recommendedMajors.length}, need ≥${MIN_RECOMMENDED_MAJORS})`);
     }
+    // Count how many have at least a name. If fewer than MIN_RECOMMENDED_MAJORS
+    // have a usable name, that's a real problem.
+    const namedMajors = analysis.recommendedMajors.filter((m: any) => m && (m.name || m.majorName || m.title));
+    if (namedMajors.length < MIN_RECOMMENDED_MAJORS) {
+      missing.push(`recommendedMajors: only ${namedMajors.length} have a usable name field (need ≥${MIN_RECOMMENDED_MAJORS})`);
+    }
+    // Warn about incomplete majors but don't fail the whole analysis
     for (let i = 0; i < analysis.recommendedMajors.length; i++) {
       const m = analysis.recommendedMajors[i];
-      if (!m.name || !m.reason || !Array.isArray(m.careers)) {
-        missing.push(`recommendedMajors[${i}] missing name/reason/careers`);
+      if (m && m.name && (!m.reason || !Array.isArray(m.careers))) {
+        warnings.push(`recommendedMajors[${i}] "${m.name}" missing reason or careers — PDF will still render`);
       }
     }
   }

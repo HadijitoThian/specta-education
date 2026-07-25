@@ -42,7 +42,10 @@ export default function AptitudeManager() {
   });
   const regenerateAnalysis = trpc.aptitude.regenerateAptitudeAnalysis.useMutation({
     onSuccess: (d: any) => {
-      toast.success(`✅ REGENERATED for ${d.name}: new PDF is ${d.pdfSizeKb}KB with ${d.recommendedMajorsCount} majors. Sent to ${d.email}${d.ownerCopied ? " (BCC'd to owner)" : ""}.`, { duration: 8000 });
+      toast.success(
+        `🚀 Regen JOB STARTED for ${d.name}. Fresh PDF → ${d.email} in 2-6 min. You'll get an owner-notification email when done (success or failure). Watch Railway logs: filter "RegenJob".`,
+        { duration: 12000 },
+      );
     },
     onError: e => toast.error(`❌ ${e.message}`, { duration: 10000 }),
   });
@@ -175,12 +178,12 @@ export default function AptitudeManager() {
                 if (!emailValid(resendEmail.trim())) return toast.error("Enter a valid student email.");
                 const override = resendToOverride.trim();
                 if (override && !emailValid(override)) return toast.error("Enter a valid override email or leave it blank.");
-                if (!window.confirm(`Regenerate FULL analysis for ${resendEmail.trim()}?\n\nThis will:\n1. Re-run the AI analysis (3 attempts with retry)\n2. Overwrite the saved analysis in DB\n3. Generate a fresh 10-15 page PDF\n4. Email it to ${override || "the student"}\n5. BCC you (owner)\n\nMay take 30-90 seconds. Continue?`)) return;
+                if (!window.confirm(`Regenerate FULL analysis for ${resendEmail.trim()}?\n\nThis will START a background job that:\n1. Re-runs the AI analysis (3 attempts with retry)\n2. Overwrites the saved analysis in DB\n3. Generates a fresh 10-15 page PDF\n4. Emails it to ${override || "the student"} (BCC you)\n\nThe browser returns immediately. The job runs on server for 2-6 min.\nYou'll get an owner-notification email when done (success OR failure).\nContinue?`)) return;
                 regenerateAnalysis.mutate({ email: resendEmail.trim(), toOverride: override || undefined, sendApology: true });
               }}
               disabled={regenerateAnalysis.isPending}
               className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 text-white text-sm font-semibold px-6 py-2 rounded-lg whitespace-nowrap"
-            >{regenerateAnalysis.isPending ? "Regenerating (30-90s)…" : "🔥 Regenerate + Send"}</button>
+            >{regenerateAnalysis.isPending ? "Starting job…" : "🔥 Regenerate + Send"}</button>
           </div>
         </div>
       </div>
