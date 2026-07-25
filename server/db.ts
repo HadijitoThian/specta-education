@@ -1789,6 +1789,29 @@ export async function getAllAptitudeResults(): Promise<AptitudeResult[]> {
 }
 
 /**
+ * Update the aiAnalysis + derived fields for an existing aptitude result.
+ * Used by the "Regenerate full analysis" admin action to backfill records
+ * where the original AI call failed (e.g. the Cherise incident where
+ * aiAnalysis was silently saved as `{ error: "Failed to parse" }`).
+ */
+export async function updateAptitudeResultAnalysis(
+  id: number,
+  aiAnalysis: any,
+): Promise<AptitudeResult | null> {
+  const db = await getDb();
+  if (!db) return null;
+  await db.update(aptitudeResults).set({
+    aiAnalysis: JSON.stringify(aiAnalysis),
+    personalitySnapshot: aiAnalysis?.personalitySnapshot ? JSON.stringify(aiAnalysis.personalitySnapshot) : null,
+    recommendedMajors: JSON.stringify(aiAnalysis?.recommendedMajors || []),
+    careerOutlook: aiAnalysis?.careerOutlook || null,
+    parentSummary: aiAnalysis?.parentSummary || null,
+  }).where(eq(aptitudeResults.id, id));
+  const [row] = await db.select().from(aptitudeResults).where(eq(aptitudeResults.id, id));
+  return row || null;
+}
+
+/**
  * Returns only aptitude results that have NOT yet been assigned to a counselor.
  * Used by the CRM agent to prevent re-processing already-assigned results.
  */

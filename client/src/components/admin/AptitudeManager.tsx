@@ -40,6 +40,12 @@ export default function AptitudeManager() {
     onSuccess: d => { toast.success(`✅ Result re-sent to ${d.name} (${d.email})`); setResendEmail(""); },
     onError: e => toast.error(`❌ ${e.message}`),
   });
+  const regenerateAnalysis = trpc.aptitude.regenerateAptitudeAnalysis.useMutation({
+    onSuccess: (d: any) => {
+      toast.success(`✅ REGENERATED for ${d.name}: new PDF is ${d.pdfSizeKb}KB with ${d.recommendedMajorsCount} majors. Sent to ${d.email}${d.ownerCopied ? " (BCC'd to owner)" : ""}.`, { duration: 8000 });
+    },
+    onError: e => toast.error(`❌ ${e.message}`, { duration: 10000 }),
+  });
   const resendLink = trpc.aptitude.resendProAccessLink.useMutation({
     onSuccess: d => { toast.success(`✅ Access link resent to ${d.email}`); utils.aptitude.listProOrders.invalidate(); },
     onError: e => toast.error(`❌ ${e.message}`),
@@ -138,6 +144,43 @@ export default function AptitudeManager() {
               disabled={resendResult.isPending}
               className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white text-sm font-medium px-4 py-2 rounded-lg"
             >{resendResult.isPending ? "Sending…" : (resendToOverride.trim() ? "Send copy to me" : "Resend to student")}</button>
+          </div>
+        </div>
+
+        {/* 🔥 REGENERATE FULL ANALYSIS — for broken PDFs (e.g. Cherise incident) */}
+        <div className="bg-white border-2 border-orange-300 rounded-xl p-5 md:col-span-2">
+          <h3 className="font-semibold text-sm text-orange-900">🔥 Regenerate FULL AI analysis (fix broken PDFs)</h3>
+          <p className="text-xs text-orange-700 mt-0.5 mb-3">
+            For students whose original PDF is broken/thin (missing majors, career outlook, parent summary — i.e. only 4 pages).
+            This re-runs the full AI analysis with the new reliable pipeline, overwrites the saved analysis, generates a fresh
+            PDF, and emails it (BCC'd to you). Use this to fix Cherise Felica Daulat + any other affected buyers.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="email"
+              placeholder="student email (finds most recent Pro result)"
+              value={resendEmail}
+              onChange={e => setResendEmail(e.target.value)}
+              className="flex-1 px-3 py-2 border border-orange-300 rounded-lg text-sm"
+            />
+            <input
+              type="email"
+              placeholder="send to me instead (optional)"
+              value={resendToOverride}
+              onChange={e => setResendToOverride(e.target.value)}
+              className="flex-1 px-3 py-2 border border-orange-300 rounded-lg text-sm"
+            />
+            <button
+              onClick={() => {
+                if (!emailValid(resendEmail.trim())) return toast.error("Enter a valid student email.");
+                const override = resendToOverride.trim();
+                if (override && !emailValid(override)) return toast.error("Enter a valid override email or leave it blank.");
+                if (!window.confirm(`Regenerate FULL analysis for ${resendEmail.trim()}?\n\nThis will:\n1. Re-run the AI analysis (3 attempts with retry)\n2. Overwrite the saved analysis in DB\n3. Generate a fresh 10-15 page PDF\n4. Email it to ${override || "the student"}\n5. BCC you (owner)\n\nMay take 30-90 seconds. Continue?`)) return;
+                regenerateAnalysis.mutate({ email: resendEmail.trim(), toOverride: override || undefined, sendApology: true });
+              }}
+              disabled={regenerateAnalysis.isPending}
+              className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 text-white text-sm font-semibold px-6 py-2 rounded-lg whitespace-nowrap"
+            >{regenerateAnalysis.isPending ? "Regenerating (30-90s)…" : "🔥 Regenerate + Send"}</button>
           </div>
         </div>
       </div>

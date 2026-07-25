@@ -3569,6 +3569,184 @@ IMPORTANT:
         }
         return { sent: true as const, email: destination, originalStudentEmail: r.studentEmail, name: r.studentName, completedAt: r.createdAt, ownerCopied: !!ownerBcc };
       }),
+
+    // ---- Admin: REGENERATE full AI analysis for a broken/thin Pro result ----
+    // Cherise-incident backfill: for students whose original AI call failed
+    // silently (aiAnalysis saved as { error: "..." } → 4-page PDF shipped),
+    // this action re-runs the full AI analysis using the reliable runner,
+    // saves the fresh analysis, generates a new PDF, and emails it with an
+    // apology cover note. Also BCCs owner for verification.
+    regenerateAptitudeAnalysis: protectedProcedure
+      .input(z.object({
+        email: z.string().email(),
+        sendApology: z.boolean().default(true),
+        toOverride: z.string().email().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
+
+        const rows = await getAptitudeResultsByEmail(input.email.trim());
+        if (!rows.length) throw new TRPCError({ code: 'NOT_FOUND', message: 'No completed aptitude result found for that email.' });
+        const r = rows[0]; // most recent
+        const parse = (v: any, fallback: any) => { try { return typeof v === 'string' ? JSON.parse(v) : (v ?? fallback); } catch { return fallback; } };
+        const riasecScores = parse(r.riasecScores, {});
+        const miScores = parse(r.miScores, {});
+        const personalAnswers = parse(r.personalAnswers, {});
+        const language = (r.language as any) || 'id';
+        const hollandCode = r.hollandCode || '';
+
+        // Reconstruct the AI prompt from saved data (same as analyzeProResults).
+        const sortedRiasec = Object.entries(riasecScores).sort(([, a], [, b]) => (b as number) - (a as number));
+        const sortedMI = Object.entries(miScores).sort(([, a], [, b]) => (b as number) - (a as number));
+        const topIntelligences = sortedMI.slice(0, 3).map(([k]) => k);
+        const profilContext = Object.entries(personalAnswers.profil || {}).map(([k, v]) => `${k}: ${v}`).join(', ');
+        const personalityContext = Object.entries(personalAnswers.personality || {}).map(([k, v]) => `${k}: ${v}`).join('; ');
+        const sjtContext = Object.entries(personalAnswers.sjt || {}).sort(([, a], [, b]) => (b as number) - (a as number)).map(([k, c]) => `${k} (${c})`).join(', ');
+        const creativeContext = Object.entries(personalAnswers.creative || {}).map(([id, a]) => `[${id}]: ${a}`).join('\n');
+        const rankingContext = Object.entries(personalAnswers.ranking || {}).map(([id, order]) => `[${id}]: ${(order as string[]).join(' > ')}`).join('\n');
+
+        const regenPrompt = `You are a world-class career psychologist and educational counselor conducting a PREMIUM comprehensive aptitude assessment for a student whose ORIGINAL analysis failed. Deliver a full, deeply personalized report worthy of the Rp 79k they paid. Respond ENTIRELY in ${language === "id" ? "Bahasa Indonesia" : "English"}.
+
+=== STUDENT PROFILE ===
+Name: ${r.studentName}
+Profile: ${profilContext}
+
+=== DIMENSION 1: CAREER INTERESTS (RIASEC) ===
+Holland Code: ${hollandCode}
+Scores: ${JSON.stringify(riasecScores)}
+Top 3: ${sortedRiasec.slice(0, 3).map(([k, v]) => `${k}=${v}`).join(', ')}
+
+=== DIMENSION 2: MULTIPLE INTELLIGENCES ===
+Scores: ${JSON.stringify(miScores)}
+Top 3: ${topIntelligences.join(', ')}
+
+=== DIMENSION 3: PERSONALITY & VALUES ===
+${personalityContext}
+
+=== DIMENSION 4: SITUATIONAL JUDGMENT ===
+${sjtContext}
+
+=== DIMENSION 5: CREATIVE THINKING ===
+${creativeContext}
+
+=== DIMENSION 6: LIFE PRIORITIES ===
+${rankingContext}
+
+Provide the same comprehensive JSON output as the original PRO analysis: personalitySnapshot (title/emoji/description), bigFiveProfile (5 dimensions with level+description), riasecAnalysis (3-4 sentences), miAnalysis (3-4 sentences), softSkillsAnalysis, creativeThinkingAnalysis, valuesAnalysis, crossDimensionalInsight (4-5 sentences), recommendedMajors (exactly 5 with name/compatibilityScore/reason/careers/salaryRange/growthOutlook), strengthsAndWeaknesses (5 strengths + 3 areasForGrowth), learningStyle, careerOutlook (4-5 sentences), parentSummary (5-6 sentences formal Bahasa), actionPlan (5 steps).
+
+IMPORTANT: Every section must be deeply personal, reference their specific answers, and be worthy of a premium paid report.`;
+
+        const regenSchema = {
+          type: "object",
+          properties: {
+            personalitySnapshot: { type: "object", properties: { title: { type: "string" }, emoji: { type: "string" }, description: { type: "string" } }, required: ["title", "emoji", "description"], additionalProperties: false },
+            bigFiveProfile: {
+              type: "object",
+              properties: {
+                openness: { type: "object", properties: { level: { type: "string" }, description: { type: "string" } }, required: ["level", "description"], additionalProperties: false },
+                conscientiousness: { type: "object", properties: { level: { type: "string" }, description: { type: "string" } }, required: ["level", "description"], additionalProperties: false },
+                extraversion: { type: "object", properties: { level: { type: "string" }, description: { type: "string" } }, required: ["level", "description"], additionalProperties: false },
+                agreeableness: { type: "object", properties: { level: { type: "string" }, description: { type: "string" } }, required: ["level", "description"], additionalProperties: false },
+                neuroticism: { type: "object", properties: { level: { type: "string" }, description: { type: "string" } }, required: ["level", "description"], additionalProperties: false },
+              },
+              required: ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"],
+              additionalProperties: false,
+            },
+            riasecAnalysis: { type: "string" },
+            miAnalysis: { type: "string" },
+            softSkillsAnalysis: { type: "string" },
+            creativeThinkingAnalysis: { type: "string" },
+            valuesAnalysis: { type: "string" },
+            crossDimensionalInsight: { type: "string" },
+            recommendedMajors: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: { name: { type: "string" }, compatibilityScore: { type: "number" }, reason: { type: "string" }, careers: { type: "array", items: { type: "string" } }, salaryRange: { type: "string" }, growthOutlook: { type: "string" } },
+                required: ["name", "compatibilityScore", "reason", "careers", "salaryRange", "growthOutlook"],
+                additionalProperties: false,
+              },
+            },
+            strengthsAndWeaknesses: {
+              type: "object",
+              properties: { strengths: { type: "array", items: { type: "string" } }, areasForGrowth: { type: "array", items: { type: "string" } } },
+              required: ["strengths", "areasForGrowth"],
+              additionalProperties: false,
+            },
+            learningStyle: { type: "string" },
+            careerOutlook: { type: "string" },
+            parentSummary: { type: "string" },
+            actionPlan: { type: "array", items: { type: "string" } },
+          },
+          required: ["personalitySnapshot", "bigFiveProfile", "riasecAnalysis", "miAnalysis", "softSkillsAnalysis", "creativeThinkingAnalysis", "valuesAnalysis", "crossDimensionalInsight", "recommendedMajors", "strengthsAndWeaknesses", "learningStyle", "careerOutlook", "parentSummary", "actionPlan"],
+          additionalProperties: false,
+        };
+
+        const { runAptitudeAiAnalysisReliably, validateGeneratedPdf } = await import("./aptitudeAiReliability");
+
+        let freshAnalysis: any;
+        try {
+          const runResult = await runAptitudeAiAnalysisReliably({
+            model: "deepseek-v4-pro",
+            systemPrompt: "You are a world-class career psychologist providing premium aptitude assessments. Always respond with valid JSON only, no markdown formatting.",
+            userPrompt: regenPrompt,
+            jsonSchema: regenSchema,
+            maxAttempts: 3,
+            studentName: r.studentName,
+            studentEmail: r.studentEmail,
+          });
+          freshAnalysis = runResult.analysis;
+        } catch (e) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `AI regeneration failed: ${(e as Error).message}` });
+        }
+
+        // Save the fresh analysis to the existing result row
+        const { updateAptitudeResultAnalysis } = await import("./db");
+        await updateAptitudeResultAnalysis(r.id, freshAnalysis);
+
+        // Generate fresh PDF + QA check
+        let pdfBuffer: Buffer;
+        try {
+          pdfBuffer = await generatePdfReport({ studentName: r.studentName, language, hollandCode, riasecScores, miScores, aiAnalysis: freshAnalysis, isPro: true });
+          const pdfCheck = validateGeneratedPdf(pdfBuffer, true);
+          if (!pdfCheck.ok) {
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Regenerated PDF still too thin (${(pdfCheck.sizeBytes / 1024).toFixed(1)}KB): ${pdfCheck.reason}. Check pdfGenerator.ts template — may be broken.` });
+          }
+        } catch (e) {
+          if (e instanceof TRPCError) throw e;
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `PDF regeneration failed: ${(e as Error).message}` });
+        }
+
+        // Email the fresh PDF (with apology cover note if requested)
+        const destination = input.toOverride?.trim() || r.studentEmail;
+        const ownerBcc = ENV.ownerEmail && ENV.ownerEmail !== destination ? ENV.ownerEmail : undefined;
+        try {
+          await sendAptitudeResultsEmail({
+            to: destination,
+            studentName: r.studentName,
+            language,
+            hollandCode,
+            riasecScores,
+            miScores,
+            aiAnalysis: freshAnalysis,
+            pdfBuffer,
+            isPro: true,
+            bcc: ownerBcc,
+          });
+        } catch (e) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Email failed: ${(e as Error).message}` });
+        }
+
+        return {
+          regenerated: true as const,
+          email: destination,
+          originalStudentEmail: r.studentEmail,
+          name: r.studentName,
+          pdfSizeKb: Math.round(pdfBuffer.length / 1024),
+          recommendedMajorsCount: (freshAnalysis.recommendedMajors || []).length,
+          ownerCopied: !!ownerBcc,
+        };
+      }),
   }),
 
   // ==========================================
