@@ -3635,6 +3635,12 @@ ${rankingContext}
 
 Provide the same comprehensive JSON output as the original PRO analysis: personalitySnapshot (title/emoji/description), bigFiveProfile (5 dimensions with level+description), riasecAnalysis (3-4 sentences), miAnalysis (3-4 sentences), softSkillsAnalysis, creativeThinkingAnalysis, valuesAnalysis, crossDimensionalInsight (4-5 sentences), recommendedMajors (exactly 5 with name/compatibilityScore/reason/careers/salaryRange/growthOutlook), strengthsAndWeaknesses (5 strengths + 3 areasForGrowth), learningStyle, careerOutlook (4-5 sentences), parentSummary (5-6 sentences formal Bahasa), actionPlan (5 steps).
 
+CRITICAL FORMAT RULES:
+- compatibilityScore is a NUMBER between 75 and 98 (percentage, NOT 0-10 scale, NOT 0-1 scale). The top-recommended major should be 90-98. The 5th should be 75-85. Values MUST be varied (not all the same).
+- recommendedMajors must be an ARRAY of 5 objects, ordered by compatibilityScore DESC (highest first).
+- careers must be an ARRAY of 3-5 STRING values (profession names), not objects.
+- salaryRange must be a STRING like "Rp 5.000.000 - Rp 20.000.000/bulan", NOT a raw number.
+
 IMPORTANT: Every section must be deeply personal, reference their specific answers, and be worthy of a premium paid report.`;
 
         const regenSchema = {

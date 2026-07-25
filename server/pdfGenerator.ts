@@ -269,9 +269,20 @@ function scoreBar(label: string, score: number, barColor: string, bgColor: strin
 }
 
 function majorCard(m: any, index: number, isId: boolean): Content {
-  // Coerce compatibilityScore — AI sometimes returns it as a string like "85%".
+  // Coerce compatibilityScore + AUTO-NORMALIZE to 0-100 scale.
+  // AI sometimes returns it as:
+  //   - "85%" (string with %) → 85
+  //   - 85 (number, correct scale) → 85
+  //   - 9 or 8.5 (number, 0-10 scale — misinterpreted) → 90, 85
+  //   - 0.85 (number, 0-1 scale — misinterpreted) → 85
+  // Rule: if value <= 1, treat as fraction. If <= 10, treat as x/10. Else 0-100.
   const csRaw = m.compatibilityScore;
-  const cs = typeof csRaw === "number" ? csRaw : parseInt(String(csRaw || "0"), 10) || 0;
+  let cs = typeof csRaw === "number" ? csRaw : parseFloat(String(csRaw || "").replace("%", "")) || 0;
+  if (cs > 0 && cs <= 1) cs = cs * 100;             // 0.85 → 85
+  else if (cs > 1 && cs <= 10) cs = cs * 10;         // 9 → 90, 8.5 → 85
+  cs = Math.round(cs);
+  if (cs > 100) cs = 100;
+  if (cs < 0) cs = 0;
   const pillColor = cs >= 85 ? C.green : cs >= 70 ? C.teal : C.amber;
   const items: Content[] = [];
 
