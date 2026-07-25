@@ -376,6 +376,114 @@ export async function pushCampaignLive(campaign: AdCampaign): Promise<{ campaign
   return { campaignResourceName: campaignRN };
 }
 
+// ── Add ad groups to an existing campaign ───────────────────────────────────
+export interface NewAdGroupInput {
+  name: string;
+  cpcBidMicros?: string;                     // default to 2000 micros × 1M
+  keywords: Array<{ text: string; matchType: "phrase" | "exact" | "broad" }>;
+  rsa?: {
+    headlines: string[];                     // 3-15, each ≤30 chars
+    descriptions: string[];                  // 2-4, each ≤90 chars
+    path1?: string;
+    path2?: string;
+  };
+  finalUrl: string;                          // absolute URL for the RSA
+}
+
+export interface AddAdGroupsResult {
+  campaignId: string;
+  created: Array<{ name: string; adGroupResourceName: string; keywordsAdded: number; adCreated: boolean }>;
+  errors: Array<{ name: string; error: string }>;
+}
+
+/**
+ * Add one or more ad groups (with keywords + RSA) to an EXISTING campaign.
+ * Extracted from pushCampaignLive() so we can grow campaigns that were
+ * launched under-structured (e.g. only 1 ad group when they should have
+ * 3-5 tightly-themed groups for better Quality Score).
+ *
+ * Idempotency: Google Ads REJECTS duplicate ad group names in the same
+ * campaign, so re-running with the same name errors out — safe to retry
+ * partial failures. Per-group errors are collected instead of thrown so
+ * that a bad ad group doesn't block the others.
+ */
+export async function addAdGroupsToCampaign(input: {
+  campaignId: string;
+  adGroups: NewAdGroupInput[];
+}): Promise<AddAdGroupsResult> {
+  const env = readEnv();
+  if (!env) throw new Error("Google Ads not configured");
+  const cid = input.campaignId.replace(/\D/g, "");
+  if (!cid) throw new Error("Invalid campaignId");
+  const campaignRN = `customers/${env.customerId}/campaigns/${cid}`;
+
+  const result: AddAdGroupsResult = { campaignId: cid, created: [], errors: [] };
+
+  for (const ag of input.adGroups) {
+    try {
+      const bidMicros = ag.cpcBidMicros || String(2000 * 1_000_000);
+      // 1) Create the ad group
+      const agRes = await mutate(env, "adGroups", [{
+        create: {
+          name: String(ag.name).slice(0, 120),
+          campaign: campaignRN,
+          status: "ENABLED",
+          type: "SEARCH_STANDARD",
+          cpcBidMicros: bidMicros,
+        },
+      }]);
+      const agRN = agRes.results[0].resourceName;
+
+      // 2) Add keywords
+      const kwOps = (ag.keywords || []).slice(0, 100).map(k => ({
+        create: {
+          adGroup: agRN,
+          status: "ENABLED",
+          keyword: {
+            text: String(k.text).slice(0, 80),
+            matchType: (k.matchType || "phrase").toUpperCase(),
+          },
+        },
+      }));
+      if (kwOps.length) await mutate(env, "adGroupCriteria", kwOps);
+
+      // 3) Create the RSA (if provided) — pointing at finalUrl
+      let adCreated = false;
+      if (ag.rsa && ag.rsa.headlines?.length >= 3 && ag.rsa.descriptions?.length >= 2) {
+        const headlines = ag.rsa.headlines.slice(0, 15).map(t => ({ text: String(t).slice(0, 30) }));
+        const descriptions = ag.rsa.descriptions.slice(0, 4).map(t => ({ text: String(t).slice(0, 90) }));
+        await mutate(env, "adGroupAds", [{
+          create: {
+            adGroup: agRN,
+            status: "ENABLED",
+            ad: {
+              finalUrls: [ag.finalUrl],
+              responsiveSearchAd: {
+                headlines,
+                descriptions,
+                ...(ag.rsa.path1 ? { path1: String(ag.rsa.path1).slice(0, 15) } : {}),
+                ...(ag.rsa.path2 ? { path2: String(ag.rsa.path2).slice(0, 15) } : {}),
+              },
+            },
+          },
+        }]);
+        adCreated = true;
+      }
+
+      result.created.push({
+        name: ag.name,
+        adGroupResourceName: agRN,
+        keywordsAdded: kwOps.length,
+        adCreated,
+      });
+    } catch (e) {
+      result.errors.push({ name: ag.name, error: (e as Error).message });
+    }
+  }
+
+  return result;
+}
+
 // ── D3: AI optimizer (Advisor mode — suggests, you approve) ──────────────────
 export interface AdRec {
   type: "pause_keyword" | "scale_budget";

@@ -6,6 +6,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import viteConfig from "../../vite.config";
 import { injectSeoMetaAsync } from "../seoMetaInjector";
+import { hostToBrand, brandInjectionScript } from "../hostRouter";
 
 export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
@@ -41,6 +42,10 @@ export async function setupVite(app: Express, server: Server) {
       );
       // Inject page-specific SEO meta tags before Vite transforms
       template = await injectSeoMetaAsync(template, url);
+      // Inject brand context so the React app knows which brand shell to mount
+      // (SpecTaApp for spectaeducation.com, TestPrepApp for testprep.id, etc.)
+      const brand = hostToBrand(req.headers.host);
+      template = template.replace("</head>", `${brandInjectionScript(brand)}</head>`);
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
@@ -90,6 +95,9 @@ export function serveStatic(app: Express) {
     const indexPath = path.resolve(distPath, "index.html");
     let html = fs.readFileSync(indexPath, "utf-8");
     html = await injectSeoMetaAsync(html, req.originalUrl);
+    // Inject brand context so the React app knows which brand shell to mount.
+    const brand = hostToBrand(req.headers.host);
+    html = html.replace("</head>", `${brandInjectionScript(brand)}</head>`);
     res.status(200).set({
       "Content-Type": "text/html",
       // Always revalidate index.html so clients pick up new asset hashes

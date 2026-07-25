@@ -473,6 +473,14 @@ function CampaignEditor({
       {/* ── Row 0: AI Health Diagnosis ────────────────────────────────── */}
       <HealthDiagnosisCard campaignId={campaignId} />
 
+      {/* ── Row 0.5: Expand Campaign Structure (add ad groups) ────────── */}
+      <ExpandStructureCard
+        campaignId={campaignId}
+        campaignName={campaignName}
+        currentUrls={currentUrls as string[]}
+        onRefresh={refreshAll}
+      />
+
       {/* ── Row 1: Landing URL + Campaign controls ────────────────────── */}
       <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-white rounded border border-slate-200 p-4">
@@ -986,6 +994,342 @@ function HealthDiagnosisCard({ campaignId }: { campaignId: string }) {
           </div>
         </details>
       )}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Expand Structure — add new ad groups to an existing campaign
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Curated ad-group presets per product family. Each preset is a proven-good
+ * theme with 4-8 Bahasa Indonesia keywords + a themed RSA. Owner picks which
+ * to add; server pushes them via addAdGroupsToCampaign.
+ */
+type PresetAdGroup = {
+  key: string;
+  name: string;
+  theme: string;               // one-line description
+  keywords: Array<{ text: string; matchType: "phrase" | "exact" | "broad" }>;
+  headlines: string[];         // themed to this ad group
+  descriptions: string[];      // shared across an ad group
+};
+
+const AD_GROUP_PRESETS: Record<string, { landingPath: string; groups: PresetAdGroup[] }> = {
+  "ielts-mock": {
+    landingPath: "/ielts/mock-test",
+    groups: [
+      {
+        key: "simulasi",
+        name: "Simulasi IELTS",
+        theme: "Users searching for full IELTS exam simulation",
+        keywords: [
+          { text: "simulasi ielts", matchType: "phrase" },
+          { text: "simulasi test ielts", matchType: "phrase" },
+          { text: "simulasi ielts online", matchType: "phrase" },
+          { text: "tes simulasi ielts", matchType: "broad" },
+          { text: "ielts simulasi", matchType: "phrase" },
+          { text: "simulasi ielts gratis", matchType: "broad" },
+        ],
+        headlines: [
+          "Simulasi IELTS Online",
+          "Simulasi IELTS AI Grading",
+          "4 Skill: L/R/W/S",
+          "Hasil + Report Instan",
+          "Rp 79.000 Sekali Bayar",
+          "AI Grading Sesuai Rubrik",
+          "PDF Report Profesional",
+          "Prediksi Band Akurat",
+          "SpecTa Since 2005",
+          "10.000+ Siswa Terbantu",
+          "Coba Sekarang →",
+          "Kerjakan Kapan Aja",
+        ],
+        descriptions: [
+          "Simulasi IELTS lengkap 4 skill. AI grading sesuai rubrik resmi. Hasil dalam menit.",
+          "Rp 79.000 sekali bayar, no subscription. PDF report komprehensif dengan feedback per skill.",
+          "Dari SpecTa Education. Sudah dipercaya 10.000+ siswa Indonesia sejak 2005.",
+          "Kerjakan di HP/laptop. Cek prediksi band-mu sebelum tes IELTS resmi.",
+        ],
+      },
+      {
+        key: "prediksi",
+        name: "Prediksi Skor IELTS",
+        theme: "High-intent — users who want to check their band before real exam",
+        keywords: [
+          { text: "prediksi skor ielts", matchType: "phrase" },
+          { text: "prediksi band ielts", matchType: "phrase" },
+          { text: "tes prediksi ielts", matchType: "phrase" },
+          { text: "cek skor ielts", matchType: "broad" },
+          { text: "test skor ielts", matchType: "broad" },
+          { text: "cek band ielts", matchType: "phrase" },
+        ],
+        headlines: [
+          "Prediksi Skor IELTS Kamu",
+          "Cek Band IELTS Sekarang",
+          "Tes Prediksi IELTS AI",
+          "Skor Prediksi Rp 79k",
+          "Akurat Sesuai Rubrik",
+          "AI Grading 4 Skill",
+          "Report Dalam Menit",
+          "Sebelum Tes Resmi",
+          "PDF Report Lengkap",
+          "SpecTa Since 2005",
+          "10rb+ Siswa Terpercaya",
+          "Kerjakan Kapan Aja",
+        ],
+        descriptions: [
+          "Cek prediksi band IELTS kamu sebelum ambil tes resmi. AI grading akurat, Rp 79k.",
+          "Full 4-skill mock test. Hasil + PDF report profesional dikirim ke email instan.",
+          "Sesuai rubrik official IELTS band descriptors. Cocok untuk yang siap tes IELTS resmi.",
+          "SpecTa Education — konsultan pendidikan sejak 2005, 10.000+ siswa terpercaya.",
+        ],
+      },
+      {
+        key: "latihan",
+        name: "Latihan Soal IELTS",
+        theme: "Practice-seeking users, looking for question banks + drills",
+        keywords: [
+          { text: "latihan soal ielts", matchType: "phrase" },
+          { text: "latihan ielts", matchType: "phrase" },
+          { text: "latihan ielts online", matchType: "phrase" },
+          { text: "soal ielts", matchType: "broad" },
+          { text: "contoh soal ielts", matchType: "broad" },
+          { text: "soal latihan ielts", matchType: "broad" },
+        ],
+        headlines: [
+          "Latihan IELTS Lengkap",
+          "Soal IELTS 4 Skill",
+          "Latihan IELTS Online",
+          "Latihan + AI Grading",
+          "Rp 79.000 Sekali Bayar",
+          "L/R/W/S Lengkap",
+          "PDF Report Instan",
+          "Cek Skor Latihan",
+          "SpecTa Since 2005",
+          "10rb+ Siswa Trust",
+          "Kerjakan Kapan Aja",
+          "Coba Sekarang →",
+        ],
+        descriptions: [
+          "Latihan soal IELTS lengkap 4 skill. Setiap latihan di-grade AI sesuai rubrik resmi.",
+          "Rp 79.000. Sekali bayar, tanpa subscription. Report langsung setelah selesai.",
+          "Cocok untuk yang siap-siap tes IELTS resmi. Kerjakan di HP atau laptop.",
+          "SpecTa Education — 10.000+ siswa terpercaya, sejak 2005.",
+        ],
+      },
+    ],
+  },
+  "aptitude-pro": {
+    landingPath: "/test/pro",
+    groups: [
+      {
+        key: "tes-minat-bakat",
+        name: "Tes Minat Bakat",
+        theme: "Parents/students searching for interest & aptitude assessment",
+        keywords: [
+          { text: "tes minat bakat", matchType: "phrase" },
+          { text: "tes minat bakat online", matchType: "phrase" },
+          { text: "tes minat bakat gratis", matchType: "broad" },
+          { text: "tes bakat online", matchType: "phrase" },
+          { text: "cek minat bakat", matchType: "broad" },
+        ],
+        headlines: [
+          "Tes Minat Bakat AI",
+          "Rekomendasi Jurusan AI",
+          "RIASEC + MI Analysis",
+          "PDF Report 20+ Halaman",
+          "Rp 79.000 Sekali Bayar",
+          "45 Menit Selesai",
+          "Analisis AI Mendalam",
+          "5 Jurusan Rekomendasi",
+          "SpecTa Since 2005",
+          "Ringkasan Ortu Included",
+          "Kerjakan Sekarang →",
+          "Career Outlook 10 Thn",
+        ],
+        descriptions: [
+          "Tes bakat AI lengkap: RIASEC + Multiple Intelligences + rekomendasi jurusan.",
+          "Rp 79.000 sekali bayar. PDF report profesional 20+ halaman untuk kamu + orangtua.",
+          "5 rekomendasi jurusan universitas yang cocok, plus career outlook 10 tahun.",
+          "Dari SpecTa Education, konsultan pendidikan sejak 2005.",
+        ],
+      },
+      {
+        key: "pilih-jurusan",
+        name: "Pilih Jurusan Kuliah",
+        theme: "Students confused about which major to pick",
+        keywords: [
+          { text: "pilih jurusan kuliah", matchType: "phrase" },
+          { text: "tes pilih jurusan", matchType: "phrase" },
+          { text: "bingung pilih jurusan", matchType: "broad" },
+          { text: "rekomendasi jurusan", matchType: "broad" },
+          { text: "jurusan yang cocok", matchType: "broad" },
+        ],
+        headlines: [
+          "Bingung Pilih Jurusan?",
+          "Tes Bakat AI 45 Menit",
+          "5 Rekomendasi Jurusan",
+          "Analisis AI Mendalam",
+          "Rp 79.000 Sekali Bayar",
+          "PDF Report Lengkap",
+          "Ringkasan Untuk Ortu",
+          "Career Outlook 10 Thn",
+          "SpecTa Since 2005",
+          "10rb+ Siswa Terpercaya",
+          "Coba Sekarang →",
+          "Hasil Detail + Akurat",
+        ],
+        descriptions: [
+          "Bingung pilih jurusan kuliah? Tes bakat AI kami analisa minat + bakat + kecerdasan kamu.",
+          "5 rekomendasi jurusan + universitas terbaik yang cocok, plus career outlook 10 tahun.",
+          "Rp 79.000 sekali bayar. PDF report komprehensif untuk kamu + orangtua.",
+          "SpecTa Education, konsultan pendidikan terpercaya sejak 2005.",
+        ],
+      },
+    ],
+  },
+};
+
+function pickPresetKey(campaignName: string): string | null {
+  const n = campaignName.toLowerCase();
+  if (/ielts.*mock|mock.*ielts/.test(n)) return "ielts-mock";
+  if (/bakat|aptitude|tes bakat/.test(n)) return "aptitude-pro";
+  return null;
+}
+
+function ExpandStructureCard({
+  campaignId,
+  campaignName,
+  currentUrls,
+  onRefresh,
+}: {
+  campaignId: string;
+  campaignName: string;
+  currentUrls: string[];
+  onRefresh: () => void;
+}) {
+  const presetKey = pickPresetKey(campaignName);
+  const preset = presetKey ? AD_GROUP_PRESETS[presetKey] : null;
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [customFinalUrl, setCustomFinalUrl] = useState("");
+
+  const detail = trpc.marketing.campaignDetail.useQuery({ campaignId }, { refetchOnWindowFocus: false, staleTime: 60 * 1000 });
+  const existingAdGroups = new Set((detail.data as any)?.ads?.map((a: any) => a.adGroupName?.toLowerCase()) || []);
+
+  const addMutation = trpc.marketing.addAdGroupsToCampaign.useMutation({
+    onSuccess: (d: any) => {
+      alert(`✅ Added ${d.created.length} ad group(s). ${d.errors.length ? `\n\n⚠️ ${d.errors.length} error(s):\n${d.errors.map((e: any) => `${e.name}: ${e.error}`).join("\n")}` : ""}\n\nGoogle Ads will index the new ads in ~5-10 min.`);
+      setSelected({});
+      onRefresh();
+    },
+    onError: (e) => alert(`❌ ${e.message}`),
+  });
+
+  if (!preset) {
+    return (
+      <div className="bg-slate-50 border border-slate-200 rounded p-4 text-xs text-slate-500">
+        No proven ad-group preset for this campaign yet. Add one to <code>AD_GROUP_PRESETS</code> in <code>AdminAdsLauncher.tsx</code>.
+      </div>
+    );
+  }
+
+  // Auto-suggest final URL from existing ads, or use preset's landing path
+  const defaultFinalUrl = currentUrls[0] || `https://www.spectaeducation.com${preset.landingPath}`;
+  const finalUrl = customFinalUrl.trim() || defaultFinalUrl;
+
+  const toAdd = preset.groups.filter(g => selected[g.key]);
+
+  return (
+    <div className="bg-white border border-slate-200 rounded p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="font-semibold text-sm">🧩 Expand Campaign Structure</h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Add proven-good ad groups to this campaign. Each group is a themed keyword cluster + matched RSA copy. Improves Quality Score + captures more search intent.
+          </p>
+        </div>
+      </div>
+
+      {/* Preset picker */}
+      <div className="space-y-2 mb-4">
+        {preset.groups.map(g => {
+          const alreadyExists = existingAdGroups.has(g.name.toLowerCase());
+          return (
+            <label
+              key={g.key}
+              className={`flex items-start gap-3 p-3 border rounded cursor-pointer transition ${
+                alreadyExists ? "bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed" :
+                selected[g.key] ? "bg-indigo-50 border-indigo-300" : "border-slate-200 hover:border-slate-300"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={selected[g.key] || false}
+                disabled={alreadyExists}
+                onChange={(e) => setSelected(prev => ({ ...prev, [g.key]: e.target.checked }))}
+                className="mt-1"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-sm text-slate-900">{g.name}</span>
+                  {alreadyExists && <span className="text-[10px] px-2 py-0.5 bg-slate-200 text-slate-600 rounded">already exists</span>}
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">{g.theme}</p>
+                <div className="text-[11px] text-slate-400 mt-1 font-mono">
+                  {g.keywords.length} keywords · {g.headlines.length} headlines · {g.descriptions.length} descriptions
+                </div>
+                {selected[g.key] && (
+                  <div className="mt-2 pt-2 border-t border-indigo-200 space-y-1.5">
+                    <div className="text-[11px]">
+                      <strong className="text-slate-700">Keywords:</strong>{" "}
+                      <span className="font-mono text-slate-600">{g.keywords.map(k => `${k.text} [${k.matchType[0]}]`).join(" · ")}</span>
+                    </div>
+                    <div className="text-[11px]">
+                      <strong className="text-slate-700">Sample headline:</strong>{" "}
+                      <span className="text-slate-600">"{g.headlines[0]}"</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </label>
+          );
+        })}
+      </div>
+
+      {/* Final URL */}
+      <div className="mb-3">
+        <label className="text-[11px] text-slate-600 block mb-1">Final URL (where new ads will send clicks)</label>
+        <input
+          type="url"
+          value={customFinalUrl || defaultFinalUrl}
+          onChange={(e) => setCustomFinalUrl(e.target.value)}
+          className="w-full border border-slate-300 rounded px-3 py-2 text-sm font-mono"
+          placeholder="https://www.spectaeducation.com/ielts/mock-test"
+        />
+      </div>
+
+      {/* Add button */}
+      <button
+        onClick={() => {
+          if (toAdd.length === 0) return alert("Select at least one ad group first.");
+          if (!window.confirm(`Add ${toAdd.length} new ad group(s) to "${campaignName}"?\n\n${toAdd.map(g => `• ${g.name} (${g.keywords.length} keywords)`).join("\n")}\n\nFinal URL: ${finalUrl}\n\nAd groups will be ENABLED immediately.`)) return;
+          addMutation.mutate({
+            campaignId,
+            adGroups: toAdd.map(g => ({
+              name: g.name,
+              keywords: g.keywords,
+              rsa: { headlines: g.headlines, descriptions: g.descriptions },
+              finalUrl,
+            })),
+          });
+        }}
+        disabled={addMutation.isPending || toAdd.length === 0}
+        className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium px-4 py-2.5 rounded"
+      >
+        {addMutation.isPending ? "Adding…" : toAdd.length > 0 ? `Add ${toAdd.length} ad group${toAdd.length > 1 ? "s" : ""} to campaign` : "Select ad groups to add"}
+      </button>
     </div>
   );
 }

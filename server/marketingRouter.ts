@@ -41,6 +41,7 @@ import {
   getCampaignDetail,
   diagnoseCampaignHealth,
   listConversionActions,
+  addAdGroupsToCampaign,
   updateAdFinalUrls,
   pauseKeyword,
   enableKeyword,
@@ -515,6 +516,33 @@ export const marketingRouter = router({
       requireAdmin(ctx);
       if (!isGoogleAdsConfigured()) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Google Ads not configured" });
       try { return await diagnoseCampaignHealth(input.campaignId); }
+      catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
+    }),
+
+  /** Add one or more new ad groups (with keywords + RSA) to an EXISTING
+   *  campaign. Used to grow campaigns launched under-structured. */
+  addAdGroupsToCampaign: protectedProcedure
+    .input(z.object({
+      campaignId: z.string().min(1),
+      adGroups: z.array(z.object({
+        name: z.string().min(1).max(120),
+        keywords: z.array(z.object({
+          text: z.string().min(1).max(80),
+          matchType: z.enum(["phrase", "exact", "broad"]),
+        })).min(1).max(100),
+        rsa: z.object({
+          headlines: z.array(z.string().min(1).max(30)).min(3).max(15),
+          descriptions: z.array(z.string().min(1).max(90)).min(2).max(4),
+          path1: z.string().max(15).optional(),
+          path2: z.string().max(15).optional(),
+        }).optional(),
+        finalUrl: z.string().url(),
+      })).min(1).max(10),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+      if (!isGoogleAdsConfigured()) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Google Ads not configured" });
+      try { return await addAdGroupsToCampaign(input); }
       catch (e) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (e as Error).message }); }
     }),
 
