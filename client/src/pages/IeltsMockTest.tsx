@@ -74,18 +74,18 @@ const SKILLS = [
 const HOW_STEPS = [
   {
     icon: Zap,
-    title: "Buy your attempt",
-    detail: "One-click checkout via Xendit. Unlock instantly.",
+    title: "1. Bayar Rp 79k",
+    detail: "Checkout 1-klik via Xendit (BCA, Mandiri, GoPay, DANA, OVO, ShopeePay, kartu kredit). Akses langsung.",
   },
   {
     icon: Clock,
-    title: "Take all 4 skills",
-    detail: "Listening, Reading, Writing, Speaking — back-to-back, just like the real exam.",
+    title: "2. Kerjakan 4 skill",
+    detail: "Listening, Reading, Writing, Speaking — sekaligus seperti tes IELTS resmi (~2 jam 45 menit).",
   },
   {
     icon: TrendingUp,
-    title: "Get your band score",
-    detail: "AI grades each skill in minutes. Branded PDF report to your inbox.",
+    title: "3. Terima band score",
+    detail: "AI grade setiap skill dalam menit. PDF report profesional langsung ke email kamu.",
   },
 ];
 
@@ -213,49 +213,56 @@ export default function IeltsMockTest() {
               transition={{ duration: 0.6 }}
             >
               <motion.div
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/15 backdrop-blur-sm rounded-full text-white text-sm font-medium mb-6 border border-white/20"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-400 text-slate-900 rounded-full text-sm font-bold mb-6 shadow-lg"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
               >
                 <Sparkles className="w-4 h-4" />
-                AI-Graded • Instant Results • {idr(price)}
+                Hanya {idr(price)} · AI Grading · Report Instan
               </motion.div>
-              <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white leading-tight">
-                Practice the
+              {/* Bahasa-primary hero (target market: Indonesian students) with
+                  English support subtext. Matches ad-copy promises: "Simulasi
+                  IELTS", "Prediksi Skor", "Latihan Terstruktur" all resolved. */}
+              <h1 className="text-4xl md:text-6xl font-bold mb-4 text-white leading-tight">
+                Simulasi IELTS Lengkap
                 <br />
                 <span className="bg-clip-text text-transparent bg-gradient-to-r from-yellow-200 to-amber-200">
-                  Real IELTS
+                  4 Skill · Rp 79.000
                 </span>
-                <br />
-                For 40× Less
               </h1>
-              <p className="text-lg text-white/85 mb-6 max-w-lg leading-relaxed">
-                A full-length IELTS mock test — all 4 skills, graded by AI
-                against the official IELTS rubric, with a detailed band-score
-                report delivered to your inbox.
+              <p className="text-lg text-white/95 mb-2 max-w-lg leading-relaxed font-medium">
+                Cek prediksi band IELTS kamu sebelum ambil tes resmi.
               </p>
-              <div className="flex flex-wrap items-center gap-3 mb-8">
+              <p className="text-base text-white/80 mb-6 max-w-lg leading-relaxed">
+                Latihan lengkap 4 skill (Listening, Reading, Writing, Speaking) — AI grading sesuai rubrik IELTS resmi. Report PDF profesional dikirim ke email dalam menit.
+              </p>
+              <div className="flex flex-wrap items-center gap-3 mb-6">
                 <div className="flex items-center gap-2 px-4 py-2 bg-white/15 backdrop-blur-sm rounded-xl border border-white/20 text-white text-sm">
                   <CheckCircle className="w-4 h-4 text-amber-200" />
-                  4 skills graded
+                  4 skill lengkap
                 </div>
                 <div className="flex items-center gap-2 px-4 py-2 bg-white/15 backdrop-blur-sm rounded-xl border border-white/20 text-white text-sm">
                   <CheckCircle className="w-4 h-4 text-amber-200" />
-                  Live AI examiner
+                  Speaking dengan AI
                 </div>
                 <div className="flex items-center gap-2 px-4 py-2 bg-white/15 backdrop-blur-sm rounded-xl border border-white/20 text-white text-sm">
                   <CheckCircle className="w-4 h-4 text-amber-200" />
                   PDF report
                 </div>
               </div>
+              {/* Big prominent CTA + inline pricing (mobile friendly).
+                  Google Ads policy also requires recurring/one-off price on CTA. */}
               <a
                 href="#buy"
-                className="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-slate-900 font-semibold px-6 py-3 rounded-xl transition"
+                className="inline-flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold text-lg px-8 py-4 rounded-xl transition shadow-xl w-full sm:w-auto"
               >
-                Take the mock test
-                <ArrowRight className="w-4 h-4" />
+                Beli Sekarang — {idr(price)}
+                <ArrowRight className="w-5 h-5" />
               </a>
+              <p className="text-white/70 text-xs mt-3">
+                ✓ Sekali bayar, no subscription · ✓ Hasil dalam menit · ✓ Trusted since 2005 · 10.000+ siswa
+              </p>
             </motion.div>
 
             <motion.div
@@ -275,16 +282,18 @@ export default function IeltsMockTest() {
                   }}
                 />
               </div>
-              {/* Floating price chip */}
-              <div className="absolute -bottom-6 -left-6 bg-white rounded-2xl shadow-xl px-5 py-4 hidden md:block">
-                <div className="text-xs text-slate-500 uppercase tracking-wider">
-                  Pay per attempt
+              {/* Floating price chip — now visible on ALL screens (previously
+                  hidden md:block dropped it entirely on mobile, hiding the
+                  price from ~70% of Indonesian visitors). */}
+              <div className="absolute -bottom-6 left-2 sm:-left-6 bg-white rounded-2xl shadow-2xl px-4 sm:px-5 py-3 sm:py-4 border-2 border-amber-400">
+                <div className="text-[10px] sm:text-xs text-slate-500 uppercase tracking-wider font-semibold">
+                  Bayar 1× · No Subscription
                 </div>
-                <div className="text-2xl font-bold text-slate-900">
+                <div className="text-xl sm:text-2xl font-black text-slate-900">
                   {idr(price)}
                 </div>
-                <div className="text-xs text-emerald-700 font-medium">
-                  vs IDR 3,200,000 real exam
+                <div className="text-[10px] sm:text-xs text-emerald-700 font-bold">
+                  vs Rp 3.400.000 IELTS resmi = 97% lebih murah
                 </div>
               </div>
             </motion.div>
@@ -297,21 +306,21 @@ export default function IeltsMockTest() {
         <div className="container">
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             <ComparisonCard
-              label="Real IELTS"
-              value="IDR 3,200,000"
-              sub="13-day wait • once per attempt"
+              label="IELTS Resmi"
+              value="Rp 3.400.000"
+              sub="Tunggu 13 hari · 1× per bayar"
               tone="muted"
             />
             <ComparisonCard
               label="SpecTa Mock"
               value={idr(price)}
-              sub="instant report • unlimited retakes"
+              sub="Report instan · beli ulang kapan aja"
               tone="primary"
             />
             <ComparisonCard
-              label="You save"
+              label="Kamu Hemat"
               value="~97%"
-              sub="every time you practice"
+              sub="setiap kali latihan"
               tone="accent"
             />
           </div>
