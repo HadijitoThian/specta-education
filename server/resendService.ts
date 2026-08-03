@@ -575,19 +575,19 @@ export async function sendVoiceCloneUpsellEmail(params: {
   const voiceCloneUrl = `${base}/voice-clone?utm_source=email&utm_medium=drip&utm_campaign=voice-clone-upsell&utm_content=${encodeURIComponent(params.segment || "unknown")}`;
   const unsubUrl = `${base}/unsubscribe?email=${encodeURIComponent(to)}`;
 
-  const subject = "🎙️ Dengar suara kamu di IELTS Band 8 — Rp 49k";
+  const subject = "🎙️ Hear yourself speak at IELTS Band 8 — Rp 49k";
 
   // Segment-aware opener (subtle personalization to boost open/click rates)
   const segmentOpeners: Record<string, string> = {
-    "aptitude-free": "Kamu sudah coba Tes Bakat AI kami — sekarang saatnya coba fitur baru yang jauh lebih personal:",
-    "aptitude-pro": "Terima kasih sudah beli Tes Bakat AI Pro. Kami baru launch fitur baru yang wajib kamu coba:",
-    "practice": "Kamu sudah coba IELTS Practice kami — sekarang ada cara baru yang lebih powerful untuk latihan Speaking:",
-    "mock": "Sebagai buyer IELTS Mock Test kami, kamu wajib coba fitur baru ini:",
-    "tutor-trial": "Kamu sudah coba AI IELTS Tutor gratis. Ada fitur baru yang jauh lebih emosional:",
-    "tutor-paid": "Sebagai subscriber AI Tutor kami, kamu wajib coba fitur baru ini:",
-    "preview": "PREVIEW EMAIL — Ini yang akan dikirim ke past customers (50/hari):",
+    "aptitude-free": "You've tried our free AI Aptitude Test — here's something new that gets even more personal:",
+    "aptitude-pro": "Thank you for purchasing the AI Aptitude Pro report. We've just launched something you'll want to try:",
+    "practice": "You've tried our free IELTS Practice — here's a much more powerful way to sharpen your Speaking:",
+    "mock": "As one of our IELTS Mock Test buyers, this new feature is made for you:",
+    "tutor-trial": "You've tried the AI IELTS Tutor for free — we just built something a lot more personal:",
+    "tutor-paid": "As one of our AI Tutor subscribers, you'll want to try this new feature:",
+    "preview": "PREVIEW EMAIL — this is what will be sent to past customers (50/day):",
   };
-  const opener = segmentOpeners[params.segment || ""] || "Kami baru launch fitur baru yang mungkin kamu suka:";
+  const opener = segmentOpeners[params.segment || ""] || "We just launched a new feature we think you'll love:";
 
   const html = `
 <!DOCTYPE html>
@@ -605,8 +605,8 @@ export async function sendVoiceCloneUpsellEmail(params: {
 
       <!-- Purple gradient hero -->
       <div style="background:linear-gradient(135deg,#7c3aed,#c026d3,#db2777);padding:28px 30px;text-align:center;color:white;">
-        <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;opacity:0.9;font-weight:700;">🔥 New AI Product · Emotional Hook</div>
-        <h1 style="color:white;margin:8px 0 0 0;font-size:26px;line-height:1.25;font-weight:800;">Dengar suara kamu di<br/>IELTS Band 8 🚀</h1>
+        <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;opacity:0.9;font-weight:700;">🔥 Just Launched · SpecTa Voice Clone</div>
+        <h1 style="color:white;margin:8px 0 0 0;font-size:26px;line-height:1.25;font-weight:800;">Hear yourself speak at<br/>IELTS Band 8 🚀</h1>
       </div>
 
       <div style="padding:30px;">
@@ -618,37 +618,37 @@ export async function sendVoiceCloneUpsellEmail(params: {
           <div style="text-align:center;margin-bottom:12px;">
             <span style="display:inline-block;padding:6px 12px;background:#7c3aed;color:white;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border-radius:999px;">SpecTa Voice Clone</span>
           </div>
-          <h2 style="color:#6b21a8;margin:0 0 10px;font-size:20px;text-align:center;">🎙️ Rekam. AI Clone. Dengar di Band 8.</h2>
+          <h2 style="color:#6b21a8;margin:0 0 10px;font-size:20px;text-align:center;">🎙️ Record. Clone. Hear yourself at Band 8.</h2>
           <p style="color:#374151;font-size:14px;line-height:1.65;margin:0 0 16px;text-align:center;">
-            Rekam 3 pertanyaan IELTS Speaking (5 menit). AI kloning suara kamu, lalu perbaiki jawaban terlemah kamu ke level Band 8. Kamu dengar hasilnya dalam <strong>SUARA KAMU SENDIRI</strong>.
+            Record 3 IELTS Speaking questions (5 minutes). Our AI clones your voice, then rewrites your weakest answer to Band 8 level. You hear the result in <strong>YOUR OWN VOICE</strong>.
           </p>
           <ul style="color:#374151;font-size:14px;line-height:1.8;padding-left:18px;margin:0 0 18px;">
-            <li>🎤 Rekam Part 1, 2, dan 3 IELTS Speaking</li>
-            <li>🤖 AI grade + rewrite ke Band 8 sesuai official IELTS rubric</li>
-            <li>✨ Generate audio Band 8 dalam suara kloningan kamu</li>
-            <li>📱 Compare side-by-side: original vs Band 8</li>
+            <li>🎤 Record Speaking Parts 1, 2, and 3</li>
+            <li>🤖 AI grades + rewrites to Band 8 using the official IELTS rubric</li>
+            <li>✨ Generates Band 8 audio in your own cloned voice</li>
+            <li>📱 Compare side-by-side: your original vs Band 8 version</li>
           </ul>
           <div style="text-align:center;">
             <a href="${voiceCloneUrl}"
                style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#c026d3);color:white;text-decoration:none;padding:14px 32px;border-radius:12px;font-weight:bold;font-size:15px;box-shadow:0 4px 12px rgba(124,58,237,0.35);">
-              🎙️ Mulai Rekam — Rp 49.000 →
+              🎙️ Start Recording — Rp 49,000 →
             </a>
           </div>
           <p style="color:#6b21a8;font-size:12px;line-height:1.5;margin:14px 0 0;text-align:center;">
-            One-off · No subscription · Hasil dalam 5-10 menit · 100% private (voice auto-delete 90 hari)
+            One-off payment · No subscription · Results in 5-10 minutes · 100% private (voice auto-deleted after 90 days)
           </p>
         </div>
 
         <div style="border-left:4px solid #7c3aed;padding:10px 14px;background:#faf5ff;border-radius:0 8px 8px 0;margin:0 0 6px;">
           <p style="color:#6b21a8;font-size:13px;line-height:1.6;margin:0;">
-            <strong>Kenapa ini powerful?</strong><br/>
-            Otak kamu belajar 10× lebih cepat waktu bisa BANDINGKAN versi diri sendiri sekarang vs versi "best". Bukan lihat orang lain — lihat <em>diri kamu</em> di Band 8. Motivation hack yang bikin kamu mau latihan setiap hari.
+            <strong>Why this works so well:</strong><br/>
+            Your brain learns 10× faster when it can DIRECTLY COMPARE the current you against a "best-version" you. This isn't listening to someone else — it's listening to <em>yourself</em> at Band 8. The motivation hook that makes you want to practise every single day.
           </p>
         </div>
       </div>
       <div style="background:#f9fafb;padding:18px 32px;text-align:center;border-top:1px solid #e5e7eb;">
-        <p style="color:#9ca3af;font-size:12px;margin:0 0 6px;">© ${new Date().getFullYear()} SpecTa Education • Sejak 2005 • 10.000+ pelajar terbantu</p>
-        <p style="color:#c0c4cc;font-size:11px;margin:0;"><a href="${unsubUrl}" style="color:#c0c4cc;">Berhenti berlangganan email marketing</a></p>
+        <p style="color:#9ca3af;font-size:12px;margin:0 0 6px;">© ${new Date().getFullYear()} SpecTa Education • Since 2005 • 10,000+ students supported</p>
+        <p style="color:#c0c4cc;font-size:11px;margin:0;"><a href="${unsubUrl}" style="color:#c0c4cc;">Unsubscribe from marketing emails</a></p>
       </div>
     </div>
   </div>

@@ -63,6 +63,9 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
                 <button onClick={() => handleNavClick("/ielts/tutor")} className="block w-full text-left px-4 py-2.5 text-sm font-medium text-pink-600 hover:text-pink-700 hover:bg-pink-50 transition-colors">
                   ✨ AI IELTS Tutor <span className="text-[10px] align-top bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded-full">NEW</span>
                 </button>
+                <button onClick={() => handleNavClick("/voice-clone")} className="block w-full text-left px-4 py-2.5 text-sm font-medium text-purple-700 hover:text-purple-800 hover:bg-purple-50 transition-colors">
+                  🎙️ Voice Clone Band 8 <span className="text-[10px] align-top bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">Rp 49k</span>
+                </button>
               </div>
             </div>
           </div>
@@ -198,6 +201,9 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
               </button>
               <button onClick={() => handleNavClick("/ielts/tutor")} className="block w-full text-left text-sm font-medium text-pink-600 hover:text-pink-700 pl-4">
                 ✨ AI IELTS Tutor · NEW
+              </button>
+              <button onClick={() => handleNavClick("/voice-clone")} className="block w-full text-left text-sm font-medium text-purple-700 hover:text-purple-800 pl-4">
+                🎙️ Voice Clone Band 8 · Rp 49k
               </button>
             </div>
             <div className="space-y-2">

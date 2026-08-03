@@ -61,7 +61,7 @@ export default function VoiceCloneLanding() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <span className="inline-block px-4 py-1.5 rounded-full bg-amber-400 text-slate-900 text-xs font-black uppercase tracking-wider mb-4">
-                🔥 New · Emotional AI Product
+                🔥 New · SpecTa Voice Clone
               </span>
               <h1 className="text-4xl md:text-6xl font-black leading-tight mb-4">
                 Dengar Suara Kamu Sendiri —<br />
@@ -93,6 +93,16 @@ export default function VoiceCloneLanding() {
             </div>
 
             <div className="hidden lg:block">
+              <div className="relative rounded-3xl overflow-hidden shadow-2xl mb-5 border border-white/20">
+                <img
+                  src="/files/voice-clone/landing/hero.jpg"
+                  alt="Voice Clone — hear yourself at Band 8"
+                  className="w-full h-72 object-cover"
+                  loading="eager"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-purple-900/60 via-transparent to-transparent pointer-events-none" />
+              </div>
               <div className="bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/20 shadow-2xl">
                 <div className="text-xs uppercase tracking-wider opacity-80 font-bold mb-2">Contoh sebelum & sesudah</div>
                 <div className="space-y-4">
@@ -121,17 +131,41 @@ export default function VoiceCloneLanding() {
           </div>
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {[
-              ["1", "Bayar Rp 49k", "Checkout 1-klik via Xendit (BCA, Mandiri, GoPay, DANA, OVO, ShopeePay, kartu kredit)."],
-              ["2", "Rekam 3 pertanyaan", "Kami kasih 1 pertanyaan Part 1, 1 cue card Part 2, dan 1 pertanyaan Part 3. Rekam dengan mikrofon HP/laptop."],
-              ["3", "Dengar di Band 8", "AI clone suara kamu + generate Band 8 audio. Sampai dalam menit."],
-            ].map(([n, t, d]) => (
-              <div key={n} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-                <div className="w-12 h-12 rounded-full bg-purple-600 text-white flex items-center justify-center font-black text-lg mb-3">{n}</div>
-                <h3 className="font-bold text-slate-900 mb-1">{t}</h3>
-                <p className="text-sm text-slate-600 leading-relaxed">{d}</p>
+              ["1", "Bayar Rp 49k", "Checkout 1-klik via Xendit (BCA, Mandiri, GoPay, DANA, OVO, ShopeePay, kartu kredit).", null],
+              ["2", "Rekam 3 pertanyaan", "Kami kasih 1 pertanyaan Part 1, 1 cue card Part 2, dan 1 pertanyaan Part 3. Rekam dengan mikrofon HP/laptop.", "/files/voice-clone/landing/recording.jpg"],
+              ["3", "Dengar di Band 8", "AI clone suara kamu + generate Band 8 audio. Sampai dalam menit.", "/files/voice-clone/landing/result.jpg"],
+            ].map(([n, t, d, img]) => (
+              <div key={n as string} className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex flex-col">
+                {img && (
+                  <img
+                    src={img as string}
+                    alt={t as string}
+                    className="w-full h-40 object-cover"
+                    loading="lazy"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  />
+                )}
+                <div className="p-6">
+                  <div className="w-12 h-12 rounded-full bg-purple-600 text-white flex items-center justify-center font-black text-lg mb-3">{n}</div>
+                  <h3 className="font-bold text-slate-900 mb-1">{t}</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">{d}</p>
+                </div>
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Waveform visual band */}
+      <section
+        className="h-40 md:h-56 bg-slate-900 bg-cover bg-center relative"
+        style={{ backgroundImage: "url(/files/voice-clone/landing/waveform.jpg)" }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-900/70 via-fuchsia-900/50 to-pink-900/70" />
+        <div className="relative h-full container flex items-center justify-center">
+          <p className="text-white text-lg md:text-2xl font-bold text-center px-4">
+            Dua versi. Satu suara. <span className="text-amber-300">Yours.</span>
+          </p>
         </div>
       </section>
 

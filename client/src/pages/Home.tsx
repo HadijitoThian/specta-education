@@ -396,7 +396,7 @@ export default function Home() {
             <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="max-w-2xl">
                 <div className="inline-flex items-center gap-2 bg-amber-400 text-slate-900 text-xs font-black px-3 py-1 rounded-full mb-4 uppercase tracking-wider">
-                  🎙️ Just Launched · Emotional AI Hook
+                  🎙️ New · Hear Yourself Speak at Band 8
                 </div>
                 <h2 className="text-2xl md:text-3xl font-extrabold leading-tight mb-2">
                   Dengar Suara Kamu di IELTS Band 8 — Suara Kamu Sendiri

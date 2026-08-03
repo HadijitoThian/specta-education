@@ -248,6 +248,7 @@ import { seedIgcseChemistryExamplesIfEmpty } from "./igcseChemistryExamplesSeed"
 import { seedIgcseBiologyTopicsIfEmpty } from "./igcseBiologyTopicSeed";
 import { seedIgcseBiologyExamplesIfEmpty } from "./igcseBiologyExamplesSeed";
 import { startTutorImages } from "./tutorImages";
+import { startVoiceCloneImages } from "./voiceCloneImages";
 import { crmJourneyRouter } from "./crmJourneyRouter";
 import { sosmedRouter } from "./sosmedRouter";
 import { startCrmReportScheduler } from "./crmReportScheduler";
@@ -8523,6 +8524,9 @@ startGoogleAdsOptimizer();
 
 // AI Tutor landing imagery — generate once via DeepInfra (idempotent).
 startTutorImages();
+
+// Voice Clone landing imagery — generate once via DeepInfra (idempotent).
+startVoiceCloneImages();
 
 // Auto-seed universities on startup
 seedUniversitiesIfEmpty().then(r => {
