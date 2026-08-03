@@ -27,6 +27,7 @@ import { getDb } from "./db";
 import { storagePut } from "./storage";
 import { ENV } from "./_core/env";
 import { renderIeltsReportPdf, type IeltsReportData } from "./ieltsReportPdf";
+import { crossSellBlocksHtml } from "./crossSellBlocks";
 import { gradeObjectiveAnswers } from "./ieltsGrading";
 
 // ---------------------------------------------------------------------------
@@ -500,6 +501,7 @@ async function sendReportEmail(opts: {
     ${downloadButton}
     <p style="margin:0 0 8px 0;color:#475569;line-height:1.6;">Open the PDF (attached, or via the button above) to see per-criterion sub-scores and feedback for Writing and Speaking.</p>
     <p style="margin:16px 0 0 0;font-size:13px;color:#94a3b8;">Practice again or buy another attempt at <a href="${ENV.appUrl}/ielts/mock-test" style="color:#4338ca;">${ENV.appUrl}/ielts/mock-test</a>.</p>
+    ${crossSellBlocksHtml({ exclude: ["mock", "practice"], appUrl: ENV.appUrl, source: "mock-report", language: "en" })}
   </div>
   <div style="padding:14px 24px;background:#f1f5f9;color:#64748b;font-size:11px;line-height:1.5;">
     This is a SpecTa Education practice mock test. It is not an official IELTS score and is not affiliated with British Council, IDP, or Cambridge Assessment English.

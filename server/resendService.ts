@@ -1,4 +1,5 @@
 import { ENV } from "./_core/env";
+import { crossSellBlocksHtml } from "./crossSellBlocks";
 
 const RESEND_API_BASE = "https://api.resend.com";
 const FROM_EMAIL = "SpecTa Education <noreply@spectaeducation.com>";
@@ -330,19 +331,7 @@ export async function sendIeltsPracticeResultEmail(params: {
         ${strengths ? `<div style="margin:0 0 12px;"><h4 style="color:#15803d;font-size:13px;margin:0 0 4px;">✓ Strengths</h4><ul style="margin:0;padding-left:18px;color:#475569;font-size:13px;line-height:1.6;">${strengths}</ul></div>` : ""}
         ${improvements ? `<div style="margin:0 0 8px;"><h4 style="color:#b45309;font-size:13px;margin:0 0 4px;">→ Areas to improve</h4><ul style="margin:0;padding-left:18px;color:#475569;font-size:13px;line-height:1.6;">${improvements}</ul></div>` : ""}
 
-        <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
-        <h3 style="font-size:15px;color:#111827;margin:0 0 4px;">Ready to push your band higher? 🚀</h3>
-        <p style="color:#6b7280;font-size:13px;margin:0 0 14px;">This was a free taster. Two ways to seriously prepare:</p>
-        <div style="border:1px solid #dbeafe;border-radius:12px;padding:16px;margin:0 0 12px;">
-          <strong style="color:#1e3a8a;font-size:14px;">📝 Full IELTS Mock Test — Rp 79.000</strong>
-          <p style="color:#6b7280;font-size:13px;margin:6px 0 10px;">A complete 4-skill exam, AI-graded to the IELTS rubric, PDF report emailed to you.</p>
-          <a href="${mockUrl}" style="display:inline-block;background:#1d4ed8;color:white;text-decoration:none;padding:9px 20px;border-radius:8px;font-weight:bold;font-size:13px;">Take the Mock Test →</a>
-        </div>
-        <div style="border:1px solid #fbcfe8;border-radius:12px;padding:16px;background:#fdf2fa;">
-          <strong style="color:#9d174d;font-size:14px;">🎤 AI IELTS Tutor — try free</strong>
-          <p style="color:#6b7280;font-size:13px;margin:6px 0 10px;">Unlimited Writing & Speaking practice with instant feedback. First try free.</p>
-          <a href="${tutorUrl}" style="display:inline-block;background:#db2777;color:white;text-decoration:none;padding:9px 20px;border-radius:8px;font-weight:bold;font-size:13px;">Try the AI Tutor →</a>
-        </div>
+        ${crossSellBlocksHtml({ exclude: ["practice"], appUrl: params.appUrl, source: "practice-result", language: "en" })}
       </div>
       <div style="background:#f9fafb;padding:16px 32px;text-align:center;border-top:1px solid #e5e7eb;">
         <p style="color:#9ca3af;font-size:12px;margin:0 0 6px;">© ${new Date().getFullYear()} SpecTa Education • www.spectaeducation.com</p>

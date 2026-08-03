@@ -1,5 +1,6 @@
 import { ENV } from "./_core/env";
 import crypto from "crypto";
+import { crossSellBlocksHtml } from "./crossSellBlocks";
 
 const RESEND_API_BASE = "https://api.resend.com";
 const FROM_EMAIL = `SpecTa Education <${ENV.smtpFrom || "noreply@spectaeducation.com"}>`;
@@ -720,6 +721,13 @@ export async function sendAptitudeResultsEmail({
       </div>
     </div>
     ` : ""}
+
+    ${crossSellBlocksHtml({
+      exclude: isPro ? ["aptitude-pro", "practice"] : ["aptitude-pro", "practice"],
+      appUrl: ENV.appUrl || "https://www.spectaeducation.com",
+      source: isPro ? "aptitude-pro-report" : "aptitude-free-report",
+      language: isId ? "id" : "en",
+    })}
 
     <!-- CTA -->
     <div style="background: linear-gradient(135deg, #ef4444, #f43f5e); border-radius: 16px; padding: 24px; text-align: center; color: white; margin-bottom: 16px;">
