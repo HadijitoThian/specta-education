@@ -33,8 +33,18 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-border">
       <div className="container flex items-center justify-between h-16">
-        <button onClick={() => handleNavClick("/")} className="flex items-center gap-2">
-          <img src="/files/migrated/QxrYSewOYzAuPIEN.jpeg" alt="SpecTa Education" className="h-10 object-contain" />
+        <button onClick={() => handleNavClick("/")} className="flex items-center gap-2 group" aria-label="SpecTa Education — home">
+          <img
+            src="/files/migrated/QxrYSewOYzAuPIEN.jpeg"
+            alt=""
+            aria-hidden="true"
+            className="h-10 w-10 object-contain rounded-md bg-indigo-50 p-0.5 shrink-0"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+          />
+          <span className="flex items-baseline leading-none">
+            <span className="text-xl font-extrabold tracking-tight text-indigo-700 group-hover:text-indigo-600 transition-colors">SpecTa</span>
+            <span className="ml-1 text-lg font-normal tracking-tight text-slate-500 hidden sm:inline">Education</span>
+          </span>
         </button>
         
         {/* Desktop Navigation */}
