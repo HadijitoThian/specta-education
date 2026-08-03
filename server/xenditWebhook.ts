@@ -1,5 +1,5 @@
 import { Express, Request, Response } from "express";
-import { verifyWebhookToken, isTutorExternalId, TUTOR_PLANS, isIgcseExternalId, IGCSE_PLANS, isBundleExternalId } from "./xenditService";
+import { verifyWebhookToken, isTutorExternalId, TUTOR_PLANS, isIgcseExternalId, IGCSE_PLANS, isBundleExternalId, isVoiceCloneExternalId } from "./xenditService";
 import { getAccessTokenByToken, createAccessTokens, getAptitudeProOrderByExternalId, updateAptitudeProOrderStatus, getTutorSubscriptionByInvoice, updateTutorSubscription, getIgcseSubscriptionByInvoice, updateIgcseSubscription } from "./db";
 import { sendProAccessLinkEmail, sendPaymentConfirmationEmail } from "./resendService";
 import { notifyOwner } from "./_core/notification";
@@ -126,6 +126,82 @@ export function registerXenditWebhook(app: Express) {
       console.log("[Xendit Webhook] Received:", JSON.stringify(body, null, 2));
 
       const externalId = body.external_id;
+
+      // Branch: VOICE CLONE — Rp 49k post-Mock-Test upsell. On paid,
+      // marks the session paid + kicks off the ElevenLabs pipeline in
+      // the background (frontend polls getVoiceCloneSession for status).
+      if (isVoiceCloneExternalId(externalId)) {
+        if (body.status === "PAID" || body.status === "SETTLED") {
+          try {
+            const { getDb } = await import("./db");
+            const db = await getDb();
+            if (!db) return res.status(500).json({ error: "DB unavailable" });
+            const { sql } = await import("drizzle-orm");
+            const rows: any = await db.execute(sql`
+              SELECT * FROM voice_clone_sessions WHERE xenditExternalId = ${externalId} LIMIT 1
+            `);
+            const list = Array.isArray(rows[0]) ? rows[0] : rows;
+            const session = list[0];
+            if (!session) {
+              console.error(`[Xendit Webhook][VoiceClone] Session not found: ${externalId}`);
+              return res.status(404).json({ error: "Session not found" });
+            }
+            if (session.status === "ready" || session.status === "processing") {
+              return res.status(200).json({ received: true, voiceClone: true, already_processed: true });
+            }
+            const sessionId = session.id;
+            const attemptId = session.attemptId;
+
+            await db.execute(sql`
+              UPDATE voice_clone_sessions
+              SET status = 'processing', paidAt = NOW(), xenditInvoiceId = ${body.id || externalId}
+              WHERE id = ${sessionId}
+            `);
+
+            // Fire-and-forget the actual cloning pipeline (30-90s)
+            void (async () => {
+              try {
+                const { runVoiceCloneForAttempt } = await import("./voiceCloneService");
+                const result = await runVoiceCloneForAttempt(attemptId);
+                await db.execute(sql`
+                  UPDATE voice_clone_sessions SET
+                    status = 'ready',
+                    processedAt = NOW(),
+                    elevenLabsVoiceId = ${result.voiceId},
+                    targetedPartNumber = ${result.targetedPartNumber},
+                    originalTranscript = ${result.originalTranscript},
+                    originalAudioKey = ${result.originalAudioKey || null},
+                    band8Transcript = ${result.band8Transcript},
+                    band8AudioKey = ${result.band8AudioKey},
+                    changesSummary = ${result.changesSummary}
+                  WHERE id = ${sessionId}
+                `);
+                console.log(`[VoiceClone] Session ${sessionId} READY (paid)`);
+                await notifyOwner({
+                  title: `🎙️ Voice Clone sold + delivered: ${session.customerName}`,
+                  content: `Session ${sessionId} for attempt ${attemptId}. Part ${result.targetedPartNumber} rewritten. Voice ${result.voiceId}. Rp ${session.amountIdr}.`,
+                }).catch(() => {});
+              } catch (e) {
+                await db.execute(sql`
+                  UPDATE voice_clone_sessions SET status = 'failed', errorMessage = ${(e as Error).message}
+                  WHERE id = ${sessionId}
+                `);
+                console.error(`[VoiceClone] Session ${sessionId} FAILED:`, e);
+                await notifyOwner({
+                  title: `🚨 Voice Clone FAILED after payment: ${session.customerName}`,
+                  content: `Session ${sessionId} attempt ${attemptId}. Error: ${(e as Error).message}. Customer paid Rp ${session.amountIdr} — refund or retry needed.`,
+                }).catch(() => {});
+              }
+            })();
+
+            return res.status(200).json({ received: true, voiceClone: true });
+          } catch (e) {
+            console.error("[Xendit Webhook][VoiceClone] activation failed:", e);
+            return res.status(500).json({ error: (e as Error).message });
+          }
+        }
+        return res.status(200).json({ received: true, voiceClone: true });
+      }
 
       // Branch: IELTS BUNDLE (Mock + Tutor 30d + Voice Clone). Single
       // Xendit invoice creates TWO downstream records sharing the same

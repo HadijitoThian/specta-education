@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
 import {
   Award,
@@ -170,6 +170,9 @@ export default function IeltsMockReport() {
               />
             </div>
           </div>
+
+          {/* Voice Clone upsell — the emotional-hook feature */}
+          <VoiceCloneUpsell attemptToken={token} />
 
           {/* PDF download */}
           {data.reportPdfUrl ? (
@@ -590,6 +593,189 @@ function Empty({ children }: { children: React.ReactNode }) {
   return (
     <div className="text-sm text-slate-500 italic text-center py-4">
       {children}
+    </div>
+  );
+}
+
+// ============================================================================
+// Voice Clone Upsell — "Hear yourself at Band 8"
+// ============================================================================
+
+function VoiceCloneUpsell({ attemptToken }: { attemptToken: string }) {
+  const { user } = useAuth();
+  const sessionQuery = trpc.ielts.getVoiceCloneSession.useQuery(
+    { attemptToken },
+    {
+      enabled: !!attemptToken,
+      refetchOnWindowFocus: false,
+      // Poll every 4s while processing so the audio auto-appears on completion.
+      refetchInterval: q => {
+        const d = q.state.data;
+        return d && (d.status === "pending" || d.status === "processing") ? 4000 : false;
+      },
+    },
+  );
+
+  const [name, setName] = useState(user?.name || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [phone, setPhone] = useState("");
+  const [consent, setConsent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const startCheckout = trpc.ielts.startVoiceCloneCheckout.useMutation();
+
+  const session = sessionQuery.data;
+
+  // Session is READY — show the "hear yourself at Band 8" player + comparison
+  if (session && session.status === "ready") {
+    return (
+      <div className="bg-gradient-to-br from-purple-600 via-fuchsia-600 to-pink-600 rounded-3xl shadow-lg p-6 md:p-7 text-white mb-6">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div>
+            <div className="text-xs uppercase tracking-wider opacity-80 font-bold">🎙️ Voice Clone · Part {session.targetedPartNumber}</div>
+            <h3 className="text-lg md:text-xl font-bold mt-1">Ini suara kamu di Band 8 🚀</h3>
+          </div>
+          <span className="text-[10px] bg-white/20 rounded-full px-3 py-1 uppercase font-bold tracking-wider">Ready</span>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4 mt-4">
+          <div className="bg-white/10 rounded-xl p-4">
+            <div className="text-xs uppercase tracking-wider opacity-80 font-bold mb-2">Rekaman kamu (asli)</div>
+            {session.originalAudioUrl ? (
+              <audio controls src={session.originalAudioUrl} className="w-full" />
+            ) : (
+              <div className="text-xs italic opacity-70">Audio tidak tersedia</div>
+            )}
+            <div className="mt-3 text-sm leading-relaxed opacity-95">"{session.originalTranscript?.slice(0, 400)}{(session.originalTranscript?.length || 0) > 400 ? "…" : ""}"</div>
+          </div>
+          <div className="bg-white/20 border-2 border-white/40 rounded-xl p-4">
+            <div className="text-xs uppercase tracking-wider text-amber-200 font-bold mb-2">✨ Suara kamu di Band 8</div>
+            {session.band8AudioUrl ? (
+              <audio controls src={session.band8AudioUrl} className="w-full" autoPlay={false} />
+            ) : (
+              <div className="text-xs italic opacity-70">Audio tidak tersedia</div>
+            )}
+            <div className="mt-3 text-sm leading-relaxed">"{session.band8Transcript?.slice(0, 400)}{(session.band8Transcript?.length || 0) > 400 ? "…" : ""}"</div>
+          </div>
+        </div>
+
+        {session.changesSummary && (
+          <div className="mt-4 bg-white/10 rounded-lg p-3 text-sm">
+            <div className="text-xs uppercase tracking-wider opacity-80 font-bold mb-1">Apa yang berubah?</div>
+            {session.changesSummary}
+          </div>
+        )}
+
+        <div className="mt-4 text-xs opacity-75">
+          🔒 Voice clone kamu auto-hapus dalam 90 hari. Tidak dibagikan atau digunakan untuk hal lain.
+        </div>
+      </div>
+    );
+  }
+
+  // Session is PROCESSING — show polling state
+  if (session && (session.status === "processing" || session.status === "pending")) {
+    return (
+      <div className="bg-gradient-to-br from-purple-600 to-pink-600 rounded-3xl shadow-lg p-6 md:p-7 text-white mb-6 text-center">
+        <div className="text-lg font-bold mb-2">🎙️ Cloning your voice...</div>
+        <div className="text-sm opacity-90 mb-3">
+          {session.status === "pending"
+            ? "Menunggu konfirmasi pembayaran... (biasanya <1 menit)"
+            : "AI sedang mengkloning suara kamu + generating Band 8 audio (~30-90 detik)"}
+        </div>
+        <div className="inline-block h-2 w-40 bg-white/20 rounded-full overflow-hidden">
+          <div className="h-full bg-white/80 animate-pulse w-3/4" />
+        </div>
+      </div>
+    );
+  }
+
+  // Session FAILED — show fallback
+  if (session && session.status === "failed") {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-2xl p-5 mb-6 text-sm">
+        <div className="font-bold text-red-900">Voice Clone gagal diproses</div>
+        <div className="text-red-700 mt-1">{session.errorMessage || "Terjadi error tak dikenal."}</div>
+        <div className="text-red-600 mt-2 text-xs">Hubungi hello@testprep.id / SpecTa admin untuk refund atau retry.</div>
+      </div>
+    );
+  }
+
+  // No session yet — show the UPSELL card with checkout form
+  return (
+    <div className="bg-gradient-to-br from-purple-600 via-fuchsia-600 to-pink-600 rounded-3xl shadow-xl p-6 md:p-7 text-white mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-[10px] bg-amber-400 text-slate-900 rounded-full px-3 py-1 uppercase font-black tracking-wider">🔥 NEW</span>
+        <span className="text-xs opacity-90 font-medium">Fitur baru khusus untuk kamu</span>
+      </div>
+      <h3 className="text-2xl md:text-3xl font-bold mb-2 leading-tight">
+        Mau dengar suara kamu di Band 8?
+      </h3>
+      <p className="text-white/95 text-sm md:text-base mb-4 leading-relaxed">
+        AI kami akan clone suara kamu, lalu perbaiki jawaban Speaking terlemah kamu ke level Band 8 — grammar, vocabulary, dan struktur kalimat semua di-upgrade. Terus dengar hasilnya dalam <strong>SUARA KAMU SENDIRI</strong>. Powerful psychology hack: "This is what future-me sounds like."
+      </p>
+
+      <div className="bg-white/10 rounded-xl p-4 mb-4">
+        <div className="flex items-baseline gap-3">
+          <span className="text-3xl font-black text-amber-300">Rp 49.000</span>
+          <span className="text-xs opacity-75">one-off · one Speaking response</span>
+        </div>
+        <div className="text-xs opacity-80 mt-1">✓ Suara kamu asli · ✓ Text Band 8 vs asli side-by-side · ✓ Deliver dalam menit</div>
+      </div>
+
+      <form onSubmit={async e => {
+        e.preventDefault();
+        setError(null);
+        if (!name.trim() || !email.trim()) return setError("Nama dan email required");
+        if (!consent) return setError("Kamu harus setuju dengan consent voice cloning");
+        try {
+          const res = await startCheckout.mutateAsync({
+            attemptToken,
+            customerName: name.trim(),
+            customerEmail: email.trim(),
+            customerPhone: phone.trim() || undefined,
+            consentGiven: true,
+          });
+          if (res.alreadyReady) {
+            sessionQuery.refetch();
+            return;
+          }
+          if (res.bundleFree) {
+            sessionQuery.refetch();
+            return;
+          }
+          if (res.invoiceUrl) window.location.href = res.invoiceUrl;
+        } catch (err: any) {
+          setError(err?.message ?? "Checkout gagal");
+        }
+      }} className="space-y-2">
+        <input
+          type="text" placeholder="Nama lengkap" value={name} onChange={e => setName(e.target.value)}
+          className="w-full px-3 py-2 rounded-lg bg-white/20 border border-white/30 placeholder:text-white/60 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+        />
+        <input
+          type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)}
+          className="w-full px-3 py-2 rounded-lg bg-white/20 border border-white/30 placeholder:text-white/60 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+        />
+        <input
+          type="tel" placeholder="WhatsApp (optional)" value={phone} onChange={e => setPhone(e.target.value)}
+          className="w-full px-3 py-2 rounded-lg bg-white/20 border border-white/30 placeholder:text-white/60 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+        />
+        <label className="flex items-start gap-2 text-xs opacity-90 mt-2 cursor-pointer">
+          <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-0.5" />
+          <span>
+            Saya setuju SpecTa mengkloning suara saya untuk fitur ini saja. Voice model auto-delete dalam 90 hari.
+            <a href="/privacy" target="_blank" className="underline ml-1">Privacy policy</a>.
+          </span>
+        </label>
+        {error && <div className="text-xs bg-red-500/20 border border-red-300/50 rounded-lg px-3 py-2">{error}</div>}
+        <button
+          type="submit"
+          disabled={startCheckout.isPending}
+          className="w-full mt-3 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-900 font-black text-base shadow-lg transition disabled:opacity-60"
+        >
+          {startCheckout.isPending ? "Redirecting to checkout…" : "🎙️ Dengar Suara Saya di Band 8 — Rp 49.000"}
+        </button>
+      </form>
     </div>
   );
 }

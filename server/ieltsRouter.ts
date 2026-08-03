@@ -37,8 +37,9 @@ import {
   createIeltsMockInvoice,
 } from "./ieltsMockService";
 import { createIeltsBundleCheckout } from "./bundleService";
-import { BUNDLE_PLANS } from "./xenditService";
+import { BUNDLE_PLANS, VOICE_CLONE_PRICE_IDR, voiceCloneExternalId, createVoiceCloneInvoice } from "./xenditService";
 import { validateGuestCheckout, extractClientIp } from "./antiAbuse";
+import { ENV } from "./_core/env";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -1422,6 +1423,161 @@ export const ieltsRouter = router({
       }
 
       return result;
+    }),
+
+  /**
+   * VOICE CLONE — start checkout (Rp 49k or free if bundle buyer).
+   * Creates a Xendit invoice and reserves a pending voice_clone_sessions row.
+   * On paid webhook, the row status advances to processing → ready.
+   */
+  startVoiceCloneCheckout: publicProcedure
+    .input(z.object({
+      attemptToken: z.string().min(1),
+      customerName: z.string().min(1).max(120),
+      customerEmail: z.string().refine(v => EMAIL_RE.test(v), { message: "Invalid email" }),
+      customerPhone: z.string().optional(),
+      consentGiven: z.literal(true, { message: "You must consent to voice cloning" }),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      // Anti-abuse guard
+      const ip = extractClientIp((ctx as any).req?.headers || {});
+      const abuse = validateGuestCheckout({
+        customerName: input.customerName,
+        customerEmail: input.customerEmail,
+        ip,
+      });
+      if (abuse) throw new TRPCError({ code: abuse.code, message: abuse.message });
+
+      // Find the attempt this Voice Clone will be built from
+      const [attempt] = await db.select().from(ieltsMockAttempts)
+        .where(eq(ieltsMockAttempts.attemptToken, input.attemptToken)).limit(1);
+      if (!attempt) throw new TRPCError({ code: "NOT_FOUND", message: "Test attempt not found" });
+      if ((attempt as any).status !== "completed") {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Voice Clone is available only after you complete the Mock Test." });
+      }
+
+      // Idempotency: check for existing session
+      const { sql } = await import("drizzle-orm");
+      const existingRows: any = await db.execute(sql`
+        SELECT * FROM voice_clone_sessions
+        WHERE attemptId = ${(attempt as any).id}
+          AND status IN ('pending','processing','ready')
+        LIMIT 1
+      `);
+      const existingList = Array.isArray(existingRows[0]) ? existingRows[0] : existingRows;
+      const existing = existingList[0];
+      if (existing) {
+        if (existing.status === "ready") {
+          return { alreadyReady: true as const, sessionId: existing.id, invoiceUrl: null };
+        }
+        if (existing.status === "pending" && existing.xenditInvoiceUrl) {
+          return { alreadyReady: false as const, sessionId: existing.id, invoiceUrl: existing.xenditInvoiceUrl };
+        }
+      }
+
+      // Bundle-free path: this attempt was purchased as part of the Rp 299k
+      // bundle. Skip Xendit, start processing immediately.
+      const isBundleFree = !!(attempt as any).bundleIncludesVoiceClone && !(attempt as any).bundleVoiceCloneRedeemedAt;
+
+      if (isBundleFree) {
+        const insertRes: any = await db.execute(sql`
+          INSERT INTO voice_clone_sessions (attemptId, customerEmail, customerName, amountIdr, isBundleFree, status, paidAt)
+          VALUES (${(attempt as any).id}, ${input.customerEmail.trim()}, ${input.customerName.trim()}, 0, TRUE, 'processing', NOW())
+        `);
+        const sessionId = Number(insertRes[0]?.insertId || 0);
+        await db.execute(sql`UPDATE ieltsMockAttempts SET bundleVoiceCloneRedeemedAt = NOW() WHERE id = ${(attempt as any).id}`);
+        // Kick off processing async (fire-and-forget)
+        void (async () => {
+          try {
+            const { runVoiceCloneForAttempt } = await import("./voiceCloneService");
+            const result = await runVoiceCloneForAttempt((attempt as any).id);
+            await db.execute(sql`
+              UPDATE voice_clone_sessions SET
+                status = 'ready',
+                processedAt = NOW(),
+                elevenLabsVoiceId = ${result.voiceId},
+                targetedPartNumber = ${result.targetedPartNumber},
+                originalTranscript = ${result.originalTranscript},
+                originalAudioKey = ${result.originalAudioKey || null},
+                band8Transcript = ${result.band8Transcript},
+                band8AudioKey = ${result.band8AudioKey},
+                changesSummary = ${result.changesSummary}
+              WHERE id = ${sessionId}
+            `);
+            console.log(`[VoiceClone] Session ${sessionId} READY (bundle-free)`);
+          } catch (e) {
+            await db.execute(sql`
+              UPDATE voice_clone_sessions SET status = 'failed', errorMessage = ${(e as Error).message} WHERE id = ${sessionId}
+            `);
+            console.error(`[VoiceClone] Session ${sessionId} FAILED:`, e);
+          }
+        })();
+        return { alreadyReady: false as const, bundleFree: true as const, sessionId, invoiceUrl: null };
+      }
+
+      // Paid path: create Xendit invoice + reserve pending session
+      const externalId = voiceCloneExternalId();
+      const baseUrl = (ENV.appUrl || "https://www.spectaeducation.com").replace(/\/+$/, "");
+      const successUrl = `${baseUrl}/ielts/mock-test/report/${input.attemptToken}?voice_clone=1`;
+      const failureUrl = `${baseUrl}/ielts/mock-test/report/${input.attemptToken}?voice_clone_failed=1`;
+
+      const invoice = await createVoiceCloneInvoice({
+        externalId,
+        customerName: input.customerName.trim(),
+        customerEmail: input.customerEmail.trim(),
+        customerPhone: input.customerPhone?.trim(),
+        successRedirectUrl: successUrl,
+        failureRedirectUrl: failureUrl,
+      });
+
+      const insertRes: any = await db.execute(sql`
+        INSERT INTO voice_clone_sessions (attemptId, customerEmail, customerName, xenditExternalId, xenditInvoiceUrl, amountIdr, isBundleFree, status)
+        VALUES (${(attempt as any).id}, ${input.customerEmail.trim()}, ${input.customerName.trim()}, ${externalId}, ${invoice.invoice_url}, ${VOICE_CLONE_PRICE_IDR}, FALSE, 'pending')
+      `);
+      const sessionId = Number(insertRes[0]?.insertId || 0);
+      return { alreadyReady: false as const, bundleFree: false as const, sessionId, invoiceUrl: invoice.invoice_url };
+    }),
+
+  /**
+   * Poll the Voice Clone session status. Used by the report page after
+   * user returns from Xendit checkout. Returns { status, result } —
+   * frontend polls every 3-5s while status is processing.
+   */
+  getVoiceCloneSession: publicProcedure
+    .input(z.object({ attemptToken: z.string().min(1) }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const [attempt] = await db.select().from(ieltsMockAttempts)
+        .where(eq(ieltsMockAttempts.attemptToken, input.attemptToken)).limit(1);
+      if (!attempt) return null;
+      const { sql } = await import("drizzle-orm");
+      const rows: any = await db.execute(sql`
+        SELECT * FROM voice_clone_sessions WHERE attemptId = ${(attempt as any).id}
+        ORDER BY createdAt DESC LIMIT 1
+      `);
+      const list = Array.isArray(rows[0]) ? rows[0] : rows;
+      const session = list[0];
+      if (!session) return null;
+      // Build public audio URLs for the R2-stored files via signed GET URLs
+      const { storageGet } = await import("./storage");
+      const originalAudioUrl = session.originalAudioKey ? (await storageGet(session.originalAudioKey)).url : null;
+      const band8AudioUrl = session.band8AudioKey ? (await storageGet(session.band8AudioKey)).url : null;
+      return {
+        id: session.id,
+        status: session.status as "pending" | "processing" | "ready" | "failed",
+        isBundleFree: !!session.isBundleFree,
+        targetedPartNumber: session.targetedPartNumber,
+        originalTranscript: session.originalTranscript,
+        band8Transcript: session.band8Transcript,
+        changesSummary: session.changesSummary,
+        originalAudioUrl,
+        band8AudioUrl,
+        errorMessage: session.errorMessage,
+      };
     }),
 });
 

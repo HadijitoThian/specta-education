@@ -125,6 +125,42 @@ export function isBundleExternalId(id: unknown): boolean {
   return typeof id === "string" && id.startsWith("BUNDLE-");
 }
 
+// ── VOICE CLONE (Rp 49k, post-Mock-Test upsell) ──────────────────────────────
+export const VOICE_CLONE_PRICE_IDR = 49000;
+export function voiceCloneExternalId(): string {
+  return `VOICECLONE-${Date.now().toString(36)}-${crypto.randomBytes(4).toString("hex")}`;
+}
+export function isVoiceCloneExternalId(id: unknown): boolean {
+  return typeof id === "string" && id.startsWith("VOICECLONE-");
+}
+export async function createVoiceCloneInvoice(params: {
+  externalId: string; customerName: string; customerEmail: string;
+  customerPhone?: string; successRedirectUrl?: string; failureRedirectUrl?: string;
+}): Promise<XenditInvoiceResponse> {
+  const body: Record<string, unknown> = {
+    external_id: params.externalId,
+    amount: VOICE_CLONE_PRICE_IDR,
+    currency: "IDR",
+    description: "SpecTa Voice Clone — Hear yourself at Band 8",
+    customer: {
+      given_names: params.customerName || "Student",
+      email: params.customerEmail,
+      ...(params.customerPhone ? { mobile_number: params.customerPhone } : {}),
+    },
+    customer_notification_preference: { invoice_created: ["email"], invoice_paid: ["email"] },
+    invoice_duration: 86400, // 24 hours
+    ...(params.successRedirectUrl ? { success_redirect_url: params.successRedirectUrl } : {}),
+    ...(params.failureRedirectUrl ? { failure_redirect_url: params.failureRedirectUrl } : {}),
+  };
+  const response = await fetch(`${XENDIT_API_BASE}/v2/invoices`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Basic ${Buffer.from(ENV.xenditSecretKey + ":").toString("base64")}` },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error(`Xendit voice-clone invoice creation failed: ${response.status}`);
+  return response.json() as Promise<XenditInvoiceResponse>;
+}
+
 /**
  * Create a Xendit invoice for the Mock + Tutor bundle (single payment for
  * both products). On the paid webhook, we look up BOTH the linked mock

@@ -582,6 +582,36 @@ export async function ensureMarketingSchema(): Promise<void> {
       // product ships).
       "ALTER TABLE ieltsMockAttempts ADD COLUMN bundleIncludesVoiceClone BOOLEAN NULL DEFAULT FALSE",
       "ALTER TABLE ieltsMockAttempts ADD COLUMN bundleVoiceCloneRedeemedAt TIMESTAMP NULL",
+      // Voice Clone session records — one row per paid Rp 49k session
+      // (or bundle-free redemption). Stores the ElevenLabs voice_id
+      // so a background job can DELETE it after 90 days for privacy.
+      `CREATE TABLE IF NOT EXISTS voice_clone_sessions (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         attemptId INT NOT NULL,
+         customerEmail VARCHAR(320) NOT NULL,
+         customerName VARCHAR(255) NULL,
+         xenditExternalId VARCHAR(128) UNIQUE,
+         xenditInvoiceId VARCHAR(128),
+         xenditInvoiceUrl VARCHAR(1024),
+         amountIdr INT NOT NULL DEFAULT 49000,
+         isBundleFree BOOLEAN NOT NULL DEFAULT FALSE,
+         status ENUM('pending','processing','ready','failed') NOT NULL DEFAULT 'pending',
+         paidAt TIMESTAMP NULL,
+         processedAt TIMESTAMP NULL,
+         elevenLabsVoiceId VARCHAR(128),
+         voiceDeletedAt TIMESTAMP NULL,
+         targetedPartNumber TINYINT,
+         originalTranscript TEXT,
+         originalAudioKey VARCHAR(512),
+         band8Transcript TEXT,
+         band8AudioKey VARCHAR(512),
+         changesSummary TEXT,
+         errorMessage TEXT,
+         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         INDEX idx_vc_attempt (attemptId),
+         INDEX idx_vc_email (customerEmail),
+         INDEX idx_vc_status (status)
+       )`,
       "ALTER TABLE tutor_subscriptions ADD COLUMN gclid VARCHAR(512) NULL",
       "ALTER TABLE tutor_subscriptions ADD COLUMN utmSource VARCHAR(120) NULL",
       "ALTER TABLE tutor_subscriptions ADD COLUMN utmMedium VARCHAR(120) NULL",
