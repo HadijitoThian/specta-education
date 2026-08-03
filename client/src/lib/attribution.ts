@@ -62,24 +62,59 @@ function hasSignal(a: Attribution): boolean {
 }
 
 /**
- * Call once on app load. Writes the first-touch cookie if we don't already
- * have one and this visit carries a campaign signal (or is the first landing).
+ * Call once on app load. Attribution priority:
+ *   1. If this visit has a GCLID → ALWAYS update cookie (Google Ads uses
+ *      LAST-CLICK attribution, so the newest paid-click GCLID wins).
+ *   2. If this visit has UTM tags (but no GCLID) and existing cookie has no
+ *      real signal → update.
+ *   3. If nothing meaningful in this visit → keep existing cookie, or set
+ *      an organic first-touch cookie if nothing exists.
+ *
+ * PREVIOUS BUG (fixed by this rewrite): the old code did
+ *   if (readCookie(COOKIE)) return;
+ * as the very first line, which meant any visitor who had EVER visited the
+ * site organically had their empty cookie block all future GCLID captures.
+ * Every subsequent ad-click failed to record its GCLID → server had no
+ * GCLID → offline conversion upload was silently no-op'd → Google Ads
+ * dashboard showed 0.00 conversions despite real sales happening. This
+ * was the reason CTR looked healthy but conversions never registered
+ * (most Indonesian users find SpecTa organically first, THEN click ads —
+ * they always had a "poisoned" empty-attribution cookie by ad-click time).
  */
 export function captureAttribution(): void {
   try {
-    if (readCookie(COOKIE)) return; // first-touch already locked in
     const current = paramsFromUrl();
-    // Only set the cookie when there's something meaningful to attribute, OR
-    // record the very first landing (referrer/landing page) for organic.
-    const data: Attribution = {
+    const existing = getAttribution();
+
+    const buildData = (): Attribution => ({
       ...current,
       landingPage: window.location.pathname + window.location.search,
       referrer: document.referrer || undefined,
       ts: Date.now(),
-    };
-    if (hasSignal(current) || !readCookie(COOKIE)) {
-      writeCookie(COOKIE, JSON.stringify(data), MAX_AGE_DAYS);
+    });
+
+    // Priority 1: new GCLID always wins (last-click attribution, matches
+    // how Google Ads itself attributes conversions).
+    if (current.gclid) {
+      writeCookie(COOKIE, JSON.stringify(buildData()), MAX_AGE_DAYS);
+      return;
     }
+
+    // Priority 2: new UTM signal wins if existing cookie has no signal.
+    if (hasSignal(current) && !(existing && hasSignal(existing))) {
+      writeCookie(COOKIE, JSON.stringify(buildData()), MAX_AGE_DAYS);
+      return;
+    }
+
+    // Priority 3: preserve existing meaningful cookie.
+    if (existing && hasSignal(existing)) return;
+
+    // Priority 4: no existing cookie at all — set organic first-touch.
+    if (!existing) {
+      writeCookie(COOKIE, JSON.stringify(buildData()), MAX_AGE_DAYS);
+    }
+    // Else: existing cookie is signal-less, current visit is signal-less —
+    // keep the existing cookie (older ts, same value).
   } catch {
     // Attribution must never break the app.
   }
