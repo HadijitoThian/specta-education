@@ -33,14 +33,14 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-border">
       <div className="container flex items-center justify-between h-16">
-        <button onClick={() => handleNavClick("/")} className="flex items-center gap-2 shrink-0">
-          <img src="/SpecTa%20Logo.jpeg" alt="SpecTa Education" className="h-10 object-contain" />
+        <button onClick={() => handleNavClick("/")} className="flex items-center shrink-0" aria-label="SpecTa Education — home">
+          <img src="/specta-logo.png" alt="SpecTa Education" className="h-10 w-auto max-w-[150px] object-contain" />
         </button>
         
         {/* Desktop Navigation */}
-        <div className="hidden lg:flex items-center gap-8">
+        <div className="hidden lg:flex items-center gap-5 xl:gap-6 whitespace-nowrap">
           <button onClick={() => handleNavClick("/about")} className={`text-sm font-medium transition-colors ${isActive("about") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
-            About Us
+            About
           </button>
           {/* IELTS Dropdown */}
           <div className="relative group">
@@ -153,21 +153,21 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             Contact
           </button>
           <button onClick={() => handleNavClick("/track")} className={`text-sm font-medium transition-colors ${isActive("track") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
-            Track My Application
+            Track
           </button>
           <button onClick={() => handleNavClick("/play")} className={`text-sm font-medium transition-colors flex items-center gap-1.5 ${isActive("play") ? "text-primary" : "text-purple-600 hover:text-purple-700"}`}>
             <Gamepad2 className="w-4 h-4" />
-            <span>SpecTa Play</span>
+            <span>Play</span>
           </button>
         </div>
-        
+
         {/* Desktop CTA Buttons */}
-        <div className="hidden lg:flex items-center gap-3">
-          <button onClick={() => handleNavClick("/book")} className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-blue-200 transition-all">
-            Book Consultation
+        <div className="hidden lg:flex items-center gap-2 shrink-0 whitespace-nowrap">
+          <button onClick={() => handleNavClick("/book")} className="px-3.5 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-blue-200 transition-all">
+            Book Call
           </button>
-          <button onClick={() => handleNavClick("/apply")} className="px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-pink-200 transition-all">
-            Quick Apply
+          <button onClick={() => handleNavClick("/apply")} className="px-3.5 py-1.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-pink-200 transition-all">
+            Apply
           </button>
         </div>
 
