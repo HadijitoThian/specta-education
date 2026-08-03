@@ -29,7 +29,7 @@ import { sendVoiceCloneUpsellEmail } from "./resendService";
 let started = false;
 const BATCH_PER_TICK = 3;      // ~3 emails per hourly tick = ~72/day max
 const DAILY_CAP = 50;           // hard cap on per-day sends (stays under Resend 100/day quota shared with other schedulers)
-const PREVIEW_KEY = "voice_clone_upsell_preview_v1";
+const PREVIEW_KEY = "voice_clone_upsell_preview_v2_en";  // bumped after English translation so drip preview re-fires once
 
 interface UpsellCandidate {
   email: string;
@@ -126,9 +126,16 @@ async function recordSent(email: string, segment: string, resendId: string | nul
 async function maybeSendPreview() {
   try {
     if (!ENV.resendApiKey) return;
-    const to = process.env.VOICE_CLONE_UPSELL_PREVIEW_TO || ENV.ownerEmail;
+    // Preview recipient priority: explicit override → OWNER_EMAIL env → hard fallback to founder.
+    // Hard fallback ensures preview always lands even if OWNER_EMAIL isn't set on Railway.
+    const to = (process.env.VOICE_CLONE_UPSELL_PREVIEW_TO || ENV.ownerEmail || "hjthian@gmail.com").trim();
     if (!to) return;
-    if ((await getSchedulerState(PREVIEW_KEY)) === to.toLowerCase()) return;
+    const already = await getSchedulerState(PREVIEW_KEY);
+    if (already === to.toLowerCase()) {
+      console.log(`[VoiceCloneUpsell] preview already sent to ${to} (marker=${PREVIEW_KEY}) — skipping`);
+      return;
+    }
+    console.log(`[VoiceCloneUpsell] sending preview email to ${to} (marker=${PREVIEW_KEY})`);
     const ok = await sendVoiceCloneUpsellEmail({
       to,
       name: "there",
