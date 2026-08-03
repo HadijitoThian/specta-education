@@ -344,6 +344,44 @@ export default function Home() {
         </div>
       </section>
 
+      {/* IELTS BUNDLE promo band — highest-AOV product, prominent placement */}
+      <section className="pb-8">
+        <div className="container">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-400 via-orange-500 to-pink-600 p-8 md:p-10 text-white shadow-xl"
+          >
+            <div className="absolute -top-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+            <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="max-w-2xl">
+                <div className="inline-flex items-center gap-2 bg-white/25 text-white text-xs font-black px-3 py-1 rounded-full mb-4 uppercase tracking-wider">
+                  🔥 Best Value Bundle · Hemat Rp 78rb
+                </div>
+                <h2 className="text-2xl md:text-3xl font-extrabold leading-tight mb-2">
+                  Complete IELTS Prep — Mock + AI Tutor 30 hari + Voice Clone
+                </h2>
+                <p className="text-white/95 text-sm md:text-base">
+                  Cek posisi kamu dulu (Mock Test), lalu latihan unlimited di AI Tutor 30 hari, plus bonus 1× Voice Clone "hear yourself at Band 8". <strong>Rp 299.000</strong> (nilai Rp 377.000).
+                </p>
+              </div>
+              <div className="flex flex-col items-start md:items-end gap-3 shrink-0">
+                <Link
+                  href="/ielts/mock-test#buy"
+                  className="inline-flex items-center gap-2 bg-white text-orange-700 font-black px-7 py-3 rounded-xl hover:bg-amber-50 transition shadow-lg text-base"
+                >
+                  🔥 Beli Bundle
+                  <ChevronRight className="w-5 h-5" />
+                </Link>
+                <span className="text-white/90 text-sm">One-off · <span className="line-through opacity-60">Rp 377.000</span> <span className="font-extrabold text-white">Rp 299.000</span></span>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* AI IELTS Tutor promo band */}
       <section className="pb-12">
         <div className="container">

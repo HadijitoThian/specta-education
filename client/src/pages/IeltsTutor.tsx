@@ -327,6 +327,37 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
             ))}
           </div>
           <p className="text-center text-xs text-slate-400 mt-4">Try it free — no credit card. Pay only if you love it.</p>
+
+          {/* Bundle promo card — appears between pricing cards + FAQ so
+              Tutor visitors also see the option to add Mock Test at a
+              massive discount. Drives cross-product AOV.
+              Bundle = Mock (Rp 79k) + Tutor 30d (Rp 249k) + 1 Voice Clone
+              (Rp 49k) for Rp 299k = save Rp 78k (21%). */}
+          <div className="mt-8 max-w-2xl mx-auto">
+            <div className="bg-gradient-to-br from-amber-50 via-orange-50 to-pink-50 border-2 border-amber-400 rounded-2xl p-6 relative shadow-lg">
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow">
+                🔥 Best Value · Hemat Rp 78rb
+              </span>
+              <div className="text-center mt-2">
+                <div className="text-xs uppercase tracking-wider text-amber-800 font-bold">Complete IELTS Prep Bundle</div>
+                <h3 className="text-xl font-bold text-slate-900 mt-1">Mock Test + Tutor 30 hari + Voice Clone</h3>
+                <p className="text-sm text-slate-600 mt-1 max-w-md mx-auto">
+                  Cek posisi kamu dulu dengan Mock Test, lalu latihan unlimited di Tutor, plus bonus 1× hear-yourself-at-Band-8 Voice Clone gratis.
+                </p>
+                <div className="flex items-baseline justify-center gap-3 mt-4">
+                  <span className="text-sm text-slate-400 line-through">Rp 377.000</span>
+                  <span className="text-3xl font-extrabold text-amber-700">Rp 299.000</span>
+                </div>
+                <div className="text-xs text-slate-500 mt-1">One-off · No subscription trap</div>
+                <a
+                  href="/ielts/mock-test#buy"
+                  className="inline-block mt-4 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold text-sm shadow-md transition"
+                >
+                  🔥 Beli Bundle Sekarang
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
