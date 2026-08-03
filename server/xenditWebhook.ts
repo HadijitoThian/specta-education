@@ -1,5 +1,5 @@
 import { Express, Request, Response } from "express";
-import { verifyWebhookToken, isTutorExternalId, TUTOR_PLANS, isIgcseExternalId, IGCSE_PLANS } from "./xenditService";
+import { verifyWebhookToken, isTutorExternalId, TUTOR_PLANS, isIgcseExternalId, IGCSE_PLANS, isBundleExternalId } from "./xenditService";
 import { getAccessTokenByToken, createAccessTokens, getAptitudeProOrderByExternalId, updateAptitudeProOrderStatus, getTutorSubscriptionByInvoice, updateTutorSubscription, getIgcseSubscriptionByInvoice, updateIgcseSubscription } from "./db";
 import { sendProAccessLinkEmail, sendPaymentConfirmationEmail } from "./resendService";
 import { notifyOwner } from "./_core/notification";
@@ -126,6 +126,69 @@ export function registerXenditWebhook(app: Express) {
       console.log("[Xendit Webhook] Received:", JSON.stringify(body, null, 2));
 
       const externalId = body.external_id;
+
+      // Branch: IELTS BUNDLE (Mock + Tutor 30d + Voice Clone). Single
+      // Xendit invoice creates TWO downstream records sharing the same
+      // BUNDLE-xxx external_id: one ieltsMockAttempts row + one
+      // tutorSubscriptions row. On paid, we activate both.
+      if (isBundleExternalId(externalId)) {
+        if (body.status === "PAID" || body.status === "SETTLED") {
+          try {
+            const { getDb } = await import("./db");
+            const db = await getDb();
+            if (!db) return res.status(500).json({ error: "DB unavailable" });
+            const { ieltsMockAttempts, tutorSubscriptions } = await import("../drizzle/schema");
+            const { eq } = await import("drizzle-orm");
+
+            // 1) Mark Mock attempt paid + issue take-test email
+            const [mockAttempt] = await db.select().from(ieltsMockAttempts)
+              .where(eq(ieltsMockAttempts.paymentRef, externalId)).limit(1);
+            if (mockAttempt && (mockAttempt as any).status === "awaiting_payment") {
+              const { markIeltsAttemptPaid } = await import("./ieltsMockService");
+              await markIeltsAttemptPaid(externalId, body.id);
+              console.log(`[Xendit Webhook][BUNDLE] Mock attempt ${mockAttempt.id} activated`);
+              // Fire offline conversion for the Mock portion of the bundle
+              // (attribute Rp 299k to Google Ads on the Mock Test action —
+              // we use the bundle total, not just Rp 79k, since the buyer
+              // clicked ONE ad to buy the whole bundle).
+              fireWebCheckoutConversion({
+                table: "mock",
+                entityId: mockAttempt.id,
+                gclid: (mockAttempt as any).gclid,
+                valueIdr: 299000,
+                orderId: externalId,
+              });
+            }
+
+            // 2) Activate Tutor subscription (30 days)
+            const [tutorSub] = await db.select().from(tutorSubscriptions)
+              .where(eq(tutorSubscriptions.xenditInvoiceId, externalId)).limit(1);
+            if (tutorSub && (tutorSub as any).status === "pending") {
+              const startsAt = new Date();
+              const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+              const { updateTutorSubscription } = await import("./db");
+              await updateTutorSubscription((tutorSub as any).id, {
+                status: "active",
+                xenditInvoiceId: body.id || externalId,
+                startsAt,
+                expiresAt,
+              });
+              console.log(`[Xendit Webhook][BUNDLE] Tutor subscription ${(tutorSub as any).id} activated until ${expiresAt.toISOString().slice(0, 10)}`);
+            }
+
+            await notifyOwner({
+              title: `🎁 New IELTS BUNDLE sale: ${mockAttempt?.customerName || "?"}`,
+              content: `Bundle Rp 299k paid. Mock attempt ${mockAttempt?.id} + Tutor sub ${(tutorSub as any)?.id} both activated for 30 days. Voice Clone entitlement flagged. Order: ${externalId}`,
+            }).catch(() => {});
+
+            return res.status(200).json({ received: true, bundle: true });
+          } catch (e) {
+            console.error("[Xendit Webhook][BUNDLE] activation failed:", e);
+            return res.status(500).json({ error: (e as Error).message });
+          }
+        }
+        return res.status(200).json({ received: true, bundle: true });
+      }
 
       // Branch: IELTS Mock Test purchases are handled separately from
       // Tes Bakat AI Pro purchases. They use the IELTS-MOCK- prefix on

@@ -36,6 +36,8 @@ import {
   IELTS_MOCK_PRICE,
   createIeltsMockInvoice,
 } from "./ieltsMockService";
+import { createIeltsBundleCheckout } from "./bundleService";
+import { BUNDLE_PLANS } from "./xenditService";
 import { validateGuestCheckout, extractClientIp } from "./antiAbuse";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -128,6 +130,72 @@ export const ieltsRouter = router({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: err instanceof Error ? err.message : "Checkout failed",
+        });
+      }
+    }),
+
+  /**
+   * Bundle price snapshot — returned to the client so the landing page can
+   * render current pricing + savings dynamically without hardcoding.
+   */
+  bundleCatalog: publicProcedure.query(() => {
+    return {
+      plan: "mock_tutor_m1" as const,
+      priceIdr: BUNDLE_PLANS.mock_tutor_m1.amount,
+      tutorDays: BUNDLE_PLANS.mock_tutor_m1.tutorDays,
+      includesVoiceClone: BUNDLE_PLANS.mock_tutor_m1.includesVoiceClone,
+      label: BUNDLE_PLANS.mock_tutor_m1.label,
+      standaloneTotalIdr: 79000 + 249000 + 49000, // Mock + Tutor 30d + Voice Clone
+    };
+  }),
+
+  /**
+   * Start a BUNDLE checkout: creates ONE Xendit invoice for Rp 299k that
+   * on payment activates BOTH a Mock Test attempt AND a 30-day Tutor
+   * subscription. Same anti-abuse + attribution as the standalone Mock
+   * checkout. Guest-friendly (no login required).
+   */
+  startBundleCheckout: publicProcedure
+    .input(z.object({
+      testType: z.enum(["academic", "general"]),
+      plan: z.enum(["mock_tutor_m1"]).default("mock_tutor_m1"),
+      customerName: z.string().min(1).max(120),
+      customerEmail: z.string().refine(v => EMAIL_RE.test(v), { message: "Invalid email" }),
+      customerPhone: z.string().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        const ip = extractClientIp((ctx as any).req?.headers || {});
+        const abuse = validateGuestCheckout({
+          customerName: input.customerName,
+          customerEmail: input.customerEmail,
+          ip,
+        });
+        if (abuse) throw new TRPCError({ code: abuse.code, message: abuse.message });
+
+        const { parseAttribution } = await import("./attribution");
+        const attribution = parseAttribution(ctx);
+
+        const result = await createIeltsBundleCheckout({
+          userId: ctx.user?.id,
+          testType: input.testType,
+          plan: input.plan,
+          customerName: input.customerName.trim(),
+          customerEmail: input.customerEmail.trim(),
+          customerPhone: input.customerPhone?.trim() || undefined,
+          attribution,
+        });
+        return {
+          bundle: true as const,
+          invoiceUrl: result.invoiceUrl,
+          attemptToken: result.attemptToken,
+          externalId: result.externalId,
+        };
+      } catch (err) {
+        console.error("[IELTS] startBundleCheckout failed:", err);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err instanceof Error ? err.message : "Bundle checkout failed",
         });
       }
     }),

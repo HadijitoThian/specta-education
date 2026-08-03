@@ -577,6 +577,11 @@ export async function ensureMarketingSchema(): Promise<void> {
       "ALTER TABLE ieltsMockAttempts ADD COLUMN utmMedium VARCHAR(120) NULL",
       "ALTER TABLE ieltsMockAttempts ADD COLUMN utmCampaign VARCHAR(160) NULL",
       "ALTER TABLE ieltsMockAttempts ADD COLUMN conversionUploadedAt TIMESTAMP NULL",
+      // Bundle flag — TRUE means the buyer paid for the Rp 299k Bundle and
+      // is entitled to a free Voice Clone session (redeemable when that
+      // product ships).
+      "ALTER TABLE ieltsMockAttempts ADD COLUMN bundleIncludesVoiceClone BOOLEAN NULL DEFAULT FALSE",
+      "ALTER TABLE ieltsMockAttempts ADD COLUMN bundleVoiceCloneRedeemedAt TIMESTAMP NULL",
       "ALTER TABLE tutor_subscriptions ADD COLUMN gclid VARCHAR(512) NULL",
       "ALTER TABLE tutor_subscriptions ADD COLUMN utmSource VARCHAR(120) NULL",
       "ALTER TABLE tutor_subscriptions ADD COLUMN utmMedium VARCHAR(120) NULL",

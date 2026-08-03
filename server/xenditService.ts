@@ -102,6 +102,67 @@ export const TUTOR_PLANS = {
   w2: { amount: 149000, days: 14, label: "AI IELTS Tutor — 2 Weeks (unlimited)" },
   m1: { amount: 249000, days: 30, label: "AI IELTS Tutor — 1 Month (unlimited)" },
 } as const;
+
+// ── IELTS BUNDLE: Mock Test + Tutor 30 days + 1 free Voice Clone ────────────
+// Positioning: Rp 79k (Mock) + Rp 249k (Tutor 30d) + Rp 49k (1 Voice Clone) =
+// Rp 377k standalone total. Bundle price = Rp 299k. Customer saves Rp 78k
+// (~21% discount). Voice Clone flag is stored on the attempt; the actual
+// clone session activates when Voice Clone product ships.
+export const BUNDLE_PLANS = {
+  mock_tutor_m1: {
+    amount: 299000,
+    tutorDays: 30,
+    includesVoiceClone: true,
+    label: "IELTS Bundle — Mock Test + AI Tutor 30 hari + 1 Voice Clone",
+  },
+} as const;
+export type BundlePlan = keyof typeof BUNDLE_PLANS;
+
+export function bundleExternalId(): string {
+  return `BUNDLE-${Date.now().toString(36)}-${crypto.randomBytes(4).toString("hex")}`;
+}
+export function isBundleExternalId(id: unknown): boolean {
+  return typeof id === "string" && id.startsWith("BUNDLE-");
+}
+
+/**
+ * Create a Xendit invoice for the Mock + Tutor bundle (single payment for
+ * both products). On the paid webhook, we look up BOTH the linked mock
+ * attempt (by paymentRef) AND the tutor subscription (by xenditInvoiceId)
+ * using the same external_id, and activate them both.
+ */
+export async function createBundleInvoice(params: {
+  externalId: string; plan: BundlePlan; customerName: string; customerEmail: string;
+  customerPhone?: string; successRedirectUrl?: string; failureRedirectUrl?: string;
+}): Promise<XenditInvoiceResponse> {
+  const plan = BUNDLE_PLANS[params.plan];
+  const body: Record<string, unknown> = {
+    external_id: params.externalId,
+    amount: plan.amount,
+    currency: "IDR",
+    description: plan.label,
+    customer: {
+      given_names: params.customerName || "Student",
+      email: params.customerEmail,
+      ...(params.customerPhone ? { mobile_number: params.customerPhone } : {}),
+    },
+    customer_notification_preference: { invoice_created: ["email"], invoice_reminder: ["email"], invoice_paid: ["email"] },
+    invoice_duration: 259200, // 3 days
+    ...(params.successRedirectUrl ? { success_redirect_url: params.successRedirectUrl } : {}),
+    ...(params.failureRedirectUrl ? { failure_redirect_url: params.failureRedirectUrl } : {}),
+  };
+  const response = await fetch(`${XENDIT_API_BASE}/v2/invoices`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Basic ${Buffer.from(ENV.xenditSecretKey + ":").toString("base64")}` },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    console.error("[Xendit] Bundle invoice creation failed:", response.status, error);
+    throw new Error(`Xendit bundle invoice creation failed: ${response.status}`);
+  }
+  return response.json() as Promise<XenditInvoiceResponse>;
+}
 export type TutorPlan = keyof typeof TUTOR_PLANS;
 
 export function tutorExternalId(): string {

@@ -115,9 +115,12 @@ const FAQ = [
 export default function IeltsMockTest() {
   const { loading: authLoading } = useAuth();
   const catalog = trpc.ielts.catalog.useQuery();
+  const bundleCatalog = trpc.ielts.bundleCatalog.useQuery();
   const startCheckout = trpc.ielts.startCheckout.useMutation();
+  const startBundleCheckout = trpc.ielts.startBundleCheckout.useMutation();
 
   const [testType, setTestType] = useState<"academic" | "general">("academic");
+  const [purchaseMode, setPurchaseMode] = useState<"mock_only" | "bundle">("mock_only");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -144,6 +147,20 @@ export default function IeltsMockTest() {
       return;
     }
     try {
+      // Bundle path: single Rp 299k invoice that activates Mock + Tutor 30d
+      if (purchaseMode === "bundle") {
+        const res = await startBundleCheckout.mutateAsync({
+          testType,
+          plan: "mock_tutor_m1",
+          customerName: name.trim(),
+          customerEmail: email.trim(),
+          customerPhone: phone.trim() || undefined,
+        });
+        window.location.href = res.invoiceUrl;
+        return;
+      }
+
+      // Standalone Mock Test (Rp 79k)
       const res = await startCheckout.mutateAsync({
         testType,
         customerName: name.trim(),
@@ -600,6 +617,62 @@ export default function IeltsMockTest() {
               onSubmit={handleBuy}
               className="bg-white text-slate-900 rounded-2xl p-6 shadow-2xl"
             >
+              {/* Purchase mode toggle — Mock only vs Bundle. Bundle wins on
+                  value (save Rp 78k) but Mock stays as the cheap entry. */}
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wider">
+                  Pilih paket
+                </label>
+                <div className="grid grid-cols-1 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPurchaseMode("mock_only")}
+                    className={`text-left px-4 py-3 rounded-lg border-2 transition ${
+                      purchaseMode === "mock_only"
+                        ? "bg-blue-50 border-blue-600"
+                        : "bg-white border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-bold text-slate-900">IELTS Mock Test saja</div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">1× tes lengkap 4 skill + PDF report</div>
+                      </div>
+                      <div className="text-base font-bold text-slate-900">{idr(price)}</div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPurchaseMode("bundle")}
+                    className={`text-left px-4 py-3 rounded-lg border-2 transition relative ${
+                      purchaseMode === "bundle"
+                        ? "bg-amber-50 border-amber-600"
+                        : "bg-white border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <span className="absolute -top-2 right-3 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
+                      Hemat Rp 78rb
+                    </span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="text-sm font-bold text-slate-900">Bundle Lengkap 🔥</div>
+                        <div className="text-[11px] text-slate-600 mt-0.5">
+                          Mock Test + AI Tutor 30 hari (unlimited) + 1 Voice Clone gratis
+                        </div>
+                      </div>
+                      <div className="text-right ml-2">
+                        <div className="text-[10px] text-slate-400 line-through">
+                          {idr(bundleCatalog.data?.standaloneTotalIdr ?? 377000)}
+                        </div>
+                        <div className="text-base font-bold text-amber-700">
+                          {idr(bundleCatalog.data?.priceIdr ?? 299000)}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               <div className="mb-4">
                 <label className="block text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wider">
                   Test type
@@ -670,20 +743,22 @@ export default function IeltsMockTest() {
               ) : null}
               <button
                 type="submit"
-                disabled={buyDisabled}
+                disabled={buyDisabled || startBundleCheckout.isPending}
                 className={`w-full font-semibold py-3 rounded-lg transition shadow text-white ${
-                  isFreeNow
+                  purchaseMode === "bundle"
+                    ? "bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:from-slate-400 disabled:to-slate-500"
+                    : isFreeNow
                     ? "bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 disabled:from-slate-400 disabled:to-slate-500"
                     : "bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 disabled:from-slate-400 disabled:to-slate-500"
                 }`}
               >
-                {startCheckout.isPending
-                  ? isFreeNow
-                    ? "Starting…"
-                    : "Redirecting to checkout…"
-                  : isFreeNow
-                    ? "Start free test"
-                    : `Buy & take it — ${idr(price)}`}
+                {(startCheckout.isPending || startBundleCheckout.isPending)
+                  ? "Redirecting to checkout…"
+                  : purchaseMode === "bundle"
+                    ? `🔥 Beli Bundle — ${idr(bundleCatalog.data?.priceIdr ?? 299000)}`
+                    : isFreeNow
+                      ? "Start free test"
+                      : `Beli Mock — ${idr(price)}`}
               </button>
 
               <p className="text-xs text-slate-500 text-center mt-3">

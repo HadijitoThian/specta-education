@@ -2408,6 +2408,10 @@ export const ieltsMockAttempts = mysqlTable("ieltsMockAttempts", {
   utmMedium: varchar("utmMedium", { length: 120 }),
   utmCampaign: varchar("utmCampaign", { length: 160 }),
   conversionUploadedAt: timestamp("conversionUploadedAt"),
+  // Bundle flags — TRUE when the buyer purchased the IELTS Bundle (Mock +
+  // Tutor 30d + 1 free Voice Clone). Consumed by post-completion flow.
+  bundleIncludesVoiceClone: boolean("bundleIncludesVoiceClone").default(false),
+  bundleVoiceCloneRedeemedAt: timestamp("bundleVoiceCloneRedeemedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
