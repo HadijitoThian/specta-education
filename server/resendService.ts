@@ -558,3 +558,118 @@ export async function sendMockTestUpsellEmail(params: {
     return false;
   }
 }
+
+// ============================================================================
+// VOICE CLONE upsell — "Hear yourself at Band 8" drip to all past customers
+// ============================================================================
+
+export async function sendVoiceCloneUpsellEmail(params: {
+  to: string;
+  name?: string | null;
+  segment?: string;   // "aptitude-free" | "aptitude-pro" | "practice" | "mock" | "tutor-trial" | "tutor-paid" | "preview"
+  appUrl: string;
+}): Promise<boolean> {
+  const { to } = params;
+  const name = (params.name || "").trim() || "there";
+  const base = params.appUrl.replace(/\/+$/, "");
+  const voiceCloneUrl = `${base}/voice-clone?utm_source=email&utm_medium=drip&utm_campaign=voice-clone-upsell&utm_content=${encodeURIComponent(params.segment || "unknown")}`;
+  const unsubUrl = `${base}/unsubscribe?email=${encodeURIComponent(to)}`;
+
+  const subject = "🎙️ Dengar suara kamu di IELTS Band 8 — Rp 49k";
+
+  // Segment-aware opener (subtle personalization to boost open/click rates)
+  const segmentOpeners: Record<string, string> = {
+    "aptitude-free": "Kamu sudah coba Tes Bakat AI kami — sekarang saatnya coba fitur baru yang jauh lebih personal:",
+    "aptitude-pro": "Terima kasih sudah beli Tes Bakat AI Pro. Kami baru launch fitur baru yang wajib kamu coba:",
+    "practice": "Kamu sudah coba IELTS Practice kami — sekarang ada cara baru yang lebih powerful untuk latihan Speaking:",
+    "mock": "Sebagai buyer IELTS Mock Test kami, kamu wajib coba fitur baru ini:",
+    "tutor-trial": "Kamu sudah coba AI IELTS Tutor gratis. Ada fitur baru yang jauh lebih emosional:",
+    "tutor-paid": "Sebagai subscriber AI Tutor kami, kamu wajib coba fitur baru ini:",
+    "preview": "PREVIEW EMAIL — Ini yang akan dikirim ke past customers (50/hari):",
+  };
+  const opener = segmentOpeners[params.segment || ""] || "Kami baru launch fitur baru yang mungkin kamu suka:";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+    <div style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+      <!-- Wordmark header -->
+      <div style="text-align:center;padding:24px 24px 8px 24px;line-height:1;">
+        <a href="https://www.spectaeducation.com" style="text-decoration:none;display:inline-block;">
+          <span style="font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:800;letter-spacing:-0.5px;color:#4338ca;">SpecTa</span><span style="font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:400;letter-spacing:-0.3px;color:#6b7280;margin-left:6px;">Education</span>
+        </a>
+      </div>
+
+      <!-- Purple gradient hero -->
+      <div style="background:linear-gradient(135deg,#7c3aed,#c026d3,#db2777);padding:28px 30px;text-align:center;color:white;">
+        <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;opacity:0.9;font-weight:700;">🔥 New AI Product · Emotional Hook</div>
+        <h1 style="color:white;margin:8px 0 0 0;font-size:26px;line-height:1.25;font-weight:800;">Dengar suara kamu di<br/>IELTS Band 8 🚀</h1>
+      </div>
+
+      <div style="padding:30px;">
+        <p style="color:#374151;font-size:16px;line-height:1.6;margin:0 0 14px;">Hi <strong>${name}</strong>,</p>
+        <p style="color:#374151;font-size:14px;line-height:1.6;margin:0 0 20px;">${opener}</p>
+
+        <!-- The pitch -->
+        <div style="border:2px solid #e9d5ff;border-radius:14px;padding:22px;margin:0 0 20px;background:linear-gradient(180deg,#faf5ff,#fdf2f8);">
+          <div style="text-align:center;margin-bottom:12px;">
+            <span style="display:inline-block;padding:6px 12px;background:#7c3aed;color:white;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border-radius:999px;">SpecTa Voice Clone</span>
+          </div>
+          <h2 style="color:#6b21a8;margin:0 0 10px;font-size:20px;text-align:center;">🎙️ Rekam. AI Clone. Dengar di Band 8.</h2>
+          <p style="color:#374151;font-size:14px;line-height:1.65;margin:0 0 16px;text-align:center;">
+            Rekam 3 pertanyaan IELTS Speaking (5 menit). AI kloning suara kamu, lalu perbaiki jawaban terlemah kamu ke level Band 8. Kamu dengar hasilnya dalam <strong>SUARA KAMU SENDIRI</strong>.
+          </p>
+          <ul style="color:#374151;font-size:14px;line-height:1.8;padding-left:18px;margin:0 0 18px;">
+            <li>🎤 Rekam Part 1, 2, dan 3 IELTS Speaking</li>
+            <li>🤖 AI grade + rewrite ke Band 8 sesuai official IELTS rubric</li>
+            <li>✨ Generate audio Band 8 dalam suara kloningan kamu</li>
+            <li>📱 Compare side-by-side: original vs Band 8</li>
+          </ul>
+          <div style="text-align:center;">
+            <a href="${voiceCloneUrl}"
+               style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#c026d3);color:white;text-decoration:none;padding:14px 32px;border-radius:12px;font-weight:bold;font-size:15px;box-shadow:0 4px 12px rgba(124,58,237,0.35);">
+              🎙️ Mulai Rekam — Rp 49.000 →
+            </a>
+          </div>
+          <p style="color:#6b21a8;font-size:12px;line-height:1.5;margin:14px 0 0;text-align:center;">
+            One-off · No subscription · Hasil dalam 5-10 menit · 100% private (voice auto-delete 90 hari)
+          </p>
+        </div>
+
+        <div style="border-left:4px solid #7c3aed;padding:10px 14px;background:#faf5ff;border-radius:0 8px 8px 0;margin:0 0 6px;">
+          <p style="color:#6b21a8;font-size:13px;line-height:1.6;margin:0;">
+            <strong>Kenapa ini powerful?</strong><br/>
+            Otak kamu belajar 10× lebih cepat waktu bisa BANDINGKAN versi diri sendiri sekarang vs versi "best". Bukan lihat orang lain — lihat <em>diri kamu</em> di Band 8. Motivation hack yang bikin kamu mau latihan setiap hari.
+          </p>
+        </div>
+      </div>
+      <div style="background:#f9fafb;padding:18px 32px;text-align:center;border-top:1px solid #e5e7eb;">
+        <p style="color:#9ca3af;font-size:12px;margin:0 0 6px;">© ${new Date().getFullYear()} SpecTa Education • Sejak 2005 • 10.000+ pelajar terbantu</p>
+        <p style="color:#c0c4cc;font-size:11px;margin:0;"><a href="${unsubUrl}" style="color:#c0c4cc;">Berhenti berlangganan email marketing</a></p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  try {
+    const response = await fetch(`${RESEND_API_BASE}/emails`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ENV.resendApiKey}` },
+      body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html }),
+    });
+    if (!response.ok) {
+      console.error("[Resend] Voice Clone upsell failed:", response.status, await response.text());
+      return false;
+    }
+    console.log(`[Resend] Voice Clone upsell sent to ${to} (segment=${params.segment || "?"})`);
+    return true;
+  } catch (err) {
+    console.error("[Resend] Voice Clone upsell error:", err);
+    return false;
+  }
+}

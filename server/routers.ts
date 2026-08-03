@@ -254,6 +254,7 @@ import { startCrmReportScheduler } from "./crmReportScheduler";
 import { startTutorReminderScheduler } from "./tutorReminderScheduler";
 import { startPracticeFollowupScheduler } from "./practiceFollowupScheduler";
 import { startMockTestUpsellScheduler } from "./mockTestUpsellScheduler";
+import { startVoiceCloneUpsellScheduler } from "./voiceCloneUpsellScheduler";
 import { startArticleProducerScheduler } from "./articleProducer";
 import { startGrowthInsightsScheduler } from "./growthInsights";
 import { startGoogleAdsScheduler, startGoogleAdsOptimizer } from "./googleAdsApi";
@@ -8477,6 +8478,11 @@ startPracticeFollowupScheduler();
 // Mock Test → AI IELTS Tutor upsell: one email to paid Mock Test completers
 // 24h+ after they finish (dedup via mock_test_upsells).
 startMockTestUpsellScheduler();
+
+// Voice Clone standalone upsell: 50/day drip to all past customers across
+// all 6 product tables (aptitude free/pro, IELTS practice/mock, tutor
+// trial/paid), oldest first, dedupe via voice_clone_upsell_sent.
+startVoiceCloneUpsellScheduler();
 
 // Article Producer scheduler (SEO/GEO): weekly review-ready blog drafts.
 // OFF unless ARTICLE_PRODUCER_ENABLED=true (no token spend until opted in).
