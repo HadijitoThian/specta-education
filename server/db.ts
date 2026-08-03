@@ -587,7 +587,7 @@ export async function ensureMarketingSchema(): Promise<void> {
       // so a background job can DELETE it after 90 days for privacy.
       `CREATE TABLE IF NOT EXISTS voice_clone_sessions (
          id INT AUTO_INCREMENT PRIMARY KEY,
-         attemptId INT NOT NULL,
+         attemptId INT NULL,
          customerEmail VARCHAR(320) NOT NULL,
          customerName VARCHAR(255) NULL,
          xenditExternalId VARCHAR(128) UNIQUE,
@@ -611,6 +611,35 @@ export async function ensureMarketingSchema(): Promise<void> {
          INDEX idx_vc_attempt (attemptId),
          INDEX idx_vc_email (customerEmail),
          INDEX idx_vc_status (status)
+       )`,
+      // Standalone mode = user records 3 IELTS Speaking questions directly
+      // (no Mock Test needed). Bundle-free redemption also uses standalone
+      // path when the buyer never took the Mock Test.
+      "ALTER TABLE voice_clone_sessions ADD COLUMN mode ENUM('from_mock','standalone') NOT NULL DEFAULT 'from_mock'",
+      "ALTER TABLE voice_clone_sessions ADD COLUMN sessionToken VARCHAR(64) NULL UNIQUE",
+      "ALTER TABLE voice_clone_sessions MODIFY attemptId INT NULL",
+      // Per-question recordings for the standalone flow (3 questions per session)
+      `CREATE TABLE IF NOT EXISTS voice_clone_recordings (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         sessionId INT NOT NULL,
+         questionIndex TINYINT NOT NULL,
+         partNumber TINYINT NOT NULL,
+         questionText TEXT NOT NULL,
+         audioKey VARCHAR(512),
+         transcript TEXT,
+         durationSec INT,
+         uploadedAt TIMESTAMP NULL,
+         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         UNIQUE KEY uk_vcr_session_q (sessionId, questionIndex),
+         INDEX idx_vcr_session (sessionId)
+       )`,
+      // Upsell campaign dedupe — one row per email that got the drip
+      `CREATE TABLE IF NOT EXISTS voice_clone_upsell_sent (
+         email VARCHAR(320) NOT NULL PRIMARY KEY,
+         segment VARCHAR(60),
+         sentAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         resendId VARCHAR(128),
+         INDEX idx_vcus_sent (sentAt)
        )`,
       "ALTER TABLE tutor_subscriptions ADD COLUMN gclid VARCHAR(512) NULL",
       "ALTER TABLE tutor_subscriptions ADD COLUMN utmSource VARCHAR(120) NULL",

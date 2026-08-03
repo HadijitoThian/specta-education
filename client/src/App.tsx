@@ -130,6 +130,9 @@ const AdminAdsLauncher = lazyWithReload(() => import("./pages/AdminAdsLauncher")
 const AdminWaLinks = lazyWithReload(() => import("./pages/AdminWaLinks"));
 const AdminIeltsTutor = lazyWithReload(() => import("./pages/AdminIeltsTutor"));
 const IeltsMockTest = lazyWithReload(() => import("./pages/IeltsMockTest"));
+const VoiceCloneLanding = lazyWithReload(() => import("./pages/VoiceCloneLanding"));
+const VoiceCloneRecord = lazyWithReload(() => import("./pages/VoiceCloneRecord"));
+const VoiceCloneResult = lazyWithReload(() => import("./pages/VoiceCloneResult"));
 const IeltsFreeRedeem = lazyWithReload(() => import("./pages/IeltsFreeRedeem"));
 const IeltsMockSuccess = lazyWithReload(() => import("./pages/IeltsMockSuccess"));
 const IeltsMockTake = lazyWithReload(() => import("./pages/IeltsMockTake"));
@@ -252,6 +255,9 @@ function Router() {
         <Route path={"/admin/ads-launcher"} component={AdminAdsLauncher} />
         <Route path={"/admin/wa-links"} component={AdminWaLinks} />
         <Route path={"/ielts/mock-test"} component={IeltsMockTest} />
+        <Route path={"/voice-clone"} component={VoiceCloneLanding} />
+        <Route path={"/voice-clone/record/:sessionToken"} component={VoiceCloneRecord} />
+        <Route path={"/voice-clone/result/:sessionToken"} component={VoiceCloneResult} />
         <Route path={"/ielts/redeem/:token"} component={IeltsFreeRedeem} />
         <Route path={"/ielts/mock-test/success"} component={IeltsMockSuccess} />
         <Route path={"/ielts/mock-test/take/:token"} component={IeltsMockTake} />

@@ -1579,6 +1579,282 @@ export const ieltsRouter = router({
         errorMessage: session.errorMessage,
       };
     }),
+
+  // ── STANDALONE VOICE CLONE — anyone can buy without Mock Test ──────────
+
+  /**
+   * Create a Xendit invoice for a standalone Voice Clone session. On paid,
+   * user is redirected to /voice-clone/record/[sessionToken] to record 3
+   * IELTS Speaking questions, then processing runs.
+   */
+  createStandaloneVoiceCloneCheckout: publicProcedure
+    .input(z.object({
+      customerName: z.string().min(1).max(120),
+      customerEmail: z.string().refine(v => EMAIL_RE.test(v), { message: "Invalid email" }),
+      customerPhone: z.string().optional(),
+      consentGiven: z.literal(true, { message: "You must consent to voice cloning" }),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      const ip = extractClientIp((ctx as any).req?.headers || {});
+      const abuse = validateGuestCheckout({
+        customerName: input.customerName,
+        customerEmail: input.customerEmail,
+        ip,
+      });
+      if (abuse) throw new TRPCError({ code: abuse.code, message: abuse.message });
+
+      const { sql } = await import("drizzle-orm");
+      const { nanoid } = await import("nanoid");
+      const sessionToken = nanoid(24);
+      const externalId = voiceCloneExternalId();
+      const baseUrl = (ENV.appUrl || "https://www.spectaeducation.com").replace(/\/+$/, "");
+      const successUrl = `${baseUrl}/voice-clone/record/${sessionToken}?paid=1`;
+      const failureUrl = `${baseUrl}/voice-clone?paid=0`;
+
+      // Create the pending session FIRST — so failed Xendit call doesn't leave orphans
+      const insertRes: any = await db.execute(sql`
+        INSERT INTO voice_clone_sessions (
+          mode, sessionToken, customerEmail, customerName, xenditExternalId,
+          amountIdr, isBundleFree, status
+        ) VALUES (
+          'standalone', ${sessionToken}, ${input.customerEmail.trim()}, ${input.customerName.trim()},
+          ${externalId}, ${VOICE_CLONE_PRICE_IDR}, FALSE, 'pending'
+        )
+      `);
+      const sessionId = Number(insertRes[0]?.insertId || 0);
+      if (!sessionId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create session" });
+
+      const invoice = await createVoiceCloneInvoice({
+        externalId,
+        customerName: input.customerName.trim(),
+        customerEmail: input.customerEmail.trim(),
+        customerPhone: input.customerPhone?.trim(),
+        successRedirectUrl: successUrl,
+        failureRedirectUrl: failureUrl,
+      });
+      await db.execute(sql`
+        UPDATE voice_clone_sessions SET xenditInvoiceUrl = ${invoice.invoice_url} WHERE id = ${sessionId}
+      `);
+
+      return { sessionId, sessionToken, invoiceUrl: invoice.invoice_url };
+    }),
+
+  /**
+   * Get the standalone recording session by token. Returns the 3 questions
+   * to record + any recordings already uploaded. Only returns the questions
+   * once payment is confirmed (session.paidAt IS NOT NULL) OR the session
+   * is bundle-free.
+   */
+  getStandaloneRecordingSession: publicProcedure
+    .input(z.object({ sessionToken: z.string().min(1) }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const { sql } = await import("drizzle-orm");
+      const sessionRows: any = await db.execute(sql`
+        SELECT * FROM voice_clone_sessions WHERE sessionToken = ${input.sessionToken} LIMIT 1
+      `);
+      const sessionList = Array.isArray(sessionRows[0]) ? sessionRows[0] : sessionRows;
+      const session = sessionList[0];
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Session not found" });
+
+      const isPaid = !!session.paidAt || !!session.isBundleFree;
+
+      // If not paid yet, return only status (user needs to complete Xendit first)
+      if (!isPaid) {
+        return {
+          sessionId: session.id,
+          status: "awaiting_payment" as const,
+          isPaid: false as const,
+          xenditInvoiceUrl: session.xenditInvoiceUrl,
+        };
+      }
+
+      // Load existing recordings
+      const recordingRows: any = await db.execute(sql`
+        SELECT id, questionIndex, partNumber, questionText, audioKey, transcript, durationSec, uploadedAt
+        FROM voice_clone_recordings WHERE sessionId = ${session.id} ORDER BY questionIndex ASC
+      `);
+      const existingRecordings: any[] = Array.isArray(recordingRows[0]) ? recordingRows[0] : recordingRows;
+
+      // If no recordings yet, pick 3 questions and pre-create the rows
+      if (existingRecordings.length === 0) {
+        const { pickStandaloneQuestions } = await import("./voiceCloneQuestions");
+        const questions = await pickStandaloneQuestions();
+        for (let i = 0; i < questions.length; i++) {
+          const q = questions[i];
+          await db.execute(sql`
+            INSERT INTO voice_clone_recordings (sessionId, questionIndex, partNumber, questionText)
+            VALUES (${session.id}, ${i}, ${q.partNumber}, ${q.questionText})
+          `);
+        }
+        const freshRows: any = await db.execute(sql`
+          SELECT id, questionIndex, partNumber, questionText, audioKey, transcript, durationSec, uploadedAt
+          FROM voice_clone_recordings WHERE sessionId = ${session.id} ORDER BY questionIndex ASC
+        `);
+        existingRecordings.push(...(Array.isArray(freshRows[0]) ? freshRows[0] : freshRows));
+      }
+
+      return {
+        sessionId: session.id,
+        status: session.status as "pending" | "processing" | "ready" | "failed",
+        isPaid: true as const,
+        recordings: existingRecordings.map(r => ({
+          questionIndex: r.questionIndex,
+          partNumber: r.partNumber,
+          questionText: r.questionText,
+          isUploaded: !!r.audioKey && !!r.uploadedAt,
+          durationSec: r.durationSec,
+        })),
+      };
+    }),
+
+  /**
+   * Upload one recording for a standalone Voice Clone session. Audio is
+   * base64-encoded from the browser MediaRecorder blob.
+   */
+  uploadStandaloneRecording: publicProcedure
+    .input(z.object({
+      sessionToken: z.string().min(1),
+      questionIndex: z.number().int().min(0).max(2),
+      audioBase64: z.string().min(100),
+      mimeType: z.string().default("audio/webm"),
+      durationSec: z.number().int().min(3).max(180),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const { sql } = await import("drizzle-orm");
+      const sessionRows: any = await db.execute(sql`
+        SELECT id, paidAt, isBundleFree FROM voice_clone_sessions
+        WHERE sessionToken = ${input.sessionToken} LIMIT 1
+      `);
+      const sessionList = Array.isArray(sessionRows[0]) ? sessionRows[0] : sessionRows;
+      const session = sessionList[0];
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Session not found" });
+      if (!session.paidAt && !session.isBundleFree) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Payment not confirmed" });
+      }
+
+      // Decode and upload to R2
+      const buffer = Buffer.from(input.audioBase64, "base64");
+      if (buffer.length < 1000) throw new TRPCError({ code: "BAD_REQUEST", message: "Audio too small" });
+      const ext = input.mimeType.includes("mp4") ? "mp4" : "webm";
+      const audioKey = `voice-clone/standalone-${session.id}/rec-${input.questionIndex}-${Date.now()}.${ext}`;
+      const { storagePut } = await import("./storage");
+      await storagePut(audioKey, buffer, input.mimeType);
+
+      // Persist to the recording row (upsert on session+questionIndex)
+      await db.execute(sql`
+        UPDATE voice_clone_recordings
+        SET audioKey = ${audioKey}, durationSec = ${input.durationSec}, uploadedAt = NOW()
+        WHERE sessionId = ${session.id} AND questionIndex = ${input.questionIndex}
+      `);
+
+      return { uploaded: true as const, audioKey };
+    }),
+
+  /**
+   * Finalize a standalone Voice Clone session — trigger the background
+   * processing pipeline (clone voice, rewrite at Band 8, generate TTS).
+   * Called after all 3 recordings uploaded. Returns immediately;
+   * user polls getVoiceCloneSessionByToken for status.
+   */
+  finalizeStandaloneRecordings: publicProcedure
+    .input(z.object({ sessionToken: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const { sql } = await import("drizzle-orm");
+      const sessionRows: any = await db.execute(sql`
+        SELECT * FROM voice_clone_sessions WHERE sessionToken = ${input.sessionToken} LIMIT 1
+      `);
+      const sessionList = Array.isArray(sessionRows[0]) ? sessionRows[0] : sessionRows;
+      const session = sessionList[0];
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Session not found" });
+      if (session.status === "ready") return { alreadyReady: true as const, sessionId: session.id };
+      if (session.status === "processing") return { alreadyReady: false as const, sessionId: session.id };
+
+      // Check enough recordings uploaded
+      const uploadedRows: any = await db.execute(sql`
+        SELECT COUNT(*) AS n FROM voice_clone_recordings
+        WHERE sessionId = ${session.id} AND audioKey IS NOT NULL
+      `);
+      const uploadedList = Array.isArray(uploadedRows[0]) ? uploadedRows[0] : uploadedRows;
+      const uploadedCount = Number(uploadedList[0]?.n || 0);
+      if (uploadedCount < 2) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: `Only ${uploadedCount}/3 recordings uploaded — record all before finalizing` });
+      }
+
+      // Mark processing + kick off background job
+      await db.execute(sql`UPDATE voice_clone_sessions SET status = 'processing' WHERE id = ${session.id}`);
+      const sessionId = session.id;
+      void (async () => {
+        try {
+          const { runVoiceCloneStandalone } = await import("./voiceCloneService");
+          const result = await runVoiceCloneStandalone(sessionId);
+          await db.execute(sql`
+            UPDATE voice_clone_sessions SET
+              status = 'ready',
+              processedAt = NOW(),
+              elevenLabsVoiceId = ${result.voiceId},
+              targetedPartNumber = ${result.targetedPartNumber},
+              originalTranscript = ${result.originalTranscript},
+              originalAudioKey = ${result.originalAudioKey || null},
+              band8Transcript = ${result.band8Transcript},
+              band8AudioKey = ${result.band8AudioKey},
+              changesSummary = ${result.changesSummary}
+            WHERE id = ${sessionId}
+          `);
+          console.log(`[VoiceClone] Standalone session ${sessionId} READY`);
+        } catch (e) {
+          await db.execute(sql`
+            UPDATE voice_clone_sessions SET status = 'failed', errorMessage = ${(e as Error).message}
+            WHERE id = ${sessionId}
+          `);
+          console.error(`[VoiceClone] Standalone session ${sessionId} FAILED:`, e);
+        }
+      })();
+      return { alreadyReady: false as const, sessionId };
+    }),
+
+  /**
+   * Poll session status by token — used by the record page after upload
+   * and the result page for playback.
+   */
+  getVoiceCloneSessionByToken: publicProcedure
+    .input(z.object({ sessionToken: z.string().min(1) }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const { sql } = await import("drizzle-orm");
+      const sessionRows: any = await db.execute(sql`
+        SELECT * FROM voice_clone_sessions WHERE sessionToken = ${input.sessionToken} LIMIT 1
+      `);
+      const sessionList = Array.isArray(sessionRows[0]) ? sessionRows[0] : sessionRows;
+      const session = sessionList[0];
+      if (!session) return null;
+      const { storageGet } = await import("./storage");
+      const originalAudioUrl = session.originalAudioKey ? (await storageGet(session.originalAudioKey)).url : null;
+      const band8AudioUrl = session.band8AudioKey ? (await storageGet(session.band8AudioKey)).url : null;
+      return {
+        id: session.id,
+        status: session.status as "pending" | "processing" | "ready" | "failed",
+        isPaid: !!session.paidAt || !!session.isBundleFree,
+        isBundleFree: !!session.isBundleFree,
+        customerName: session.customerName,
+        targetedPartNumber: session.targetedPartNumber,
+        originalTranscript: session.originalTranscript,
+        band8Transcript: session.band8Transcript,
+        changesSummary: session.changesSummary,
+        originalAudioUrl,
+        band8AudioUrl,
+        errorMessage: session.errorMessage,
+      };
+    }),
 });
 
 // ===========================================================================

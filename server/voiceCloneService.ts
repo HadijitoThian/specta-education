@@ -30,13 +30,14 @@
  * auto-deletes in 90 days."
  */
 
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { getDb } from "./db";
 import { ieltsMockAttempts, ieltsSpeakingConversations, ieltsSpeakingResponses } from "../drizzle/schema";
 import { storageGetBytes, storagePut } from "./storage";
 import { ENV } from "./_core/env";
 import { synthesize } from "./_core/elevenlabs";
 import { invokeLLM } from "./_core/llm";
+import { transcribeAudioBuffer } from "./_core/voiceTranscription";
 
 const ELEVENLABS_API_BASE = "https://api.elevenlabs.io/v1";
 
@@ -273,6 +274,120 @@ export async function runVoiceCloneForAttempt(attemptId: number): Promise<VoiceC
   const band8AudioKey = `voice-clone/${attemptId}/${Date.now()}-band8-part${weakest.partNumber}.mp3`;
   await storagePut(band8AudioKey, band8Audio, "audio/mpeg");
   console.log(`[VoiceClone] Uploaded Band 8 audio: ${band8AudioKey}`);
+
+  return {
+    voiceId,
+    targetedPartNumber: weakest.partNumber,
+    originalTranscript: weakest.transcript,
+    originalAudioKey: weakest.audioKey,
+    band8Transcript: band8Text,
+    band8AudioKey,
+    changesSummary,
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// STANDALONE MODE — anyone can buy Voice Clone without taking a Mock Test.
+// They record 3 IELTS Speaking questions in a mini-recording flow, then
+// this function processes them into a Voice Clone the same way.
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Process a standalone Voice Clone session: user has already uploaded 3
+ * recordings via /voice-clone/record/[token]. This function transcribes
+ * (if not already), picks the weakest, clones voice, rewrites at Band 8,
+ * generates TTS in cloned voice, uploads result.
+ *
+ * Called from the Xendit webhook after payment OR immediately for
+ * bundle-free redemptions.
+ */
+export async function runVoiceCloneStandalone(sessionId: number): Promise<VoiceCloneResult> {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+
+  // Load the session + its 3 recordings
+  const sessionRows: any = await db.execute(sql`
+    SELECT * FROM voice_clone_sessions WHERE id = ${sessionId} LIMIT 1
+  `);
+  const sessionList = Array.isArray(sessionRows[0]) ? sessionRows[0] : sessionRows;
+  const session = sessionList[0];
+  if (!session) throw new Error(`Voice Clone session ${sessionId} not found`);
+
+  const recordingRows: any = await db.execute(sql`
+    SELECT * FROM voice_clone_recordings WHERE sessionId = ${sessionId} ORDER BY questionIndex ASC
+  `);
+  const recordings: any[] = Array.isArray(recordingRows[0]) ? recordingRows[0] : recordingRows;
+  const uploaded = recordings.filter((r: any) => r.audioKey && r.uploadedAt);
+  if (uploaded.length < 2) {
+    throw new Error(`Only ${uploaded.length} recording(s) uploaded — need at least 2 for voice cloning`);
+  }
+  console.log(`[VoiceClone] Standalone session ${sessionId} has ${uploaded.length} recordings`);
+
+  // Transcribe any recordings without transcripts yet
+  for (const r of uploaded) {
+    if (!r.transcript) {
+      try {
+        const { buffer, contentType } = await storageGetBytes(r.audioKey);
+        const result = await transcribeAudioBuffer({ buffer, mimeType: contentType || "audio/webm" });
+        if ("text" in result && result.text) {
+          r.transcript = result.text;
+          await db.execute(sql`
+            UPDATE voice_clone_recordings SET transcript = ${result.text} WHERE id = ${r.id}
+          `);
+        } else {
+          console.warn(`[VoiceClone] Transcription failed for recording ${r.id}`);
+        }
+      } catch (e) {
+        console.warn(`[VoiceClone] Transcription error for recording ${r.id}:`, (e as Error).message);
+      }
+    }
+  }
+
+  // Pick the weakest response — heuristic: shortest transcript = probably struggled most
+  const withTranscript = uploaded.filter((r: any) => r.transcript);
+  if (withTranscript.length === 0) throw new Error("No recordings could be transcribed — cannot proceed");
+  withTranscript.sort((a: any, b: any) => (a.transcript || "").length - (b.transcript || "").length);
+  const weakest = withTranscript[0];
+  console.log(`[VoiceClone] Targeting recording ${weakest.id} (Part ${weakest.partNumber}, ${(weakest.transcript || "").length} chars)`);
+
+  // Collect ALL uploaded audio for the voice model (more data = better clone)
+  const audioBuffers: Buffer[] = [];
+  for (const r of uploaded) {
+    try {
+      const { buffer } = await storageGetBytes(r.audioKey);
+      if (buffer && buffer.length > 1000) audioBuffers.push(buffer);
+    } catch (e) {
+      console.warn(`[VoiceClone] Failed to load audio ${r.audioKey}:`, (e as Error).message);
+    }
+  }
+  if (audioBuffers.length === 0) throw new Error("Could not load any audio for cloning");
+
+  // Clone voice
+  const studentName = session.customerName || "there";
+  const voiceName = `SpecTa VC Standalone ${sessionId} ${String(studentName).slice(0, 20)}`;
+  const voiceId = await createElevenLabsVoiceClone(voiceName, audioBuffers);
+  console.log(`[VoiceClone] Cloned voice ${voiceId}`);
+
+  // Rewrite at Band 8
+  const { band8Text, changesSummary } = await rewriteAtBand8(
+    weakest.transcript,
+    weakest.partNumber,
+    studentName,
+  );
+
+  // Generate audio in cloned voice
+  const band8Audio = await synthesize({
+    voiceId,
+    text: band8Text,
+    modelId: ENV.elevenLabsModelId || "eleven_multilingual_v2",
+    outputFormat: "mp3_44100_128",
+    stability: 0.5,
+    similarityBoost: 0.85,
+  });
+
+  const band8AudioKey = `voice-clone/standalone-${sessionId}/${Date.now()}-band8-part${weakest.partNumber}.mp3`;
+  await storagePut(band8AudioKey, band8Audio, "audio/mpeg");
+  console.log(`[VoiceClone] Uploaded Band 8 audio for standalone session ${sessionId}`);
 
   return {
     voiceId,

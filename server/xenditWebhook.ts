@@ -150,15 +150,32 @@ export function registerXenditWebhook(app: Express) {
               return res.status(200).json({ received: true, voiceClone: true, already_processed: true });
             }
             const sessionId = session.id;
-            const attemptId = session.attemptId;
 
+            // Mark paid. For STANDALONE mode, don't start processing yet —
+            // user still needs to record 3 questions on /voice-clone/record/[token].
+            // For FROM_MOCK mode, kick off processing immediately since audio
+            // already exists from their completed Mock Test.
+            const isStandalone = session.mode === "standalone";
             await db.execute(sql`
               UPDATE voice_clone_sessions
-              SET status = 'processing', paidAt = NOW(), xenditInvoiceId = ${body.id || externalId}
+              SET status = ${isStandalone ? "pending" : "processing"},
+                  paidAt = NOW(),
+                  xenditInvoiceId = ${body.id || externalId}
               WHERE id = ${sessionId}
             `);
 
-            // Fire-and-forget the actual cloning pipeline (30-90s)
+            if (isStandalone) {
+              // Standalone: don't process yet. User will trigger via
+              // finalizeStandaloneRecordings after uploading all 3 recordings.
+              await notifyOwner({
+                title: `🎙️ Voice Clone (standalone) paid: ${session.customerName}`,
+                content: `Session ${sessionId} paid Rp ${session.amountIdr}. User will now record 3 questions at /voice-clone/record/${session.sessionToken}.`,
+              }).catch(() => {});
+              return res.status(200).json({ received: true, voiceClone: true, standalone: true });
+            }
+
+            // From-Mock mode: fire-and-forget the actual cloning pipeline (30-90s)
+            const attemptId = session.attemptId as number;
             void (async () => {
               try {
                 const { runVoiceCloneForAttempt } = await import("./voiceCloneService");
