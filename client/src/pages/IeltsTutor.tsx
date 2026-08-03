@@ -357,6 +357,26 @@ function AuthGate({ onAuthed }: { onAuthed: () => void }) {
                 </a>
               </div>
             </div>
+
+            {/* Standalone Voice Clone promo — appears below the Bundle card.
+                For users who want just the Voice Clone experience without
+                committing to a full month of Tutor. Rp 49k standalone. */}
+            <div className="mt-5 bg-gradient-to-br from-purple-50 via-fuchsia-50 to-pink-50 border-2 border-purple-300 rounded-2xl p-5">
+              <div className="flex items-center gap-4">
+                <div className="text-4xl shrink-0">🎙️</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs uppercase tracking-wider text-purple-800 font-bold">Just want the Voice Clone?</div>
+                  <div className="font-bold text-slate-900 text-sm mt-0.5">Dengar suara kamu di Band 8 — <span className="text-purple-700">Rp 49.000</span> standalone</div>
+                  <div className="text-xs text-slate-600 mt-1">Rekam 3 pertanyaan IELTS Speaking, AI clone suara kamu + generate Band 8 audio.</div>
+                </div>
+                <a
+                  href="/voice-clone"
+                  className="shrink-0 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold shadow"
+                >
+                  Coba →
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </section>

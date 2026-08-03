@@ -382,6 +382,44 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Voice Clone standalone promo band — new AI-emotional product */}
+      <section className="pb-8">
+        <div className="container">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-700 via-fuchsia-700 to-pink-600 p-8 md:p-10 text-white shadow-xl"
+          >
+            <div className="absolute -top-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+            <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="max-w-2xl">
+                <div className="inline-flex items-center gap-2 bg-amber-400 text-slate-900 text-xs font-black px-3 py-1 rounded-full mb-4 uppercase tracking-wider">
+                  🎙️ Just Launched · Emotional AI Hook
+                </div>
+                <h2 className="text-2xl md:text-3xl font-extrabold leading-tight mb-2">
+                  Dengar Suara Kamu di IELTS Band 8 — Suara Kamu Sendiri
+                </h2>
+                <p className="text-white/95 text-sm md:text-base">
+                  Rekam 3 pertanyaan Speaking (5 menit). AI kloning suara kamu + perbaiki jawaban ke level Band 8. Kamu dengar hasilnya dalam suara kamu asli. <strong>Powerful learning-by-contrast motivation hack</strong>.
+                </p>
+              </div>
+              <div className="flex flex-col items-start md:items-end gap-3 shrink-0">
+                <Link
+                  href="/voice-clone"
+                  className="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-slate-900 font-black px-7 py-3 rounded-xl transition shadow-lg text-base"
+                >
+                  🎙️ Coba Sekarang
+                  <ChevronRight className="w-5 h-5" />
+                </Link>
+                <span className="text-white/90 text-sm">One-off · <span className="font-extrabold text-amber-300">Rp 49.000</span> · Hasil dalam menit</span>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* AI IELTS Tutor promo band */}
       <section className="pb-12">
         <div className="container">
