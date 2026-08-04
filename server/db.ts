@@ -622,6 +622,9 @@ export async function ensureMarketingSchema(): Promise<void> {
       // for each of the 3 recorded parts. Legacy sessions with only the single-part
       // top-level fields (targetedPartNumber, band8Transcript, etc.) still work.
       "ALTER TABLE voice_clone_sessions ADD COLUMN partsJson LONGTEXT NULL",
+      // Customer phone — captured by standalone checkout + admin free-link form.
+      // Nullable so existing rows and from-Mock sessions (which don't collect phone) still validate.
+      "ALTER TABLE voice_clone_sessions ADD COLUMN customerPhone VARCHAR(50) NULL",
       // Per-question recordings for the standalone flow (3 questions per session)
       `CREATE TABLE IF NOT EXISTS voice_clone_recordings (
          id INT AUTO_INCREMENT PRIMARY KEY,
