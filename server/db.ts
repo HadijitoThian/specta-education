@@ -625,6 +625,12 @@ export async function ensureMarketingSchema(): Promise<void> {
       // Customer phone — captured by standalone checkout + admin free-link form.
       // Nullable so existing rows and from-Mock sessions (which don't collect phone) still validate.
       "ALTER TABLE voice_clone_sessions ADD COLUMN customerPhone VARCHAR(50) NULL",
+      // Per-criterion IELTS Speaking assessment JSON (fluency/lexical/grammar/pronunciation + overallBand + actionPlan).
+      "ALTER TABLE voice_clone_sessions ADD COLUMN assessmentJson LONGTEXT NULL",
+      // R2 key of the generated study PDF (see server/voiceCloneReportPdf.ts).
+      "ALTER TABLE voice_clone_sessions ADD COLUMN pdfKey VARCHAR(512) NULL",
+      // Live processing step for the result page's progress display.
+      "ALTER TABLE voice_clone_sessions ADD COLUMN progressStep VARCHAR(64) NULL",
       // Per-question recordings for the standalone flow (3 questions per session)
       `CREATE TABLE IF NOT EXISTS voice_clone_recordings (
          id INT AUTO_INCREMENT PRIMARY KEY,

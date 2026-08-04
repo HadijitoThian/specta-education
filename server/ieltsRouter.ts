@@ -1505,7 +1505,8 @@ export const ieltsRouter = router({
                 band8Transcript = ${result.band8Transcript},
                 band8AudioKey = ${result.band8AudioKey},
                 changesSummary = ${result.changesSummary},
-                partsJson = ${JSON.stringify(result.parts)}
+                partsJson = ${JSON.stringify(result.parts)},
+                assessmentJson = ${JSON.stringify(result.assessment)}
               WHERE id = ${sessionId}
             `);
             console.log(`[VoiceClone] Session ${sessionId} READY (bundle-free, ${result.parts.length} parts)`);
@@ -1577,10 +1578,15 @@ export const ieltsRouter = router({
             parts = raw.map((p: any) => ({
               partNumber: Number(p.partNumber),
               originalTranscript: p.originalTranscript ?? null,
+              originalWordCount: Number(p.originalWordCount ?? 0),
               originalAudioUrl: p.originalAudioKey ? `/files/${p.originalAudioKey}` : null,
               band8Transcript: p.band8Text ?? p.band8Transcript ?? null,
+              band8WordCount: Number(p.band8WordCount ?? 0),
               band8AudioUrl: p.band8AudioKey ? `/files/${p.band8AudioKey}` : null,
               changesSummary: p.changesSummary ?? null,
+              vocabularyUpgrades: Array.isArray(p.vocabularyUpgrades) ? p.vocabularyUpgrades : [],
+              grammarUpgrades: Array.isArray(p.grammarUpgrades) ? p.grammarUpgrades : [],
+              discourseMarkersMissed: Array.isArray(p.discourseMarkersMissed) ? p.discourseMarkersMissed : [],
             }));
           }
         } catch {}
@@ -1589,12 +1595,22 @@ export const ieltsRouter = router({
         parts = [{
           partNumber: Number(session.targetedPartNumber),
           originalTranscript: session.originalTranscript ?? null,
+          originalWordCount: (session.originalTranscript || "").split(/\s+/).filter(Boolean).length,
           originalAudioUrl,
           band8Transcript: session.band8Transcript ?? null,
+          band8WordCount: (session.band8Transcript || "").split(/\s+/).filter(Boolean).length,
           band8AudioUrl,
           changesSummary: session.changesSummary ?? null,
+          vocabularyUpgrades: [],
+          grammarUpgrades: [],
+          discourseMarkersMissed: [],
         }];
       }
+      let assessment: any = null;
+      if (session.assessmentJson) {
+        try { assessment = JSON.parse(session.assessmentJson); } catch {}
+      }
+      const { progressLabel: progLabel } = await import("./voiceCloneService");
       return {
         id: session.id,
         status: session.status as "pending" | "processing" | "ready" | "failed",
@@ -1603,6 +1619,10 @@ export const ieltsRouter = router({
         originalTranscript: session.originalTranscript,
         band8Transcript: session.band8Transcript,
         changesSummary: session.changesSummary,
+        assessment,
+        progressStep: session.progressStep || null,
+        progressLabel: progLabel(session.progressStep),
+        pdfUrl: session.pdfKey ? `/files/${session.pdfKey}` : null,
         originalAudioUrl,
         band8AudioUrl,
         parts,
@@ -1837,7 +1857,8 @@ export const ieltsRouter = router({
               band8Transcript = ${result.band8Transcript},
               band8AudioKey = ${result.band8AudioKey},
               changesSummary = ${result.changesSummary},
-              partsJson = ${JSON.stringify(result.parts)}
+              partsJson = ${JSON.stringify(result.parts)},
+                assessmentJson = ${JSON.stringify(result.assessment)}
             WHERE id = ${sessionId}
           `);
           console.log(`[VoiceClone] Standalone session ${sessionId} READY (${result.parts.length} parts)`);
@@ -1878,10 +1899,15 @@ export const ieltsRouter = router({
       let parts: Array<{
         partNumber: number;
         originalTranscript: string | null;
+        originalWordCount?: number;
         originalAudioUrl: string | null;
         band8Transcript: string | null;
+        band8WordCount?: number;
         band8AudioUrl: string | null;
         changesSummary: string | null;
+        vocabularyUpgrades?: Array<{ original: string; band8: string; note: string }>;
+        grammarUpgrades?: Array<{ original: string; band8: string; rule: string }>;
+        discourseMarkersMissed?: string[];
       }> | null = null;
       if (session.partsJson) {
         try {
@@ -1890,10 +1916,15 @@ export const ieltsRouter = router({
             parts = raw.map((p: any) => ({
               partNumber: Number(p.partNumber),
               originalTranscript: p.originalTranscript ?? null,
+              originalWordCount: Number(p.originalWordCount ?? 0),
               originalAudioUrl: p.originalAudioKey ? `/files/${p.originalAudioKey}` : null,
               band8Transcript: p.band8Text ?? p.band8Transcript ?? null,
+              band8WordCount: Number(p.band8WordCount ?? 0),
               band8AudioUrl: p.band8AudioKey ? `/files/${p.band8AudioKey}` : null,
               changesSummary: p.changesSummary ?? null,
+              vocabularyUpgrades: Array.isArray(p.vocabularyUpgrades) ? p.vocabularyUpgrades : [],
+              grammarUpgrades: Array.isArray(p.grammarUpgrades) ? p.grammarUpgrades : [],
+              discourseMarkersMissed: Array.isArray(p.discourseMarkersMissed) ? p.discourseMarkersMissed : [],
             }));
           }
         } catch {}
@@ -1903,12 +1934,24 @@ export const ieltsRouter = router({
         parts = [{
           partNumber: Number(session.targetedPartNumber),
           originalTranscript: session.originalTranscript ?? null,
+          originalWordCount: (session.originalTranscript || "").split(/\s+/).filter(Boolean).length,
           originalAudioUrl,
           band8Transcript: session.band8Transcript ?? null,
+          band8WordCount: (session.band8Transcript || "").split(/\s+/).filter(Boolean).length,
           band8AudioUrl,
           changesSummary: session.changesSummary ?? null,
+          vocabularyUpgrades: [],
+          grammarUpgrades: [],
+          discourseMarkersMissed: [],
         }];
       }
+      // Parse assessment (per-criterion IELTS scores). Nullable for legacy sessions.
+      let assessment: any = null;
+      if (session.assessmentJson) {
+        try { assessment = JSON.parse(session.assessmentJson); } catch {}
+      }
+
+      const { progressLabel } = await import("./voiceCloneService");
 
       return {
         id: session.id,
@@ -1923,6 +1966,10 @@ export const ieltsRouter = router({
         originalAudioUrl,
         band8AudioUrl,
         parts,
+        assessment,
+        progressStep: session.progressStep || null,
+        progressLabel: progressLabel(session.progressStep),
+        pdfUrl: session.pdfKey ? `/files/${session.pdfKey}` : null,
         errorMessage: session.errorMessage,
       };
     }),

@@ -45,10 +45,15 @@ const ELEVENLABS_API_BASE = "https://api.elevenlabs.io/v1";
 export interface VoiceClonePartResult {
   partNumber: number;                      // 1 | 2 | 3
   originalTranscript: string;              // student's actual words
+  originalWordCount: number;               // for length-vs-target comparison in UI
   originalAudioKey: string | null;         // R2 key of student's own recording
   band8Text: string;                       // Claude's Band 8 rewrite
+  band8WordCount: number;
   band8AudioKey: string;                   // R2 key of cloned-voice Band 8 audio
   changesSummary: string;                  // 2-3 sentences on what improved
+  vocabularyUpgrades: Array<{ original: string; band8: string; note: string }>;
+  grammarUpgrades: Array<{ original: string; band8: string; rule: string }>;
+  discourseMarkersMissed: string[];
 }
 
 export interface VoiceCloneResult {
@@ -60,8 +65,54 @@ export interface VoiceCloneResult {
   band8Transcript: string;                 // weakest part's Band 8 rewrite (BC)
   band8AudioKey: string;                   // weakest part's Band 8 audio (BC)
   changesSummary: string;                  // weakest part's summary (BC)
-  /** New: full per-part results for ALL recorded parts. Caller stores this as JSON in partsJson. */
+  /** Full per-part results for ALL recorded parts. Caller stores this as JSON in partsJson. */
   parts: VoiceClonePartResult[];
+  /** Per-criterion IELTS Speaking assessment of the ORIGINAL recordings. Stored in assessmentJson. */
+  assessment: SpeakingAssessment;
+}
+
+/** Sessions publish these named progress steps so the client can render a live pipeline instead of a dead spinner. */
+export type VoiceCloneProgressStep =
+  | "loading"          // reading recordings + transcripts
+  | "transcribing"     // Whisper on any un-transcribed clips
+  | "assessing"        // grading original against IELTS rubric
+  | "cloning_voice"    // ElevenLabs IVC (~30-60s)
+  | "rewriting_p1"     // Claude Band-8 rewrite of Part 1
+  | "rewriting_p2"     // ...Part 2
+  | "rewriting_p3"     // ...Part 3
+  | "synthesizing"     // ElevenLabs TTS in cloned voice for each part
+  | "rendering_pdf"    // pdfmake report
+  | "delivering";      // email + finalizing DB row
+
+const PROGRESS_LABELS: Record<VoiceCloneProgressStep, string> = {
+  loading: "Loading your recordings",
+  transcribing: "Transcribing with Whisper",
+  assessing: "Grading against IELTS Speaking rubric",
+  cloning_voice: "Cloning your voice (ElevenLabs)",
+  rewriting_p1: "Rewriting Part 1 at Band 8",
+  rewriting_p2: "Rewriting Part 2 at Band 8 (aiming for ~2 minutes)",
+  rewriting_p3: "Rewriting Part 3 at Band 8",
+  synthesizing: "Generating Band 8 audio in your voice",
+  rendering_pdf: "Building your study PDF",
+  delivering: "Finalizing + emailing your report",
+};
+
+async function setProgress(sessionId: number, step: VoiceCloneProgressStep): Promise<void> {
+  try {
+    const db = await getDb();
+    if (!db) return;
+    await db.execute(sql`
+      UPDATE voice_clone_sessions SET progressStep = ${step} WHERE id = ${sessionId}
+    `);
+    console.log(`[VoiceClone] Session ${sessionId} → ${step} (${PROGRESS_LABELS[step]})`);
+  } catch (e) {
+    console.warn(`[VoiceClone] setProgress failed for session ${sessionId}:`, (e as Error).message);
+  }
+}
+
+export function progressLabel(step: string | null | undefined): string {
+  if (!step) return "Preparing…";
+  return PROGRESS_LABELS[step as VoiceCloneProgressStep] || step;
 }
 
 /**
@@ -174,37 +225,75 @@ async function createElevenLabsVoiceClone(
   return data.voice_id as string;
 }
 
+/** Word-count targets matching real IELTS Band 8 speaking norms. */
+const BAND8_TARGET_WORDS: Record<number, { min: number; ideal: number; max: number; seconds: number }> = {
+  1: { min: 40, ideal: 70, max: 110, seconds: 30 },     // 20-40s per short question
+  2: { min: 260, ideal: 310, max: 360, seconds: 120 },  // 1.5-2min cue card long turn
+  3: { min: 100, ideal: 150, max: 200, seconds: 60 },   // 45-90s per discussion answer
+};
+
+export interface Band8Rewrite {
+  band8Text: string;
+  changesSummary: string;
+  vocabularyUpgrades: Array<{ original: string; band8: string; note: string }>;
+  grammarUpgrades: Array<{ original: string; band8: string; rule: string }>;
+  discourseMarkersMissed: string[];
+}
+
 /**
  * Ask Claude/Deepseek to rewrite the student's Speaking response at
  * Band 8 level. Preserves their content + personal touch, improves
- * grammar/vocab/linking/coherence.
+ * grammar/vocab/linking/coherence, hits the length norms for the part.
+ * Also returns per-item learning teardown (vocab/grammar/discourse) so
+ * students can actually study from it.
  */
 async function rewriteAtBand8(
   originalTranscript: string,
   partNumber: number,
   studentName: string,
-): Promise<{ band8Text: string; changesSummary: string }> {
-  const systemPrompt = `You are an expert IELTS Speaking examiner and coach. You'll be given a student's actual Speaking response from Part ${partNumber} of an IELTS test. Rewrite their response at IELTS Band 8 level while:
+): Promise<Band8Rewrite> {
+  const target = BAND8_TARGET_WORDS[partNumber] || BAND8_TARGET_WORDS[3];
+  const partDescription = partNumber === 1
+    ? "Part 1 (Introduction & short interview)"
+    : partNumber === 2
+      ? "Part 2 (Cue card long turn — MUST fill the full 2 minutes)"
+      : "Part 3 (Discussion — abstract, hedged, sophisticated)";
+
+  const systemPrompt = `You are an expert IELTS Speaking examiner and coach. You'll be given a student's actual Speaking response from ${partDescription} of an IELTS test.
+
+CRITICAL LENGTH REQUIREMENT — a Band 8 speaker at this part naturally speaks for ~${target.seconds} seconds:
+- Minimum: ${target.min} words
+- Target: ~${target.ideal} words
+- Maximum: ${target.max} words
+If the original is shorter than the minimum, YOU MUST EXPAND — add relevant elaboration, examples, personal reasoning, hedged opinions. A short Band 8 answer is a contradiction: the fluency criterion requires filling the expected time.
+
+Rewrite the student's response at IELTS Band 8 level while:
 - PRESERVING their content, opinions, and personal touch (this is THEIR voice)
+- HITTING THE WORD-COUNT TARGET above (this is non-negotiable — expand with relevant, natural elaboration if needed)
 - Fixing grammar errors + word choice
-- Adding natural linking devices ("however", "for instance", "as a result")
-- Elevating vocabulary where appropriate (avoid overused words)
-- Making sentence structure more varied (mix simple + complex)
-- Keeping it SPEAKABLE — this will be spoken aloud, so no textbook phrasing
-- Length should be similar to original (±20%)
+- Adding natural discourse markers ("however", "for instance", "that said", "to be honest", "moreover", "as a result")
+- Elevating vocabulary where appropriate (use precise topic-specific words, not generic ones)
+- Making sentence structure varied (mix of simple, compound, and complex sentences with subordinate clauses)
+- Using natural hedging language for Part 3 ("I would argue that…", "it's worth considering…", "arguably")
+- Keeping it SPEAKABLE — this will be spoken aloud, so no textbook phrasing or written-only constructions
+- Sounding natural — not stiff, not over-formal
 
-The student's name is ${studentName}. Do NOT change their views or add fake details.
+The student's name is ${studentName}. Do NOT change their views or invent facts, but you MAY add relevant supporting reasoning and hypothetical examples to reach the word target.
 
-Return JSON: { band8Text, changesSummary }
-- band8Text: the rewritten response (natural, spoken register, Band 8)
-- changesSummary: 2-3 sentences in Bahasa Indonesia explaining what specifically was improved (e.g., "Menambahkan linking device 'furthermore' dan mengganti kata 'good' dengan 'considerable'. Struktur kalimat divariasi.")`;
+Return JSON with 5 fields:
+1. band8Text: the rewritten response (natural spoken register, Band 8, hits the word target)
+2. changesSummary: 2-3 sentences in Bahasa Indonesia explaining what was improved overall
+3. vocabularyUpgrades: array of specific word/phrase upgrades — {original, band8, note}. Include 5-10 upgrades. "note" explains why the Band 8 version is stronger (register, precision, natural collocation).
+4. grammarUpgrades: array of specific sentence/structure upgrades — {original, band8, rule}. Include 3-8 upgrades. "rule" names the grammar concept used (e.g. "relative clause", "cleft sentence", "third conditional", "reduced participle").
+5. discourseMarkersMissed: array of discourse markers/connectors your Band 8 version uses that the ORIGINAL didn't. Include 4-8 items. Just the marker itself (e.g. "however", "as far as I'm concerned").`;
 
-  const userPrompt = `Original Speaking Part ${partNumber} response:
+  const userPrompt = `Original Speaking ${partDescription} response by ${studentName}:
 """
 ${originalTranscript}
 """
+(${originalTranscript.split(/\s+/).length} words — target Band 8 length is ~${target.ideal} words)
 
-Rewrite at Band 8, preserving their content + voice.`;
+Rewrite at Band 8, preserving their content + voice, EXPANDING to hit the word target if shorter, providing the full learning teardown.`;
 
   const response = await invokeLLM({
     model: "deepseek-v4-pro",
@@ -222,8 +311,38 @@ Rewrite at Band 8, preserving their content + voice.`;
           properties: {
             band8Text: { type: "string" },
             changesSummary: { type: "string" },
+            vocabularyUpgrades: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  original: { type: "string" },
+                  band8: { type: "string" },
+                  note: { type: "string" },
+                },
+                required: ["original", "band8", "note"],
+                additionalProperties: false,
+              },
+            },
+            grammarUpgrades: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  original: { type: "string" },
+                  band8: { type: "string" },
+                  rule: { type: "string" },
+                },
+                required: ["original", "band8", "rule"],
+                additionalProperties: false,
+              },
+            },
+            discourseMarkersMissed: {
+              type: "array",
+              items: { type: "string" },
+            },
           },
-          required: ["band8Text", "changesSummary"],
+          required: ["band8Text", "changesSummary", "vocabularyUpgrades", "grammarUpgrades", "discourseMarkersMissed"],
           additionalProperties: false,
         },
       },
@@ -233,7 +352,120 @@ Rewrite at Band 8, preserving their content + voice.`;
   if (!raw || typeof raw !== "string") throw new Error("Empty AI response for Band-8 rewrite");
   const parsed = JSON.parse(raw);
   if (!parsed.band8Text || !parsed.changesSummary) throw new Error("Invalid AI response for Band-8 rewrite");
-  return { band8Text: parsed.band8Text, changesSummary: parsed.changesSummary };
+  return {
+    band8Text: parsed.band8Text,
+    changesSummary: parsed.changesSummary,
+    vocabularyUpgrades: Array.isArray(parsed.vocabularyUpgrades) ? parsed.vocabularyUpgrades : [],
+    grammarUpgrades: Array.isArray(parsed.grammarUpgrades) ? parsed.grammarUpgrades : [],
+    discourseMarkersMissed: Array.isArray(parsed.discourseMarkersMissed) ? parsed.discourseMarkersMissed : [],
+  };
+}
+
+/** Per-criterion IELTS Speaking assessment of the student's ORIGINAL performance. */
+export interface SpeakingAssessment {
+  fluency: { band: number; feedback: string };
+  lexical: { band: number; feedback: string };
+  grammar: { band: number; feedback: string };
+  pronunciation: { band: number; feedback: string };
+  overallBand: number;
+  weakestCriterion: "fluency" | "lexical" | "grammar" | "pronunciation";
+  actionPlan: string;              // 3-4 sentences: personalized study advice
+}
+
+/**
+ * Grade the student's original transcripts against the official IELTS
+ * Speaking band descriptors (Fluency & Coherence, Lexical Resource,
+ * Grammatical Range & Accuracy, Pronunciation). Returns per-criterion
+ * band (4-9), overall band, weakest criterion, and a personalized
+ * action plan to move them up 1-2 bands.
+ */
+async function assessSpeakingPerformance(
+  transcripts: Array<{ partNumber: number; text: string }>,
+  studentName: string,
+): Promise<SpeakingAssessment> {
+  const transcriptBlock = transcripts
+    .sort((a, b) => a.partNumber - b.partNumber)
+    .map(t => `--- Part ${t.partNumber} ---\n${t.text}`)
+    .join("\n\n");
+
+  const systemPrompt = `You are a certified IELTS Speaking examiner. Grade a student's Speaking transcripts against the OFFICIAL IELTS band descriptors, using the 4 criteria: Fluency & Coherence, Lexical Resource, Grammatical Range & Accuracy, Pronunciation.
+
+Rules:
+- Bands are half-integers from 4.0 to 9.0 (e.g. 5.5, 6.0, 6.5, 7.0, 7.5, 8.0).
+- Pronunciation is INFERRED from transcript-level cues only (fillers, hesitations, self-corrections indicate lower fluency but you cannot hear the actual audio — grade conservatively based on transcript signals).
+- Overall band = simple average of the 4 rounded to nearest half.
+- Per-criterion feedback: 2-3 sentences citing SPECIFIC evidence from the student's transcript. Don't be generic.
+- weakestCriterion: the single criterion with the lowest band.
+- actionPlan: 3-4 sentences in the same language as the student's transcript, personalized to their weakest criterion + specific exercises they should do (name concrete drills, e.g. "Practice cue-card responses using the PPF framework — Past / Present / Future — timed to 2 minutes daily").`;
+
+  const userPrompt = `Student name: ${studentName}
+Speaking transcripts across all 3 parts:
+
+${transcriptBlock}
+
+Assess against IELTS Speaking band descriptors. Return JSON.`;
+
+  const response = await invokeLLM({
+    model: "deepseek-v4-pro",
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "ielts_speaking_assessment",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            fluency: {
+              type: "object",
+              properties: { band: { type: "number" }, feedback: { type: "string" } },
+              required: ["band", "feedback"],
+              additionalProperties: false,
+            },
+            lexical: {
+              type: "object",
+              properties: { band: { type: "number" }, feedback: { type: "string" } },
+              required: ["band", "feedback"],
+              additionalProperties: false,
+            },
+            grammar: {
+              type: "object",
+              properties: { band: { type: "number" }, feedback: { type: "string" } },
+              required: ["band", "feedback"],
+              additionalProperties: false,
+            },
+            pronunciation: {
+              type: "object",
+              properties: { band: { type: "number" }, feedback: { type: "string" } },
+              required: ["band", "feedback"],
+              additionalProperties: false,
+            },
+            overallBand: { type: "number" },
+            weakestCriterion: { type: "string", enum: ["fluency", "lexical", "grammar", "pronunciation"] },
+            actionPlan: { type: "string" },
+          },
+          required: ["fluency", "lexical", "grammar", "pronunciation", "overallBand", "weakestCriterion", "actionPlan"],
+          additionalProperties: false,
+        },
+      },
+    },
+  });
+  const raw = response.choices?.[0]?.message?.content;
+  if (!raw || typeof raw !== "string") throw new Error("Empty AI response for speaking assessment");
+  const parsed = JSON.parse(raw);
+  const roundHalf = (n: number) => Math.max(4, Math.min(9, Math.round(Number(n) * 2) / 2));
+  return {
+    fluency: { band: roundHalf(parsed.fluency?.band ?? 6), feedback: String(parsed.fluency?.feedback || "") },
+    lexical: { band: roundHalf(parsed.lexical?.band ?? 6), feedback: String(parsed.lexical?.feedback || "") },
+    grammar: { band: roundHalf(parsed.grammar?.band ?? 6), feedback: String(parsed.grammar?.feedback || "") },
+    pronunciation: { band: roundHalf(parsed.pronunciation?.band ?? 6), feedback: String(parsed.pronunciation?.feedback || "") },
+    overallBand: roundHalf(parsed.overallBand ?? 6),
+    weakestCriterion: (parsed.weakestCriterion as any) || "fluency",
+    actionPlan: String(parsed.actionPlan || ""),
+  };
 }
 
 /**
@@ -248,41 +480,61 @@ export async function runVoiceCloneForAttempt(attemptId: number): Promise<VoiceC
   if (!attempt) throw new Error(`Mock attempt ${attemptId} not found`);
   const studentName = attempt.customerName || "there";
 
+  // Locate the Voice Clone session bound to this attempt so we can publish progress.
+  const sessionRows: any = await db.execute(sql`
+    SELECT id FROM voice_clone_sessions WHERE attemptId = ${attemptId} ORDER BY id DESC LIMIT 1
+  `);
+  const sessionList: any[] = Array.isArray(sessionRows[0]) ? sessionRows[0] : sessionRows;
+  const sessionId: number | null = sessionList[0]?.id || null;
+  const progress = (step: VoiceCloneProgressStep) => sessionId ? setProgress(sessionId, step) : Promise.resolve();
+
+  await progress("loading");
   console.log(`[VoiceClone] Starting for attempt ${attemptId} (${studentName})`);
 
-  // 1. Pull one representative response for EACH speaking part (1, 2, 3)
-  //    so we can rewrite all three. Weakest identified via pickWeakestResponse
-  //    for BC single-part fields.
   const perPart = await pickOneResponsePerPart(attemptId);
   if (perPart.length === 0) throw new Error("No Speaking responses found — cannot proceed with Voice Clone");
   const weakestOfAll = [...perPart].sort((a, b) => a.transcript.length - b.transcript.length)[0];
-  console.log(`[VoiceClone] Attempt ${attemptId}: will rewrite ${perPart.length} parts. Weakest = Part ${weakestOfAll.partNumber}.`);
 
-  // 2. Collect voice samples for cloning
+  await progress("assessing");
+  const assessmentPromise = assessSpeakingPerformance(
+    perPart.map(p => ({ partNumber: p.partNumber, text: p.transcript })),
+    studentName,
+  ).catch(e => {
+    console.warn(`[VoiceClone] Assessment failed:`, (e as Error).message);
+    return {
+      fluency: { band: 6, feedback: "Assessment unavailable" },
+      lexical: { band: 6, feedback: "Assessment unavailable" },
+      grammar: { band: 6, feedback: "Assessment unavailable" },
+      pronunciation: { band: 6, feedback: "Assessment unavailable" },
+      overallBand: 6,
+      weakestCriterion: "fluency" as const,
+      actionPlan: "Continue practicing daily — assessment engine had a temporary issue.",
+    };
+  });
+
   const samples = await collectVoiceSamples(attemptId, 5);
-  console.log(`[VoiceClone] Collected ${samples.length} audio samples for cloning`);
-
-  // 3. Create ElevenLabs voice clone (ONE clone, reused for all part rewrites)
+  await progress("cloning_voice");
   const voiceName = `SpecTa VC ${attempt.id} ${studentName.slice(0, 20)}`;
   const voiceId = await createElevenLabsVoiceClone(voiceName, samples);
-  console.log(`[VoiceClone] Created ElevenLabs voice ${voiceId}`);
 
-  // 4. Rewrite each part at Band 8 (Claude in parallel, then TTS sequential to be gentle on ElevenLabs)
-  const rewrites = await Promise.all(
-    perPart.map(p =>
-      rewriteAtBand8(p.transcript, p.partNumber, studentName)
-        .then(rw => ({ src: p, ...rw }))
-        .catch(e => {
-          console.warn(`[VoiceClone] Band8 rewrite failed for Part ${p.partNumber}:`, (e as Error).message);
-          return null;
-        }),
-    ),
-  );
+  const rewrites: Array<{ src: typeof perPart[number] } & Band8Rewrite | null> = [];
+  for (const p of perPart) {
+    const step: VoiceCloneProgressStep = p.partNumber === 1 ? "rewriting_p1" : p.partNumber === 2 ? "rewriting_p2" : "rewriting_p3";
+    await progress(step);
+    try {
+      const rw = await rewriteAtBand8(p.transcript, p.partNumber, studentName);
+      rewrites.push({ src: p, ...rw });
+    } catch (e) {
+      console.warn(`[VoiceClone] Band8 rewrite failed for Part ${p.partNumber}:`, (e as Error).message);
+      rewrites.push(null);
+    }
+  }
 
+  await progress("synthesizing");
   const parts: VoiceClonePartResult[] = [];
   for (const rw of rewrites) {
     if (!rw) continue;
-    const { src, band8Text, changesSummary } = rw;
+    const { src, band8Text, changesSummary, vocabularyUpgrades, grammarUpgrades, discourseMarkersMissed } = rw;
     try {
       const band8Audio = await synthesize({
         voiceId,
@@ -297,12 +549,16 @@ export async function runVoiceCloneForAttempt(attemptId: number): Promise<VoiceC
       parts.push({
         partNumber: src.partNumber,
         originalTranscript: src.transcript,
+        originalWordCount: src.transcript.split(/\s+/).filter(Boolean).length,
         originalAudioKey: src.audioKey,
         band8Text,
+        band8WordCount: band8Text.split(/\s+/).filter(Boolean).length,
         band8AudioKey,
         changesSummary,
+        vocabularyUpgrades,
+        grammarUpgrades,
+        discourseMarkersMissed,
       });
-      console.log(`[VoiceClone] Part ${src.partNumber}: ${band8Audio.length} bytes → ${band8AudioKey}`);
     } catch (e) {
       console.warn(`[VoiceClone] TTS failed for Part ${src.partNumber}:`, (e as Error).message);
     }
@@ -311,6 +567,7 @@ export async function runVoiceCloneForAttempt(attemptId: number): Promise<VoiceC
   if (parts.length === 0) throw new Error("All part rewrites failed — cannot deliver result");
   parts.sort((a, b) => a.partNumber - b.partNumber);
 
+  const assessment = await assessmentPromise;
   const weakestPart = parts.find(p => p.partNumber === weakestOfAll.partNumber) || parts[0];
 
   return {
@@ -322,6 +579,7 @@ export async function runVoiceCloneForAttempt(attemptId: number): Promise<VoiceC
     band8AudioKey: weakestPart.band8AudioKey,
     changesSummary: weakestPart.changesSummary,
     parts,
+    assessment,
   };
 }
 
@@ -396,6 +654,7 @@ async function pickOneResponsePerPart(attemptId: number): Promise<Array<{
 export async function runVoiceCloneStandalone(sessionId: number): Promise<VoiceCloneResult> {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
+  await setProgress(sessionId, "loading");
 
   // Load the session + its 3 recordings
   const sessionRows: any = await db.execute(sql`
@@ -416,6 +675,7 @@ export async function runVoiceCloneStandalone(sessionId: number): Promise<VoiceC
   console.log(`[VoiceClone] Standalone session ${sessionId} has ${uploaded.length} recordings`);
 
   // Transcribe any recordings without transcripts yet
+  await setProgress(sessionId, "transcribing");
   for (const r of uploaded) {
     if (!r.transcript) {
       try {
@@ -459,28 +719,53 @@ export async function runVoiceCloneStandalone(sessionId: number): Promise<VoiceC
   }
   if (audioBuffers.length === 0) throw new Error("Could not load any audio for cloning");
 
-  // Clone voice ONCE (reused for all 3 part rewrites)
   const studentName = session.customerName || "there";
+
+  // Assess original performance against IELTS Speaking rubric (in parallel with voice cloning)
+  await setProgress(sessionId, "assessing");
+  const assessmentPromise = assessSpeakingPerformance(
+    withTranscript.map((r: any) => ({ partNumber: r.partNumber, text: r.transcript || "" })),
+    studentName,
+  ).catch(e => {
+    console.warn(`[VoiceClone] Assessment failed:`, (e as Error).message);
+    // Fallback to neutral 6.0 across the board if grading crashes
+    return {
+      fluency: { band: 6, feedback: "Assessment unavailable" },
+      lexical: { band: 6, feedback: "Assessment unavailable" },
+      grammar: { band: 6, feedback: "Assessment unavailable" },
+      pronunciation: { band: 6, feedback: "Assessment unavailable" },
+      overallBand: 6,
+      weakestCriterion: "fluency" as const,
+      actionPlan: "Continue practicing daily — assessment engine had a temporary issue.",
+    };
+  });
+
+  // Clone voice ONCE (reused for all 3 part rewrites)
+  await setProgress(sessionId, "cloning_voice");
   const voiceName = `SpecTa VC Standalone ${sessionId} ${String(studentName).slice(0, 20)}`;
   const voiceId = await createElevenLabsVoiceClone(voiceName, audioBuffers);
   console.log(`[VoiceClone] Cloned voice ${voiceId}`);
 
-  // Rewrite EACH part at Band 8 in the student's cloned voice (parallel Claude, sequential TTS)
-  const rewrites = await Promise.all(
-    withTranscript.map((r: any) =>
-      rewriteAtBand8(r.transcript, r.partNumber, studentName)
-        .then((rw) => ({ recording: r, ...rw }))
-        .catch((e) => {
-          console.warn(`[VoiceClone] Band8 rewrite failed for Part ${r.partNumber}:`, (e as Error).message);
-          return null;
-        }),
-    ),
-  );
+  // Rewrite EACH part at Band 8 sequentially so we can update progressStep per part.
+  const rewrites: Array<{ recording: any } & Band8Rewrite | null> = [];
+  for (const r of withTranscript) {
+    const step: VoiceCloneProgressStep = r.partNumber === 1 ? "rewriting_p1" : r.partNumber === 2 ? "rewriting_p2" : "rewriting_p3";
+    await setProgress(sessionId, step);
+    try {
+      const rw = await rewriteAtBand8(r.transcript, r.partNumber, studentName);
+      rewrites.push({ recording: r, ...rw });
+    } catch (e) {
+      console.warn(`[VoiceClone] Band8 rewrite failed for Part ${r.partNumber}:`, (e as Error).message);
+      rewrites.push(null);
+    }
+  }
 
+  // Synthesize all Band-8 audios in one phase
+  await setProgress(sessionId, "synthesizing");
   const parts: VoiceClonePartResult[] = [];
   for (const rw of rewrites) {
     if (!rw) continue;
-    const { recording, band8Text, changesSummary } = rw;
+    const { recording, band8Text, changesSummary, vocabularyUpgrades, grammarUpgrades, discourseMarkersMissed } = rw;
     try {
       const band8Audio = await synthesize({
         voiceId,
@@ -495,16 +780,23 @@ export async function runVoiceCloneStandalone(sessionId: number): Promise<VoiceC
       parts.push({
         partNumber: recording.partNumber,
         originalTranscript: recording.transcript,
+        originalWordCount: (recording.transcript || "").split(/\s+/).filter(Boolean).length,
         originalAudioKey: recording.audioKey,
         band8Text,
+        band8WordCount: band8Text.split(/\s+/).filter(Boolean).length,
         band8AudioKey,
         changesSummary,
+        vocabularyUpgrades,
+        grammarUpgrades,
+        discourseMarkersMissed,
       });
       console.log(`[VoiceClone] Part ${recording.partNumber}: ${band8Audio.length} bytes → ${band8AudioKey}`);
     } catch (e) {
       console.warn(`[VoiceClone] TTS failed for Part ${recording.partNumber}:`, (e as Error).message);
     }
   }
+
+  const assessment = await assessmentPromise;
 
   if (parts.length === 0) throw new Error("All part rewrites failed — cannot deliver result");
 
@@ -523,5 +815,6 @@ export async function runVoiceCloneStandalone(sessionId: number): Promise<VoiceC
     band8AudioKey: weakestPart.band8AudioKey,
     changesSummary: weakestPart.changesSummary,
     parts,
+    assessment,
   };
 }
