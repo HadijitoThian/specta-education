@@ -59,8 +59,8 @@ async function findEligibleCandidates(limit: number): Promise<UpsellCandidate[]>
       FROM aptitudeProOrders WHERE status = 'paid' AND customerEmail IS NOT NULL
 
       UNION ALL
-      SELECT LOWER(email) AS email, name AS name, 'practice' AS segment, createdAt AS firstSeenAt
-      FROM ieltsPracticeResults WHERE email IS NOT NULL AND email <> ''
+      SELECT LOWER(studentEmail) AS email, studentName AS name, 'practice' AS segment, createdAt AS firstSeenAt
+      FROM ieltsPracticeResults WHERE studentEmail IS NOT NULL AND studentEmail <> ''
 
       UNION ALL
       SELECT LOWER(customerEmail) AS email, customerName AS name, 'mock' AS segment, createdAt AS firstSeenAt
