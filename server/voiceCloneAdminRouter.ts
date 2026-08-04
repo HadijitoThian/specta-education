@@ -221,7 +221,8 @@ export const voiceCloneAdminRouter = router({
                 band8AudioKey = ${result.band8AudioKey},
                 changesSummary = ${result.changesSummary},
                 partsJson = ${JSON.stringify(result.parts)},
-                assessmentJson = ${JSON.stringify(result.assessment)}
+                assessmentJson = ${JSON.stringify(result.assessment)},
+                pdfKey = ${result.pdfKey || null}
               WHERE id = ${sessionId}
             `);
             console.log(`[VoiceCloneAdmin] Retry succeeded for session ${sessionId} (from_mock)`);
@@ -239,7 +240,8 @@ export const voiceCloneAdminRouter = router({
                 band8AudioKey = ${result.band8AudioKey},
                 changesSummary = ${result.changesSummary},
                 partsJson = ${JSON.stringify(result.parts)},
-                assessmentJson = ${JSON.stringify(result.assessment)}
+                assessmentJson = ${JSON.stringify(result.assessment)},
+                pdfKey = ${result.pdfKey || null}
               WHERE id = ${sessionId}
             `);
             console.log(`[VoiceCloneAdmin] Retry succeeded for session ${sessionId} (standalone)`);

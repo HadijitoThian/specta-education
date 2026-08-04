@@ -3,7 +3,7 @@
  * side-by-side player once processing is done.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRoute, Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import Navigation from "@/components/Navigation";
@@ -187,9 +187,95 @@ function AssessmentCard({ a }: { a: any }) {
   );
 }
 
-// ─── Per-part card — audio + transcripts + learning teardown ─────────────
+// ─── Speed-controllable audio player with shadowing pauses ──────────────
+function SmartAudio({ src, className }: { src: string; className?: string }) {
+  const ref = useRef<HTMLAudioElement>(null);
+  const [speed, setSpeed] = useState<number>(1);
+  useEffect(() => { if (ref.current) ref.current.playbackRate = speed; }, [speed]);
+  return (
+    <div>
+      <audio ref={ref} key={src} controls preload="metadata" src={src} className={className || "w-full"} />
+      <div className="mt-2 flex items-center gap-1 justify-end text-xs">
+        <span className="text-slate-500 mr-1">Speed:</span>
+        {[0.75, 1, 1.25].map(s => (
+          <button
+            key={s}
+            onClick={() => setSpeed(s)}
+            className={`px-2 py-0.5 rounded transition ${
+              speed === s ? "bg-purple-600 text-white font-bold" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            {s}×
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Per-part card — audio + transcripts + learning teardown + practice tools ─
 function PartCard({ p }: { p: any }) {
   const [showTeardown, setShowTeardown] = useState(false);
+  const [compareMode, setCompareMode] = useState(false);
+  const [shadowingMode, setShadowingMode] = useState(false);
+  const shadowRef = useRef<HTMLAudioElement>(null);
+  const compareRef = useRef<HTMLAudioElement>(null);
+  const [comparePhase, setComparePhase] = useState<"idle" | "original" | "band8">("idle");
+
+  // Shadowing mode: pause 2s at each sentence boundary of the Band 8 audio so
+  // the student can repeat aloud. Detected by parsing the transcript sentences
+  // and using their proportional position to timestamp the audio.
+  useEffect(() => {
+    if (!shadowingMode || !shadowRef.current) return;
+    const audio = shadowRef.current;
+    const sentences = String(p.band8Transcript || "").split(/(?<=[.!?])\s+/).filter(Boolean);
+    if (sentences.length < 2) return;
+    const totalDur = audio.duration || 0;
+    if (!totalDur) return;
+    // Rough per-sentence duration: proportional to sentence character count
+    const totalChars = sentences.reduce((s, x) => s + x.length, 0);
+    const boundaries: number[] = [];
+    let cum = 0;
+    for (let i = 0; i < sentences.length - 1; i++) {
+      cum += sentences[i].length;
+      boundaries.push((cum / totalChars) * totalDur);
+    }
+    let nextBoundaryIdx = 0;
+    const handler = () => {
+      if (nextBoundaryIdx >= boundaries.length) return;
+      if (audio.currentTime >= boundaries[nextBoundaryIdx]) {
+        audio.pause();
+        setTimeout(() => { if (shadowingMode && shadowRef.current) shadowRef.current.play().catch(() => {}); }, 2000);
+        nextBoundaryIdx++;
+      }
+    };
+    audio.addEventListener("timeupdate", handler);
+    return () => audio.removeEventListener("timeupdate", handler);
+  }, [shadowingMode, p.band8Transcript]);
+
+  // Compare mode: play original then Band 8 back-to-back in a single player controller
+  useEffect(() => {
+    if (!compareMode || !compareRef.current) return;
+    const audio = compareRef.current;
+    const originalUrl = p.originalAudioUrl;
+    const band8Url = p.band8AudioUrl;
+    if (!originalUrl || !band8Url) return;
+    audio.src = originalUrl;
+    setComparePhase("original");
+    audio.play().catch(() => {});
+    const handler = () => {
+      if (audio.src.endsWith(originalUrl.replace(/^\//, "").split("/").pop() || "")) {
+        audio.src = band8Url;
+        setComparePhase("band8");
+        audio.play().catch(() => {});
+      } else {
+        setComparePhase("idle");
+      }
+    };
+    audio.addEventListener("ended", handler);
+    return () => audio.removeEventListener("ended", handler);
+  }, [compareMode, p.originalAudioUrl, p.band8AudioUrl]);
+
   const hasTeardown = (p.vocabularyUpgrades?.length || 0) + (p.grammarUpgrades?.length || 0) + (p.discourseMarkersMissed?.length || 0) > 0;
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
@@ -206,7 +292,7 @@ function PartCard({ p }: { p: any }) {
             {p.originalWordCount ? <span className="text-slate-400">{p.originalWordCount} kata</span> : null}
           </div>
           {p.originalAudioUrl ? (
-            <audio key={p.originalAudioUrl} controls preload="metadata" src={p.originalAudioUrl} className="w-full" />
+            <SmartAudio src={p.originalAudioUrl} />
           ) : <div className="text-xs italic text-slate-500">Audio tidak tersedia</div>}
           <div className="mt-3 text-sm leading-relaxed text-slate-700 max-h-40 overflow-y-auto">"{p.originalTranscript}"</div>
         </div>
@@ -216,11 +302,48 @@ function PartCard({ p }: { p: any }) {
             {p.band8WordCount ? <span className="text-purple-500">{p.band8WordCount} kata</span> : null}
           </div>
           {p.band8AudioUrl ? (
-            <audio key={p.band8AudioUrl} controls preload="metadata" src={p.band8AudioUrl} className="w-full" />
+            shadowingMode ? (
+              <div>
+                <audio ref={shadowRef} key={`shadow-${p.band8AudioUrl}`} controls preload="metadata" src={p.band8AudioUrl} className="w-full" />
+                <div className="mt-1 text-xs text-purple-700">🎯 Shadowing mode ON — audio will pause 2s after each sentence for you to repeat aloud.</div>
+              </div>
+            ) : (
+              <SmartAudio src={p.band8AudioUrl} />
+            )
           ) : <div className="text-xs italic text-slate-500">Audio tidak tersedia</div>}
           <div className="mt-3 text-sm leading-relaxed text-slate-800 max-h-40 overflow-y-auto">"{p.band8Transcript}"</div>
         </div>
       </div>
+
+      {/* Practice tools */}
+      {(p.originalAudioUrl || p.band8AudioUrl) && (
+        <div className="mx-5 mb-3 flex flex-wrap gap-2 justify-end">
+          <button
+            onClick={() => { setShadowingMode(v => !v); setCompareMode(false); }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              shadowingMode ? "bg-purple-600 text-white" : "bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-300"
+            }`}
+          >
+            🎯 Shadowing {shadowingMode ? "ON" : "OFF"}
+          </button>
+          <button
+            onClick={() => { setCompareMode(v => !v); setShadowingMode(false); }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              compareMode ? "bg-amber-500 text-white" : "bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300"
+            }`}
+          >
+            🔁 A/B Compare {compareMode ? "· Playing" : ""}
+          </button>
+        </div>
+      )}
+      {compareMode && (
+        <div className="mx-5 mb-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
+          <div className="text-xs font-bold text-amber-900 mb-2">
+            {comparePhase === "original" ? "▶ Playing your original…" : comparePhase === "band8" ? "▶ Now Band 8 in your voice…" : "Preparing comparison…"}
+          </div>
+          <audio ref={compareRef} controls className="w-full" />
+        </div>
+      )}
       {p.changesSummary && (
         <div className="mx-5 mb-3 bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm text-slate-700">
           <div className="text-xs uppercase tracking-wider text-slate-500 font-black mb-1">Apa yang berubah?</div>

@@ -69,6 +69,8 @@ export interface VoiceCloneResult {
   parts: VoiceClonePartResult[];
   /** Per-criterion IELTS Speaking assessment of the ORIGINAL recordings. Stored in assessmentJson. */
   assessment: SpeakingAssessment;
+  /** R2 key of the generated study PDF (nullable if generation failed — email still fires with link only). */
+  pdfKey: string | null;
 }
 
 /** Sessions publish these named progress steps so the client can render a live pipeline instead of a dead spinner. */
@@ -113,6 +115,72 @@ async function setProgress(sessionId: number, step: VoiceCloneProgressStep): Pro
 export function progressLabel(step: string | null | undefined): string {
   if (!step) return "Preparing…";
   return PROGRESS_LABELS[step as VoiceCloneProgressStep] || step;
+}
+
+/**
+ * Generate the study-report PDF for a completed Voice Clone session and
+ * upload to R2. Returns the R2 key on success, null on failure (email
+ * still fires with a link-only body). Called at the "rendering_pdf" phase.
+ */
+async function generateAndUploadReportPdf(
+  sessionId: number,
+  studentName: string,
+  studentEmail: string,
+  result: Omit<VoiceCloneResult, "pdfKey">,
+): Promise<string | null> {
+  try {
+    const { renderVoiceCloneReportPdf } = await import("./voiceCloneReportPdf");
+    const pdf = await renderVoiceCloneReportPdf({
+      studentName,
+      studentEmail,
+      completedAt: new Date(),
+      result: { ...result, pdfKey: null }, // shape-fill
+    });
+    const key = `voice-clone/reports/${sessionId}-${Date.now()}.pdf`;
+    await storagePut(key, pdf, "application/pdf");
+    console.log(`[VoiceClone] PDF stored at ${key} (${(pdf.length / 1024).toFixed(1)} KB)`);
+    return key;
+  } catch (e) {
+    console.warn(`[VoiceClone] PDF generation failed for session ${sessionId}:`, (e as Error).message);
+    return null;
+  }
+}
+
+/**
+ * Send the "your Voice Clone report is ready" email — includes the result-page
+ * URL AND attaches the PDF if available. Called at the "delivering" phase.
+ */
+async function sendReportDeliveryEmail(
+  sessionToken: string | null,
+  studentName: string,
+  studentEmail: string,
+  pdfKey: string | null,
+  overallBand: number,
+): Promise<void> {
+  try {
+    if (!studentEmail) return;
+    const { sendVoiceCloneReportEmail } = await import("./resendService");
+    const appBase = (ENV.appUrl || "https://www.spectaeducation.com").replace(/\/+$/, "");
+    const resultUrl = sessionToken ? `${appBase}/voice-clone/result/${sessionToken}` : appBase;
+    let pdfBuffer: Buffer | undefined;
+    if (pdfKey) {
+      try {
+        const { buffer } = await storageGetBytes(pdfKey);
+        pdfBuffer = buffer;
+      } catch (e) {
+        console.warn(`[VoiceClone] Could not fetch PDF for email:`, (e as Error).message);
+      }
+    }
+    await sendVoiceCloneReportEmail({
+      to: studentEmail,
+      customerName: studentName,
+      resultUrl,
+      overallBand,
+      pdfBuffer,
+    });
+  } catch (e) {
+    console.warn(`[VoiceClone] Report delivery email failed:`, (e as Error).message);
+  }
 }
 
 /**
@@ -570,7 +638,7 @@ export async function runVoiceCloneForAttempt(attemptId: number): Promise<VoiceC
   const assessment = await assessmentPromise;
   const weakestPart = parts.find(p => p.partNumber === weakestOfAll.partNumber) || parts[0];
 
-  return {
+  const draft = {
     voiceId,
     targetedPartNumber: weakestPart.partNumber,
     originalTranscript: weakestPart.originalTranscript,
@@ -581,6 +649,26 @@ export async function runVoiceCloneForAttempt(attemptId: number): Promise<VoiceC
     parts,
     assessment,
   };
+
+  let pdfKey: string | null = null;
+  if (sessionId) {
+    await progress("rendering_pdf");
+    pdfKey = await generateAndUploadReportPdf(sessionId, studentName, attempt.customerEmail || "", draft);
+    await progress("delivering");
+    // From-mock sessions don't have a sessionToken — the result URL points to the Mock report page.
+    const sessionTokenRows: any = await db.execute(sql`SELECT sessionToken FROM voice_clone_sessions WHERE id = ${sessionId} LIMIT 1`);
+    const stList: any[] = Array.isArray(sessionTokenRows[0]) ? sessionTokenRows[0] : sessionTokenRows;
+    const sessionToken = stList[0]?.sessionToken || null;
+    await sendReportDeliveryEmail(
+      sessionToken,
+      studentName,
+      attempt.customerEmail || "",
+      pdfKey,
+      assessment.overallBand,
+    );
+  }
+
+  return { ...draft, pdfKey };
 }
 
 /**
@@ -806,7 +894,9 @@ export async function runVoiceCloneStandalone(sessionId: number): Promise<VoiceC
   // Backward-compat: point the single-part fields at the weakest part's result
   const weakestPart = parts.find(p => p.partNumber === weakest.partNumber) || parts[0];
 
-  return {
+  // Generate + upload PDF report
+  await setProgress(sessionId, "rendering_pdf");
+  const draft = {
     voiceId,
     targetedPartNumber: weakestPart.partNumber,
     originalTranscript: weakestPart.originalTranscript,
@@ -816,5 +906,21 @@ export async function runVoiceCloneStandalone(sessionId: number): Promise<VoiceC
     changesSummary: weakestPart.changesSummary,
     parts,
     assessment,
+  };
+  const pdfKey = await generateAndUploadReportPdf(sessionId, studentName, session.customerEmail || "", draft);
+
+  // Deliver — email the report + PDF attachment
+  await setProgress(sessionId, "delivering");
+  await sendReportDeliveryEmail(
+    session.sessionToken,
+    studentName,
+    session.customerEmail || "",
+    pdfKey,
+    assessment.overallBand,
+  );
+
+  return {
+    ...draft,
+    pdfKey,
   };
 }

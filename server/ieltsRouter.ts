@@ -1506,7 +1506,8 @@ export const ieltsRouter = router({
                 band8AudioKey = ${result.band8AudioKey},
                 changesSummary = ${result.changesSummary},
                 partsJson = ${JSON.stringify(result.parts)},
-                assessmentJson = ${JSON.stringify(result.assessment)}
+                assessmentJson = ${JSON.stringify(result.assessment)},
+                pdfKey = ${result.pdfKey || null}
               WHERE id = ${sessionId}
             `);
             console.log(`[VoiceClone] Session ${sessionId} READY (bundle-free, ${result.parts.length} parts)`);
@@ -1858,7 +1859,8 @@ export const ieltsRouter = router({
               band8AudioKey = ${result.band8AudioKey},
               changesSummary = ${result.changesSummary},
               partsJson = ${JSON.stringify(result.parts)},
-                assessmentJson = ${JSON.stringify(result.assessment)}
+                assessmentJson = ${JSON.stringify(result.assessment)},
+                pdfKey = ${result.pdfKey || null}
             WHERE id = ${sessionId}
           `);
           console.log(`[VoiceClone] Standalone session ${sessionId} READY (${result.parts.length} parts)`);

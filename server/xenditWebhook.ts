@@ -192,7 +192,8 @@ export function registerXenditWebhook(app: Express) {
                     band8AudioKey = ${result.band8AudioKey},
                     changesSummary = ${result.changesSummary},
                     partsJson = ${JSON.stringify(result.parts)},
-                assessmentJson = ${JSON.stringify(result.assessment)}
+                assessmentJson = ${JSON.stringify(result.assessment)},
+                pdfKey = ${result.pdfKey || null}
                   WHERE id = ${sessionId}
                 `);
                 console.log(`[VoiceClone] Session ${sessionId} READY (paid, ${result.parts.length} parts)`);

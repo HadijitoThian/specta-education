@@ -743,3 +743,84 @@ export async function sendVoiceCloneActionEmail(params: {
     return false;
   }
 }
+
+/**
+ * Deliver the finished Voice Clone study report — includes result-page URL
+ * PLUS the study PDF as an attachment. Called from voiceCloneService at the
+ * "delivering" phase after PDF has been rendered + uploaded.
+ */
+export async function sendVoiceCloneReportEmail(params: {
+  to: string;
+  customerName?: string | null;
+  resultUrl: string;
+  overallBand: number;
+  pdfBuffer?: Buffer;
+}): Promise<boolean> {
+  if (!ENV.resendApiKey) {
+    console.warn("[Resend] Voice Clone report email skipped — no RESEND_API_KEY");
+    return false;
+  }
+  const name = (params.customerName || "").trim() || "there";
+  const subject = `🎙️ Your Voice Clone report is ready — Overall Band ${params.overallBand.toFixed(1)}`;
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+    <div style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+      <div style="text-align:center;padding:20px 24px 4px;">
+        <span style="font-size:20px;font-weight:800;color:#4338ca;">SpecTa</span><span style="font-size:20px;color:#6b7280;margin-left:6px;">Education</span>
+      </div>
+      <div style="background:linear-gradient(135deg,#7c3aed,#c026d3,#db2777);padding:26px 30px;text-align:center;color:white;">
+        <div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.9;font-weight:700;">🎙️ SpecTa Voice Clone · Study Report</div>
+        <h1 style="color:white;margin:6px 0 4px;font-size:22px;line-height:1.3;font-weight:800;">Your Band 8 report is ready</h1>
+        <div style="display:inline-block;margin-top:8px;padding:6px 16px;background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.4);border-radius:20px;font-size:14px;font-weight:800;">Overall Band ${params.overallBand.toFixed(1)}</div>
+      </div>
+      <div style="padding:28px;">
+        <p style="color:#374151;font-size:15px;margin:0 0 14px;">Hi <strong>${name}</strong>,</p>
+        <p style="color:#374151;font-size:14px;line-height:1.6;margin:0 0 18px;">Your Voice Clone processing is complete. Your full study report is attached as a PDF (open it on your phone or laptop), and you can also listen to all 3 parts side-by-side (your original + Band 8 in your own voice) at the link below.</p>
+        <div style="text-align:center;margin:0 0 20px;">
+          <a href="${params.resultUrl}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#c026d3);color:white;text-decoration:none;padding:14px 32px;border-radius:12px;font-weight:bold;font-size:15px;box-shadow:0 4px 12px rgba(124,58,237,0.35);">▶️ Listen to Your Band 8 →</a>
+        </div>
+        <div style="border-left:4px solid #7c3aed;padding:10px 14px;background:#faf5ff;border-radius:0 8px 8px 0;margin:0 0 20px;">
+          <p style="color:#6b21a8;font-size:13px;line-height:1.6;margin:0;">
+            <strong>What's in your report:</strong><br/>
+            • Per-criterion IELTS Speaking scores (Fluency / Lexical / Grammar / Pronunciation)<br/>
+            • Personalized action plan targeting your weakest area<br/>
+            • For each of Parts 1, 2, 3: vocabulary upgrades table, grammar upgrades table, discourse markers you missed<br/>
+            • Your Band 8 rewrites — spoken in your own cloned voice
+          </p>
+        </div>
+        <p style="color:#6b7280;font-size:12px;line-height:1.5;margin:0;text-align:center;">🔒 Voice clone auto-deletes after 90 days · your Band 8 audio + PDF stay yours forever.</p>
+      </div>
+      <div style="background:#f9fafb;padding:14px 24px;text-align:center;border-top:1px solid #e5e7eb;">
+        <p style="color:#9ca3af;font-size:11px;margin:0;">© ${new Date().getFullYear()} SpecTa Education · info@spectaeducation.com</p>
+      </div>
+    </div>
+  </div>
+</body></html>`;
+
+  const body: any = { from: FROM_EMAIL, to: [params.to], subject, html };
+  if (params.pdfBuffer) {
+    body.attachments = [{
+      filename: `SpecTa-Voice-Clone-Band8-Report.pdf`,
+      content: params.pdfBuffer.toString("base64"),
+      content_type: "application/pdf",
+    }];
+  }
+
+  try {
+    const response = await fetch(`${RESEND_API_BASE}/emails`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ENV.resendApiKey}` },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      console.error("[Resend] Voice Clone report email failed:", response.status, await response.text());
+      return false;
+    }
+    console.log(`[Resend] Voice Clone report email sent to ${params.to} (band ${params.overallBand.toFixed(1)}, pdf=${!!params.pdfBuffer})`);
+    return true;
+  } catch (e) {
+    console.error("[Resend] Voice Clone report email error:", e);
+    return false;
+  }
+}
