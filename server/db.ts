@@ -618,6 +618,10 @@ export async function ensureMarketingSchema(): Promise<void> {
       "ALTER TABLE voice_clone_sessions ADD COLUMN mode ENUM('from_mock','standalone') NOT NULL DEFAULT 'from_mock'",
       "ALTER TABLE voice_clone_sessions ADD COLUMN sessionToken VARCHAR(64) NULL UNIQUE",
       "ALTER TABLE voice_clone_sessions MODIFY attemptId INT NULL",
+      // JSON blob storing per-part results — {partNumber, originalTranscript, originalAudioKey, band8Text, band8AudioKey, changesSummary}
+      // for each of the 3 recorded parts. Legacy sessions with only the single-part
+      // top-level fields (targetedPartNumber, band8Transcript, etc.) still work.
+      "ALTER TABLE voice_clone_sessions ADD COLUMN partsJson LONGTEXT NULL",
       // Per-question recordings for the standalone flow (3 questions per session)
       `CREATE TABLE IF NOT EXISTS voice_clone_recordings (
          id INT AUTO_INCREMENT PRIMARY KEY,

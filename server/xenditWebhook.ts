@@ -190,13 +190,14 @@ export function registerXenditWebhook(app: Express) {
                     originalAudioKey = ${result.originalAudioKey || null},
                     band8Transcript = ${result.band8Transcript},
                     band8AudioKey = ${result.band8AudioKey},
-                    changesSummary = ${result.changesSummary}
+                    changesSummary = ${result.changesSummary},
+                    partsJson = ${JSON.stringify(result.parts)}
                   WHERE id = ${sessionId}
                 `);
-                console.log(`[VoiceClone] Session ${sessionId} READY (paid)`);
+                console.log(`[VoiceClone] Session ${sessionId} READY (paid, ${result.parts.length} parts)`);
                 await notifyOwner({
                   title: `🎙️ Voice Clone sold + delivered: ${session.customerName}`,
-                  content: `Session ${sessionId} for attempt ${attemptId}. Part ${result.targetedPartNumber} rewritten. Voice ${result.voiceId}. Rp ${session.amountIdr}.`,
+                  content: `Session ${sessionId} for attempt ${attemptId}. ${result.parts.length} parts rewritten (weakest = Part ${result.targetedPartNumber}). Voice ${result.voiceId}. Rp ${session.amountIdr}.`,
                 }).catch(() => {});
               } catch (e) {
                 await db.execute(sql`

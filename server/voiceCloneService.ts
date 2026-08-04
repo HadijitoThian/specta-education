@@ -41,14 +41,27 @@ import { transcribeAudioBuffer } from "./_core/voiceTranscription";
 
 const ELEVENLABS_API_BASE = "https://api.elevenlabs.io/v1";
 
-export interface VoiceCloneResult {
-  voiceId: string;                        // ElevenLabs voice ID (temp, deleted at 90d)
-  targetedPartNumber: number;              // 1 | 2 | 3 — which Speaking part we rewrote
+/** Per-part result — one for each of the 3 recorded Speaking parts. */
+export interface VoiceClonePartResult {
+  partNumber: number;                      // 1 | 2 | 3
   originalTranscript: string;              // student's actual words
   originalAudioKey: string | null;         // R2 key of student's own recording
-  band8Transcript: string;                 // Claude's Band 8 rewrite
+  band8Text: string;                       // Claude's Band 8 rewrite
   band8AudioKey: string;                   // R2 key of cloned-voice Band 8 audio
-  changesSummary: string;                  // 2-3 sentences on what improved (vocab, grammar, etc.)
+  changesSummary: string;                  // 2-3 sentences on what improved
+}
+
+export interface VoiceCloneResult {
+  voiceId: string;                         // ElevenLabs voice ID (temp, deleted at 90d)
+  /** Weakest part number — populated for backward compatibility with old single-part callers/DB rows. */
+  targetedPartNumber: number;              // 1 | 2 | 3
+  originalTranscript: string;              // weakest part's transcript (BC)
+  originalAudioKey: string | null;         // weakest part's audio key (BC)
+  band8Transcript: string;                 // weakest part's Band 8 rewrite (BC)
+  band8AudioKey: string;                   // weakest part's Band 8 audio (BC)
+  changesSummary: string;                  // weakest part's summary (BC)
+  /** New: full per-part results for ALL recorded parts. Caller stores this as JSON in partsJson. */
+  parts: VoiceClonePartResult[];
 }
 
 /**
@@ -237,53 +250,132 @@ export async function runVoiceCloneForAttempt(attemptId: number): Promise<VoiceC
 
   console.log(`[VoiceClone] Starting for attempt ${attemptId} (${studentName})`);
 
-  // 1. Pick weakest response to rewrite
-  const weakest = await pickWeakestResponse(attemptId);
-  if (!weakest) throw new Error("No Speaking responses found — cannot proceed with Voice Clone");
-  console.log(`[VoiceClone] Targeting Part ${weakest.partNumber} (transcript ${weakest.transcript.length} chars)`);
+  // 1. Pull one representative response for EACH speaking part (1, 2, 3)
+  //    so we can rewrite all three. Weakest identified via pickWeakestResponse
+  //    for BC single-part fields.
+  const perPart = await pickOneResponsePerPart(attemptId);
+  if (perPart.length === 0) throw new Error("No Speaking responses found — cannot proceed with Voice Clone");
+  const weakestOfAll = [...perPart].sort((a, b) => a.transcript.length - b.transcript.length)[0];
+  console.log(`[VoiceClone] Attempt ${attemptId}: will rewrite ${perPart.length} parts. Weakest = Part ${weakestOfAll.partNumber}.`);
 
   // 2. Collect voice samples for cloning
   const samples = await collectVoiceSamples(attemptId, 5);
   console.log(`[VoiceClone] Collected ${samples.length} audio samples for cloning`);
 
-  // 3. Create ElevenLabs voice clone
+  // 3. Create ElevenLabs voice clone (ONE clone, reused for all part rewrites)
   const voiceName = `SpecTa VC ${attempt.id} ${studentName.slice(0, 20)}`;
   const voiceId = await createElevenLabsVoiceClone(voiceName, samples);
   console.log(`[VoiceClone] Created ElevenLabs voice ${voiceId}`);
 
-  // 4. Claude rewrites at Band 8
-  const { band8Text, changesSummary } = await rewriteAtBand8(
-    weakest.transcript,
-    weakest.partNumber,
-    studentName,
+  // 4. Rewrite each part at Band 8 (Claude in parallel, then TTS sequential to be gentle on ElevenLabs)
+  const rewrites = await Promise.all(
+    perPart.map(p =>
+      rewriteAtBand8(p.transcript, p.partNumber, studentName)
+        .then(rw => ({ src: p, ...rw }))
+        .catch(e => {
+          console.warn(`[VoiceClone] Band8 rewrite failed for Part ${p.partNumber}:`, (e as Error).message);
+          return null;
+        }),
+    ),
   );
-  console.log(`[VoiceClone] Band 8 rewrite: ${band8Text.length} chars`);
 
-  // 5. Generate Band 8 audio using cloned voice
-  const band8Audio = await synthesize({
-    voiceId,
-    text: band8Text,
-    modelId: ENV.elevenLabsModelId || "eleven_multilingual_v2",
-    outputFormat: "mp3_44100_128",
-    stability: 0.5,
-    similarityBoost: 0.85, // higher = more like the cloned voice
-  });
-  console.log(`[VoiceClone] Generated ${band8Audio.length} bytes of Band 8 audio`);
+  const parts: VoiceClonePartResult[] = [];
+  for (const rw of rewrites) {
+    if (!rw) continue;
+    const { src, band8Text, changesSummary } = rw;
+    try {
+      const band8Audio = await synthesize({
+        voiceId,
+        text: band8Text,
+        modelId: ENV.elevenLabsModelId || "eleven_multilingual_v2",
+        outputFormat: "mp3_44100_128",
+        stability: 0.5,
+        similarityBoost: 0.85,
+      });
+      const band8AudioKey = `voice-clone/${attemptId}/${Date.now()}-band8-part${src.partNumber}.mp3`;
+      await storagePut(band8AudioKey, band8Audio, "audio/mpeg");
+      parts.push({
+        partNumber: src.partNumber,
+        originalTranscript: src.transcript,
+        originalAudioKey: src.audioKey,
+        band8Text,
+        band8AudioKey,
+        changesSummary,
+      });
+      console.log(`[VoiceClone] Part ${src.partNumber}: ${band8Audio.length} bytes → ${band8AudioKey}`);
+    } catch (e) {
+      console.warn(`[VoiceClone] TTS failed for Part ${src.partNumber}:`, (e as Error).message);
+    }
+  }
 
-  // 6. Upload to R2
-  const band8AudioKey = `voice-clone/${attemptId}/${Date.now()}-band8-part${weakest.partNumber}.mp3`;
-  await storagePut(band8AudioKey, band8Audio, "audio/mpeg");
-  console.log(`[VoiceClone] Uploaded Band 8 audio: ${band8AudioKey}`);
+  if (parts.length === 0) throw new Error("All part rewrites failed — cannot deliver result");
+  parts.sort((a, b) => a.partNumber - b.partNumber);
+
+  const weakestPart = parts.find(p => p.partNumber === weakestOfAll.partNumber) || parts[0];
 
   return {
     voiceId,
-    targetedPartNumber: weakest.partNumber,
-    originalTranscript: weakest.transcript,
-    originalAudioKey: weakest.audioKey,
-    band8Transcript: band8Text,
-    band8AudioKey,
-    changesSummary,
+    targetedPartNumber: weakestPart.partNumber,
+    originalTranscript: weakestPart.originalTranscript,
+    originalAudioKey: weakestPart.originalAudioKey,
+    band8Transcript: weakestPart.band8Text,
+    band8AudioKey: weakestPart.band8AudioKey,
+    changesSummary: weakestPart.changesSummary,
+    parts,
   };
+}
+
+/**
+ * Pull ONE representative response for each Speaking part (1, 2, 3) of a Mock
+ * attempt. Prefers `ieltsSpeakingResponses` (has partBand); falls back to
+ * longest student turn from `ieltsSpeakingConversations` grouped by part.
+ */
+async function pickOneResponsePerPart(attemptId: number): Promise<Array<{
+  partNumber: number;
+  transcript: string;
+  audioKey: string | null;
+}>> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const scored = await db.select()
+    .from(ieltsSpeakingResponses)
+    .where(eq(ieltsSpeakingResponses.attemptId, attemptId));
+  const scoredWithText = scored.filter(r => r.transcript);
+  if (scoredWithText.length > 0) {
+    const byPart = new Map<number, { partNumber: number; transcript: string; audioKey: string | null }>();
+    for (const r of scoredWithText) {
+      const existing = byPart.get(r.partNumber);
+      // Prefer the LONGEST transcript per part (more content to rewrite)
+      if (!existing || (r.transcript || "").length > existing.transcript.length) {
+        byPart.set(r.partNumber, {
+          partNumber: r.partNumber,
+          transcript: r.transcript || "",
+          audioKey: r.audioKey,
+        });
+      }
+    }
+    return Array.from(byPart.values()).sort((a, b) => a.partNumber - b.partNumber);
+  }
+
+  const turns = await db.select().from(ieltsSpeakingConversations)
+    .where(and(
+      eq(ieltsSpeakingConversations.attemptId, attemptId),
+      eq(ieltsSpeakingConversations.role, "student"),
+    ));
+  const byPart = new Map<number, { partNumber: number; transcript: string; audioKey: string | null }>();
+  for (const t of turns) {
+    if (!t.text || t.text.length < 10) continue;
+    const existing = byPart.get(t.partNumber);
+    if (!existing || t.text.length > existing.transcript.length) {
+      byPart.set(t.partNumber, {
+        partNumber: t.partNumber,
+        transcript: t.text,
+        audioKey: t.audioKey,
+      });
+    }
+  }
+  return Array.from(byPart.values()).sort((a, b) => a.partNumber - b.partNumber);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -343,12 +435,17 @@ export async function runVoiceCloneStandalone(sessionId: number): Promise<VoiceC
     }
   }
 
-  // Pick the weakest response — heuristic: shortest transcript = probably struggled most
+  // Weakest = shortest transcript (heuristic for BC weakest-only pointer)
   const withTranscript = uploaded.filter((r: any) => r.transcript);
   if (withTranscript.length === 0) throw new Error("No recordings could be transcribed — cannot proceed");
-  withTranscript.sort((a: any, b: any) => (a.transcript || "").length - (b.transcript || "").length);
-  const weakest = withTranscript[0];
-  console.log(`[VoiceClone] Targeting recording ${weakest.id} (Part ${weakest.partNumber}, ${(weakest.transcript || "").length} chars)`);
+  const sortedByLen = [...withTranscript].sort(
+    (a: any, b: any) => (a.transcript || "").length - (b.transcript || "").length,
+  );
+  const weakest = sortedByLen[0];
+  console.log(
+    `[VoiceClone] Standalone ${sessionId}: will rewrite ALL ${withTranscript.length} parts. ` +
+    `Weakest is Part ${weakest.partNumber} (${(weakest.transcript || "").length} chars).`,
+  );
 
   // Collect ALL uploaded audio for the voice model (more data = better clone)
   const audioBuffers: Buffer[] = [];
@@ -362,40 +459,69 @@ export async function runVoiceCloneStandalone(sessionId: number): Promise<VoiceC
   }
   if (audioBuffers.length === 0) throw new Error("Could not load any audio for cloning");
 
-  // Clone voice
+  // Clone voice ONCE (reused for all 3 part rewrites)
   const studentName = session.customerName || "there";
   const voiceName = `SpecTa VC Standalone ${sessionId} ${String(studentName).slice(0, 20)}`;
   const voiceId = await createElevenLabsVoiceClone(voiceName, audioBuffers);
   console.log(`[VoiceClone] Cloned voice ${voiceId}`);
 
-  // Rewrite at Band 8
-  const { band8Text, changesSummary } = await rewriteAtBand8(
-    weakest.transcript,
-    weakest.partNumber,
-    studentName,
+  // Rewrite EACH part at Band 8 in the student's cloned voice (parallel Claude, sequential TTS)
+  const rewrites = await Promise.all(
+    withTranscript.map((r: any) =>
+      rewriteAtBand8(r.transcript, r.partNumber, studentName)
+        .then((rw) => ({ recording: r, ...rw }))
+        .catch((e) => {
+          console.warn(`[VoiceClone] Band8 rewrite failed for Part ${r.partNumber}:`, (e as Error).message);
+          return null;
+        }),
+    ),
   );
 
-  // Generate audio in cloned voice
-  const band8Audio = await synthesize({
-    voiceId,
-    text: band8Text,
-    modelId: ENV.elevenLabsModelId || "eleven_multilingual_v2",
-    outputFormat: "mp3_44100_128",
-    stability: 0.5,
-    similarityBoost: 0.85,
-  });
+  const parts: VoiceClonePartResult[] = [];
+  for (const rw of rewrites) {
+    if (!rw) continue;
+    const { recording, band8Text, changesSummary } = rw;
+    try {
+      const band8Audio = await synthesize({
+        voiceId,
+        text: band8Text,
+        modelId: ENV.elevenLabsModelId || "eleven_multilingual_v2",
+        outputFormat: "mp3_44100_128",
+        stability: 0.5,
+        similarityBoost: 0.85,
+      });
+      const band8AudioKey = `voice-clone/standalone-${sessionId}/${Date.now()}-band8-part${recording.partNumber}.mp3`;
+      await storagePut(band8AudioKey, band8Audio, "audio/mpeg");
+      parts.push({
+        partNumber: recording.partNumber,
+        originalTranscript: recording.transcript,
+        originalAudioKey: recording.audioKey,
+        band8Text,
+        band8AudioKey,
+        changesSummary,
+      });
+      console.log(`[VoiceClone] Part ${recording.partNumber}: ${band8Audio.length} bytes → ${band8AudioKey}`);
+    } catch (e) {
+      console.warn(`[VoiceClone] TTS failed for Part ${recording.partNumber}:`, (e as Error).message);
+    }
+  }
 
-  const band8AudioKey = `voice-clone/standalone-${sessionId}/${Date.now()}-band8-part${weakest.partNumber}.mp3`;
-  await storagePut(band8AudioKey, band8Audio, "audio/mpeg");
-  console.log(`[VoiceClone] Uploaded Band 8 audio for standalone session ${sessionId}`);
+  if (parts.length === 0) throw new Error("All part rewrites failed — cannot deliver result");
+
+  // Sort by partNumber ascending so UI shows 1 → 2 → 3
+  parts.sort((a, b) => a.partNumber - b.partNumber);
+
+  // Backward-compat: point the single-part fields at the weakest part's result
+  const weakestPart = parts.find(p => p.partNumber === weakest.partNumber) || parts[0];
 
   return {
     voiceId,
-    targetedPartNumber: weakest.partNumber,
-    originalTranscript: weakest.transcript,
-    originalAudioKey: weakest.audioKey,
-    band8Transcript: band8Text,
-    band8AudioKey,
-    changesSummary,
+    targetedPartNumber: weakestPart.partNumber,
+    originalTranscript: weakestPart.originalTranscript,
+    originalAudioKey: weakestPart.originalAudioKey,
+    band8Transcript: weakestPart.band8Text,
+    band8AudioKey: weakestPart.band8AudioKey,
+    changesSummary: weakestPart.changesSummary,
+    parts,
   };
 }

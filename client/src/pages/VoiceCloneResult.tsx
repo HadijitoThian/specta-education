@@ -72,59 +72,94 @@ export default function VoiceCloneResult() {
           )}
 
           {s && s.status === "ready" && (
-            <div className="bg-gradient-to-br from-purple-600 via-fuchsia-600 to-pink-600 rounded-3xl shadow-2xl p-6 md:p-8 text-white">
-              <div className="text-center mb-6">
-                <div className="text-4xl mb-2">✨</div>
-                <h1 className="text-2xl md:text-3xl font-black mb-1">
-                  {s.customerName || "You"} — Band 8
-                </h1>
-                <p className="text-white/85 text-sm">Part {s.targetedPartNumber} · rewritten to Band 8 level in your own voice</p>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="bg-white/10 rounded-xl p-4">
-                  <div className="text-xs uppercase tracking-wider opacity-80 font-bold mb-2">🎤 Rekaman kamu (asli)</div>
-                  {s.originalAudioUrl ? (
-                    <audio controls src={s.originalAudioUrl} className="w-full" />
-                  ) : <div className="text-xs italic opacity-70">Audio tidak tersedia</div>}
-                  <div className="mt-3 text-sm leading-relaxed opacity-95 max-h-40 overflow-y-auto">
-                    "{s.originalTranscript}"
-                  </div>
-                </div>
-                <div className="bg-white/20 border-2 border-white/40 rounded-xl p-4">
-                  <div className="text-xs uppercase tracking-wider text-amber-200 font-black mb-2">✨ Kamu di Band 8</div>
-                  {s.band8AudioUrl ? (
-                    <audio controls src={s.band8AudioUrl} className="w-full" />
-                  ) : <div className="text-xs italic opacity-70">Audio tidak tersedia</div>}
-                  <div className="mt-3 text-sm leading-relaxed max-h-40 overflow-y-auto">
-                    "{s.band8Transcript}"
-                  </div>
-                </div>
-              </div>
-
-              {s.changesSummary && (
-                <div className="mt-4 bg-white/10 rounded-lg p-3 text-sm">
-                  <div className="text-xs uppercase tracking-wider opacity-80 font-black mb-1">Apa yang berubah?</div>
-                  {s.changesSummary}
-                </div>
-              )}
-
-              <div className="mt-4 text-center">
-                <div className="text-xs opacity-75">
-                  🔒 Voice clone auto-hapus 90 hari · Audio Band 8 tersimpan selamanya untuk kamu
-                </div>
-              </div>
-
-              <div className="mt-6 pt-6 border-t border-white/20">
+            <div className="space-y-6">
+              <div className="bg-gradient-to-br from-purple-600 via-fuchsia-600 to-pink-600 rounded-3xl shadow-2xl p-6 md:p-8 text-white">
                 <div className="text-center">
-                  <p className="text-sm mb-3">Mau prep IELTS lebih lengkap?</p>
-                  <div className="flex gap-3 justify-center flex-wrap">
-                    <Link href="/ielts/mock-test" className="px-4 py-2 bg-white text-purple-700 rounded-lg text-sm font-bold hover:bg-amber-50">
-                      Coba IELTS Mock Test →
-                    </Link>
-                    <Link href="/ielts/tutor" className="px-4 py-2 bg-amber-400 text-slate-900 rounded-lg text-sm font-bold hover:bg-amber-300">
-                      Latihan dengan AI Tutor →
-                    </Link>
+                  <div className="text-4xl mb-2">✨</div>
+                  <h1 className="text-2xl md:text-3xl font-black mb-1">
+                    {s.customerName || "You"} — Band 8
+                  </h1>
+                  <p className="text-white/85 text-sm">
+                    {s.parts && s.parts.length > 1
+                      ? `Semua ${s.parts.length} bagian IELTS Speaking · rewritten to Band 8 in your own cloned voice`
+                      : `Part ${s.targetedPartNumber} · rewritten to Band 8 level in your own voice`}
+                  </p>
+                </div>
+              </div>
+
+              {(s.parts && s.parts.length > 0 ? s.parts : [{
+                partNumber: s.targetedPartNumber,
+                originalTranscript: s.originalTranscript,
+                originalAudioUrl: s.originalAudioUrl,
+                band8Transcript: s.band8Transcript,
+                band8AudioUrl: s.band8AudioUrl,
+                changesSummary: s.changesSummary,
+              }]).map((p: any) => (
+                <div key={p.partNumber} className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+                  <div className="bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white px-5 py-3 flex items-center justify-between">
+                    <div className="font-black text-lg">Part {p.partNumber}</div>
+                    <div className="text-xs uppercase tracking-wider opacity-90">
+                      {p.partNumber === 1 ? "Intro & interview" : p.partNumber === 2 ? "Long turn (cue card)" : "Discussion"}
+                    </div>
+                  </div>
+                  <div className="p-5 grid md:grid-cols-2 gap-4">
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                      <div className="text-xs uppercase tracking-wider text-slate-500 font-bold mb-2">🎤 Rekaman kamu (asli)</div>
+                      {p.originalAudioUrl ? (
+                        <audio
+                          key={p.originalAudioUrl}
+                          controls
+                          preload="metadata"
+                          src={p.originalAudioUrl}
+                          className="w-full"
+                        />
+                      ) : <div className="text-xs italic text-slate-500">Audio tidak tersedia</div>}
+                      <div className="mt-3 text-sm leading-relaxed text-slate-700 max-h-40 overflow-y-auto">
+                        "{p.originalTranscript}"
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-br from-amber-50 to-purple-50 border-2 border-amber-300 rounded-xl p-4">
+                      <div className="text-xs uppercase tracking-wider text-purple-700 font-black mb-2">✨ Kamu di Band 8</div>
+                      {p.band8AudioUrl ? (
+                        <audio
+                          key={p.band8AudioUrl}
+                          controls
+                          preload="metadata"
+                          src={p.band8AudioUrl}
+                          className="w-full"
+                        />
+                      ) : <div className="text-xs italic text-slate-500">Audio tidak tersedia</div>}
+                      <div className="mt-3 text-sm leading-relaxed text-slate-800 max-h-40 overflow-y-auto">
+                        "{p.band8Transcript}"
+                      </div>
+                    </div>
+                  </div>
+                  {p.changesSummary && (
+                    <div className="mx-5 mb-5 bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm text-slate-700">
+                      <div className="text-xs uppercase tracking-wider text-slate-500 font-black mb-1">Apa yang berubah?</div>
+                      {p.changesSummary}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              <div className="bg-gradient-to-br from-purple-700 via-fuchsia-700 to-pink-700 rounded-2xl p-6 text-white">
+                <div className="text-center mb-3">
+                  <div className="text-xs opacity-75">
+                    🔒 Voice clone auto-hapus 90 hari · Audio Band 8 tersimpan selamanya untuk kamu
+                  </div>
+                </div>
+                <div className="pt-4 border-t border-white/20">
+                  <div className="text-center">
+                    <p className="text-sm mb-3">Mau prep IELTS lebih lengkap?</p>
+                    <div className="flex gap-3 justify-center flex-wrap">
+                      <Link href="/ielts/mock-test" className="px-4 py-2 bg-white text-purple-700 rounded-lg text-sm font-bold hover:bg-amber-50">
+                        Coba IELTS Mock Test →
+                      </Link>
+                      <Link href="/ielts/tutor" className="px-4 py-2 bg-amber-400 text-slate-900 rounded-lg text-sm font-bold hover:bg-amber-300">
+                        Latihan dengan AI Tutor →
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>

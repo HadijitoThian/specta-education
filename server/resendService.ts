@@ -662,3 +662,84 @@ export async function sendVoiceCloneUpsellEmail(params: {
     return false;
   }
 }
+
+/**
+ * Voice Clone action email — sends either the recording URL (for paid
+ * customers who haven't recorded yet or need a fresh link) or the result URL
+ * (for customers whose processing is complete and need a re-delivery).
+ *
+ * Used by the admin panel to manually resend links after failed emails,
+ * refunds, comped free tests, etc.
+ */
+export async function sendVoiceCloneActionEmail(params: {
+  to: string;
+  customerName?: string | null;
+  purpose: "recording" | "result" | "free-test";
+  url: string;                     // full URL — /voice-clone/record/[token] or result URL
+}): Promise<boolean> {
+  if (!ENV.resendApiKey) {
+    console.warn("[Resend] Voice Clone action email skipped — no RESEND_API_KEY");
+    return false;
+  }
+  const name = (params.customerName || "").trim() || "there";
+  const isRecording = params.purpose === "recording" || params.purpose === "free-test";
+  const subject = params.purpose === "free-test"
+    ? "🎙️ Your free SpecTa Voice Clone test is ready"
+    : isRecording
+      ? "🎙️ Record your 3 IELTS Speaking questions — SpecTa Voice Clone"
+      : "🎙️ Your Voice Clone Band 8 result is ready";
+  const ctaLabel = params.purpose === "free-test"
+    ? "🎙️ Start Free Test →"
+    : isRecording
+      ? "🎙️ Start Recording →"
+      : "▶️ Listen to Your Band 8 →";
+  const body = params.purpose === "free-test"
+    ? "You've been given a free access to try SpecTa Voice Clone. Record 3 IELTS Speaking questions and our AI will clone your voice and rewrite each answer at Band 8 level in your own voice. Should take about 5-10 minutes."
+    : isRecording
+      ? "Thanks for buying SpecTa Voice Clone. Click below to record your 3 IELTS Speaking questions. It takes about 5 minutes total. AI will then clone your voice and generate the Band-8 versions."
+      : "Your voice clone is complete. Click below to hear all 3 of your IELTS Speaking parts rewritten at Band 8 level — in your own cloned voice.";
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+    <div style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+      <div style="text-align:center;padding:20px 24px 4px;">
+        <span style="font-size:20px;font-weight:800;color:#4338ca;">SpecTa</span><span style="font-size:20px;color:#6b7280;margin-left:6px;">Education</span>
+      </div>
+      <div style="background:linear-gradient(135deg,#7c3aed,#c026d3,#db2777);padding:26px 30px;text-align:center;color:white;">
+        <div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.9;font-weight:700;">🎙️ SpecTa Voice Clone</div>
+        <h1 style="color:white;margin:6px 0 0;font-size:22px;line-height:1.3;font-weight:800;">${subject.replace("🎙️ ", "").replace("▶️ ", "")}</h1>
+      </div>
+      <div style="padding:28px;">
+        <p style="color:#374151;font-size:15px;margin:0 0 14px;">Hi <strong>${name}</strong>,</p>
+        <p style="color:#374151;font-size:14px;line-height:1.6;margin:0 0 22px;">${body}</p>
+        <div style="text-align:center;margin:0 0 20px;">
+          <a href="${params.url}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#c026d3);color:white;text-decoration:none;padding:14px 32px;border-radius:12px;font-weight:bold;font-size:15px;box-shadow:0 4px 12px rgba(124,58,237,0.35);">${ctaLabel}</a>
+        </div>
+        <p style="color:#6b7280;font-size:12px;line-height:1.5;margin:0 0 6px;text-align:center;">Or paste this URL into your browser:</p>
+        <p style="color:#4338ca;font-size:12px;line-height:1.5;margin:0;text-align:center;word-break:break-all;">${params.url}</p>
+      </div>
+      <div style="background:#f9fafb;padding:14px 24px;text-align:center;border-top:1px solid #e5e7eb;">
+        <p style="color:#9ca3af;font-size:11px;margin:0;">© ${new Date().getFullYear()} SpecTa Education · info@spectaeducation.com</p>
+      </div>
+    </div>
+  </div>
+</body></html>`;
+
+  try {
+    const response = await fetch(`${RESEND_API_BASE}/emails`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ENV.resendApiKey}` },
+      body: JSON.stringify({ from: FROM_EMAIL, to: [params.to], subject, html }),
+    });
+    if (!response.ok) {
+      console.error("[Resend] Voice Clone action email failed:", response.status, await response.text());
+      return false;
+    }
+    console.log(`[Resend] Voice Clone ${params.purpose} email sent to ${params.to}`);
+    return true;
+  } catch (e) {
+    console.error("[Resend] Voice Clone action email error:", e);
+    return false;
+  }
+}

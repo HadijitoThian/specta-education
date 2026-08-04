@@ -125,8 +125,12 @@ export default function VoiceCloneRecord() {
       mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: mimeType });
-        setPreviewBlob(blob);
-        setPreviewUrl(URL.createObjectURL(blob));
+        if (blob.size === 0) {
+          setMicError("Rekaman kosong — coba lagi (pastikan mikrofon aktif dan izin sudah diberikan).");
+        } else {
+          setPreviewBlob(blob);
+          setPreviewUrl(URL.createObjectURL(blob));
+        }
         stream.getTracks().forEach(t => t.stop());
         streamRef.current = null;
       };
@@ -298,8 +302,26 @@ export default function VoiceCloneRecord() {
             <div className="space-y-3">
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <div className="text-xs text-slate-500 font-semibold mb-2">Preview rekaman kamu:</div>
-                <audio controls src={previewUrl} className="w-full" />
-                <div className="text-xs text-slate-500 mt-2">Durasi: {elapsed}s</div>
+                <audio
+                  key={previewUrl}
+                  controls
+                  preload="metadata"
+                  src={previewUrl}
+                  className="w-full"
+                  onError={(e) => {
+                    const el = e.currentTarget as HTMLAudioElement;
+                    const err = el.error;
+                    setUploadError(
+                      `Browser tidak bisa memainkan format rekaman (${previewBlob.type || "unknown"}). ` +
+                      `Klik "Download" di bawah untuk cek file, atau langsung "Simpan & Lanjut" — server tetap akan proses. ` +
+                      `[error code ${err?.code}]`
+                    );
+                  }}
+                />
+                <div className="flex items-center justify-between text-xs text-slate-500 mt-2">
+                  <span>Durasi: {elapsed}s · {(previewBlob.size / 1024).toFixed(1)} KB · {previewBlob.type.split(";")[0]}</span>
+                  <a href={previewUrl} download={`rekaman-part${currentQuestion?.partNumber || "x"}.webm`} className="underline text-purple-700 hover:text-purple-900">Download</a>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <button onClick={retryRecording} className="py-3 rounded-xl border-2 border-slate-300 hover:bg-slate-50 font-semibold flex items-center justify-center gap-2">

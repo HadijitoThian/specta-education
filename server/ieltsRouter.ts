@@ -1504,10 +1504,11 @@ export const ieltsRouter = router({
                 originalAudioKey = ${result.originalAudioKey || null},
                 band8Transcript = ${result.band8Transcript},
                 band8AudioKey = ${result.band8AudioKey},
-                changesSummary = ${result.changesSummary}
+                changesSummary = ${result.changesSummary},
+                partsJson = ${JSON.stringify(result.parts)}
               WHERE id = ${sessionId}
             `);
-            console.log(`[VoiceClone] Session ${sessionId} READY (bundle-free)`);
+            console.log(`[VoiceClone] Session ${sessionId} READY (bundle-free, ${result.parts.length} parts)`);
           } catch (e) {
             await db.execute(sql`
               UPDATE voice_clone_sessions SET status = 'failed', errorMessage = ${(e as Error).message} WHERE id = ${sessionId}
@@ -1562,10 +1563,38 @@ export const ieltsRouter = router({
       const list = Array.isArray(rows[0]) ? rows[0] : rows;
       const session = list[0];
       if (!session) return null;
-      // Build public audio URLs for the R2-stored files via signed GET URLs
-      const { storageGet } = await import("./storage");
-      const originalAudioUrl = session.originalAudioKey ? (await storageGet(session.originalAudioKey)).url : null;
-      const band8AudioUrl = session.band8AudioKey ? (await storageGet(session.band8AudioKey)).url : null;
+      // Serve audio via same-origin /files/{key} proxy (Content-Type + Accept-Ranges
+      // set by the proxy) instead of R2 signed URLs — signed URLs expire in 1h
+      // and were causing 0:00/0:00 <audio> playback failures.
+      const originalAudioUrl = session.originalAudioKey ? `/files/${session.originalAudioKey}` : null;
+      const band8AudioUrl = session.band8AudioKey ? `/files/${session.band8AudioKey}` : null;
+      // Multi-part (Issue 4a). Legacy single-part fallback below.
+      let parts: any = null;
+      if (session.partsJson) {
+        try {
+          const raw = JSON.parse(session.partsJson);
+          if (Array.isArray(raw)) {
+            parts = raw.map((p: any) => ({
+              partNumber: Number(p.partNumber),
+              originalTranscript: p.originalTranscript ?? null,
+              originalAudioUrl: p.originalAudioKey ? `/files/${p.originalAudioKey}` : null,
+              band8Transcript: p.band8Text ?? p.band8Transcript ?? null,
+              band8AudioUrl: p.band8AudioKey ? `/files/${p.band8AudioKey}` : null,
+              changesSummary: p.changesSummary ?? null,
+            }));
+          }
+        } catch {}
+      }
+      if (!parts && session.status === "ready" && session.targetedPartNumber) {
+        parts = [{
+          partNumber: Number(session.targetedPartNumber),
+          originalTranscript: session.originalTranscript ?? null,
+          originalAudioUrl,
+          band8Transcript: session.band8Transcript ?? null,
+          band8AudioUrl,
+          changesSummary: session.changesSummary ?? null,
+        }];
+      }
       return {
         id: session.id,
         status: session.status as "pending" | "processing" | "ready" | "failed",
@@ -1576,6 +1605,7 @@ export const ieltsRouter = router({
         changesSummary: session.changesSummary,
         originalAudioUrl,
         band8AudioUrl,
+        parts,
         errorMessage: session.errorMessage,
       };
     }),
@@ -1806,10 +1836,11 @@ export const ieltsRouter = router({
               originalAudioKey = ${result.originalAudioKey || null},
               band8Transcript = ${result.band8Transcript},
               band8AudioKey = ${result.band8AudioKey},
-              changesSummary = ${result.changesSummary}
+              changesSummary = ${result.changesSummary},
+              partsJson = ${JSON.stringify(result.parts)}
             WHERE id = ${sessionId}
           `);
-          console.log(`[VoiceClone] Standalone session ${sessionId} READY`);
+          console.log(`[VoiceClone] Standalone session ${sessionId} READY (${result.parts.length} parts)`);
         } catch (e) {
           await db.execute(sql`
             UPDATE voice_clone_sessions SET status = 'failed', errorMessage = ${(e as Error).message}
@@ -1837,9 +1868,48 @@ export const ieltsRouter = router({
       const sessionList = Array.isArray(sessionRows[0]) ? sessionRows[0] : sessionRows;
       const session = sessionList[0];
       if (!session) return null;
-      const { storageGet } = await import("./storage");
-      const originalAudioUrl = session.originalAudioKey ? (await storageGet(session.originalAudioKey)).url : null;
-      const band8AudioUrl = session.band8AudioKey ? (await storageGet(session.band8AudioKey)).url : null;
+      // Same fix as the from-mock endpoint above — /files/{key} proxy, not signed R2 URLs.
+      const originalAudioUrl = session.originalAudioKey ? `/files/${session.originalAudioKey}` : null;
+      const band8AudioUrl = session.band8AudioKey ? `/files/${session.band8AudioKey}` : null;
+
+      // Parse partsJson (Issue 4a — rewrite ALL 3 parts). Falls back to single-part
+      // legacy shape (targetedPartNumber + top-level transcripts) for sessions
+      // processed before the multi-part refactor.
+      let parts: Array<{
+        partNumber: number;
+        originalTranscript: string | null;
+        originalAudioUrl: string | null;
+        band8Transcript: string | null;
+        band8AudioUrl: string | null;
+        changesSummary: string | null;
+      }> | null = null;
+      if (session.partsJson) {
+        try {
+          const raw = JSON.parse(session.partsJson);
+          if (Array.isArray(raw)) {
+            parts = raw.map((p: any) => ({
+              partNumber: Number(p.partNumber),
+              originalTranscript: p.originalTranscript ?? null,
+              originalAudioUrl: p.originalAudioKey ? `/files/${p.originalAudioKey}` : null,
+              band8Transcript: p.band8Text ?? p.band8Transcript ?? null,
+              band8AudioUrl: p.band8AudioKey ? `/files/${p.band8AudioKey}` : null,
+              changesSummary: p.changesSummary ?? null,
+            }));
+          }
+        } catch {}
+      }
+      // Legacy single-part fallback so pre-refactor "ready" sessions still render.
+      if (!parts && session.status === "ready" && session.targetedPartNumber) {
+        parts = [{
+          partNumber: Number(session.targetedPartNumber),
+          originalTranscript: session.originalTranscript ?? null,
+          originalAudioUrl,
+          band8Transcript: session.band8Transcript ?? null,
+          band8AudioUrl,
+          changesSummary: session.changesSummary ?? null,
+        }];
+      }
+
       return {
         id: session.id,
         status: session.status as "pending" | "processing" | "ready" | "failed",
@@ -1852,6 +1922,7 @@ export const ieltsRouter = router({
         changesSummary: session.changesSummary,
         originalAudioUrl,
         band8AudioUrl,
+        parts,
         errorMessage: session.errorMessage,
       };
     }),

@@ -227,6 +227,7 @@ import { ieltsAdminRouter } from "./ieltsAdminRouter";
 import { waAttributionAdminRouter } from "./waAttributionAdminRouter";
 import { tutorAdminRouter } from "./tutorAdminRouter";
 import { ieltsRouter } from "./ieltsRouter";
+import { voiceCloneAdminRouter } from "./voiceCloneAdminRouter";
 import { crmTeamRouter } from "./crmTeamRouter";
 import { crmStudentsRouter } from "./crmStudentsRouter";
 import { crmReportsRouter } from "./crmReportsRouter";
@@ -8445,6 +8446,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
   }),
 
   ielts: ieltsRouter,
+  voiceCloneAdmin: voiceCloneAdminRouter,
   team: crmTeamRouter,
   students: crmStudentsRouter,
   reports: crmReportsRouter,

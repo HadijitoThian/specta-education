@@ -13,7 +13,7 @@
  */
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Loader2, LogOut, Home, Sparkles, FileText, TrendingUp, Megaphone, Brain, GraduationCap } from "lucide-react";
+import { Loader2, LogOut, Home, Sparkles, FileText, TrendingUp, Megaphone, Brain, GraduationCap, Mic } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import AdsCopilot from "@/components/admin/AdsCopilot";
 import GrowthInsights from "@/components/admin/GrowthInsights";
 import AptitudeManager from "@/components/admin/AptitudeManager";
 import IgcseAdmin from "@/components/admin/IgcseAdmin";
+import VoiceCloneAdmin from "@/components/admin/VoiceCloneAdmin";
 
 export default function AdminDashboard() {
   useEffect(() => {
@@ -32,7 +33,7 @@ export default function AdminDashboard() {
 
   const { user, loading, isAuthenticated, logout } = useAuth();
   const isAdmin = user?.role === "admin";
-  const [tab, setTab] = useState<"blog" | "growth" | "ads" | "insights" | "aptitude" | "igcse">("blog");
+  const [tab, setTab] = useState<"blog" | "growth" | "ads" | "insights" | "aptitude" | "igcse" | "voice-clone">("blog");
 
   if (loading) {
     return (
@@ -137,12 +138,16 @@ export default function AdminDashboard() {
           <Button variant={tab === "igcse" ? "default" : "outline"} size="sm" onClick={() => setTab("igcse")}>
             <GraduationCap className="w-4 h-4 mr-2" /> IGCSE
           </Button>
+          <Button variant={tab === "voice-clone" ? "default" : "outline"} size="sm" onClick={() => setTab("voice-clone")}>
+            <Mic className="w-4 h-4 mr-2" /> Voice Clone
+          </Button>
         </div>
         {tab === "blog" ? <BlogManager />
           : tab === "growth" ? <GrowthDashboard />
           : tab === "ads" ? <AdsCopilot />
           : tab === "aptitude" ? <AptitudeManager />
           : tab === "igcse" ? <IgcseAdmin />
+          : tab === "voice-clone" ? <VoiceCloneAdmin />
           : <GrowthInsights />}
       </main>
     </div>
