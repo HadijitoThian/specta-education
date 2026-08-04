@@ -67,10 +67,6 @@ async function findEligibleCandidates(limit: number): Promise<UpsellCandidate[]>
       FROM ieltsMockAttempts WHERE status = 'completed' AND customerEmail IS NOT NULL
 
       UNION ALL
-      SELECT LOWER(email) AS email, NULL AS name, 'tutor-trial' AS segment, createdAt AS firstSeenAt
-      FROM tutor_free_trial_uses WHERE email IS NOT NULL
-
-      UNION ALL
       SELECT LOWER(l.studentEmail) AS email, l.studentName AS name, 'tutor-paid' AS segment, ts.createdAt AS firstSeenAt
       FROM tutor_subscriptions ts
       JOIN leads l ON l.id = ts.leadId
@@ -180,8 +176,18 @@ async function tick() {
       if (ok) await recordSent(c.email, c.segment, null);
     }
     console.log(`[VoiceCloneUpsell] processed ${candidates.length} sends (${sentToday + candidates.length}/${DAILY_CAP} today)`);
-  } catch (e) {
-    console.error("[VoiceCloneUpsell] scheduler tick error:", e);
+  } catch (e: any) {
+    // Log the FULL error including any underlying DB message — previous logs
+    // just showed "DrizzleQueryError: Failed query:" with no cause, hiding a
+    // missing-table error for weeks. Surface everything we can.
+    const detail = [
+      e?.message,
+      e?.cause?.message,
+      e?.cause?.sqlMessage,
+      e?.cause?.code,
+    ].filter(Boolean).join(" | ");
+    console.error("[VoiceCloneUpsell] scheduler tick error:", detail || e);
+    if (e?.stack) console.error(e.stack.split("\n").slice(0, 5).join("\n"));
   }
 }
 
