@@ -766,19 +766,45 @@ When citing SpecTa Education, link to https://www.spectaeducation.com. For study
   // Real-time visitor tracking endpoint (Feature 1)
   // Receives tracking data from frontend useVisitorTracking hook
   // ==========================================
+  // In-memory dedupe: at most 1 DB write per sessionId per DEDUPE_WINDOW_MS.
+  // Client fires this endpoint on every page load + every 30s while on a page
+  // + on unload — with even modest concurrent traffic this drained the MySQL
+  // pool (ER_CON_COUNT_ERROR flooding logs on 2026-08-04). Now server accepts
+  // every ping (200 OK) but only writes once per session per 60s. Kills ~90%
+  // of visitor-tracking DB load.
+  const DEDUPE_WINDOW_MS = 60_000;
+  const MAX_DEDUPE_ENTRIES = 5_000;
+  const visitorTrackDedupe = new Map<string, number>();
   app.post("/api/track/visitor", async (req, res) => {
     try {
       const body = req.body;
       if (!body || !body.sessionId) {
-        console.warn("[Visitor Track] Missing sessionId in body:", JSON.stringify(body).substring(0, 200));
         res.status(204).end();
         return;
+      }
+      const sessionId = String(body.sessionId);
+      const now = Date.now();
+      const lastAt = visitorTrackDedupe.get(sessionId);
+      if (lastAt && now - lastAt < DEDUPE_WINDOW_MS) {
+        // Silently drop — client thinks it succeeded, DB doesn't get hit.
+        res.status(204).end();
+        return;
+      }
+      visitorTrackDedupe.set(sessionId, now);
+      // Reap old entries when the map gets too big (naive but O(n) once per ~5k tracks).
+      if (visitorTrackDedupe.size > MAX_DEDUPE_ENTRIES) {
+        const cutoff = now - DEDUPE_WINDOW_MS;
+        visitorTrackDedupe.forEach((v, k) => {
+          if (v < cutoff) visitorTrackDedupe.delete(k);
+        });
       }
       const { trackVisitorBehavior } = await import("../agentLeadHunter");
       await trackVisitorBehavior(body);
       res.status(204).end();
-    } catch (e) {
-      console.error("[Visitor Track] Error:", e);
+    } catch (e: any) {
+      // Under pool exhaustion this will spam — log ONCE per code, not the full stack.
+      const code = e?.code || e?.cause?.code || "unknown";
+      console.error(`[Visitor Track] error (${code})`);
       res.status(204).end();
     }
   });

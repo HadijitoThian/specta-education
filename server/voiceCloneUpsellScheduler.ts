@@ -22,7 +22,7 @@
  */
 
 import { sql } from "drizzle-orm";
-import { getDb, getSchedulerState, setSchedulerState } from "./db";
+import { getDb, getSchedulerState, setSchedulerState, withDbRetry } from "./db";
 import { ENV } from "./_core/env";
 import { sendVoiceCloneUpsellEmail } from "./resendService";
 
@@ -152,8 +152,8 @@ async function tick() {
     if (!ENV.resendApiKey) return;
     if (process.env.VOICE_CLONE_UPSELL_ENABLED === "false") return;
 
-    // Enforce daily cap
-    const sentToday = await countSentLast24h();
+    // Enforce daily cap (wrapped in retry — pool exhaustion shouldn't skip whole tick)
+    const sentToday = await withDbRetry(() => countSentLast24h(), "VoiceCloneUpsell.count");
     if (sentToday >= DAILY_CAP) {
       console.log(`[VoiceCloneUpsell] daily cap reached (${sentToday}/${DAILY_CAP}) — skipping`);
       return;
@@ -162,7 +162,7 @@ async function tick() {
     const batchSize = Math.min(BATCH_PER_TICK, remainingToday);
     if (batchSize <= 0) return;
 
-    const candidates = await findEligibleCandidates(batchSize);
+    const candidates = await withDbRetry(() => findEligibleCandidates(batchSize), "VoiceCloneUpsell.find");
     if (candidates.length === 0) return;
 
     for (const c of candidates) {
@@ -172,8 +172,10 @@ async function tick() {
         segment: c.segment,
         appUrl: ENV.appUrl || "https://www.spectaeducation.com",
       });
-      // Record only on success — failures will be retried on next tick
-      if (ok) await recordSent(c.email, c.segment, null);
+      // Record only on success — failures will be retried on next tick.
+      // Retry on transient DB errors so a temporary pool blip doesn't leak a
+      // send that was actually delivered.
+      if (ok) await withDbRetry(() => recordSent(c.email, c.segment, null), "VoiceCloneUpsell.record");
     }
     console.log(`[VoiceCloneUpsell] processed ${candidates.length} sends (${sentToday + candidates.length}/${DAILY_CAP} today)`);
   } catch (e: any) {
@@ -195,8 +197,15 @@ export function startVoiceCloneUpsellScheduler() {
   if (started) return;
   started = true;
   const off = process.env.VOICE_CLONE_UPSELL_ENABLED === "false";
-  console.log(`[VoiceCloneUpsell] scheduler started (${off ? "PAUSED via VOICE_CLONE_UPSELL_ENABLED=false" : "LIVE"}; ${BATCH_PER_TICK}/hour, cap ${DAILY_CAP}/day).`);
-  setInterval(tick, 60 * 60 * 1000);   // hourly
-  setTimeout(tick, 3 * 60 * 1000);      // once ~3 min after boot
+  console.log(`[VoiceCloneUpsell] scheduler started (${off ? "PAUSED via VOICE_CLONE_UPSELL_ENABLED=false" : "LIVE"}; ${BATCH_PER_TICK}/tick, cap ${DAILY_CAP}/day).`);
+  setInterval(tick, 60 * 60 * 1000);   // hourly cadence for anti-spam pacing
+  // Catch-up: on every Railway boot, fire 4 quick ticks in the first 15 min so
+  // frequent redeploys don't starve the drip (each old boot only got ONE tick
+  // before the next deploy killed it — daily cap barely reached). Each tick
+  // still respects the DAILY_CAP so we can't over-send.
+  setTimeout(tick, 60 * 1000);           // 1 min after boot
+  setTimeout(tick, 5 * 60 * 1000);       // 5 min
+  setTimeout(tick, 10 * 60 * 1000);      // 10 min
+  setTimeout(tick, 15 * 60 * 1000);      // 15 min
   setTimeout(maybeSendPreview, 90 * 1000); // preview to owner ~90 sec after boot
 }

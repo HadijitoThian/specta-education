@@ -121,7 +121,15 @@ export async function getDb() {
         // 3-byte utf8 and rejects emoji inserts.
         charset: "utf8mb4",
         waitForConnections: true,
-        connectionLimit: 10,
+        // Down from 10 to 8 — Railway shared MySQL max_connections is limited
+        // and we saw ER_CON_COUNT_ERROR "Too many connections" flooding logs
+        // (2026-08-04). Leaves headroom for admin + schedulers to still work
+        // when web traffic peaks.
+        connectionLimit: 8,
+        // Idle-connection release — before this, connections stayed open
+        // forever after use, so a spike drained the pool and never recovered.
+        maxIdle: 3,
+        idleTimeout: 60000,
         queueLimit: 0,
         enableKeepAlive: true,
         keepAliveInitialDelay: 10000,
@@ -150,6 +158,7 @@ export async function resetDbConnection() {
   console.log("[Database] Connection pool reset — will reconnect on next query");
   return getDb();
 }
+
 
 // User functions
 export async function upsertUser(user: InsertUser): Promise<void> {
