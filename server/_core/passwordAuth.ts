@@ -20,6 +20,7 @@ import { nanoid } from "nanoid";
 import {
   passwordResetTokens,
   users,
+  staffAccounts,
   type InsertUser,
 } from "../../drizzle/schema";
 import { getDb } from "../db";
@@ -46,6 +47,26 @@ async function findUserByEmail(emailLower: string) {
     .select()
     .from(users)
     .where(eq(users.emailLower, emailLower))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/**
+ * Look up a staff account by (case-insensitive) email.
+ * Staff accounts live in a SEPARATE table from `users` — the admin login
+ * uses this table. Without this lookup, forgot-password silently no-oped
+ * for staff (found nothing in `users`, returned 200, sent nothing) — which
+ * is how the founder got locked out on 2026-08-05.
+ */
+async function findStaffByEmail(emailLower: string) {
+  const db = await getDb();
+  if (!db) return null;
+  // staffAccounts.email is stored raw (mixed case). Compare lower-cased.
+  const { sql } = await import("drizzle-orm");
+  const rows = await db
+    .select()
+    .from(staffAccounts)
+    .where(sql`LOWER(${staffAccounts.email}) = ${emailLower}`)
     .limit(1);
   return rows[0] ?? null;
 }
@@ -217,6 +238,39 @@ export function registerPasswordAuthRoutes(app: Express) {
           const base = ENV.appUrl.replace(/\/+$/, "");
           const resetUrl = `${base}/reset-password?token=${encodeURIComponent(plainToken)}`;
           await sendResetEmail(user.email ?? emailLower, resetUrl);
+        } else {
+          // Fallback: check the STAFF accounts table (separate from users).
+          // Staff use a different login flow that hashes into staffAccounts.passwordHash.
+          // For a staff reset we bypass the users-table token flow and just re-hash
+          // + set a fresh password directly, then email the plaintext (one-time,
+          // safe over TLS + Resend). This keeps forgot-password useful for staff
+          // without a bigger refactor of the reset-token schema.
+          const staff = await findStaffByEmail(emailLower);
+          if (staff && db) {
+            const tempPassword = crypto.randomBytes(9).toString("base64url"); // 12 chars
+            const newHash = await bcrypt.hash(tempPassword, 10);
+            await db
+              .update(staffAccounts)
+              .set({ passwordHash: newHash, mustChangePassword: true })
+              .where(eq(staffAccounts.id, staff.id));
+            const base = ENV.appUrl.replace(/\/+$/, "");
+            const loginUrl = `${base}/login`;
+            // Reuse sendResetEmail-ish envelope but include the temp password inline.
+            const { sendEmail } = await import("../email");
+            await sendEmail({
+              to: staff.email,
+              subject: "SpecTa Admin — temporary password",
+              html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+                <h2>Your temporary password</h2>
+                <p>Hi ${staff.name || "there"},</p>
+                <p>Here is a one-time temporary password for your SpecTa staff account:</p>
+                <p style="font-family:monospace;font-size:20px;background:#f3f4f6;padding:12px 16px;border-radius:8px;letter-spacing:1px;">${tempPassword}</p>
+                <p><a href="${loginUrl}" style="display:inline-block;background:#4338ca;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600;">Login now</a></p>
+                <p style="color:#6b7280;font-size:13px;">You'll be prompted to change this on your next login. If you didn't request this, ignore this email — the previous password no longer works.</p>
+              </div>`,
+            });
+            console.log(`[Auth] Staff forgot-password reset for ${staff.email}`);
+          }
         }
 
         return res.status(200).json({ ok: true });
