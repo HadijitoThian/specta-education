@@ -97,13 +97,24 @@ async function findEligibleCandidates(limit: number): Promise<UpsellCandidate[]>
   }));
 }
 
-/** Count how many sends fired in the last 24 hours to enforce the daily cap. */
-async function countSentLast24h(): Promise<number> {
+/**
+ * Count how many sends fired TODAY (Asia/Jakarta calendar day) to enforce
+ * the daily cap. Old behavior was a rolling-24h window which meant the cap
+ * "reset" 24 hours after each send instead of at midnight — a founder in
+ * Jakarta expecting "50 per day, reset each morning" saw the cap stuck at
+ * 50/50 all afternoon (2026-08-05 bug). Now: 00:00 WIB → counter is 0
+ * regardless of when yesterday's sends fired.
+ *
+ * Railway MySQL runs in UTC. CONVERT_TZ turns UTC sentAt into WIB, then
+ * DATE() picks off the Jakarta calendar day. Assumes MySQL has the tz
+ * tables loaded (Railway's default does).
+ */
+async function countSentToday(): Promise<number> {
   const db = await getDb();
   if (!db) return 0;
   const rows: any = await db.execute(sql`
     SELECT COUNT(*) AS n FROM voice_clone_upsell_sent
-    WHERE sentAt > NOW() - INTERVAL 24 HOUR
+    WHERE DATE(CONVERT_TZ(sentAt, '+00:00', '+07:00')) = DATE(CONVERT_TZ(NOW(), '+00:00', '+07:00'))
   `);
   const list: any[] = Array.isArray(rows[0]) ? rows[0] : rows;
   return Number(list[0]?.n || 0);
@@ -153,9 +164,9 @@ async function tick() {
     if (process.env.VOICE_CLONE_UPSELL_ENABLED === "false") return;
 
     // Enforce daily cap (wrapped in retry — pool exhaustion shouldn't skip whole tick)
-    const sentToday = await withDbRetry(() => countSentLast24h(), "VoiceCloneUpsell.count");
+    const sentToday = await withDbRetry(() => countSentToday(), "VoiceCloneUpsell.count");
     if (sentToday >= DAILY_CAP) {
-      console.log(`[VoiceCloneUpsell] daily cap reached (${sentToday}/${DAILY_CAP}) — skipping`);
+      console.log(`[VoiceCloneUpsell] daily cap reached today WIB (${sentToday}/${DAILY_CAP}) — resets at 00:00 Asia/Jakarta`);
       return;
     }
     const remainingToday = DAILY_CAP - sentToday;
