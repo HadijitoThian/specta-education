@@ -47,6 +47,7 @@ function getThrottleKey(to: string, subject: string): string {
 const ALWAYS_ALLOW_PATTERNS = [
   "Welcome to SpecTa",
   "Password Has Been Reset",
+  "SpecTa Admin — temporary password",
   "New Application:",
   "New Document:",
   "New Student Assigned:",

@@ -158,15 +158,66 @@ export function registerPasswordAuthRoutes(app: Express) {
       }
 
       const emailLower = normalizeEmail(email);
-      const user = await findUserByEmail(emailLower);
-      if (!user || !user.passwordHash) {
-        // Generic message — don't leak whether the email exists.
-        return res.status(401).json({ error: "Invalid email or password" });
-      }
+      let user = await findUserByEmail(emailLower);
 
-      const ok = await bcrypt.compare(password, user.passwordHash);
-      if (!ok) {
-        return res.status(401).json({ error: "Invalid email or password" });
+      if (!user || !user.passwordHash) {
+        // Fallback: staff accounts (created via the admin Team panel) live in a
+        // SEPARATE `staffAccounts` table that /login never used to check — this
+        // is what locked Hadi + Wulan out on 2026-08-06 even with a correct
+        // password ("Invalid email or password" really meant "row not found in
+        // `users`", not "password mismatch"). Check staffAccounts here too.
+        const staff = await findStaffByEmail(emailLower);
+        if (!staff || !staff.isActive) {
+          return res.status(401).json({ error: "Invalid email or password" });
+        }
+        const staffOk = await bcrypt.compare(password, staff.passwordHash);
+        if (!staffOk) {
+          return res.status(401).json({ error: "Invalid email or password" });
+        }
+
+        // The session layer (sdk.authenticateRequest → db.getUserByOpenId) ONLY
+        // reads the `users` table — a staffAccounts-only session would 200 here
+        // and then break on the very next authenticated request. So on first
+        // successful staffAccounts login, insert a matching `users` row (same
+        // password hash — bcrypt hashes are portable) using a deterministic
+        // openId. From then on this account is a normal `users` row and this
+        // fallback branch is never hit for it again.
+        //
+        // NOT using the shared upsertUser() helper here — it only copies
+        // {name, email, loginMethod, role, lastSignedIn} and silently drops
+        // emailLower/passwordHash/crmRole, which would create a `users` row
+        // that findUserByEmail() (matches on emailLower) could never find.
+        const openIdDb = await getDb();
+        if (!openIdDb) {
+          return res.status(503).json({ error: "Database unavailable" });
+        }
+        const openId = `staff-${staff.id}`;
+        const mappedRole = staff.role === "admin" ? "admin" : "user";
+        const mappedCrmRole = staff.role === "admin" ? "owner" : staff.role === "counselor" ? "counselor" : "front_desk";
+        await openIdDb.insert(users).values({
+          openId,
+          name: staff.name,
+          email: staff.email,
+          emailLower,
+          passwordHash: staff.passwordHash,
+          loginMethod: "password",
+          role: mappedRole,
+          crmRole: mappedCrmRole,
+          lastSignedIn: new Date(),
+        } as InsertUser).onDuplicateKeyUpdate({
+          set: { passwordHash: staff.passwordHash, name: staff.name, lastSignedIn: new Date() },
+        });
+
+        user = await findUserByEmail(emailLower);
+        if (!user) {
+          console.error("[Auth] Staff→users migration failed for", emailLower);
+          return res.status(500).json({ error: "Login failed" });
+        }
+      } else {
+        const ok = await bcrypt.compare(password, user.passwordHash);
+        if (!ok) {
+          return res.status(401).json({ error: "Invalid email or password" });
+        }
       }
 
       const db = await getDb();
@@ -257,7 +308,7 @@ export function registerPasswordAuthRoutes(app: Express) {
             const loginUrl = `${base}/login`;
             // Reuse sendResetEmail-ish envelope but include the temp password inline.
             const { sendEmail } = await import("../email");
-            await sendEmail({
+            const emailed = await sendEmail({
               to: staff.email,
               subject: "SpecTa Admin — temporary password",
               html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
@@ -269,7 +320,14 @@ export function registerPasswordAuthRoutes(app: Express) {
                 <p style="color:#6b7280;font-size:13px;">You'll be prompted to change this on your next login. If you didn't request this, ignore this email — the previous password no longer works.</p>
               </div>`,
             });
-            console.log(`[Auth] Staff forgot-password reset for ${staff.email}`);
+            // sendEmail() returns false only on a genuine send failure (missing/invalid
+            // Resend key, Resend API error) — throttle-skips return true, so this check
+            // specifically surfaces the case the old code silently swallowed.
+            if (emailed) {
+              console.log(`[Auth] Staff forgot-password reset for ${staff.email}`);
+            } else {
+              console.error(`[Auth] Staff forgot-password reset SUCCEEDED but email FAILED to send for ${staff.email} — password was reset, they have no way to know the new one`);
+            }
           }
         }
 

@@ -2418,7 +2418,7 @@ Rules:
           isActive: true,
         });
         // Send welcome email
-        const loginUrl = `https://www.spectaeducation.com/staff-login`;
+        const loginUrl = `https://www.spectaeducation.com/login`;
         sendStaffWelcomeEmail({
           to: input.email,
           name: input.name,
@@ -2456,7 +2456,7 @@ Rules:
         const passwordHash = await bcrypt.hash(input.newPassword, 10);
         await updateStaffAccount(input.id, { passwordHash, mustChangePassword: true } as any);
         // Send password reset email
-        const loginUrl = `https://www.spectaeducation.com/staff-login`;
+        const loginUrl = `https://www.spectaeducation.com/login`;
         sendPasswordResetEmail({
           to: staff.email,
           name: staff.name,
