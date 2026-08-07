@@ -23,7 +23,7 @@ import {
   staffAccounts,
   type InsertUser,
 } from "../../drizzle/schema";
-import { getDb } from "../db";
+import { getDb, withDbRetry } from "../db";
 import { ENV } from "./env";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
@@ -41,14 +41,19 @@ function hashToken(plain: string): string {
 }
 
 async function findUserByEmail(emailLower: string) {
-  const db = await getDb();
-  if (!db) return null;
-  const rows = await db
-    .select()
-    .from(users)
-    .where(eq(users.emailLower, emailLower))
-    .limit(1);
-  return rows[0] ?? null;
+  // Login/forgot-password/reset-password are the single most important
+  // queries in the app — a momentary pool squeeze (visitor-tracking spike,
+  // etc.) should retry, not silently strand a real login attempt.
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) return null;
+    const rows = await db
+      .select()
+      .from(users)
+      .where(eq(users.emailLower, emailLower))
+      .limit(1);
+    return rows[0] ?? null;
+  }, "findUserByEmail");
 }
 
 /**
@@ -59,16 +64,18 @@ async function findUserByEmail(emailLower: string) {
  * is how the founder got locked out on 2026-08-05.
  */
 async function findStaffByEmail(emailLower: string) {
-  const db = await getDb();
-  if (!db) return null;
-  // staffAccounts.email is stored raw (mixed case). Compare lower-cased.
-  const { sql } = await import("drizzle-orm");
-  const rows = await db
-    .select()
-    .from(staffAccounts)
-    .where(sql`LOWER(${staffAccounts.email}) = ${emailLower}`)
-    .limit(1);
-  return rows[0] ?? null;
+  return withDbRetry(async () => {
+    const db = await getDb();
+    if (!db) return null;
+    // staffAccounts.email is stored raw (mixed case). Compare lower-cased.
+    const { sql } = await import("drizzle-orm");
+    const rows = await db
+      .select()
+      .from(staffAccounts)
+      .where(sql`LOWER(${staffAccounts.email}) = ${emailLower}`)
+      .limit(1);
+    return rows[0] ?? null;
+  }, "findStaffByEmail");
 }
 
 async function setSessionCookie(
@@ -187,26 +194,26 @@ export function registerPasswordAuthRoutes(app: Express) {
         // {name, email, loginMethod, role, lastSignedIn} and silently drops
         // emailLower/passwordHash/crmRole, which would create a `users` row
         // that findUserByEmail() (matches on emailLower) could never find.
-        const openIdDb = await getDb();
-        if (!openIdDb) {
-          return res.status(503).json({ error: "Database unavailable" });
-        }
         const openId = `staff-${staff.id}`;
         const mappedRole = staff.role === "admin" ? "admin" : "user";
         const mappedCrmRole = staff.role === "admin" ? "owner" : staff.role === "counselor" ? "counselor" : "front_desk";
-        await openIdDb.insert(users).values({
-          openId,
-          name: staff.name,
-          email: staff.email,
-          emailLower,
-          passwordHash: staff.passwordHash,
-          loginMethod: "password",
-          role: mappedRole,
-          crmRole: mappedCrmRole,
-          lastSignedIn: new Date(),
-        } as InsertUser).onDuplicateKeyUpdate({
-          set: { passwordHash: staff.passwordHash, name: staff.name, lastSignedIn: new Date() },
-        });
+        await withDbRetry(async () => {
+          const openIdDb = await getDb();
+          if (!openIdDb) throw new Error("Database unavailable");
+          await openIdDb.insert(users).values({
+            openId,
+            name: staff.name,
+            email: staff.email,
+            emailLower,
+            passwordHash: staff.passwordHash,
+            loginMethod: "password",
+            role: mappedRole,
+            crmRole: mappedCrmRole,
+            lastSignedIn: new Date(),
+          } as InsertUser).onDuplicateKeyUpdate({
+            set: { passwordHash: staff.passwordHash, name: staff.name, lastSignedIn: new Date() },
+          });
+        }, "staff-to-users migration");
 
         user = await findUserByEmail(emailLower);
         if (!user) {
@@ -280,11 +287,11 @@ export function registerPasswordAuthRoutes(app: Express) {
           const tokenHash = hashToken(plainToken);
           const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
 
-          await db.insert(passwordResetTokens).values({
+          await withDbRetry(() => db.insert(passwordResetTokens).values({
             userId: user.id,
             tokenHash,
             expiresAt,
-          });
+          }), "insert passwordResetTokens");
 
           const base = ENV.appUrl.replace(/\/+$/, "");
           const resetUrl = `${base}/reset-password?token=${encodeURIComponent(plainToken)}`;
@@ -300,10 +307,10 @@ export function registerPasswordAuthRoutes(app: Express) {
           if (staff && db) {
             const tempPassword = crypto.randomBytes(9).toString("base64url"); // 12 chars
             const newHash = await bcrypt.hash(tempPassword, 10);
-            await db
+            await withDbRetry(() => db
               .update(staffAccounts)
               .set({ passwordHash: newHash, mustChangePassword: true })
-              .where(eq(staffAccounts.id, staff.id));
+              .where(eq(staffAccounts.id, staff.id)), "reset staffAccounts password");
             const base = ENV.appUrl.replace(/\/+$/, "");
             const loginUrl = `${base}/login`;
             // Reuse sendResetEmail-ish envelope but include the temp password inline.

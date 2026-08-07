@@ -5509,7 +5509,12 @@ Return JSON with the refined article:
         const { drizzle } = await import("drizzle-orm/mysql2");
         const { universityPartnerships } = await import("../drizzle/schema");
         const { eq } = await import("drizzle-orm");
-        const db = drizzle(process.env.DATABASE_URL!);
+        // Was: drizzle(process.env.DATABASE_URL!) — a brand new, never-closed
+        // pool on every call (fixed 2026-08-07 after this pattern caused
+        // repeated ER_CON_COUNT_ERROR incidents). Uses the shared pool now.
+        const { getDb: __getSharedDb } = await import("./db");
+        const db = await __getSharedDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
         await db.update(universityPartnerships)
           .set({ outreachStatus: input.status, ...(input.status === "email_sent" ? { outreachSentAt: new Date() } : {}) })
           .where(eq(universityPartnerships.id, input.id));
@@ -5526,7 +5531,12 @@ Return JSON with the refined article:
         const { drizzle } = await import("drizzle-orm/mysql2");
         const { competitorIntelligence } = await import("../drizzle/schema");
         const { eq } = await import("drizzle-orm");
-        const db = drizzle(process.env.DATABASE_URL!);
+        // Was: drizzle(process.env.DATABASE_URL!) — a brand new, never-closed
+        // pool on every call (fixed 2026-08-07 after this pattern caused
+        // repeated ER_CON_COUNT_ERROR incidents). Uses the shared pool now.
+        const { getDb: __getSharedDb } = await import("./db");
+        const db = await __getSharedDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
         await db.update(competitorIntelligence)
           .set({ status: "reviewed", reviewedAt: new Date(), reviewedBy: ctx.user.name || ctx.user.openId })
           .where(eq(competitorIntelligence.id, input.id));
@@ -5606,7 +5616,12 @@ Return JSON with the refined article:
         const { drizzle } = await import("drizzle-orm/mysql2");
         const { universityPartnerships } = await import("../drizzle/schema");
         const { eq, desc, or } = await import("drizzle-orm");
-        const db = drizzle(process.env.DATABASE_URL!);
+        // Was: drizzle(process.env.DATABASE_URL!) — a brand new, never-closed
+        // pool on every call (fixed 2026-08-07 after this pattern caused
+        // repeated ER_CON_COUNT_ERROR incidents). Uses the shared pool now.
+        const { getDb: __getSharedDb } = await import("./db");
+        const db = await __getSharedDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
         return await db.select().from(universityPartnerships)
           .where(or(
             eq(universityPartnerships.approvalStatus, "pending_approval"),
@@ -5679,7 +5694,12 @@ Return JSON with the refined article:
         const { drizzle } = await import("drizzle-orm/mysql2");
         const { universityPartnerships } = await import("../drizzle/schema");
         const { eq } = await import("drizzle-orm");
-        const db = drizzle(process.env.DATABASE_URL!);
+        // Was: drizzle(process.env.DATABASE_URL!) — a brand new, never-closed
+        // pool on every call (fixed 2026-08-07 after this pattern caused
+        // repeated ER_CON_COUNT_ERROR incidents). Uses the shared pool now.
+        const { getDb: __getSharedDb } = await import("./db");
+        const db = await __getSharedDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
         const updateData: Record<string, any> = {};
         if (input.subject) updateData.outreachEmailSubject = input.subject;
         if (input.body) updateData.outreachEmailDraft = input.body;
@@ -5759,7 +5779,12 @@ Return JSON with the refined article:
         const { drizzle } = await import("drizzle-orm/mysql2");
         const { agentRunLogs } = await import("../drizzle/schema");
         const { eq, desc } = await import("drizzle-orm");
-        const db = drizzle(process.env.DATABASE_URL!);
+        // Was: drizzle(process.env.DATABASE_URL!) — a brand new, never-closed
+        // pool on every call (fixed 2026-08-07 after this pattern caused
+        // repeated ER_CON_COUNT_ERROR incidents). Uses the shared pool now.
+        const { getDb: __getSharedDb } = await import("./db");
+        const db = await __getSharedDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
         const runs = await db.select().from(agentRunLogs)
           .where(eq(agentRunLogs.agentName, "content_amplifier"))
           .orderBy(desc(agentRunLogs.startedAt))
@@ -5782,7 +5807,12 @@ Return JSON with the refined article:
         const { drizzle } = await import("drizzle-orm/mysql2");
         const { aptitudeResults, agentRunLogs } = await import("../drizzle/schema");
         const { eq, desc, sql } = await import("drizzle-orm");
-        const db = drizzle(process.env.DATABASE_URL!);
+        // Was: drizzle(process.env.DATABASE_URL!) — a brand new, never-closed
+        // pool on every call (fixed 2026-08-07 after this pattern caused
+        // repeated ER_CON_COUNT_ERROR incidents). Uses the shared pool now.
+        const { getDb: __getSharedDb } = await import("./db");
+        const db = await __getSharedDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
         const total = await db.select({ count: sql<number>`count(*)` }).from(aptitudeResults);
         const nurtured = await db.select({ count: sql<number>`count(*)` }).from(aptitudeResults).where(eq(aptitudeResults.nurtureEmailSent, 1));
         const runs = await db.select().from(agentRunLogs)
@@ -5806,7 +5836,12 @@ Return JSON with the refined article:
         const { drizzle } = await import("drizzle-orm/mysql2");
         const { agentRunLogs } = await import("../drizzle/schema");
         const { eq, desc } = await import("drizzle-orm");
-        const db = drizzle(process.env.DATABASE_URL!);
+        // Was: drizzle(process.env.DATABASE_URL!) — a brand new, never-closed
+        // pool on every call (fixed 2026-08-07 after this pattern caused
+        // repeated ER_CON_COUNT_ERROR incidents). Uses the shared pool now.
+        const { getDb: __getSharedDb } = await import("./db");
+        const db = await __getSharedDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
         const runs = await db.select().from(agentRunLogs)
           .where(eq(agentRunLogs.agentName, "re_engagement"))
           .orderBy(desc(agentRunLogs.startedAt))
@@ -5837,7 +5872,12 @@ Return JSON with the refined article:
         const { drizzle } = await import("drizzle-orm/mysql2");
         const { seoPageAudits, seoRecommendations, seoScoreHistory, agentRunLogs } = await import("../drizzle/schema");
         const { eq, desc, sql } = await import("drizzle-orm");
-        const db = drizzle(process.env.DATABASE_URL!);
+        // Was: drizzle(process.env.DATABASE_URL!) — a brand new, never-closed
+        // pool on every call (fixed 2026-08-07 after this pattern caused
+        // repeated ER_CON_COUNT_ERROR incidents). Uses the shared pool now.
+        const { getDb: __getSharedDb } = await import("./db");
+        const db = await __getSharedDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
         // Latest score history
         const latestScore = await db.select().from(seoScoreHistory)
@@ -5939,7 +5979,12 @@ Return JSON with the refined article:
         const { drizzle } = await import("drizzle-orm/mysql2");
         const { universityReplyQueue } = await import("../drizzle/schema");
         const { desc } = await import("drizzle-orm");
-        const db = drizzle(process.env.DATABASE_URL!);
+        // Was: drizzle(process.env.DATABASE_URL!) — a brand new, never-closed
+        // pool on every call (fixed 2026-08-07 after this pattern caused
+        // repeated ER_CON_COUNT_ERROR incidents). Uses the shared pool now.
+        const { getDb: __getSharedDb } = await import("./db");
+        const db = await __getSharedDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
         const items = await db.select().from(universityReplyQueue)
           .orderBy(desc(universityReplyQueue.receivedAt))
           .limit(50);
@@ -5957,7 +6002,12 @@ Return JSON with the refined article:
         const { drizzle } = await import("drizzle-orm/mysql2");
         const { universityReplyQueue } = await import("../drizzle/schema");
         const { eq } = await import("drizzle-orm");
-        const db = drizzle(process.env.DATABASE_URL!);
+        // Was: drizzle(process.env.DATABASE_URL!) — a brand new, never-closed
+        // pool on every call (fixed 2026-08-07 after this pattern caused
+        // repeated ER_CON_COUNT_ERROR incidents). Uses the shared pool now.
+        const { getDb: __getSharedDb } = await import("./db");
+        const db = await __getSharedDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
         // Mark as approved first
         await db.update(universityReplyQueue)
           .set({ approvalStatus: "approved", approvedAt: new Date() })
@@ -5979,7 +6029,12 @@ Return JSON with the refined article:
         const { drizzle } = await import("drizzle-orm/mysql2");
         const { universityReplyQueue } = await import("../drizzle/schema");
         const { eq } = await import("drizzle-orm");
-        const db = drizzle(process.env.DATABASE_URL!);
+        // Was: drizzle(process.env.DATABASE_URL!) — a brand new, never-closed
+        // pool on every call (fixed 2026-08-07 after this pattern caused
+        // repeated ER_CON_COUNT_ERROR incidents). Uses the shared pool now.
+        const { getDb: __getSharedDb } = await import("./db");
+        const db = await __getSharedDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
         // Save edited response and mark as edited_and_approved
         await db.update(universityReplyQueue)
           .set({
@@ -6005,7 +6060,12 @@ Return JSON with the refined article:
         const { drizzle } = await import("drizzle-orm/mysql2");
         const { universityReplyQueue } = await import("../drizzle/schema");
         const { eq } = await import("drizzle-orm");
-        const db = drizzle(process.env.DATABASE_URL!);
+        // Was: drizzle(process.env.DATABASE_URL!) — a brand new, never-closed
+        // pool on every call (fixed 2026-08-07 after this pattern caused
+        // repeated ER_CON_COUNT_ERROR incidents). Uses the shared pool now.
+        const { getDb: __getSharedDb } = await import("./db");
+        const db = await __getSharedDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
         await db.update(universityReplyQueue)
           .set({
             approvalStatus: "declined",
@@ -6050,7 +6110,12 @@ Return JSON with the refined article:
         const { drizzle } = await import("drizzle-orm/mysql2");
         const { seoRecommendations } = await import("../drizzle/schema");
         const { eq } = await import("drizzle-orm");
-        const db = drizzle(process.env.DATABASE_URL!);
+        // Was: drizzle(process.env.DATABASE_URL!) — a brand new, never-closed
+        // pool on every call (fixed 2026-08-07 after this pattern caused
+        // repeated ER_CON_COUNT_ERROR incidents). Uses the shared pool now.
+        const { getDb: __getSharedDb } = await import("./db");
+        const db = await __getSharedDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
         await db.update(seoRecommendations)
           .set({ status: input.status, appliedAt: input.status === "applied" ? new Date() : null })
           .where(eq(seoRecommendations.id, input.id));

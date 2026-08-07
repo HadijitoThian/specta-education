@@ -6,9 +6,8 @@
  * Supports: aptitude_followup, promotion, event_reminder, custom campaigns
  */
 
-import { createAgentRunLog, updateAgentRunLog } from "./db";
+import { createAgentRunLog, updateAgentRunLog, getTrackingDb } from "./db";
 import { invokeLLM } from "./_core/llm";
-import { drizzle } from "drizzle-orm/mysql2";
 import { leads, aptitudeResults } from "../drizzle/schema";
 import { sql } from "drizzle-orm";
 
@@ -44,8 +43,11 @@ async function sendWhatsApp(phone: string, message: string): Promise<boolean> {
 }
 
 async function getTargetPhones(campaignType: string): Promise<Array<{ phone: string; name: string; interest?: string }>> {
-  const db = drizzle(process.env.DATABASE_URL!);
+  // Was: drizzle(process.env.DATABASE_URL!) — a brand new, never-closed
+  // pool on every call. Now uses the shared isolated tracking pool.
+  const db = await getTrackingDb();
   const targets: Array<{ phone: string; name: string; interest?: string }> = [];
+  if (!db) return targets;
 
   if (campaignType === "aptitude_followup") {
     const results = await db.select().from(aptitudeResults).where(

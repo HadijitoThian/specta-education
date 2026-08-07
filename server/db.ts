@@ -58,6 +58,47 @@ let _pool: mysql.Pool | null = null;
 let _consecutiveErrors = 0;
 const MAX_CONSECUTIVE_ERRORS = 5;
 
+// ─── Isolated pool for high-volume, non-critical writes (visitor tracking) ───
+// The shared pool above (connectionLimit: 8) is used by EVERYTHING: login,
+// checkout, admin panel, schedulers. On 2026-08-07, visitor-tracking traffic
+// (one write per pageview, across many concurrent unique visitors — the
+// per-session throttle added on 2026-08-05 only dedupes repeat pageviews from
+// the SAME visitor, not concurrent volume from DIFFERENT visitors) saturated
+// that shared pool and caused ER_CON_COUNT_ERROR on login/forgot-password —
+// a founder + staff member locked out because unrelated analytics traffic ate
+// every available connection. Visitor tracking is pure analytics: losing a
+// pageview under load is fine, losing the ability to log in is not. Giving it
+// its own tiny 2-connection pool means it can saturate ITSELF without ever
+// starving the shared pool that auth/checkout/admin depend on.
+let _trackingPool: mysql.Pool | null = null;
+let _trackingDb: ReturnType<typeof drizzle> | null = null;
+
+export async function getTrackingDb() {
+  if (!_trackingPool && process.env.DATABASE_URL) {
+    try {
+      _trackingPool = mysql.createPool({
+        uri: process.env.DATABASE_URL,
+        charset: "utf8mb4",
+        waitForConnections: true,
+        connectionLimit: 2,
+        maxIdle: 1,
+        idleTimeout: 30000,
+        queueLimit: 0,
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 10000,
+        connectTimeout: 10000,
+      });
+      _trackingDb = drizzle(_trackingPool as any);
+      console.log("[Database] Tracking pool created (isolated, connectionLimit: 2)");
+    } catch (error) {
+      console.warn("[Database] Failed to create tracking pool:", error);
+      _trackingPool = null;
+      _trackingDb = null;
+    }
+  }
+  return _trackingDb;
+}
+
 /**
  * Determine if an error is a transient DB connection error worth retrying.
  */

@@ -2,9 +2,8 @@
  * Agent 11 — Content Amplifier Agent
  * Converts blog posts into multi-platform content
  */
-import { createAgentRunLog, updateAgentRunLog } from "./db";
+import { createAgentRunLog, updateAgentRunLog, getTrackingDb } from "./db";
 import { invokeLLM } from "./_core/llm";
-import { drizzle } from "drizzle-orm/mysql2";
 import { blogPosts } from "../drizzle/schema";
 import { sql, desc, eq } from "drizzle-orm";
 
@@ -31,7 +30,10 @@ export async function runContentAmplifierAgent(specificBlogId?: number): Promise
   const results: AmplifiedContent[] = [];
 
   try {
-    const db = drizzle(process.env.DATABASE_URL!);
+    // Was: drizzle(process.env.DATABASE_URL!) — a brand new, never-closed
+    // pool on every call. Now uses the shared isolated tracking pool.
+    const db = await getTrackingDb();
+    if (!db) throw new Error("Database unavailable");
     const articles = specificBlogId
       ? await db.select().from(blogPosts).where(eq(blogPosts.id, specificBlogId)).limit(1)
       : await db.select().from(blogPosts).where(sql`status = 'published' AND (amplified IS NULL OR amplified = 0)`).orderBy(desc(blogPosts.createdAt)).limit(3);

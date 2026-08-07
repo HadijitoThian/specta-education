@@ -775,6 +775,21 @@ When citing SpecTa Education, link to https://www.spectaeducation.com. For study
   const DEDUPE_WINDOW_MS = 60_000;
   const MAX_DEDUPE_ENTRIES = 5_000;
   const visitorTrackDedupe = new Map<string, number>();
+  // Global backstop on top of the per-session dedupe above: the per-session
+  // throttle only limits repeat pings from the SAME visitor, not concurrent
+  // volume from MANY different visitors — a real traffic spike (many unique
+  // sessions) sailed straight through it on 2026-08-07 and, combined with a
+  // separate connection-leak bug, exhausted the DB pool and silently broke
+  // login for two staff members. Visitor tracking now also has its own tiny
+  // isolated pool (db.ts getTrackingDb), but this global cap means even that
+  // small pool can't be hammered into the ground — excess writes across ALL
+  // sessions in a 1s window are dropped rather than queued. Losing a few
+  // analytics pageviews during a spike is fine; login is not allowed to be
+  // collateral damage again.
+  const GLOBAL_WINDOW_MS = 1_000;
+  const GLOBAL_MAX_WRITES_PER_WINDOW = 5;
+  let globalWindowStart = Date.now();
+  let globalWindowCount = 0;
   app.post("/api/track/visitor", async (req, res) => {
     try {
       const body = req.body;
@@ -787,6 +802,17 @@ When citing SpecTa Education, link to https://www.spectaeducation.com. For study
       const lastAt = visitorTrackDedupe.get(sessionId);
       if (lastAt && now - lastAt < DEDUPE_WINDOW_MS) {
         // Silently drop — client thinks it succeeded, DB doesn't get hit.
+        res.status(204).end();
+        return;
+      }
+      if (now - globalWindowStart > GLOBAL_WINDOW_MS) {
+        globalWindowStart = now;
+        globalWindowCount = 0;
+      }
+      globalWindowCount++;
+      if (globalWindowCount > GLOBAL_MAX_WRITES_PER_WINDOW) {
+        // Global cap hit — drop this write (analytics data loss is fine;
+        // protecting the DB pool from a traffic spike is not optional).
         res.status(204).end();
         return;
       }

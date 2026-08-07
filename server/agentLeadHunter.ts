@@ -23,11 +23,27 @@ import {
   leads,
 } from "../drizzle/schema";
 import { eq, desc, and, gte, sql, lte } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { getTrackingDb } from "./db";
 
+/**
+ * PREVIOUSLY (until 2026-08-07): this was a local function doing
+ * `drizzle(process.env.DATABASE_URL)` — passing a raw connection string to
+ * drizzle-orm/mysql2 creates a BRAND NEW underlying pool on every single
+ * call, which is never closed. This function is called on every pageview
+ * (via trackVisitorBehavior, the hottest path in this file) plus 4 other
+ * scheduled call sites — meaning every pageview leaked a never-released
+ * connection to MySQL, completely independent of the shared pool in db.ts.
+ * This was the dominant cause of the ER_CON_COUNT_ERROR incidents on
+ * 2026-08-04 and again 2026-08-07 (the latter locking two staff out of
+ * login while they happened to try at the same moment as a traffic spike).
+ *
+ * Now uses the isolated tracking pool from db.ts (connectionLimit: 2,
+ * properly pooled and reused) — this file's workload is all non-critical
+ * analytics/background scoring, so it's isolated from the shared pool that
+ * login/checkout/admin depend on, AND it no longer leaks.
+ */
 async function getDb() {
-  if (!process.env.DATABASE_URL) return null;
-  try { return drizzle(process.env.DATABASE_URL); } catch { return null; }
+  return getTrackingDb();
 }
 
 // ==========================================

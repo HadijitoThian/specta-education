@@ -12,14 +12,16 @@
  * - New ranking opportunities
  */
 
-import { drizzle } from "drizzle-orm/mysql2";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { invokeLLM } from "./_core/llm";
+import { getTrackingDb } from "./db";
 
-// Lazy DB connection
+// Was: local `drizzle(process.env.DATABASE_URL)` — a brand new, never-closed
+// pool on every call. Now uses the shared isolated tracking pool (db.ts
+// getTrackingDb) so this scheduled tracker can't leak connections or starve
+// the main pool that login/checkout/admin depend on.
 async function getDb() {
-  if (!process.env.DATABASE_URL) return null;
-  try { return drizzle(process.env.DATABASE_URL); } catch { return null; }
+  return getTrackingDb();
 }
 
 // ==========================================

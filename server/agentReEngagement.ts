@@ -6,10 +6,9 @@
  * Schedule: Daily at 2:00 PM
  */
 
-import { createAgentRunLog, updateAgentRunLog } from "./db";
+import { createAgentRunLog, updateAgentRunLog, getTrackingDb } from "./db";
 import { sendEmail } from "./email";
 import { invokeLLM } from "./_core/llm";
-import { drizzle } from "drizzle-orm/mysql2";
 import { leads, aptitudeResults } from "../drizzle/schema";
 import { sql, and } from "drizzle-orm";
 
@@ -37,7 +36,10 @@ export async function runReEngagementAgent(): Promise<{ coldLeadsFound: number; 
   let errors = 0;
 
   try {
-    const db = drizzle(process.env.DATABASE_URL!);
+    // Was: drizzle(process.env.DATABASE_URL!) — a brand new, never-closed
+    // pool on every call. Now uses the shared isolated tracking pool.
+    const db = await getTrackingDb();
+    if (!db) throw new Error("Database unavailable");
     const coldLeads: ColdLead[] = [];
 
     // Source 1: Chatbot leads with no response for 7+ days

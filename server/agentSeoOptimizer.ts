@@ -11,9 +11,9 @@
  */
 
 import { invokeLLM } from "./_core/llm";
-import { createAgentRunLog, updateAgentRunLog } from "./db";
+import { createAgentRunLog, updateAgentRunLog, getTrackingDb } from "./db";
 import { sendEmail } from "./email";
-import { drizzle } from "drizzle-orm/mysql2";
+import type { drizzle } from "drizzle-orm/mysql2";
 import {
   blogPosts,
   seoPageAudits,
@@ -545,7 +545,10 @@ export async function runSeoOptimizerAgent(): Promise<{
   });
 
   try {
-    const db = drizzle(process.env.DATABASE_URL!);
+    // Was: drizzle(process.env.DATABASE_URL!) — a brand new, never-closed
+    // pool on every call. Now uses the shared isolated tracking pool.
+    const db = await getTrackingDb();
+    if (!db) throw new Error("Database unavailable");
 
     // Step 1: Collect all pages to audit (static + blog posts)
     const publishedPosts = await db.select({
