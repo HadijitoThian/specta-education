@@ -3525,10 +3525,23 @@ IMPORTANT:
         const tokenValue = crypto.randomBytes(32).toString('hex');
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
         await createAccessTokens([{ token: tokenValue, status: 'unused', expiresAt }]);
-        const baseUrl = ENV.appUrl?.replace(/\/+$/, '') || 'https://www.spectaeducation.com';
+        const baseUrl = ENV.appUrl.replace(/\/+$/, '');
+        const url = `${baseUrl}/test/pro?token=${tokenValue}`;
+        // Safety net: refuse to send localhost links to real customers. This
+        // prevents the Aug 2026 Bennardo incident (Railway had VITE_APP_URL
+        // set but not APP_URL → the resolved baseUrl was http://localhost:5173
+        // → Ben's fresh link errored on click). ENV.appUrl now prefers
+        // VITE_APP_URL when APP_URL is unset (see env.ts), but if BOTH are
+        // somehow unset in production we bail loudly instead of shipping a
+        // broken link.
+        if (/localhost|127\.0\.0\.1/i.test(baseUrl) && process.env.NODE_ENV === 'production') {
+          console.error(`[issueProAccessToEmail] Refusing to send localhost link in production. baseUrl=${baseUrl}`);
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Base URL resolved to localhost — set APP_URL or VITE_APP_URL on Railway.' });
+        }
+        console.log(`[issueProAccessToEmail] Sending Pro access link to ${input.email} → ${url}`);
         const sent = await sendProAccessLinkEmail({ to: input.email, customerName: input.name || 'there', token: tokenValue, baseUrl });
         if (!sent) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Email failed to send — check Resend config.' });
-        return { sent: true as const, email: input.email, url: `${baseUrl}/test/pro?token=${tokenValue}` };
+        return { sent: true as const, email: input.email, url };
       }),
     // ---- Admin: check whether a student completed the test (read-only) ----
     lookupAptitudeResult: protectedProcedure

@@ -7,8 +7,24 @@ export const ENV = {
   // absolute links in emails. Local: http://localhost:5173.
   // Always normalised to include a scheme — if APP_URL is set without
   // "https://", external redirects (Xendit) and email links break.
+  //
+  // Resolution order (first non-empty wins):
+  //   1. APP_URL       — canonical server-side env
+  //   2. VITE_APP_URL  — historically the only one set on Railway
+  //   3. https://www.spectaeducation.com in production, http://localhost:5173 in dev
+  //
+  // Why the fallback matters: if only VITE_APP_URL is set on Railway (which
+  // was the case as of Aug 2026), any code path that read process.env.APP_URL
+  // directly — e.g. the "Send a Pro access link by email" admin action, or
+  // the staff password-reset link builder — would silently emit links
+  // pointing at http://localhost:5173, which error instantly when the
+  // recipient clicks them. Bennardo Lukman incident.
   appUrl: (() => {
-    const u = (process.env.APP_URL ?? "http://localhost:5173").replace(/\/+$/, "");
+    const raw = (process.env.APP_URL || process.env.VITE_APP_URL || "").trim();
+    const fallback = process.env.NODE_ENV === "production"
+      ? "https://www.spectaeducation.com"
+      : "http://localhost:5173";
+    const u = (raw || fallback).replace(/\/+$/, "");
     return /^https?:\/\//i.test(u) ? u : `https://${u}`;
   })(),
 
