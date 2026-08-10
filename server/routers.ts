@@ -2737,67 +2737,17 @@ IMPORTANT:
 - Cross-reference RIASEC with MI for unique insights
 - Be warm, encouraging, and supportive throughout`;
 
-        const aiResponse = await invokeLLM({ model: "deepseek-v4-pro",
-          messages: [
-            { role: "system", content: "You are a professional career psychologist. Always respond with valid JSON only, no markdown formatting." },
-            { role: "user", content: aiPrompt },
-          ],
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: "aptitude_analysis",
-              strict: true,
-              schema: {
-                type: "object",
-                properties: {
-                  personalitySnapshot: {
-                    type: "object",
-                    properties: {
-                      title: { type: "string" },
-                      emoji: { type: "string" },
-                      description: { type: "string" }
-                    },
-                    required: ["title", "emoji", "description"],
-                    additionalProperties: false
-                  },
-                  riasecAnalysis: { type: "string" },
-                  miAnalysis: { type: "string" },
-                  crossAnalysis: { type: "string" },
-                  recommendedMajors: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: { type: "string" },
-                        compatibilityScore: { type: "number" },
-                        reason: { type: "string" },
-                        careers: { type: "array", items: { type: "string" } }
-                      },
-                      required: ["name", "compatibilityScore", "reason", "careers"],
-                      additionalProperties: false
-                    }
-                  },
-                  careerOutlook: { type: "string" },
-                  parentSummary: { type: "string" },
-                  studyTips: { type: "string" }
-                },
-                required: ["personalitySnapshot", "riasecAnalysis", "miAnalysis", "crossAnalysis", "recommendedMajors", "careerOutlook", "parentSummary", "studyTips"],
-                additionalProperties: false
-              }
-            }
-          }
-        });
-
-        let aiAnalysis;
-        try {
-          const rawContent = aiResponse.choices?.[0]?.message?.content;
-          const content = typeof rawContent === "string" ? rawContent : "{}";
-          aiAnalysis = JSON.parse(content);
-        } catch {
-          aiAnalysis = { error: "Failed to parse AI analysis" };
-        }
-
-        // 6. Save to database
+        // 6a. Save the raw answers FIRST with a placeholder aiAnalysis, so
+        //     even if the AI call blows up we don't lose the student's work.
+        //     If AI fails, admin can run "Regenerate analysis" on this record
+        //     to finish it — no need for the student to retake the test.
+        //     (Ben Lukman incident: AI failed at submit → nothing saved → had
+        //     to ask him to retake. This prevents that from ever recurring.)
+        const placeholderAnalysis = {
+          needsRetry: true,
+          reason: "AI analysis not yet run — record saved before analysis.",
+          savedAt: new Date().toISOString(),
+        };
         const saved = await createAptitudeResult({
           studentName: input.studentName,
           studentEmail: input.studentEmail,
@@ -2810,12 +2760,88 @@ IMPORTANT:
           miScores: JSON.stringify(miScores),
           hollandCode,
           topIntelligences: JSON.stringify(topIntelligences),
-          aiAnalysis: JSON.stringify(aiAnalysis),
-          personalitySnapshot: aiAnalysis.personalitySnapshot ? JSON.stringify(aiAnalysis.personalitySnapshot) : null,
-          recommendedMajors: JSON.stringify(aiAnalysis.recommendedMajors || []),
-          careerOutlook: aiAnalysis.careerOutlook || null,
-          parentSummary: aiAnalysis.parentSummary || null,
+          aiAnalysis: JSON.stringify(placeholderAnalysis),
+          recommendedMajors: JSON.stringify([]),
         });
+
+        // 6b. Now run the AI. On failure, keep the placeholder record intact
+        //     and notify owner with the record ID so admin can regenerate.
+        let aiAnalysis: any;
+        try {
+          const aiResponse = await invokeLLM({ model: "deepseek-v4-pro",
+            messages: [
+              { role: "system", content: "You are a professional career psychologist. Always respond with valid JSON only, no markdown formatting." },
+              { role: "user", content: aiPrompt },
+            ],
+            response_format: {
+              type: "json_schema",
+              json_schema: {
+                name: "aptitude_analysis",
+                strict: true,
+                schema: {
+                  type: "object",
+                  properties: {
+                    personalitySnapshot: {
+                      type: "object",
+                      properties: {
+                        title: { type: "string" },
+                        emoji: { type: "string" },
+                        description: { type: "string" }
+                      },
+                      required: ["title", "emoji", "description"],
+                      additionalProperties: false
+                    },
+                    riasecAnalysis: { type: "string" },
+                    miAnalysis: { type: "string" },
+                    crossAnalysis: { type: "string" },
+                    recommendedMajors: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          name: { type: "string" },
+                          compatibilityScore: { type: "number" },
+                          reason: { type: "string" },
+                          careers: { type: "array", items: { type: "string" } }
+                        },
+                        required: ["name", "compatibilityScore", "reason", "careers"],
+                        additionalProperties: false
+                      }
+                    },
+                    careerOutlook: { type: "string" },
+                    parentSummary: { type: "string" },
+                    studyTips: { type: "string" }
+                  },
+                  required: ["personalitySnapshot", "riasecAnalysis", "miAnalysis", "crossAnalysis", "recommendedMajors", "careerOutlook", "parentSummary", "studyTips"],
+                  additionalProperties: false
+                }
+              }
+            }
+          });
+          const rawContent = aiResponse.choices?.[0]?.message?.content;
+          const content = typeof rawContent === "string" ? rawContent : "{}";
+          const parsed = JSON.parse(content);
+          if (!parsed?.personalitySnapshot || !parsed?.recommendedMajors?.length) {
+            throw new Error("AI response missing required fields");
+          }
+          aiAnalysis = parsed;
+        } catch (aiErr) {
+          console.error(`[Aptitude] AI analysis failed for ${input.studentEmail} (record id=${saved?.id}):`, aiErr);
+          notifyOwner({
+            title: `🚨 Free Aptitude AI failed for ${input.studentName}`,
+            content: `Student ${input.studentName} (${input.studentEmail}) submitted the FREE aptitude test but the AI analysis failed.\n\nGood news: their answers ARE saved (record id=${saved?.id}).\n\nTo recover: Admin Dashboard → Aptitude Manager → "Regenerate analysis" → enter ${input.studentEmail}.\n\nError: ${(aiErr as Error).message}`,
+          }).catch(() => {});
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: input.language === "id"
+              ? "Analisis AI sedang bermasalah, tetapi jawabanmu SUDAH TERSIMPAN. Tim kami sudah dinotifikasi dan akan mengirim laporan lengkap dalam <1 jam — tidak perlu mengulang tes."
+              : "Our AI analyser had a hiccup, but your answers ARE saved. Our team is notified and will send your full report within an hour — no need to retake the test.",
+          });
+        }
+
+        // 6c. AI succeeded — update the saved record with the real analysis.
+        const { updateAptitudeResultAnalysis: updateAnalysisFree } = await import("./db");
+        await updateAnalysisFree(saved!.id, aiAnalysis);
 
         // 7. Notify owner about new lead
         notifyOwner({
@@ -3080,31 +3106,16 @@ IMPORTANT:
         // (instead of silently swallowing the error like the old code did,
         // which produced the Cherise Felica broken-PDF incident: aiAnalysis
         // became { error: "..." } → all PDF sections skipped → 4-page PDF).
-        const { runAptitudeAiAnalysisReliably, validateGeneratedPdf } = await import("./aptitudeAiReliability");
-        let aiAnalysis: any;
-        try {
-          const runResult = await runAptitudeAiAnalysisReliably({
-            model: "deepseek-v4-pro",
-            systemPrompt: "You are a world-class career psychologist providing premium aptitude assessments. Always respond with valid JSON only, no markdown formatting.",
-            userPrompt: aiPrompt,
-            jsonSchema: proAptitudeJsonSchema,
-            maxAttempts: 3,
-            studentName: input.studentName,
-            studentEmail: input.studentEmail,
-          });
-          aiAnalysis = runResult.analysis;
-        } catch (aiErr) {
-          // Owner already notified inside runAptitudeAiAnalysisReliably.
-          // Save the raw error state so admin can see + retry via Aptitude Manager.
-          aiAnalysis = { error: (aiErr as Error).message, generatedAt: new Date().toISOString(), needsRetry: true };
-          // Bubble up to the client — better a clear error than a broken PDF.
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Analisis AI sedang bermasalah — tim kami sudah dinotifikasi. Report kamu akan dikirim ulang dalam <1 jam.",
-          });
-        }
-
-        // Save to database (reuse existing table)
+        // Save the raw answers FIRST with a placeholder aiAnalysis. If the AI
+        // call throws afterwards, admin can run "Regenerate analysis" on this
+        // record to complete it — the student never has to retake the test.
+        // (Ben Lukman paid Rp 79k, completed the test, AI failed at submit →
+        // nothing was saved → had to ask him to retake. Never again.)
+        const placeholderAnalysisPro = {
+          needsRetry: true,
+          reason: "AI analysis not yet run — record saved before analysis.",
+          savedAt: new Date().toISOString(),
+        };
         const saved = await createAptitudeResult({
           studentName: input.studentName,
           studentEmail: input.studentEmail,
@@ -3123,12 +3134,42 @@ IMPORTANT:
           miScores: JSON.stringify(input.miScores),
           hollandCode,
           topIntelligences: JSON.stringify(topIntelligences),
-          aiAnalysis: JSON.stringify(aiAnalysis),
-          personalitySnapshot: aiAnalysis.personalitySnapshot ? JSON.stringify(aiAnalysis.personalitySnapshot) : null,
-          recommendedMajors: JSON.stringify(aiAnalysis.recommendedMajors || []),
-          careerOutlook: aiAnalysis.careerOutlook || null,
-          parentSummary: aiAnalysis.parentSummary || null,
+          aiAnalysis: JSON.stringify(placeholderAnalysisPro),
+          recommendedMajors: JSON.stringify([]),
         });
+
+        const { runAptitudeAiAnalysisReliably, validateGeneratedPdf } = await import("./aptitudeAiReliability");
+        let aiAnalysis: any;
+        try {
+          const runResult = await runAptitudeAiAnalysisReliably({
+            model: "deepseek-v4-pro",
+            systemPrompt: "You are a world-class career psychologist providing premium aptitude assessments. Always respond with valid JSON only, no markdown formatting.",
+            userPrompt: aiPrompt,
+            jsonSchema: proAptitudeJsonSchema,
+            maxAttempts: 3,
+            studentName: input.studentName,
+            studentEmail: input.studentEmail,
+          });
+          aiAnalysis = runResult.analysis;
+        } catch (aiErr) {
+          // runAptitudeAiAnalysisReliably already notified owner. Add a second
+          // notification with the record ID + one-click recovery instructions.
+          console.error(`[AptitudePro] AI analysis failed for ${input.studentEmail} (record id=${saved?.id}):`, aiErr);
+          notifyOwner({
+            title: `🚨 PRO Aptitude AI failed for ${input.studentName} — answers ARE saved`,
+            content: `Paid student ${input.studentName} (${input.studentEmail}) submitted the PRO aptitude test but the AI analysis failed.\n\nGood news: their answers ARE saved (record id=${saved?.id}). No need to ask them to retake.\n\nTo recover: Admin Dashboard → Aptitude Manager → "Regenerate analysis" → enter ${input.studentEmail}. This will re-run the AI in the background and email them the finished report.\n\nError: ${(aiErr as Error).message}`,
+          }).catch(() => {});
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: input.language === "id"
+              ? "Analisis AI sedang bermasalah, tetapi jawabanmu SUDAH TERSIMPAN dengan aman. Tim kami sudah dinotifikasi dan akan mengirim laporan lengkapmu dalam <1 jam — tidak perlu mengulang tes."
+              : "Our AI analyser had a hiccup, but your answers ARE saved securely. Our team is notified and will send your full report within an hour — no need to retake the test.",
+          });
+        }
+
+        // AI succeeded — update the saved record with the real analysis.
+        const { updateAptitudeResultAnalysis: updateAnalysisPro } = await import("./db");
+        await updateAnalysisPro(saved!.id, aiAnalysis);
 
         // Notify owner
         notifyOwner({
@@ -3498,12 +3539,28 @@ IMPORTANT:
         return {
           found: rows.length > 0,
           count: rows.length,
-          results: rows.map(r => ({
-            id: r.id,
-            name: r.studentName,
-            hollandCode: r.hollandCode || null,
-            completedAt: r.createdAt,
-          })),
+          results: rows.map(r => {
+            // Detect records where the answers are saved but the AI analysis
+            // never completed (either the pre-analysis placeholder from the
+            // save-first fix, or a legacy error-stub from the Cherise bug).
+            // Admin can click "Regenerate analysis" to finish these.
+            let needsRegeneration = false;
+            try {
+              const analysis = typeof r.aiAnalysis === 'string' ? JSON.parse(r.aiAnalysis) : r.aiAnalysis;
+              if (analysis?.needsRetry || analysis?.error || !analysis?.personalitySnapshot) {
+                needsRegeneration = true;
+              }
+            } catch {
+              needsRegeneration = true;
+            }
+            return {
+              id: r.id,
+              name: r.studentName,
+              hollandCode: r.hollandCode || null,
+              completedAt: r.createdAt,
+              needsRegeneration,
+            };
+          }),
         };
       }),
 

@@ -156,20 +156,32 @@ export default function AptitudeManager() {
               <div className="text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                 ❌ No completed test found for <strong>{lookupEmail}</strong>. She likely didn't finish, or used a different email.
               </div>
-            ) : (
-              <div className="text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                ✅ Found <strong>{lookup.data.count}</strong> completed test{lookup.data.count > 1 ? "s" : ""} for {lookupEmail}:
-                <ul className="mt-1 ml-4 list-disc text-gray-700">
-                  {lookup.data.results.map(r => (
-                    <li key={r.id}>
-                      {r.name} · {r.completedAt ? new Date(r.completedAt).toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
-                      {r.hollandCode ? ` · Holland ${r.hollandCode}` : ""}
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-xs text-gray-500 mt-1">Use "Resend result" above to email it to her.</p>
-              </div>
-            )}
+            ) : (() => {
+              const anyPending = lookup.data.results.some(r => r.needsRegeneration);
+              return (
+                <div className={anyPending
+                  ? "text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
+                  : "text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2"}>
+                  {anyPending
+                    ? <>⚠️ Found <strong>{lookup.data.count}</strong> record{lookup.data.count > 1 ? "s" : ""} for {lookupEmail} — but the AI analysis needs regeneration:</>
+                    : <>✅ Found <strong>{lookup.data.count}</strong> completed test{lookup.data.count > 1 ? "s" : ""} for {lookupEmail}:</>}
+                  <ul className="mt-1 ml-4 list-disc text-gray-700">
+                    {lookup.data.results.map(r => (
+                      <li key={r.id}>
+                        {r.name} · {r.completedAt ? new Date(r.completedAt).toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
+                        {r.hollandCode ? ` · Holland ${r.hollandCode}` : ""}
+                        {r.needsRegeneration && <span className="ml-1 text-amber-700 font-medium">· AI analysis pending — use "Regenerate analysis" below</span>}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {anyPending
+                      ? "Answers ARE saved. Use \"Regenerate analysis\" below to finish the AI analysis and email the report — no need to ask the student to retake."
+                      : "Use \"Resend result\" above to email it to her."}
+                  </p>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>
