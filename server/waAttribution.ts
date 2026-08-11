@@ -638,7 +638,9 @@ export async function uploadOfflineConversion(input: {
   }
 
   const label = OFFLINE_LABEL_BY_KIND[input.conversionKind];
-  const version = process.env.GOOGLE_ADS_API_VERSION || "v21";
+  // Kept in sync with googleAdsApi.ts default — see the note there for the
+  // full version-bump rationale (Google deprecated v21 in early 2026).
+  const version = process.env.GOOGLE_ADS_API_VERSION || "v22";
   const url = `https://googleads.googleapis.com/${version}/customers/${env.customerId}:uploadClickConversions`;
 
   const at = input.conversionAtIso || new Date().toISOString();

@@ -21,9 +21,16 @@ import { replaceMonthlySpend } from "./db";
 import type { AdCampaign } from "../drizzle/schema";
 import { notifyOwner } from "./_core/notification";
 
-// Google retires old API versions periodically. Override with the
-// GOOGLE_ADS_API_VERSION env var (e.g. "v21") if Google returns a 404.
-const API_VERSION = process.env.GOOGLE_ADS_API_VERSION || "v21";
+// Google retires old API versions periodically (~3 releases/yr, ~4-version
+// support window). Track: https://developers.google.com/google-ads/api/docs/release-notes
+//
+// v21 was deprecated in early 2026 — Google's error: "Version v21 is
+// deprecated. Requests to this version will be blocked." Bumped default to
+// v22 (safest one-step upgrade minimising breaking-change risk on our
+// specific query shapes). Override via env var to jump further (v23/v24/v25)
+// once we've verified our queries still work — v25 was the latest as of
+// mid-2026.
+const API_VERSION = process.env.GOOGLE_ADS_API_VERSION || "v22";
 const BASE = `https://googleads.googleapis.com/${API_VERSION}`;
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 

@@ -139,9 +139,16 @@ interface CampaignMetrics {
   conversions: number; leads: number; ctr: number; cpc: number; cpl: number;
 }
 
+// Match googleAdsApi.ts (the primary integration) — one env var, one default,
+// so a future version bump is a single-line change. v17 was hardcoded here
+// originally and silently rotted; using the same env var prevents that
+// from happening again.
+const GOOGLE_ADS_VERSION = process.env.GOOGLE_ADS_API_VERSION || "v22";
+const GOOGLE_ADS_BASE = `https://googleads.googleapis.com/${GOOGLE_ADS_VERSION}`;
+
 async function fetchGoogleAdsCampaigns(customerId: string, developerToken: string, accessToken: string): Promise<CampaignMetrics[]> {
   const query = `SELECT campaign.id, campaign.name, campaign.status, campaign_budget.amount_micros, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.ctr, metrics.average_cpc FROM campaign WHERE segments.date DURING LAST_7_DAYS AND campaign.status != 'REMOVED' ORDER BY metrics.cost_micros DESC LIMIT 50`;
-  const response = await fetch(`https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:search`, {
+  const response = await fetch(`${GOOGLE_ADS_BASE}/customers/${customerId}/googleAds:search`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}`, "developer-token": developerToken },
     body: JSON.stringify({ query }),
@@ -166,7 +173,7 @@ async function fetchGoogleAdsCampaigns(customerId: string, developerToken: strin
 }
 
 async function pauseGoogleAdsCampaign(campaignId: string, customerId: string, developerToken: string, accessToken: string): Promise<void> {
-  const response = await fetch(`https://googleads.googleapis.com/v17/customers/${customerId}/campaigns:mutate`, {
+  const response = await fetch(`${GOOGLE_ADS_BASE}/customers/${customerId}/campaigns:mutate`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}`, "developer-token": developerToken },
     body: JSON.stringify({ operations: [{ update: { resourceName: `customers/${customerId}/campaigns/${campaignId}`, status: "PAUSED" }, updateMask: "status" }] }),
@@ -177,7 +184,7 @@ async function pauseGoogleAdsCampaign(campaignId: string, customerId: string, de
 async function updateGoogleAdsBudget(campaignId: string, newAmountMicros: number, customerId: string, developerToken: string, accessToken: string): Promise<void> {
   // First get the budget ID for this campaign
   const query = `SELECT campaign.id, campaign_budget.id FROM campaign WHERE campaign.id = '${campaignId}'`;
-  const searchResp = await fetch(`https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:search`, {
+  const searchResp = await fetch(`${GOOGLE_ADS_BASE}/customers/${customerId}/googleAds:search`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}`, "developer-token": developerToken },
     body: JSON.stringify({ query }),
@@ -187,7 +194,7 @@ async function updateGoogleAdsBudget(campaignId: string, newAmountMicros: number
   const budgetId = searchData.results?.[0]?.campaignBudget?.id;
   if (!budgetId) throw new Error("Could not find budget ID for campaign");
 
-  const response = await fetch(`https://googleads.googleapis.com/v17/customers/${customerId}/campaignBudgets:mutate`, {
+  const response = await fetch(`${GOOGLE_ADS_BASE}/customers/${customerId}/campaignBudgets:mutate`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}`, "developer-token": developerToken },
     body: JSON.stringify({ operations: [{ update: { resourceName: `customers/${customerId}/campaignBudgets/${budgetId}`, amountMicros: newAmountMicros }, updateMask: "amountMicros" }] }),
