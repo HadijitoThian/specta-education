@@ -18,6 +18,8 @@ import { router, publicProcedure } from "./_core/trpc";
 import {
   evaluateWriting, evaluateSpeaking, generateWritingTask, generateSpeakingQuestions,
   generatePart1Test, evaluateSpeakingQuick, summarizePart1Test, computeFluency,
+  generateFullSpeakingTest, evaluateSpeakingFullTestAnswer, summarizeFullSpeakingTest,
+  type FullTestAnswer,
 } from "./tutorEngine";
 import {
   getActiveTutorSubscription, countTutorSessions, createTutorSession,
@@ -364,6 +366,99 @@ export const tutorRouter = router({
       await updateTutorSession(input.sessionId, {
         overallBand: String(result.overallBand) as any,
         scores: { overallBand: result.overallBand } as any,
+        feedback: { ...(session.feedback as any), answers: input.answers, ...result } as any,
+      });
+      return result;
+    }),
+
+  // ── Full Speaking Test (Parts 1 + 2 + 3) — mirrors the real exam ──────────
+  //
+  // Gate ONCE at Start (like part1 test). Answers and finish reuse that grant.
+  // taskType stored as "full_test" so History can tell the two flows apart.
+  speakingFullTestStart: publicProcedure.mutation(async ({ ctx }) => {
+    const leadId = requireLead(await resolveLead(ctx));
+    const { isFree } = await gate(leadId, "speaking");
+    const pkg = await generateFullSpeakingTest();
+    const session = await createTutorSession({
+      leadId, skill: "speaking", taskType: "full_test", prompt: pkg.theme,
+      feedback: {
+        theme: pkg.theme,
+        part1: { topic: pkg.part1.topic, questions: pkg.part1.questions, answers: [] },
+        part2: { cueCard: pkg.part2.cueCard, answer: null },
+        part3: { questions: pkg.part3.questions, answers: [] },
+      } as any,
+      isFree,
+    });
+    return {
+      sessionId: session?.id,
+      theme: pkg.theme,
+      part1: pkg.part1,
+      part2: pkg.part2,
+      part3: pkg.part3,
+    };
+  }),
+
+  /** Evaluate ONE answer in a running full test (Part 1, 2, or 3). */
+  speakingFullTestAnswer: publicProcedure
+    .input(z.object({
+      sessionId: z.number(),
+      part: z.enum(["part1", "part2", "part3"]),
+      index: z.number().int().min(0).max(20),
+      question: z.string().min(1).max(4000),
+      audioBase64: z.string().min(100),
+      mimeType: z.string().max(60).optional(),
+      durationSec: z.number().int().positive().max(600),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const leadId = requireLead(await resolveLead(ctx));
+      const session = await getTutorSession(input.sessionId, leadId);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const buffer = Buffer.from(input.audioBase64, "base64");
+      if (buffer.length > 20 * 1024 * 1024) throw new TRPCError({ code: "PAYLOAD_TOO_LARGE", message: "Recording too large." });
+      const tr = await transcribeAudioBuffer({ buffer, mimeType: input.mimeType || "audio/webm" });
+      if ("error" in tr) {
+        console.error(`[Tutor] full-test transcription failed (${input.part} idx ${input.index}):`, tr.error, tr.details);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Transcription failed: ${tr.error}${tr.details ? ` — ${tr.details}` : ""}` });
+      }
+      const transcript = (tr.text || "").trim();
+
+      // Store the recording so it's replayable in the summary.
+      let audioUrl: string | undefined;
+      try {
+        const ext = (input.mimeType || "").includes("mp4") ? "mp4" : (input.mimeType || "").includes("wav") ? "wav" : "webm";
+        const put = await storagePut(`tutor/speaking-full/${leadId}/${Date.now()}-${input.part}-q${input.index}.${ext}`, buffer, input.mimeType || "audio/webm");
+        audioUrl = `/files/${put.key}`;
+      } catch { /* non-critical */ }
+
+      const words = (transcript.match(/\S+/g) || []).length;
+      const metrics = computeFluency((tr as any).segments, input.durationSec, words);
+      const fb = await evaluateSpeakingFullTestAnswer(input.part, input.question, transcript, input.durationSec, metrics);
+      return { transcript, audioUrl, ...fb };
+    }),
+
+  /** Finish the full test: aggregate all parts into overall band + summary. */
+  speakingFullTestFinish: publicProcedure
+    .input(z.object({
+      sessionId: z.number(),
+      answers: z.array(z.object({
+        part: z.enum(["part1", "part2", "part3"]),
+        question: z.string(),
+        transcript: z.string(),
+        band: z.number(),
+        audioUrl: z.string().optional(),
+        durationSec: z.number().optional(),
+      })).min(1),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const leadId = requireLead(await resolveLead(ctx));
+      const session = await getTutorSession(input.sessionId, leadId);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND" });
+      const theme = (session.feedback as any)?.theme || "Speaking test";
+      const result = await summarizeFullSpeakingTest(theme, input.answers as FullTestAnswer[]);
+      await updateTutorSession(input.sessionId, {
+        overallBand: String(result.overallBand) as any,
+        scores: { overallBand: result.overallBand, perPart: result.perPartBands } as any,
         feedback: { ...(session.feedback as any), answers: input.answers, ...result } as any,
       });
       return result;

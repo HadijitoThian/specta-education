@@ -922,6 +922,401 @@ function SpeakingTest() {
   );
 }
 
+// ── Full 3-Part Speaking Test ────────────────────────────────────────────────
+//
+// Mirrors the real IELTS Speaking exam: Part 1 (7 short personal Q) → Part 2
+// (1-min silent prep + up to 2-min monologue on a cue card) → Part 3 (4
+// abstract discussion Q, thematically linked to Part 2). One combined band.
+type FullPart = "part1" | "part2" | "part3";
+type FullPhase =
+  | "intro"
+  | "part1_run"
+  | "part1_done"
+  | "part2_prep"
+  | "part2_speak"
+  | "part2_done"
+  | "part3_run"
+  | "finishing"
+  | "done";
+
+interface FullTestPkg {
+  sessionId: number;
+  theme: string;
+  part1: { topic: string; questions: string[] };
+  part2: { cueCard: string };
+  part3: { questions: string[] };
+}
+
+interface FullAns {
+  part: FullPart;
+  question: string;
+  transcript: string;
+  band: number;
+  fixes?: Array<{ original: string; fix: string }>;
+  better?: string;
+  tip?: string;
+  audioUrl?: string;
+  audioLocalUrl?: string;
+  durationSec?: number;
+}
+
+function SpeakingFullTest() {
+  const [phase, setPhase] = useState<FullPhase>("intro");
+  const [test, setTest] = useState<FullTestPkg | null>(null);
+
+  // Where in the current part we are.
+  const [p1Idx, setP1Idx] = useState(0);
+  const [p3Idx, setP3Idx] = useState(0);
+
+  // All answers across all parts, in order taken.
+  const [answers, setAnswers] = useState<FullAns[]>([]);
+
+  // Current-question recording + feedback state.
+  const [recording, setRecording] = useState(false);
+  const [audio, setAudio] = useState<{ base64: string; mime: string; dur: number; url: string } | null>(null);
+  const [qfb, setQfb] = useState<any>(null);
+  const [transcript, setTranscript] = useState("");
+  const [summary, setSummary] = useState<any>(null);
+  const [paywall, setPaywall] = useState(false);
+
+  // Part 2 prep countdown (60s) + speak countdown (120s).
+  const [prepLeft, setPrepLeft] = useState(60);
+  const [speakLeft, setSpeakLeft] = useState(120);
+
+  const recRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const startRef = useRef(0);
+
+  const start = trpc.tutor.speakingFullTestStart.useMutation({
+    onSuccess: (d: any) => {
+      setTest({
+        sessionId: d.sessionId!,
+        theme: d.theme,
+        part1: d.part1,
+        part2: d.part2,
+        part3: d.part3,
+      });
+      setPhase("part1_run"); setP1Idx(0); setP3Idx(0); setAnswers([]); setQfb(null); setAudio(null);
+    },
+    onError: (e: any) => { if (e.data?.code === "FORBIDDEN") setPaywall(true); else alert(e.message); },
+  });
+  const answer = trpc.tutor.speakingFullTestAnswer.useMutation({
+    onSuccess: (d: any) => { setQfb(d); setTranscript(d.transcript); },
+    onError: (e: any) => alert(e.message),
+  });
+  const finish = trpc.tutor.speakingFullTestFinish.useMutation({
+    onSuccess: (d: any) => { setSummary(d); setPhase("done"); },
+    onError: (e: any) => alert(e.message),
+  });
+
+  // ── Current question, per phase ─────────────────────────────────────────
+  const currentPart: FullPart | null =
+    phase === "part1_run" ? "part1"
+    : phase === "part2_speak" || phase === "part2_prep" || phase === "part2_done" ? "part2"
+    : phase === "part3_run" ? "part3"
+    : null;
+  const currentQuestion =
+    phase === "part1_run" ? (test?.part1.questions[p1Idx] || "")
+    : (phase === "part2_prep" || phase === "part2_speak" || phase === "part2_done") ? (test?.part2.cueCard || "")
+    : phase === "part3_run" ? (test?.part3.questions[p3Idx] || "")
+    : "";
+  const currentIndex =
+    phase === "part1_run" ? p1Idx
+    : phase === "part2_prep" || phase === "part2_speak" || phase === "part2_done" ? 0
+    : phase === "part3_run" ? p3Idx
+    : 0;
+  const p1Total = test?.part1.questions.length || 7;
+  const p3Total = test?.part3.questions.length || 4;
+
+  // ── Examiner voice: auto-play new questions in Part 1 / Part 3 ────────────
+  useEffect(() => {
+    if ((phase === "part1_run" || phase === "part3_run") && currentQuestion && !qfb) {
+      const t = setTimeout(() => speakExaminer(currentQuestion), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [phase, currentQuestion, qfb]);
+
+  // ── Part 2 prep countdown ────────────────────────────────────────────────
+  useEffect(() => {
+    if (phase !== "part2_prep") return;
+    setPrepLeft(60);
+    const iv = setInterval(() => {
+      setPrepLeft(x => {
+        if (x <= 1) { clearInterval(iv); setPhase("part2_speak"); return 0; }
+        return x - 1;
+      });
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [phase]);
+
+  // ── Part 2 speak countdown (auto-stops recording at 2:00, mirrors real exam) ─
+  useEffect(() => {
+    if (phase !== "part2_speak") return;
+    setSpeakLeft(120);
+    const iv = setInterval(() => {
+      setSpeakLeft(x => {
+        if (x <= 1) { clearInterval(iv); if (recording) stopRec(); return 0; }
+        return x - 1;
+      });
+    }, 1000);
+    return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, recording]);
+
+  const startRec = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      chunksRef.current = [];
+      mr.ondataavailable = e => e.data.size && chunksRef.current.push(e.data);
+      mr.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" });
+        const dur = Math.max(1, Math.round((Date.now() - startRef.current) / 1000));
+        const reader = new FileReader();
+        reader.onloadend = () => setAudio({ base64: String(reader.result).split(",")[1] || "", mime: mr.mimeType || "audio/webm", dur, url: URL.createObjectURL(blob) });
+        reader.readAsDataURL(blob);
+        stream.getTracks().forEach(t => t.stop());
+      };
+      startRef.current = Date.now(); mr.start(); recRef.current = mr; setRecording(true);
+    } catch { alert("Tidak bisa mengakses mikrofon. Izinkan akses mic di browser."); }
+  };
+  const stopRec = () => { recRef.current?.stop(); setRecording(false); };
+
+  // Submit the current recording for evaluation.
+  const submitCurrent = () => {
+    if (!test || !audio || !currentPart) return;
+    answer.mutate({
+      sessionId: test.sessionId,
+      part: currentPart,
+      index: currentIndex,
+      question: currentQuestion,
+      audioBase64: audio.base64,
+      mimeType: audio.mime,
+      durationSec: audio.dur,
+    });
+  };
+
+  // Move to the next question / part after seeing feedback.
+  const next = () => {
+    if (!test || !qfb || !currentPart) return;
+    const savedAns: FullAns = {
+      part: currentPart,
+      question: currentQuestion,
+      transcript,
+      band: qfb.band,
+      fixes: qfb.fixes,
+      better: qfb.better,
+      tip: qfb.tip,
+      audioUrl: qfb.audioUrl,
+      audioLocalUrl: audio?.url,
+      durationSec: audio?.dur,
+    };
+    const updated = [...answers, savedAns];
+    setAnswers(updated);
+    setQfb(null); setAudio(null); setTranscript("");
+
+    // Advance flow.
+    if (currentPart === "part1") {
+      if (p1Idx + 1 >= p1Total) setPhase("part1_done");
+      else setP1Idx(p1Idx + 1);
+    } else if (currentPart === "part2") {
+      setPhase("part2_done");
+    } else if (currentPart === "part3") {
+      if (p3Idx + 1 >= p3Total) {
+        setPhase("finishing");
+        finish.mutate({
+          sessionId: test.sessionId,
+          answers: updated.map(a => ({ part: a.part, question: a.question, transcript: a.transcript, band: a.band, audioUrl: a.audioUrl, durationSec: a.durationSec })),
+        });
+      } else {
+        setP3Idx(p3Idx + 1);
+      }
+    }
+  };
+
+  if (paywall) return <Paywall skill="speaking" />;
+
+  // ── Intro ────────────────────────────────────────────────────────────────
+  if (phase === "intro") {
+    return (
+      <div className={`${card} p-6 text-center`}>
+        <div className="text-3xl">🎧</div>
+        <h3 className="font-bold text-lg mt-2">Tes Speaking Lengkap — Part 1 + 2 + 3</h3>
+        <p className="text-sm text-slate-500 mt-1">Simulasi tes IELTS Speaking utuh (~12-14 menit): 7 pertanyaan Part 1, satu cue card Part 2 (1 menit persiapan + max 2 menit bicara), dan 4 pertanyaan diskusi Part 3. Semua nyambung tema. Kamu dapat feedback tiap jawaban + satu band akhir gabungan.</p>
+        <button onClick={() => start.mutate()} disabled={start.isPending} className="mt-4 px-6 py-3 rounded-xl text-white font-semibold" style={{ background: PINK }}>{start.isPending ? "Menyiapkan tes…" : "Mulai Tes Lengkap"}</button>
+      </div>
+    );
+  }
+
+  // ── Transitions between parts ────────────────────────────────────────────
+  if (phase === "part1_done" && test) {
+    return (
+      <div className={`${card} p-6 text-center space-y-3`}>
+        <div className="text-2xl">✅</div>
+        <h3 className="font-bold text-lg">Part 1 selesai</h3>
+        <p className="text-sm text-slate-500">Selanjutnya: Part 2 — cue card. Kamu akan punya <strong>1 menit persiapan diam</strong>, lalu bicara <strong>maksimum 2 menit</strong> tentang topik yang diberikan.</p>
+        <button onClick={() => setPhase("part2_prep")} className="mt-2 px-6 py-3 rounded-xl text-white font-semibold" style={{ background: PINK }}>Lanjut ke Part 2 →</button>
+      </div>
+    );
+  }
+  if (phase === "part2_done" && test) {
+    return (
+      <div className={`${card} p-6 text-center space-y-3`}>
+        <div className="text-2xl">✅</div>
+        <h3 className="font-bold text-lg">Part 2 selesai</h3>
+        <p className="text-sm text-slate-500">Selanjutnya: Part 3 — diskusi mendalam ({p3Total} pertanyaan abstrak yang berkaitan dengan tema Part 2). Jawab lebih dari sekedar satu kalimat — kembangkan idenya.</p>
+        <button onClick={() => setPhase("part3_run")} className="mt-2 px-6 py-3 rounded-xl text-white font-semibold" style={{ background: PINK }}>Lanjut ke Part 3 →</button>
+      </div>
+    );
+  }
+  if (phase === "finishing") {
+    return (
+      <div className={`${card} p-8 text-center`}>
+        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <div className="font-semibold text-slate-800">Menyusun ringkasan keseluruhan…</div>
+        <p className="text-xs text-slate-500 mt-1">Menganalisis performa lintas 3 bagian.</p>
+      </div>
+    );
+  }
+
+  // ── Done: overall summary ────────────────────────────────────────────────
+  if (phase === "done" && summary) {
+    return (
+      <div className="space-y-4">
+        <div className={`${card} p-5 text-center`}>
+          <div className="text-sm text-slate-500">Estimasi Band Speaking (gabungan)</div>
+          <div className="text-5xl font-extrabold my-1" style={{ color: bandColor(summary.overallBand) }}>{summary.overallBand.toFixed(1)}</div>
+          {summary.perPartBands && (
+            <div className="mt-2 flex gap-2 justify-center flex-wrap text-xs">
+              <span className="px-2 py-1 rounded bg-slate-100">Part 1: <strong>{Number(summary.perPartBands.part1 || 0).toFixed(1)}</strong></span>
+              <span className="px-2 py-1 rounded bg-slate-100">Part 2: <strong>{Number(summary.perPartBands.part2 || 0).toFixed(1)}</strong></span>
+              <span className="px-2 py-1 rounded bg-slate-100">Part 3: <strong>{Number(summary.perPartBands.part3 || 0).toFixed(1)}</strong></span>
+            </div>
+          )}
+        </div>
+        {summary.summary && <div className={`${card} p-5 text-sm text-slate-700`}>{summary.summary}</div>}
+        {!!summary.recurringMistakes?.length && <div className={`${card} p-5`}><h3 className="font-semibold text-slate-800 mb-2">Kesalahan yang berulang</h3><ul className="list-disc ml-5 text-sm space-y-1">{summary.recurringMistakes.map((m: string, i: number) => <li key={i}>{m}</li>)}</ul></div>}
+        {!!summary.improvements?.length && <div className={`${card} p-5`}><h3 className="font-semibold mb-2" style={{ color: CORAL }}>Rencana latihan</h3><ul className="list-disc ml-5 text-sm space-y-1">{summary.improvements.map((m: string, i: number) => <li key={i}>{m}</li>)}</ul></div>}
+        {!!answers.length && (
+          <div className={`${card} p-5`}>
+            <h3 className="font-semibold text-slate-800 mb-3">Jawabanmu per bagian</h3>
+            {(["part1", "part2", "part3"] as const).map(pk => {
+              const rows = answers.filter(a => a.part === pk);
+              if (!rows.length) return null;
+              const label = pk === "part1" ? "Part 1 — Pertanyaan pribadi" : pk === "part2" ? "Part 2 — Cue card" : "Part 3 — Diskusi";
+              return (
+                <div key={pk} className="mb-4">
+                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{label}</div>
+                  <div className="space-y-3">
+                    {rows.map((a, i) => (
+                      <div key={i} className="border-b last:border-0 pb-3 last:pb-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="text-sm font-medium text-slate-700 whitespace-pre-wrap">{i + 1}. {a.question}</div>
+                          {a.band != null && <Band value={Number(a.band)} />}
+                        </div>
+                        {(a.audioUrl || a.audioLocalUrl) && <div className="mt-2"><RecordingPlayer src={a.audioUrl || a.audioLocalUrl!} className="w-full" /></div>}
+                        {a.transcript && <p className="text-xs text-slate-500 mt-2 italic">"{a.transcript}"</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <button onClick={() => { setPhase("intro"); setTest(null); setSummary(null); setAnswers([]); setP1Idx(0); setP3Idx(0); }} className="w-full py-2.5 rounded-lg text-white font-semibold" style={{ background: PURPLE }}>Tes Lagi</button>
+      </div>
+    );
+  }
+
+  // ── Part 2 prep (silent 1-min countdown, cue card visible) ────────────────
+  if (phase === "part2_prep" && test) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between text-sm text-slate-500">
+          <span>Bagian: <strong className="text-slate-700">Part 2 — Persiapan</strong></span>
+          <span>Waktu tersisa: <strong className="text-slate-700">{prepLeft}s</strong></span>
+        </div>
+        <div className={`${card} p-5`}>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Cue Card</div>
+          <div className="whitespace-pre-wrap text-base text-slate-800">{test.part2.cueCard}</div>
+        </div>
+        <div className={`${card} p-6 text-center`}>
+          <div className="text-4xl font-bold" style={{ color: PURPLE }}>{prepLeft}</div>
+          <div className="text-sm text-slate-500 mt-1">Waktu persiapan (max 60 detik)</div>
+          <p className="text-xs text-slate-400 mt-3">Baca cue card. Pikirkan poin-poin kamu. Belum perlu bicara.</p>
+          <button onClick={() => setPhase("part2_speak")} className="mt-4 px-5 py-2 rounded-lg text-white text-sm font-semibold" style={{ background: PINK }}>Sudah siap — mulai bicara →</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Active question (Part 1, Part 2 speak, Part 3) ────────────────────────
+  const partLabel =
+    currentPart === "part1" ? "Part 1"
+    : currentPart === "part2" ? "Part 2 — Cue Card"
+    : currentPart === "part3" ? "Part 3" : "";
+  const progressLabel =
+    currentPart === "part1" ? `Pertanyaan ${p1Idx + 1} / ${p1Total}`
+    : currentPart === "part2" ? `Bicara: ${speakLeft}s tersisa`
+    : currentPart === "part3" ? `Pertanyaan ${p3Idx + 1} / ${p3Total}` : "";
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between text-sm text-slate-500">
+        <span>Bagian: <strong className="text-slate-700">{partLabel}</strong></span>
+        <span>{progressLabel}</span>
+      </div>
+      <div className={`${card} p-5`}>
+        {currentPart === "part2" && <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Cue Card</div>}
+        <div className="text-base text-slate-800 whitespace-pre-wrap">{currentQuestion}</div>
+        {currentPart !== "part2" && (
+          <button onClick={() => speakExaminer(currentQuestion)} className="mt-2 text-xs px-2 py-1 rounded border border-slate-300">🔊 Dengar penguji</button>
+        )}
+      </div>
+
+      {!qfb ? (
+        <div className={`${card} p-5 text-center space-y-3`}>
+          {!recording
+            ? <button onClick={startRec} className="px-6 py-3 rounded-full text-white font-semibold" style={{ background: PINK }}>● Mulai Rekam</button>
+            : <button onClick={stopRec} className="px-6 py-3 rounded-full text-white font-semibold animate-pulse" style={{ background: CORAL }}>■ Berhenti Rekam{currentPart === "part2" ? ` (${speakLeft}s)` : ""}</button>}
+          {currentPart === "part2" && !recording && !audio && (
+            <p className="text-xs text-slate-400">Rekaman akan otomatis berhenti setelah 2 menit — seperti tes asli.</p>
+          )}
+          {audio && !recording && (
+            <div className="space-y-2">
+              <RecordingPlayer src={audio.url} className="mx-auto" />
+              <button onClick={submitCurrent} disabled={answer.isPending} className="w-full py-2.5 rounded-lg text-white font-semibold disabled:opacity-60" style={{ background: PURPLE }}>{answer.isPending ? "Menilai…" : "Kirim Jawaban"}</button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {audio && (
+            <div className={`${card} p-4`}>
+              <div className="text-xs font-medium text-slate-500 mb-2">🔊 Dengar jawabanmu</div>
+              <RecordingPlayer src={audio.url} className="w-full" />
+            </div>
+          )}
+          <div className={`${card} p-5`}>
+            <div className="flex items-center gap-2"><Band value={qfb.band} /><span className="text-sm text-slate-500">estimasi jawaban ini</span></div>
+            {!!qfb.fixes?.length && <div className="mt-3 space-y-2">{qfb.fixes.map((c: any, i: number) => <div key={i} className="text-sm"><span className="line-through text-red-500">{c.original}</span> → <span className="text-green-700 font-medium">{c.fix}</span></div>)}</div>}
+            {qfb.better && <div className="mt-2 text-sm"><span className="text-slate-500">Contoh lebih baik: </span>{qfb.better}</div>}
+            {qfb.tip && <div className="mt-2 text-sm" style={{ color: CORAL }}>💡 {qfb.tip}</div>}
+          </div>
+          <button onClick={next} disabled={finish.isPending} className="w-full py-2.5 rounded-lg text-white font-semibold" style={{ background: PINK }}>
+            {currentPart === "part1" && p1Idx + 1 < p1Total ? "Pertanyaan Berikutnya →"
+              : currentPart === "part1" ? "Lanjut ke Part 2 →"
+              : currentPart === "part2" ? "Lanjut ke Part 3 →"
+              : currentPart === "part3" && p3Idx + 1 < p3Total ? "Pertanyaan Berikutnya →"
+              : (finish.isPending ? "Menyusun ringkasan…" : "Selesai & Lihat Ringkasan")}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SpeakingPartner({ onBack }: { onBack: () => void }) {
   const [smode, setSmode] = useState<"quick" | "test">("quick");
   const [part, setPart] = useState<"part1" | "part2" | "part3">("part1");
@@ -975,10 +1370,10 @@ function SpeakingPartner({ onBack }: { onBack: () => void }) {
 
       <div className="flex gap-2">
         <button onClick={() => setSmode("quick")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${smode === "quick" ? "text-white" : "bg-slate-100 text-slate-600"}`} style={smode === "quick" ? { background: PINK } : {}}>Latihan Cepat</button>
-        <button onClick={() => setSmode("test")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${smode === "test" ? "text-white" : "bg-slate-100 text-slate-600"}`} style={smode === "test" ? { background: PINK } : {}}>Tes Lengkap (Part 1)</button>
+        <button onClick={() => setSmode("test")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${smode === "test" ? "text-white" : "bg-slate-100 text-slate-600"}`} style={smode === "test" ? { background: PINK } : {}}>Tes Lengkap (Part 1 + 2 + 3)</button>
       </div>
 
-      {smode === "test" ? <SpeakingTest /> : <>
+      {smode === "test" ? <SpeakingFullTest /> : <>
       <div className={`${card} p-5 space-y-3`}>
         <div className="flex gap-2">
           {(["part1", "part2", "part3"] as const).map(p => (

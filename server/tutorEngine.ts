@@ -406,3 +406,186 @@ export async function summarizePart1Test(topic: string, answers: Array<{ questio
   } catch (e) { console.warn("[Tutor] part1 summary failed:", (e as Error).message); }
   return { overallBand: avg, summary, recurringMistakes, improvements };
 }
+
+// ── Full Speaking Test — Parts 1 + 2 + 3 (guided, mirrors real exam) ─────────
+//
+// Real IELTS Speaking is 11-14 min: Part 1 (4-5 min, 3 topics of short personal
+// questions), Part 2 (1 min prep + 1-2 min monologue on a cue card), Part 3
+// (4-5 min discussion tied to Part 2's theme). Students wanted a single scored
+// simulation of the whole thing — Part 1 alone as our "Tes Lengkap" was
+// misleading. This block adds the plumbing for all 3 parts in one session.
+
+export interface FullTestPackage {
+  theme: string;                  // e.g. "hobbies" — anchors all three parts
+  part1: { topic: string; questions: string[] };  // 7 short personal questions
+  part2: { cueCard: string };     // the full cue card text incl. "You should say:"
+  part3: { questions: string[] }; // 4 abstract discussion questions on the theme
+}
+
+/**
+ * Generate a thematically linked Part 1 + Part 2 + Part 3 package in a single
+ * AI call. Linkage matters: the real exam always ties Part 3 to whatever Part 2
+ * was about (e.g. Part 2 "describe a hobby" → Part 3 "why do people need
+ * hobbies?"). Splitting into 3 separate calls loses that thread and produces
+ * an obviously-fake test.
+ */
+export async function generateFullSpeakingTest(): Promise<FullTestPackage> {
+  const seed = PART1_TOPICS[Math.floor(Math.random() * PART1_TOPICS.length)];
+  const res = await invokeLLM({
+    messages: [
+      { role: "system", content: "You are an IELTS Speaking examiner writing a complete, realistic 3-part Speaking test. All three parts must be thematically linked, like a real exam. Output JSON only." },
+      { role: "user", content: `Create ONE full IELTS Speaking test around the anchor theme "${seed}".
+
+Return exactly this JSON:
+{
+  "theme": "the anchor theme in 2-4 words",
+  "part1": {
+    "topic": "the Part 1 topic label (2-4 words)",
+    "questions": ["q1","q2","q3","q4","q5","q6","q7"]
+  },
+  "part2": {
+    "cueCard": "Describe a ...\\n\\nYou should say:\\n- ...\\n- ...\\n- ...\\n\\nand explain ..."
+  },
+  "part3": {
+    "questions": ["deeper q1","deeper q2","deeper q3","deeper q4"]
+  }
+}
+
+RULES:
+- Part 1 = 7 short, personal, everyday questions on the anchor theme.
+- Part 2 = ONE cue card that ties naturally to the anchor theme (e.g. anchor "hobbies" → cue card "Describe a hobby you enjoy"). Include 3-4 "You should say:" bullets and an "and explain..." tail.
+- Part 3 = 4 ABSTRACT, opinion-based, society-level questions on the SAME anchor (e.g. "Do you think hobbies are as important today as they were in the past?"). Never repeat Part 1 personal-question style.
+- All parts must feel like the same exam sitting, not three unrelated topics.` },
+    ],
+    response_format: { type: "json_object" },
+    max_tokens: 1400,
+  });
+  const p = parseJsonLoose(llmText(res));
+  const theme = String(p.theme || seed);
+  const part1 = pick(p, ["part1", "Part1"]) as any;
+  const part2 = pick(p, ["part2", "Part2"]) as any;
+  const part3 = pick(p, ["part3", "Part3"]) as any;
+  const part1Questions = strArr(part1?.questions).slice(0, 7);
+  const cueCard = String(part2?.cueCard || part2?.cue_card || "").trim();
+  const part3Questions = strArr(part3?.questions).slice(0, 4);
+  if (part1Questions.length < 3 || !cueCard || part3Questions.length < 2) {
+    throw new Error("Could not generate a complete 3-part test — please try again.");
+  }
+  return {
+    theme,
+    part1: { topic: String(part1?.topic || seed), questions: part1Questions },
+    part2: { cueCard },
+    part3: { questions: part3Questions },
+  };
+}
+
+/**
+ * Part-aware wrapper around evaluateSpeakingQuick. Adjusts the rubric slightly
+ * per part so the AI grades what actually matters at each stage:
+ *   - Part 1: short, factual, personal answers — current default rubric.
+ *   - Part 2: 1-2 min monologue → judge cue-card coverage + coherence + range
+ *     over accuracy of tiny fragments.
+ *   - Part 3: abstract discussion → judge depth of reasoning and idea
+ *     development, not just grammatical accuracy.
+ */
+export async function evaluateSpeakingFullTestAnswer(
+  part: "part1" | "part2" | "part3",
+  question: string,
+  transcript: string,
+  durationSec: number,
+  metrics?: FluencyMetrics,
+): Promise<QuickSpeakingFeedback> {
+  const words = (transcript.trim().match(/\S+/g) || []).length;
+  const wpm = durationSec > 0 ? Math.round((words / durationSec) * 60) : 0;
+  const partRubric =
+    part === "part2"
+      ? "This is a Part 2 MONOLOGUE (1-2 min uninterrupted). Judge: did they cover the cue card's bullets? Did they organise their answer (beginning-middle-end)? Range of vocabulary and grammar over the extended turn? Do NOT over-weight small errors; reward coherence + range. A well-organised 2-min monologue with minor errors is typically 6.5-7.5."
+      : part === "part3"
+      ? "This is a Part 3 DISCUSSION answer (abstract, opinion-based). Judge: did they develop the idea beyond a one-line opinion? Did they give reasons/examples? Complexity of thought and language? A 30-45s answer with a developed argument and some complex structures is typically 6.5-7.5. Over-simple one-line answers to abstract questions cap around 5.5-6.0 regardless of accuracy."
+      : "This is a Part 1 PERSONAL answer (short, factual, everyday). Judge: naturalness, direct relevance to the question, minor extension beyond a single-sentence answer. Fluent, natural answers with light range are typically 6.5-7.5.";
+  const res = await invokeLLM({
+    messages: [
+      { role: "system", content: `You are a friendly IELTS Speaking examiner giving quick feedback on ONE answer inside a full 3-part mock test. Score FAIRLY (like a real examiner, not strict). You're reading an auto-generated transcript: ignore transcription punctuation/fragment artifacts and do NOT penalise pronunciation you can't hear. Output JSON only.` },
+      { role: "user", content: `${partRubric}
+
+Question / cue card: "${question}"
+Student's answer (transcribed, ${words} words, ~${durationSec}s): ${transcript || "(no speech detected)"}
+${fluencyLine(metrics, wpm)}
+
+Return JSON: { "band": 6.0, "fixes": [ {"original":"what they said","fix":"better version"} ], "better": "one improved sample sentence answering the question", "tip": "one short tip specific to this part" }
+Give 1-3 fixes max. Keep everything short.` },
+    ],
+    response_format: { type: "json_object" },
+    max_tokens: 700,
+  });
+  const p = parseJsonLoose(llmText(res));
+  return {
+    band: clampBand(p.band ?? p.overallBand ?? 0) || 5,
+    fixes: (Array.isArray(p.fixes) ? p.fixes : []).slice(0, 3).map((x: any) => ({ original: String(x?.original || ""), fix: String(x?.fix || "") })).filter((x: any) => x.fix),
+    better: String(p.better || ""),
+    tip: String(p.tip || ""),
+  };
+}
+
+export interface FullTestAnswer { part: "part1" | "part2" | "part3"; question: string; transcript: string; band: number; audioUrl?: string; durationSec?: number }
+
+/**
+ * Aggregate an entire 3-part test into a single band + per-part bands +
+ * cross-part recurring mistakes and improvement plan. Uses the same
+ * simple-average approach the real exam roughly follows (all three parts
+ * count toward the final speaking band).
+ */
+export async function summarizeFullSpeakingTest(
+  theme: string,
+  answers: FullTestAnswer[],
+): Promise<{
+  overallBand: number;
+  perPartBands: { part1: number; part2: number; part3: number };
+  summary: string;
+  recurringMistakes: string[];
+  improvements: string[];
+}> {
+  const partAvg = (part: "part1" | "part2" | "part3"): number => {
+    const bands = answers.filter(a => a.part === part).map(a => a.band).filter(b => b > 0);
+    return bands.length ? clampBand(bands.reduce((s, b) => s + b, 0) / bands.length) : 0;
+  };
+  const perPartBands = { part1: partAvg("part1"), part2: partAvg("part2"), part3: partAvg("part3") };
+  const nonZero = [perPartBands.part1, perPartBands.part2, perPartBands.part3].filter(b => b > 0);
+  const overallBand = nonZero.length ? clampBand(nonZero.reduce((s, b) => s + b, 0) / nonZero.length) : 5;
+
+  const block = (label: string, part: "part1" | "part2" | "part3") => {
+    const rows = answers.filter(a => a.part === part);
+    if (!rows.length) return `${label}: (no answers)`;
+    return `${label}:\n${rows.map((a, i) => `  Q${i + 1}: ${a.question}\n  A: ${a.transcript || "(no answer)"}`).join("\n\n")}`;
+  };
+  let summary = "", recurringMistakes: string[] = [], improvements: string[] = [];
+  try {
+    const res = await invokeLLM({
+      messages: [
+        { role: "system", content: "You are an IELTS Speaking examiner summarising a student's WHOLE Speaking test (Parts 1+2+3) for their tutor report. Look across all three parts for consistent patterns. Be specific, warm, and useful. Output JSON only." },
+        { role: "user", content: `Theme of this test: ${theme}
+Estimated per-part bands: Part 1 = ${perPartBands.part1}, Part 2 = ${perPartBands.part2}, Part 3 = ${perPartBands.part3}
+Estimated overall Speaking band: ${overallBand}
+
+${block("PART 1 (short personal questions)", "part1")}
+
+${block("PART 2 (1-2 min monologue on cue card)", "part2")}
+
+${block("PART 3 (abstract discussion)", "part3")}
+
+Return JSON: {
+  "summary": "3-4 sentence read of their overall Speaking performance, calling out where they were stronger vs weaker across the three parts",
+  "recurringMistakes": ["error patterns that showed up in MULTIPLE parts, e.g. tense, articles, fillers, one-line answers, weak development"],
+  "improvements": ["4-6 prioritized practice steps tailored to which part(s) they need most"]
+}` },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 1000,
+    });
+    const p = parseJsonLoose(llmText(res));
+    summary = String(p.summary || "");
+    recurringMistakes = strArr(p.recurringMistakes);
+    improvements = strArr(p.improvements);
+  } catch (e) { console.warn("[Tutor] full-test summary failed:", (e as Error).message); }
+  return { overallBand, perPartBands, summary, recurringMistakes, improvements };
+}
