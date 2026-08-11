@@ -3152,18 +3152,35 @@ IMPORTANT:
           });
           aiAnalysis = runResult.analysis;
         } catch (aiErr) {
-          // runAptitudeAiAnalysisReliably already notified owner. Add a second
-          // notification with the record ID + one-click recovery instructions.
-          console.error(`[AptitudePro] AI analysis failed for ${input.studentEmail} (record id=${saved?.id}):`, aiErr);
-          notifyOwner({
-            title: `🚨 PRO Aptitude AI failed for ${input.studentName} — answers ARE saved`,
-            content: `Paid student ${input.studentName} (${input.studentEmail}) submitted the PRO aptitude test but the AI analysis failed.\n\nGood news: their answers ARE saved (record id=${saved?.id}). No need to ask them to retake.\n\nTo recover: Admin Dashboard → Aptitude Manager → "Regenerate analysis" → enter ${input.studentEmail}. This will re-run the AI in the background and email them the finished report.\n\nError: ${(aiErr as Error).message}`,
-          }).catch(() => {});
+          // AI failed at submit time — but we already saved the record above.
+          // Fire off the SAME background regeneration job that the admin's
+          // "Regenerate analysis" button uses. Student never has to wait for
+          // us to notice + click; the recovery is automatic.
+          //
+          // Wait 30s before the background job starts — the reliability
+          // wrapper already burned 3 retries against a bad DeepSeek window,
+          // so a fresh attempt immediately would just hit the same wall.
+          // 30s is enough for rate-limit windows / transient blips to clear.
+          console.error(`[AptitudePro] AI analysis failed for ${input.studentEmail} (record id=${saved?.id}) — spawning auto-recovery job:`, aiErr);
+          if (saved?.id) {
+            const { runProAptitudeBackgroundRegen } = await import("./aptitudeProBackgroundRegen");
+            void runProAptitudeBackgroundRegen(saved.id, {
+              triggerSource: "auto_submit_recovery",
+              initialDelayMs: 30_000,
+            });
+          } else {
+            // Saved record missing — the placeholder insert itself failed.
+            // Fall back to a manual-intervention notification.
+            notifyOwner({
+              title: `🚨 PRO Aptitude submit FAILED (no record saved) for ${input.studentName}`,
+              content: `Paid student ${input.studentName} (${input.studentEmail}) submitted the PRO test but BOTH the AI analysis AND the placeholder DB insert failed. Their answers are lost — please WhatsApp them, apologize, and issue a fresh access link so they can retake.\n\nError: ${(aiErr as Error).message}`,
+            }).catch(() => {});
+          }
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
             message: input.language === "id"
-              ? "Analisis AI sedang bermasalah, tetapi jawabanmu SUDAH TERSIMPAN dengan aman. Tim kami sudah dinotifikasi dan akan mengirim laporan lengkapmu dalam <1 jam — tidak perlu mengulang tes."
-              : "Our AI analyser had a hiccup, but your answers ARE saved securely. Our team is notified and will send your full report within an hour — no need to retake the test.",
+              ? "Analisis AI sedang penuh — jawabanmu SUDAH TERSIMPAN dan reportmu sedang diproses ulang secara otomatis di background. Cek emailmu dalam 3-5 menit. Tidak perlu mengulang tes."
+              : "Our AI analyser is busy — your answers ARE saved and your report is being generated in the background automatically. Check your email in 3-5 minutes. No need to retake the test.",
           });
         }
 
@@ -3662,198 +3679,19 @@ IMPORTANT:
         const rows = await getAptitudeResultsByEmail(input.email.trim());
         if (!rows.length) throw new TRPCError({ code: 'NOT_FOUND', message: 'No completed aptitude result found for that email.' });
         const r = rows[0]; // most recent
-        const parse = (v: any, fallback: any) => { try { return typeof v === 'string' ? JSON.parse(v) : (v ?? fallback); } catch { return fallback; } };
-        const riasecScores = parse(r.riasecScores, {});
-        const miScores = parse(r.miScores, {});
-        const personalAnswers = parse(r.personalAnswers, {});
-        const language = (r.language as any) || 'id';
-        const hollandCode = r.hollandCode || '';
 
-        // Reconstruct the AI prompt from saved data (same as analyzeProResults).
-        const sortedRiasec = Object.entries(riasecScores).sort(([, a], [, b]) => (b as number) - (a as number));
-        const sortedMI = Object.entries(miScores).sort(([, a], [, b]) => (b as number) - (a as number));
-        const topIntelligences = sortedMI.slice(0, 3).map(([k]) => k);
-        const profilContext = Object.entries(personalAnswers.profil || {}).map(([k, v]) => `${k}: ${v}`).join(', ');
-        const personalityContext = Object.entries(personalAnswers.personality || {}).map(([k, v]) => `${k}: ${v}`).join('; ');
-        const sjtContext = Object.entries(personalAnswers.sjt || {}).sort(([, a], [, b]) => (b as number) - (a as number)).map(([k, c]) => `${k} (${c})`).join(', ');
-        const creativeContext = Object.entries(personalAnswers.creative || {}).map(([id, a]) => `[${id}]: ${a}`).join('\n');
-        const rankingContext = Object.entries(personalAnswers.ranking || {}).map(([id, order]) => `[${id}]: ${(order as string[]).join(' > ')}`).join('\n');
-
-        const regenPrompt = `You are a world-class career psychologist and educational counselor conducting a PREMIUM comprehensive aptitude assessment for a student whose ORIGINAL analysis failed. Deliver a full, deeply personalized report worthy of the Rp 79k they paid. Respond ENTIRELY in ${language === "id" ? "Bahasa Indonesia" : "English"}.
-
-=== STUDENT PROFILE ===
-Name: ${r.studentName}
-Profile: ${profilContext}
-
-=== DIMENSION 1: CAREER INTERESTS (RIASEC) ===
-Holland Code: ${hollandCode}
-Scores: ${JSON.stringify(riasecScores)}
-Top 3: ${sortedRiasec.slice(0, 3).map(([k, v]) => `${k}=${v}`).join(', ')}
-
-=== DIMENSION 2: MULTIPLE INTELLIGENCES ===
-Scores: ${JSON.stringify(miScores)}
-Top 3: ${topIntelligences.join(', ')}
-
-=== DIMENSION 3: PERSONALITY & VALUES ===
-${personalityContext}
-
-=== DIMENSION 4: SITUATIONAL JUDGMENT ===
-${sjtContext}
-
-=== DIMENSION 5: CREATIVE THINKING ===
-${creativeContext}
-
-=== DIMENSION 6: LIFE PRIORITIES ===
-${rankingContext}
-
-Provide the same comprehensive JSON output as the original PRO analysis: personalitySnapshot (title/emoji/description), bigFiveProfile (5 dimensions with level+description), riasecAnalysis (3-4 sentences), miAnalysis (3-4 sentences), softSkillsAnalysis, creativeThinkingAnalysis, valuesAnalysis, crossDimensionalInsight (4-5 sentences), recommendedMajors (exactly 5 with name/compatibilityScore/reason/careers/salaryRange/growthOutlook), strengthsAndWeaknesses (5 strengths + 3 areasForGrowth), learningStyle, careerOutlook (4-5 sentences), parentSummary (5-6 sentences formal Bahasa), actionPlan (5 steps).
-
-CRITICAL FORMAT RULES:
-- compatibilityScore is a NUMBER between 75 and 98 (percentage, NOT 0-10 scale, NOT 0-1 scale). The top-recommended major should be 90-98. The 5th should be 75-85. Values MUST be varied (not all the same).
-- recommendedMajors must be an ARRAY of 5 objects, ordered by compatibilityScore DESC (highest first).
-- careers must be an ARRAY of 3-5 STRING values (profession names), not objects.
-- salaryRange must be a STRING like "Rp 5.000.000 - Rp 20.000.000/bulan", NOT a raw number.
-
-IMPORTANT: Every section must be deeply personal, reference their specific answers, and be worthy of a premium paid report.`;
-
-        const regenSchema = {
-          type: "object",
-          properties: {
-            personalitySnapshot: { type: "object", properties: { title: { type: "string" }, emoji: { type: "string" }, description: { type: "string" } }, required: ["title", "emoji", "description"], additionalProperties: false },
-            bigFiveProfile: {
-              type: "object",
-              properties: {
-                openness: { type: "object", properties: { level: { type: "string" }, description: { type: "string" } }, required: ["level", "description"], additionalProperties: false },
-                conscientiousness: { type: "object", properties: { level: { type: "string" }, description: { type: "string" } }, required: ["level", "description"], additionalProperties: false },
-                extraversion: { type: "object", properties: { level: { type: "string" }, description: { type: "string" } }, required: ["level", "description"], additionalProperties: false },
-                agreeableness: { type: "object", properties: { level: { type: "string" }, description: { type: "string" } }, required: ["level", "description"], additionalProperties: false },
-                neuroticism: { type: "object", properties: { level: { type: "string" }, description: { type: "string" } }, required: ["level", "description"], additionalProperties: false },
-              },
-              required: ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"],
-              additionalProperties: false,
-            },
-            riasecAnalysis: { type: "string" },
-            miAnalysis: { type: "string" },
-            softSkillsAnalysis: { type: "string" },
-            creativeThinkingAnalysis: { type: "string" },
-            valuesAnalysis: { type: "string" },
-            crossDimensionalInsight: { type: "string" },
-            recommendedMajors: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: { name: { type: "string" }, compatibilityScore: { type: "number" }, reason: { type: "string" }, careers: { type: "array", items: { type: "string" } }, salaryRange: { type: "string" }, growthOutlook: { type: "string" } },
-                required: ["name", "compatibilityScore", "reason", "careers", "salaryRange", "growthOutlook"],
-                additionalProperties: false,
-              },
-            },
-            strengthsAndWeaknesses: {
-              type: "object",
-              properties: { strengths: { type: "array", items: { type: "string" } }, areasForGrowth: { type: "array", items: { type: "string" } } },
-              required: ["strengths", "areasForGrowth"],
-              additionalProperties: false,
-            },
-            learningStyle: { type: "string" },
-            careerOutlook: { type: "string" },
-            parentSummary: { type: "string" },
-            actionPlan: { type: "array", items: { type: "string" } },
-          },
-          required: ["personalitySnapshot", "bigFiveProfile", "riasecAnalysis", "miAnalysis", "softSkillsAnalysis", "creativeThinkingAnalysis", "valuesAnalysis", "crossDimensionalInsight", "recommendedMajors", "strengthsAndWeaknesses", "learningStyle", "careerOutlook", "parentSummary", "actionPlan"],
-          additionalProperties: false,
-        };
-
-        // Compute destination upfront so the sync response can tell owner
-        // where the fresh PDF will land once the background job finishes.
         const destination = input.toOverride?.trim() || r.studentEmail;
 
-        // ── FIRE-AND-FORGET BACKGROUND JOB ──────────────────────────────
-        // The AI + PDF pipeline takes 3-5 minutes. Blocking the tRPC
-        // request for that long causes browser timeouts + zero visibility.
-        // Instead, spawn the work in the background and return immediately.
-        // Every step logs via console.log so we can trace via Railway logs.
-        // On success: fresh PDF arrives in owner + student inbox.
-        // On failure: notifyOwner alert fires.
-        void (async () => {
-          const jobStart = Date.now();
-          const jobTag = `[RegenJob:${r.id}:${r.studentEmail}]`;
-          console.log(`${jobTag} 🚀 Starting background regeneration for ${r.studentName}`);
+        // Fire-and-forget the shared background regen helper. Same function
+        // that auto-fires when submitProResults hits an AI failure, so the
+        // two recovery paths (admin-triggered and automatic) are guaranteed
+        // to behave identically.
+        const { runProAptitudeBackgroundRegen } = await import("./aptitudeProBackgroundRegen");
+        void runProAptitudeBackgroundRegen(r.id, {
+          triggerSource: "admin_regenerate",
+          destinationOverride: input.toOverride?.trim() || undefined,
+        });
 
-          try {
-            // Step 1: AI analysis (with retries)
-            console.log(`${jobTag} 🧠 Step 1/4 — running AI analysis (may take 1-5 min with retries)`);
-            const { runAptitudeAiAnalysisReliably, validateGeneratedPdf } = await import("./aptitudeAiReliability");
-            const runResult = await runAptitudeAiAnalysisReliably({
-              model: "deepseek-v4-pro",
-              systemPrompt: "You are a world-class career psychologist providing premium aptitude assessments. Always respond with valid JSON only, no markdown formatting.",
-              userPrompt: regenPrompt,
-              jsonSchema: regenSchema,
-              maxAttempts: 3,
-              studentName: r.studentName,
-              studentEmail: r.studentEmail,
-            });
-            const freshAnalysis = runResult.analysis;
-            console.log(`${jobTag} ✅ Step 1/4 done — AI validated in ${runResult.attemptsUsed} attempt(s), majors=${(freshAnalysis.recommendedMajors || []).length}`);
-
-            // Step 2: Save to DB
-            console.log(`${jobTag} 💾 Step 2/4 — saving fresh analysis to DB`);
-            const { updateAptitudeResultAnalysis } = await import("./db");
-            await updateAptitudeResultAnalysis(r.id, freshAnalysis);
-            console.log(`${jobTag} ✅ Step 2/4 done — DB updated`);
-
-            // Step 3: Generate PDF + QA guard
-            console.log(`${jobTag} 📄 Step 3/4 — generating PDF`);
-            const pdfBuffer = await generatePdfReport({
-              studentName: r.studentName,
-              language,
-              hollandCode,
-              riasecScores,
-              miScores,
-              aiAnalysis: freshAnalysis,
-              isPro: true,
-            });
-            console.log(`${jobTag} 📄 PDF generated: ${(pdfBuffer.length / 1024).toFixed(1)}KB`);
-            const pdfCheck = validateGeneratedPdf(pdfBuffer, true);
-            if (!pdfCheck.ok) {
-              throw new Error(`PDF QA guard rejected: ${pdfCheck.reason}`);
-            }
-            console.log(`${jobTag} ✅ Step 3/4 done — PDF passed QA (${(pdfBuffer.length / 1024).toFixed(1)}KB)`);
-
-            // Step 4: Email
-            console.log(`${jobTag} 📧 Step 4/4 — emailing PDF to ${destination}`);
-            const ownerBcc = ENV.ownerEmail && ENV.ownerEmail !== destination ? ENV.ownerEmail : undefined;
-            await sendAptitudeResultsEmail({
-              to: destination,
-              studentName: r.studentName,
-              language,
-              hollandCode,
-              riasecScores,
-              miScores,
-              aiAnalysis: freshAnalysis,
-              pdfBuffer,
-              isPro: true,
-              bcc: ownerBcc,
-            });
-            const totalSec = Math.round((Date.now() - jobStart) / 1000);
-            console.log(`${jobTag} ✅✅✅ Step 4/4 done — email sent. Total: ${totalSec}s`);
-
-            // Notify owner of success so they know it's ready to check
-            notifyOwner({
-              title: `✅ Aptitude regen SUCCESS: ${r.studentName}`,
-              content: `Fresh ${(pdfBuffer.length / 1024).toFixed(1)}KB PDF with ${(freshAnalysis.recommendedMajors || []).length} majors emailed to ${destination}${ownerBcc ? ` (BCC'd to ${ownerBcc})` : ""}. Total regen time: ${totalSec}s. Check inbox now.`,
-            }).catch(() => {});
-          } catch (jobErr) {
-            const totalSec = Math.round((Date.now() - jobStart) / 1000);
-            const msg = (jobErr as Error).message;
-            console.error(`${jobTag} 🚨 REGEN FAILED after ${totalSec}s: ${msg}`);
-            notifyOwner({
-              title: `🚨 Aptitude regen FAILED: ${r.studentName}`,
-              content: `Background regen for ${r.studentEmail} failed after ${totalSec}s.\n\nError: ${msg}\n\nCheck Railway logs for full trace (filter: [RegenJob:${r.id}]). Retry via admin > Regenerate FULL AI analysis.`,
-            }).catch(() => {});
-          }
-        })();
-
-        // Return immediately — the background job runs on the server for
-        // up to 5-6 minutes; owner gets email + notification when done.
         return {
           regenerated: false as const,  // job dispatched, not completed
           jobStarted: true as const,

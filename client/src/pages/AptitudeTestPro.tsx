@@ -4,7 +4,7 @@ import { motion, AnimatePresence, Reorder } from "framer-motion";
 import {
   ArrowLeft, ArrowRight, Brain, Clock, Sparkles, ShieldCheck,
   AlertTriangle, Mail, GripVertical, CheckCircle2, ChevronRight,
-  BookOpen, Target, Lightbulb, Users, PenTool, BarChart3, ShieldX, Download
+  BookOpen, Target, Lightbulb, Users, PenTool, BarChart3, ShieldX, Download, Loader2
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import Navigation from "@/components/Navigation";
@@ -1283,15 +1283,44 @@ export default function AptitudeTestPro() {
       {phase === "emailSent" && (
         <div className="min-h-screen flex items-center justify-center p-4">
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
-            {analysisError ? (
-              <>
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <AlertTriangle className="w-8 h-8 text-red-500" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">{lang === "id" ? "Terjadi Kesalahan" : "An Error Occurred"}</h2>
-                <p className="text-gray-600 mb-6">{analysisError}</p>
-              </>
-            ) : (
+            {analysisError ? (() => {
+              // If the server told us the auto-recovery kicked in (answers
+              // saved, background regen fired), show a warm "processing"
+              // card instead of a scary red error. The wording match is
+              // exact to the server strings in submitProResults.
+              const isRecovering = /SUDAH TERSIMPAN|ARE saved/i.test(analysisError);
+              if (isRecovering) {
+                return (
+                  <>
+                    <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Loader2 className="w-8 h-8 text-amber-600 animate-spin" />
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">
+                      {lang === "id" ? "Reportmu Sedang Diproses ⏳" : "Your Report is Processing ⏳"}
+                    </h2>
+                    <p className="text-gray-700 mb-2">
+                      {lang === "id" ? "Terima kasih" : "Thank you"}, <strong>{studentName}</strong>!
+                    </p>
+                    <p className="text-gray-600 mb-6">{analysisError}</p>
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-left text-sm text-amber-900">
+                      <strong>{lang === "id" ? "Apa yang terjadi?" : "What happened?"}</strong>{" "}
+                      {lang === "id"
+                        ? <>Sistem AI kami sedang sibuk saat kamu submit. Jawabanmu sudah tersimpan dengan aman, dan reportmu sedang di-generate ulang secara otomatis di background. Cek email <strong>{studentEmail}</strong> dalam 3-5 menit — tidak perlu retake.</>
+                        : <>Our AI system was busy at the moment you submitted. Your answers are safely saved, and your report is being generated automatically in the background. Check email <strong>{studentEmail}</strong> in 3-5 minutes — no need to retake.</>}
+                    </div>
+                  </>
+                );
+              }
+              return (
+                <>
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <AlertTriangle className="w-8 h-8 text-red-500" />
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">{lang === "id" ? "Terjadi Kesalahan" : "An Error Occurred"}</h2>
+                  <p className="text-gray-600 mb-6">{analysisError}</p>
+                </>
+              );
+            })() : (
               <>
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CheckCircle2 className="w-8 h-8 text-green-500" />
