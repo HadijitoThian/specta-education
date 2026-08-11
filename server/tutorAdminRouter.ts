@@ -38,7 +38,7 @@ function buildFreeAccessGrantedEmail(params: {
   const expiresStr = expiresAt.toLocaleDateString("id-ID", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
-  const tutorUrl = `${appUrl}/tutor`;
+  const tutorUrl = `${appUrl}/ielts/tutor`;
   const subject = extended
     ? `🎓 SpecTa AI IELTS Tutor — akses kamu diperpanjang ${days} hari`
     : `🎓 SpecTa AI IELTS Tutor — akses ${planLabel} kamu sudah aktif`;
