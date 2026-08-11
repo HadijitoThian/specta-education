@@ -237,6 +237,70 @@ const normalizeResponseFormat = ({
   return { type: "json_object" };
 };
 
+/**
+ * Fallback LLM invoke via DeepInfra (GLM 5.2 by default). Used ONLY when
+ * DeepSeek's own retry loop exhausts (see aptitudeAiReliability.ts).
+ *
+ * Why DeepInfra + GLM instead of OpenAI:
+ *   - Reuses DEEPINFRA_API_KEY that's already set for the image pipeline —
+ *     no new key on Railway, no new billing account, one less thing to break.
+ *   - DeepInfra exposes an OpenAI-compatible /v1/openai/chat/completions
+ *     endpoint, so the wire protocol is identical to what invokeLLM expects.
+ *   - GLM 5.2 (zai-org/GLM-5.2) is a strong general-purpose model on
+ *     DeepInfra — sufficient for the aptitude-analysis workload, priced
+ *     closer to DeepSeek than to OpenAI flagship models.
+ *   - DeepInfra + DeepSeek run on different infra, so simultaneous outages
+ *     are rare enough to give near-zero effective failure rate.
+ *
+ * Returns in the same InvokeResult shape as invokeLLM so callers can swap
+ * transparently. Throws if DEEPINFRA_API_KEY is not set — the caller
+ * decides whether to treat that as a hard failure or a graceful skip.
+ *
+ * Override the model with LLM_FALLBACK_MODEL if you want to try something
+ * else on DeepInfra (e.g. "meta-llama/Meta-Llama-3.1-70B-Instruct").
+ */
+export async function invokeLLMFallback(params: InvokeParams): Promise<InvokeResult> {
+  const apiKey = ENV.deepinfraApiKey;
+  if (!apiKey) {
+    throw new Error("DEEPINFRA_API_KEY is not configured — fallback provider unavailable");
+  }
+
+  const { messages, responseFormat, response_format, outputSchema, output_schema } = params;
+
+  const payload: Record<string, unknown> = {
+    model: process.env.LLM_FALLBACK_MODEL || "zai-org/GLM-5.2",
+    messages: messages.map(normalizeMessage),
+    max_tokens: 8192,
+  };
+
+  // DeepInfra's OpenAI-compatible endpoint supports json_object mode. If the
+  // caller asked for json_schema we downshift to json_object (same as DeepSeek
+  // does) to keep the response shape parseable.
+  const explicit = responseFormat || response_format;
+  const schema = outputSchema || output_schema;
+  if (explicit?.type === "json_schema" || explicit?.type === "json_object" || schema) {
+    payload.response_format = { type: "json_object" };
+  }
+
+  const response = await fetch("https://api.deepinfra.com/v1/openai/chat/completions", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `DeepInfra fallback invoke failed: ${response.status} ${response.statusText} – ${errorText}`
+    );
+  }
+
+  return (await response.json()) as InvokeResult;
+}
+
 export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   const apiKey = ENV.deepseekApiKey;
   if (!apiKey) {

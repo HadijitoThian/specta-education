@@ -27,7 +27,7 @@
  * silently shipping an embarrassing 4-page brochure.
  */
 
-import { invokeLLM } from "./_core/llm";
+import { invokeLLM, invokeLLMFallback } from "./_core/llm";
 import { notifyOwner } from "./_core/notification";
 
 // ── AI Analysis Schema ───────────────────────────────────────────────────
@@ -255,14 +255,64 @@ export async function runAptitudeAiAnalysisReliably(
     }
   }
 
-  // All attempts exhausted — notify owner + throw
-  const errorSummary = errors.join("\n");
-  console.error(`[AptitudePro] 🚨 ALL ${maxAttempts} attempts failed for ${opts.studentEmail}:\n${errorSummary}`);
+  // ── DeepSeek exhausted — try the DeepInfra/GLM fallback once ───────────
+  // DeepSeek and DeepInfra run on different infra, so simultaneous failures
+  // are rare enough to give near-zero effective failure rate. Only paid
+  // when DeepSeek is actually broken (~1× per few hundred submits based on
+  // Aug 2026 incident rate), so the modest cost delta per fallback is
+  // negligible against saving a paying student from a 5-7 min auto-recovery
+  // wait. Uses the existing DEEPINFRA_API_KEY (same key that powers our
+  // image pipeline) so no new secrets on Railway.
+  console.warn(`[AptitudePro] 🔁 DeepSeek exhausted for ${opts.studentEmail} — trying DeepInfra/GLM fallback…`);
+  try {
+    const fbStart = Date.now();
+    const fbResponse = await invokeLLMFallback({
+      messages: [
+        { role: "system", content: opts.systemPrompt },
+        { role: "user", content: opts.userPrompt },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "pro_aptitude_analysis",
+          strict: true,
+          schema: opts.jsonSchema,
+        },
+      },
+    });
+    const rawContent = fbResponse.choices?.[0]?.message?.content;
+    if (!rawContent) throw new Error("DeepInfra/GLM fallback returned empty content");
+    const content = typeof rawContent === "string" ? rawContent : String(rawContent);
+    console.log(`[AptitudePro] DeepInfra/GLM fallback raw response (${content.length} chars): ${content.slice(0, 500)}...`);
+    analysis = JSON.parse(content);
+    validation = validateAiAnalysisForPdf(analysis);
+    if (validation.ok) {
+      const fbMs = Date.now() - fbStart;
+      console.log(`[AptitudePro] ✅✅ DeepInfra/GLM fallback SAVED ${opts.studentEmail} after ${maxAttempts} DeepSeek fails (fallback took ${fbMs}ms, total ${Date.now() - started}ms)`);
+      // Fire-and-forget owner note so we can track how often DeepSeek is
+      // flaking. Don't block the student's response on this.
+      notifyOwner({
+        title: `⚠️ Aptitude Pro DeepSeek failed — GLM fallback saved ${opts.studentName || "?"}`,
+        content: `Student: ${opts.studentName || "?"} (${opts.studentEmail || "?"})\n\nDeepSeek failed all ${maxAttempts} attempts:\n${errors.join("\n")}\n\nGLM (via DeepInfra) fallback succeeded in ${fbMs}ms — student got their report on first submit with no visible failure. No manual action needed.\n\nIf you see this notification frequently, DeepSeek is unreliable and we should either (a) reorder providers so GLM goes first, or (b) run both in parallel and take whichever finishes.`,
+      }).catch(() => {});
+      return { analysis, attemptsUsed: maxAttempts + 1, totalMs: Date.now() - started, validation };
+    }
+    errors.push(`DeepInfra/GLM fallback: validation failed — missing ${validation.missingFields.join(", ")}`);
+    console.warn(`[AptitudePro] ⚠️ DeepInfra/GLM fallback ran but validation failed: ${validation.missingFields.join(", ")}`);
+  } catch (fbErr) {
+    const fbMsg = (fbErr as Error).message;
+    errors.push(`DeepInfra/GLM fallback: ${fbMsg}`);
+    console.error(`[AptitudePro] ❌ DeepInfra/GLM fallback also failed:`, fbMsg);
+  }
+
+  // ── Both providers exhausted — notify owner + throw ─────────────────────
+  const summary = errors.join("\n");
+  console.error(`[AptitudePro] 🚨 BOTH providers failed for ${opts.studentEmail}:\n${summary}`);
 
   await notifyOwner({
-    title: `🚨 Aptitude Pro AI analysis FAILED for ${opts.studentName || "?"}`,
-    content: `Student: ${opts.studentName || "?"} (${opts.studentEmail || "?"})\n\nAll ${maxAttempts} AI analysis attempts failed:\n\n${errorSummary}\n\nCheck logs for full details. Their PDF was NOT sent — retry manually via admin > Aptitude Manager > Resend result.`,
+    title: `🚨 Aptitude Pro — BOTH DeepSeek AND GLM failed for ${opts.studentName || "?"}`,
+    content: `Student: ${opts.studentName || "?"} (${opts.studentEmail || "?"})\n\nEvery AI attempt failed across BOTH providers (DeepSeek + GLM via DeepInfra):\n\n${summary}\n\nAuto-recovery in the submit handler will retry once the outage clears. If it doesn't, retry manually via admin > Aptitude Manager > Regenerate analysis. This is genuinely rare — usually means both providers are down or something is wrong with the prompt/schema.`,
   }).catch(() => {});
 
-  throw new Error(`Aptitude Pro AI analysis failed after ${maxAttempts} attempts: ${errors[errors.length - 1] || "unknown"}`);
+  throw new Error(`Aptitude Pro AI analysis failed on BOTH providers: ${errors[errors.length - 1] || "unknown"}`);
 }
