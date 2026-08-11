@@ -16,6 +16,70 @@ import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
 import { leads, tutorSubscriptions, tutorSessions } from "../drizzle/schema";
 import { TUTOR_PLANS } from "./xenditService";
+import { sendEmail } from "./email";
+import { ENV } from "./_core/env";
+
+/**
+ * Build the "AI IELTS Tutor free access granted" email. Used by
+ * grantFreeAccess to notify the student they've been given (or extended)
+ * a free subscription. Kept inline here — it's a small, one-off template
+ * and there's no reuse elsewhere yet.
+ */
+function buildFreeAccessGrantedEmail(params: {
+  studentName: string;
+  days: number;
+  plan: "w2" | "m1";
+  expiresAt: Date;
+  extended: boolean;
+  appUrl: string;
+}): { subject: string; html: string; text: string } {
+  const { studentName, days, plan, expiresAt, extended, appUrl } = params;
+  const planLabel = plan === "w2" ? "2-week" : "1-month";
+  const expiresStr = expiresAt.toLocaleDateString("id-ID", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
+  const tutorUrl = `${appUrl}/tutor`;
+  const subject = extended
+    ? `🎓 SpecTa AI IELTS Tutor — akses kamu diperpanjang ${days} hari`
+    : `🎓 SpecTa AI IELTS Tutor — akses ${planLabel} kamu sudah aktif`;
+  const headingId = extended ? "Akses AI IELTS Tutor Diperpanjang! 🎉" : "Selamat! Akses AI IELTS Tutor Kamu Aktif 🎉";
+  const bodyIntroId = extended
+    ? `Kabar baik, ${studentName}! Tim SpecTa Education memperpanjang akses AI IELTS Tutor kamu selama ${days} hari lagi. Latihanmu bisa langsung dilanjutkan tanpa perlu bayar.`
+    : `Halo ${studentName}! Tim SpecTa Education memberikan akses GRATIS ke AI IELTS Tutor selama ${days} hari untuk kamu. Tidak perlu bayar apapun — langsung mulai latihan.`;
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+    <div style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+      <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:32px;text-align:center;">
+        <h1 style="color:white;margin:0;font-size:22px;">${headingId}</h1>
+        <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:14px;">AI IELTS Tutor · Free Access Granted</p>
+      </div>
+      <div style="padding:32px;">
+        <p style="color:#374151;font-size:15px;line-height:1.6;margin:0 0 20px;">${bodyIntroId}</p>
+        <div style="background:#f9fafb;border-radius:12px;padding:20px;margin:16px 0;">
+          <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px;color:#374151;">
+            <tr><td style="padding:6px 0;color:#6b7280;">Paket</td><td style="padding:6px 0;text-align:right;font-weight:600;">${planLabel} (${plan.toUpperCase()})</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7280;">Durasi</td><td style="padding:6px 0;text-align:right;font-weight:600;">${days} hari</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7280;">Berlaku hingga</td><td style="padding:6px 0;text-align:right;font-weight:600;">${expiresStr}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7280;">Biaya</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#10b981;">GRATIS</td></tr>
+          </table>
+        </div>
+        <div style="text-align:center;margin:28px 0 20px;">
+          <a href="${tutorUrl}" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;text-decoration:none;padding:14px 36px;border-radius:12px;font-weight:bold;font-size:15px;">Mulai Latihan Sekarang →</a>
+        </div>
+        <p style="color:#6b7280;font-size:13px;line-height:1.6;margin:20px 0 0;">
+          Kalau butuh bantuan atau ada masalah saat login, WhatsApp kami di <a href="https://wa.me/62818218388" style="color:#6366f1;">0818-2183-8888</a>.
+        </p>
+      </div>
+      <div style="background:#f9fafb;padding:20px 32px;text-align:center;border-top:1px solid #e5e7eb;">
+        <p style="color:#9ca3af;font-size:12px;margin:0;">© ${new Date().getFullYear()} SpecTa Education • www.spectaeducation.com</p>
+      </div>
+    </div>
+  </div>
+</body></html>`;
+  const text = `${headingId}\n\n${bodyIntroId}\n\nPaket: ${planLabel} (${plan.toUpperCase()})\nDurasi: ${days} hari\nBerlaku hingga: ${expiresStr}\nBiaya: GRATIS\n\nMulai latihan: ${tutorUrl}\n\nBantuan: WhatsApp 0818-2183-8888`;
+  return { subject, html, text };
+}
 
 function assertAdmin(ctx: { user: { role: string } | null }) {
   if (!ctx.user || ctx.user.role !== "admin") {
@@ -349,7 +413,7 @@ export const tutorAdminRouter = router({
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
       const email = input.email.trim().toLowerCase();
-      const [lead] = await db.select({ id: leads.id, name: leads.studentName })
+      const [lead] = await db.select({ id: leads.id, name: leads.studentName, studentEmail: leads.studentEmail })
         .from(leads).where(sql`LOWER(${leads.studentEmail}) = ${email}`).limit(1);
       if (!lead) {
         throw new TRPCError({
@@ -357,6 +421,30 @@ export const tutorAdminRouter = router({
           message: "No student found with that email. Use 'AI Tutor free link' instead so they can self-register.",
         });
       }
+
+      const appUrl = ENV.appUrl.replace(/\/+$/, "");
+      const notifyStudent = async (expiresAt: Date, extended: boolean, subId: number) => {
+        try {
+          const { subject, html, text } = buildFreeAccessGrantedEmail({
+            studentName: lead.name || "there",
+            days: input.days,
+            plan: input.plan,
+            expiresAt,
+            extended,
+            appUrl,
+          });
+          const ok = await sendEmail({ to: (lead.studentEmail || email), subject, html, text });
+          if (ok) {
+            console.log(`[TutorAdmin] Free-access ${extended ? "extension" : "grant"} email sent to ${(lead.studentEmail || email)} (sub #${subId})`);
+          } else {
+            console.warn(`[TutorAdmin] Free-access email NOT sent to ${(lead.studentEmail || email)} (sub #${subId}) — sendEmail returned false. Check RESEND_API_KEY + Resend logs.`);
+          }
+          return ok;
+        } catch (err) {
+          console.error(`[TutorAdmin] Free-access email threw for ${(lead.studentEmail || email)} (sub #${subId}):`, err);
+          return false;
+        }
+      };
 
       // If they already have an active sub, extend it instead of stacking.
       const [active] = await db.select().from(tutorSubscriptions)
@@ -372,7 +460,8 @@ export const tutorAdminRouter = router({
         const newExpires = new Date(base.getTime() + input.days * DAY);
         await db.update(tutorSubscriptions).set({ expiresAt: newExpires })
           .where(eq(tutorSubscriptions.id, active.id));
-        return { extendedExistingSub: true, subscriptionId: active.id, expiresAt: newExpires };
+        const emailSent = await notifyStudent(newExpires, true, active.id);
+        return { extendedExistingSub: true, subscriptionId: active.id, expiresAt: newExpires, emailSent, notifiedEmail: (lead.studentEmail || email) };
       }
 
       const startsAt = new Date();
@@ -388,7 +477,8 @@ export const tutorAdminRouter = router({
         expiresAt,
       });
       const id = (r as any)[0]?.insertId as number;
-      return { extendedExistingSub: false, subscriptionId: id, expiresAt };
+      const emailSent = await notifyStudent(expiresAt, false, id);
+      return { extendedExistingSub: false, subscriptionId: id, expiresAt, emailSent, notifiedEmail: (lead.studentEmail || email) };
     }),
 
   /**

@@ -103,11 +103,14 @@ function GrantAndLinkCard() {
 
   const grant = trpc.admin.tutor.grantFreeAccess.useMutation({
     onSuccess: (d: any) => {
-      setResult(
-        d.extendedExistingSub
-          ? `✅ Existing sub #${d.subscriptionId} extended. New expiry: ${new Date(d.expiresAt).toLocaleString()}`
-          : `✅ Granted free sub #${d.subscriptionId}. Expires: ${new Date(d.expiresAt).toLocaleString()}`
-      );
+      const expiryStr = new Date(d.expiresAt).toLocaleString();
+      const action = d.extendedExistingSub
+        ? `Existing sub #${d.subscriptionId} extended. New expiry: ${expiryStr}`
+        : `Granted free sub #${d.subscriptionId}. Expires: ${expiryStr}`;
+      const emailNote = d.emailSent
+        ? `📧 Confirmation email sent to ${d.notifiedEmail}.`
+        : `⚠️ DB updated but confirmation email FAILED to send to ${d.notifiedEmail}. Check Railway logs (filter: [TutorAdmin]) — Resend key may be missing or throttled. Notify the student manually.`;
+      setResult(`✅ ${action}\n${emailNote}`);
       utils.admin.tutor.stats.invalidate();
       utils.admin.tutor.listSubscriptions.invalidate();
       setEmail("");
@@ -175,7 +178,7 @@ function GrantAndLinkCard() {
           {createLink.isPending ? "Creating…" : "✨ Create shareable link"}
         </button>
       </div>
-      {result && <div className="mt-3 text-sm p-2 bg-slate-100 rounded break-all">{result}</div>}
+      {result && <div className="mt-3 text-sm p-2 bg-slate-100 rounded break-all whitespace-pre-line">{result}</div>}
       <p className="mt-3 text-xs text-slate-500">
         <strong>Grant to email</strong> = one specific student who's already registered (adds a FREE- sub or extends
         their active one). <strong>Shareable link</strong> = anyone with the URL can redeem (they register + get {days} days).
