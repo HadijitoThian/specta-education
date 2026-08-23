@@ -31,18 +31,52 @@ import { invokeLLM, invokeLLMFallback } from "./_core/llm";
 import { notifyOwner } from "./_core/notification";
 
 /**
- * Extract JSON from an LLM response even when the model wraps it in prose.
- * DeepSeek and OpenAI-compatible models sometimes emit "Here is the analysis:
- * {...}" or fenced ```json blocks despite JSON mode being requested. Strict
- * JSON.parse throws on any of that; this falls back to extracting the first
- * balanced {...} block. Aug 24 incident: GLM was returning valid content but
- * we were treating any wrapper as a failure and giving up.
+ * Extract JSON from an LLM response even when the model wraps it in prose
+ * OR emits a valid JSON followed by trailing chatter.
+ *
+ * Aug 25 incident (Hubbul Amirir Rabb): DeepSeek attempt 3 produced
+ * "Unexpected non-whitespace character after JSON at position 2686" —
+ * a valid short JSON followed by trailing prose. Strict JSON.parse
+ * throws on trailing content even though the JSON itself is fine.
+ *
+ * Strategy:
+ *   1. Try strict JSON.parse — works for well-behaved responses.
+ *   2. Try to find the FIRST BALANCED {...} block starting from the
+ *      first "{". Balanced-brace scanning stops as soon as we close
+ *      the top-level object, so trailing prose is ignored.
+ *   3. As a last resort, try the naive "first { to last }" slice —
+ *      catches nested prose that happens to have no unbalanced braces.
  */
 function parseLooseJson(text: string): any {
-  try { return JSON.parse(text); } catch { /* try extract */ }
+  try { return JSON.parse(text); } catch { /* try smarter extraction */ }
+
   const first = text.indexOf("{");
+  if (first < 0) throw new Error("Could not extract valid JSON: no { found");
+
+  // Walk balanced braces from `first` — respect string literals so a `}` inside
+  // a string doesn't close the object.
+  let depth = 0, inString = false, escape = false;
+  for (let i = first; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) { escape = false; continue; }
+    if (ch === "\\") { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) {
+        // Found balanced end — try to parse.
+        const candidate = text.slice(first, i + 1);
+        try { return JSON.parse(candidate); } catch { /* keep going */ }
+        break; // no point continuing; balanced end found but invalid
+      }
+    }
+  }
+
+  // Last resort — naive slice.
   const last = text.lastIndexOf("}");
-  if (first >= 0 && last > first) {
+  if (last > first) {
     try { return JSON.parse(text.slice(first, last + 1)); } catch { /* fall through */ }
   }
   throw new Error("Could not extract valid JSON from response");
@@ -242,8 +276,11 @@ export async function runAptitudeAiAnalysisReliably(
       }
 
       const content = typeof rawContent === "string" ? rawContent : String(rawContent);
-      // Log first 2000 chars so we can debug quality from Railway logs
-      console.log(`[AptitudePro] AI raw response (${content.length} chars, attempt ${attempt}): ${content.slice(0, 2000)}${content.length > 2000 ? "..." : ""}`);
+      const finishReason = (aiResponse as any).choices?.[0]?.finish_reason;
+      // Log first 2000 chars + finish_reason so we can debug WHY things fail
+      // ("length" = truncation → we need more max_tokens; "content_filter" =
+      // refused; missing = weird — look at the raw response upstream).
+      console.log(`[AptitudePro] AI raw response (${content.length} chars, attempt ${attempt}, finish_reason=${finishReason || "?"}): ${content.slice(0, 2000)}${content.length > 2000 ? "..." : ""}`);
 
       analysis = parseLooseJson(content);
       validation = validateAiAnalysisForPdf(analysis);
@@ -313,7 +350,15 @@ export async function runAptitudeAiAnalysisReliably(
         },
       });
       const rawContent = fbResponse.choices?.[0]?.message?.content;
-      if (!rawContent) throw new Error(`${fbModel} returned empty content`);
+      const finishReason = (fbResponse as any).choices?.[0]?.finish_reason;
+      if (!rawContent) {
+        // Empty content — most useful signal is finish_reason ("length" =
+        // truncated, "content_filter" = refused, "stop" but empty = weird).
+        // Also dump the raw response shape so we can debug when it recurs.
+        const dump = JSON.stringify(fbResponse).slice(0, 1500);
+        console.error(`[AptitudePro] ${fbModel} EMPTY content — finish_reason=${finishReason || "?"} — raw response: ${dump}`);
+        throw new Error(`${fbModel} returned empty content (finish_reason=${finishReason || "?"})`);
+      }
       const content = typeof rawContent === "string" ? rawContent : String(rawContent);
       // Log more of the response than before — 2000 chars — so if it fails
       // we can see WHY (truncated? prose wrapper? refusal? partial JSON?).

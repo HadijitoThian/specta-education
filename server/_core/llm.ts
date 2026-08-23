@@ -328,7 +328,15 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   const payload: Record<string, unknown> = {
     model: selectedModel,
     messages: messages.map(normalizeMessage),
-    max_tokens: 8192,
+    // 16k — bumped from 8k on 2026-08-25 after Hubbul Amirir Rabb's Pro
+    // Aptitude submission had all 3 DeepSeek attempts truncated
+    // ("Unexpected end of JSON input" / "Unterminated string" errors on
+    // the Pro schema, which legitimately needs 10-12k tokens for full
+    // output). Other callers use much smaller outputs (writing eval,
+    // per-answer speaking eval) so raising this default doesn't cost
+    // them anything — max_tokens is an upper limit, actual usage bills
+    // per real completion token.
+    max_tokens: 16000,
   };
 
   if (tools && tools.length > 0) {
