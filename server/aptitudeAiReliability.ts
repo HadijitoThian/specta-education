@@ -30,6 +30,24 @@
 import { invokeLLM, invokeLLMFallback } from "./_core/llm";
 import { notifyOwner } from "./_core/notification";
 
+/**
+ * Extract JSON from an LLM response even when the model wraps it in prose.
+ * DeepSeek and OpenAI-compatible models sometimes emit "Here is the analysis:
+ * {...}" or fenced ```json blocks despite JSON mode being requested. Strict
+ * JSON.parse throws on any of that; this falls back to extracting the first
+ * balanced {...} block. Aug 24 incident: GLM was returning valid content but
+ * we were treating any wrapper as a failure and giving up.
+ */
+function parseLooseJson(text: string): any {
+  try { return JSON.parse(text); } catch { /* try extract */ }
+  const first = text.indexOf("{");
+  const last = text.lastIndexOf("}");
+  if (first >= 0 && last > first) {
+    try { return JSON.parse(text.slice(first, last + 1)); } catch { /* fall through */ }
+  }
+  throw new Error("Could not extract valid JSON from response");
+}
+
 // ── AI Analysis Schema ───────────────────────────────────────────────────
 // Fields the PDF renderer references. If ANY of these are missing, we do
 // not have a valid Pro analysis — do not send the PDF.
@@ -224,10 +242,10 @@ export async function runAptitudeAiAnalysisReliably(
       }
 
       const content = typeof rawContent === "string" ? rawContent : String(rawContent);
-      // Log first 500 chars so we can debug quality from Railway logs
-      console.log(`[AptitudePro] AI raw response (${content.length} chars, attempt ${attempt}): ${content.slice(0, 500)}...`);
+      // Log first 2000 chars so we can debug quality from Railway logs
+      console.log(`[AptitudePro] AI raw response (${content.length} chars, attempt ${attempt}): ${content.slice(0, 2000)}${content.length > 2000 ? "..." : ""}`);
 
-      analysis = JSON.parse(content);
+      analysis = parseLooseJson(content);
       validation = validateAiAnalysisForPdf(analysis);
 
       if (validation.ok) {
@@ -255,54 +273,69 @@ export async function runAptitudeAiAnalysisReliably(
     }
   }
 
-  // ── DeepSeek exhausted — try the DeepInfra/GLM fallback once ───────────
+  // ── DeepSeek exhausted — try DeepInfra fallback with model cascade ─────
   // DeepSeek and DeepInfra run on different infra, so simultaneous failures
-  // are rare enough to give near-zero effective failure rate. Only paid
-  // when DeepSeek is actually broken (~1× per few hundred submits based on
-  // Aug 2026 incident rate), so the modest cost delta per fallback is
-  // negligible against saving a paying student from a 5-7 min auto-recovery
-  // wait. Uses the existing DEEPINFRA_API_KEY (same key that powers our
+  // are rare. Uses the existing DEEPINFRA_API_KEY (same key that powers our
   // image pipeline) so no new secrets on Railway.
-  console.warn(`[AptitudePro] 🔁 DeepSeek exhausted for ${opts.studentEmail} — trying DeepInfra/GLM fallback…`);
-  try {
-    const fbStart = Date.now();
-    const fbResponse = await invokeLLMFallback({
-      messages: [
-        { role: "system", content: opts.systemPrompt },
-        { role: "user", content: opts.userPrompt },
-      ],
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "pro_aptitude_analysis",
-          strict: true,
-          schema: opts.jsonSchema,
+  //
+  // Model cascade: if the primary model (GLM 5.2) errors — model paused,
+  // rate limited, or returns malformed output — try a second known-reliable
+  // model before giving up. Aug 24 incident: GLM 5.2 alone truncated output
+  // at 8k tokens on the huge Pro schema; both raising max_tokens and having
+  // a second model to fall through to should prevent that class of failure.
+  //
+  // (parseLooseJson is defined at module scope — see top of file.)
+
+  const FALLBACK_MODELS = [
+    process.env.LLM_FALLBACK_MODEL || "zai-org/GLM-5.2",
+    // Known-reliable second choice on DeepInfra: 70B Llama with proven
+    // JSON-mode support. If GLM is paused or misbehaving, this catches it.
+    "meta-llama/Meta-Llama-3.1-70B-Instruct",
+  ];
+
+  for (const fbModel of FALLBACK_MODELS) {
+    console.warn(`[AptitudePro] 🔁 Trying DeepInfra fallback (${fbModel}) for ${opts.studentEmail}…`);
+    try {
+      const fbStart = Date.now();
+      const fbResponse = await invokeLLMFallback({
+        model: fbModel,
+        messages: [
+          { role: "system", content: opts.systemPrompt },
+          { role: "user", content: opts.userPrompt },
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "pro_aptitude_analysis",
+            strict: true,
+            schema: opts.jsonSchema,
+          },
         },
-      },
-    });
-    const rawContent = fbResponse.choices?.[0]?.message?.content;
-    if (!rawContent) throw new Error("DeepInfra/GLM fallback returned empty content");
-    const content = typeof rawContent === "string" ? rawContent : String(rawContent);
-    console.log(`[AptitudePro] DeepInfra/GLM fallback raw response (${content.length} chars): ${content.slice(0, 500)}...`);
-    analysis = JSON.parse(content);
-    validation = validateAiAnalysisForPdf(analysis);
-    if (validation.ok) {
-      const fbMs = Date.now() - fbStart;
-      console.log(`[AptitudePro] ✅✅ DeepInfra/GLM fallback SAVED ${opts.studentEmail} after ${maxAttempts} DeepSeek fails (fallback took ${fbMs}ms, total ${Date.now() - started}ms)`);
-      // Fire-and-forget owner note so we can track how often DeepSeek is
-      // flaking. Don't block the student's response on this.
-      notifyOwner({
-        title: `⚠️ Aptitude Pro DeepSeek failed — GLM fallback saved ${opts.studentName || "?"}`,
-        content: `Student: ${opts.studentName || "?"} (${opts.studentEmail || "?"})\n\nDeepSeek failed all ${maxAttempts} attempts:\n${errors.join("\n")}\n\nGLM (via DeepInfra) fallback succeeded in ${fbMs}ms — student got their report on first submit with no visible failure. No manual action needed.\n\nIf you see this notification frequently, DeepSeek is unreliable and we should either (a) reorder providers so GLM goes first, or (b) run both in parallel and take whichever finishes.`,
-      }).catch(() => {});
-      return { analysis, attemptsUsed: maxAttempts + 1, totalMs: Date.now() - started, validation };
+      });
+      const rawContent = fbResponse.choices?.[0]?.message?.content;
+      if (!rawContent) throw new Error(`${fbModel} returned empty content`);
+      const content = typeof rawContent === "string" ? rawContent : String(rawContent);
+      // Log more of the response than before — 2000 chars — so if it fails
+      // we can see WHY (truncated? prose wrapper? refusal? partial JSON?).
+      console.log(`[AptitudePro] ${fbModel} raw response (${content.length} chars): ${content.slice(0, 2000)}${content.length > 2000 ? "..." : ""}`);
+      analysis = parseLooseJson(content);
+      validation = validateAiAnalysisForPdf(analysis);
+      if (validation.ok) {
+        const fbMs = Date.now() - fbStart;
+        console.log(`[AptitudePro] ✅✅ DeepInfra fallback (${fbModel}) SAVED ${opts.studentEmail} after ${maxAttempts} DeepSeek fails (fallback took ${fbMs}ms, total ${Date.now() - started}ms)`);
+        notifyOwner({
+          title: `⚠️ Aptitude Pro DeepSeek failed — DeepInfra fallback (${fbModel}) saved ${opts.studentName || "?"}`,
+          content: `Student: ${opts.studentName || "?"} (${opts.studentEmail || "?"})\n\nDeepSeek failed all ${maxAttempts} attempts:\n${errors.join("\n")}\n\nDeepInfra fallback (${fbModel}) succeeded in ${fbMs}ms — student got their report on first submit with no visible failure. No manual action needed.\n\nIf you see this notification frequently, DeepSeek is unreliable and we should either (a) reorder providers so DeepInfra goes first, or (b) run both in parallel and take whichever finishes.`,
+        }).catch(() => {});
+        return { analysis, attemptsUsed: maxAttempts + 1, totalMs: Date.now() - started, validation };
+      }
+      errors.push(`DeepInfra fallback ${fbModel}: validation failed — missing ${validation.missingFields.join(", ")}`);
+      console.warn(`[AptitudePro] ⚠️ DeepInfra ${fbModel} ran but validation failed: ${validation.missingFields.join(", ")}`);
+    } catch (fbErr) {
+      const fbMsg = (fbErr as Error).message;
+      errors.push(`DeepInfra fallback ${fbModel}: ${fbMsg}`);
+      console.error(`[AptitudePro] ❌ DeepInfra ${fbModel} also failed:`, fbMsg);
     }
-    errors.push(`DeepInfra/GLM fallback: validation failed — missing ${validation.missingFields.join(", ")}`);
-    console.warn(`[AptitudePro] ⚠️ DeepInfra/GLM fallback ran but validation failed: ${validation.missingFields.join(", ")}`);
-  } catch (fbErr) {
-    const fbMsg = (fbErr as Error).message;
-    errors.push(`DeepInfra/GLM fallback: ${fbMsg}`);
-    console.error(`[AptitudePro] ❌ DeepInfra/GLM fallback also failed:`, fbMsg);
   }
 
   // ── Both providers exhausted — notify owner + throw ─────────────────────

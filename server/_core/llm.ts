@@ -268,9 +268,13 @@ export async function invokeLLMFallback(params: InvokeParams): Promise<InvokeRes
   const { messages, responseFormat, response_format, outputSchema, output_schema } = params;
 
   const payload: Record<string, unknown> = {
-    model: process.env.LLM_FALLBACK_MODEL || "zai-org/GLM-5.2",
+    model: params.model || process.env.LLM_FALLBACK_MODEL || "zai-org/GLM-5.2",
     messages: messages.map(normalizeMessage),
-    max_tokens: 8192,
+    // 16k — the Pro Aptitude schema (bigFive + 5 majors + strengths + action
+    // plan + long analysis paragraphs) can genuinely require 10k+ tokens.
+    // 8k was truncating GLM's output mid-JSON, causing JSON.parse to throw
+    // and get treated as a "GLM also failed" outcome (2026-08-24 incident).
+    max_tokens: 16000,
   };
 
   // DeepInfra's OpenAI-compatible endpoint supports json_object mode. If the
