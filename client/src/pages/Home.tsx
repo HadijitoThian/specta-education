@@ -191,7 +191,7 @@ export default function Home() {
         </div>
         
         <div className="container">
-          <div className="grid lg:grid-cols-2 gap-8 items-center">
+          <div className="grid md:grid-cols-2 gap-8 items-center">
             <div className="space-y-6">
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
@@ -275,7 +275,7 @@ export default function Home() {
           >
             <div className="absolute -top-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
             <div className="absolute -bottom-20 -left-10 w-72 h-72 bg-amber-400/10 rounded-full blur-3xl" />
-            <div className="relative grid lg:grid-cols-2 gap-8 items-center">
+            <div className="relative grid md:grid-cols-2 gap-8 items-center">
               <div>
                 <div className="inline-flex items-center gap-2 bg-amber-400/20 text-amber-200 text-xs font-semibold px-3 py-1 rounded-full mb-4">
                   <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
@@ -654,7 +654,7 @@ export default function Home() {
       <section className="py-24 overflow-hidden relative">
         <div className="absolute inset-0 bg-gradient-to-br from-pink-50 via-white to-purple-50 dark:from-pink-950/20 dark:via-background dark:to-purple-950/20" />
         <div className="container relative">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <div className="grid md:grid-cols-2 gap-16 items-center">
             {/* Left: Content */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}

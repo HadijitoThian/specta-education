@@ -37,8 +37,11 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
           <img src="/specta-logo.png" alt="SpecTa Education" className="h-10 w-auto max-w-[150px] object-contain" />
         </button>
         
-        {/* Desktop Navigation */}
-        <div className="hidden lg:flex items-center gap-5 xl:gap-6 whitespace-nowrap">
+        {/* Desktop Navigation — md: breakpoint (768px) so laptops and
+            standard-zoom browsers get horizontal nav, not the hamburger.
+            Previously lg: (1024px) misfired for any laptop under 1024px OR
+            when browser zoom was ≥125% (narrows the effective viewport). */}
+        <div className="hidden md:flex items-center gap-4 lg:gap-5 xl:gap-6 whitespace-nowrap">
           <button onClick={() => handleNavClick("/about")} className={`text-sm font-medium transition-colors ${isActive("about") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             About
           </button>
@@ -161,8 +164,8 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
           </button>
         </div>
 
-        {/* Desktop CTA Buttons */}
-        <div className="hidden lg:flex items-center gap-2 shrink-0 whitespace-nowrap">
+        {/* Desktop CTA Buttons — see Navigation md: note above */}
+        <div className="hidden md:flex items-center gap-2 shrink-0 whitespace-nowrap">
           <button onClick={() => handleNavClick("/book")} className="px-3.5 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-blue-200 transition-all">
             Book Call
           </button>
@@ -172,8 +175,8 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
         </div>
 
         {/* Mobile Menu Button */}
-        <button 
-          className="lg:hidden p-2"
+        <button
+          className="md:hidden p-2"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label="Toggle menu"
         >
@@ -183,7 +186,7 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
 
       {/* Mobile Navigation */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-white border-t border-border max-h-[calc(100vh-4rem)] overflow-y-auto">
+        <div className="md:hidden bg-white border-t border-border max-h-[calc(100vh-4rem)] overflow-y-auto">
           <div className="container py-4 space-y-4">
             <button onClick={() => handleNavClick("/about")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
               About Us
