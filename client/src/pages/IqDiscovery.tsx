@@ -20,6 +20,7 @@ import { useSearch } from "wouter";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import IqQuestionRenderer from "@/components/iq/IqQuestionRenderers";
+import { IqResultScreen } from "@/components/iq/IqResultCard";
 import { trpc } from "@/lib/trpc";
 import { Loader2, Clock, Sparkles, Trophy, Brain, ArrowRight, Lock, Zap, Target, FileText, Share2, ShieldCheck, ChevronDown, Star } from "lucide-react";
 
@@ -219,50 +220,17 @@ export default function IqDiscovery() {
     );
   }
 
-  // ── DONE (v1 result — full result screen w/ archetype comes in M3) ────
+  // ── DONE — full-featured result screen (M3 shipped) ──────────────────
   if (phase === "done" && summary) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      <div className="min-h-screen">
         <Navigation />
-        <main className="max-w-xl mx-auto p-4 pt-20 pb-16">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-6 text-center">
-            <div className="text-5xl mb-2">🧠</div>
-            <div className="text-xs uppercase tracking-widest text-slate-500 font-semibold">
-              {summary.mode === "preview" ? "Preview · Estimasi kasar" : "Estimasi IQ"}
-            </div>
-            <div className="text-6xl font-black text-slate-900 mt-2 mb-1">{summary.fsiq}</div>
-            <div className="text-sm text-slate-500">± {summary.confidenceRange}</div>
-
-            <div className="mt-6 pt-6 border-t border-slate-100">
-              <div className="text-xs uppercase tracking-widest text-slate-500 font-semibold mb-3">Skor per dimensi</div>
-              <div className="space-y-2 text-left">
-                {Object.entries(summary.perDomain).map(([d, s]: [string, any]) => (
-                  <div key={d} className="flex items-center justify-between">
-                    <span className="text-sm text-slate-700 capitalize">{d}</span>
-                    <span className="text-sm font-semibold text-slate-900">{s.correct}/{s.total}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {summary.mode === "preview" && (
-              <div className="mt-6 pt-6 border-t border-slate-100">
-                <a href="/iq-discovery/beli" className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">
-                  <Trophy className="w-4 h-4" /> Unlock skor lengkap · Rp 59k
-                </a>
-                <p className="text-xs text-slate-500 mt-2">Laporan PDF · arketip kognitif · gambar untuk story IG</p>
-              </div>
-            )}
-
-            <p className="text-[10px] text-slate-400 mt-6 italic">
-              Estimasi berbasis AI, bukan pengganti tes IQ klinis profesional.
-            </p>
-          </div>
-        </main>
+        <IqResultScreen summary={summary} />
         <Footer />
       </div>
     );
   }
+
 
   // ── RUNNING — actual test ──────────────────────────────────────────────
   if (phase === "running" && session) {

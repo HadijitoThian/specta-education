@@ -29,6 +29,9 @@ import {
   createIqSession, getIqSession, updateIqSession,
   getIqAccessTokenByToken, markIqTokenInProgress,
 } from "./db";
+import { scoreIqSession } from "./iqScoring";
+import { generateIqNarrative } from "./iqFeedbackEngine";
+import type { IqDomain } from "./iqQuestionTypes";
 
 const DOMAINS = ["fluid", "quantitative", "verbal", "spatial", "memory"] as const;
 
@@ -270,31 +273,43 @@ export const iqSessionRouter = router({
       }
 
       const questions = await getIqQuestionsByIds(questionIds);
-      const perDomain: Record<string, { correct: number; total: number }> = {};
-      for (const d of DOMAINS) perDomain[d] = { correct: 0, total: 0 };
-      for (let i = 0; i < answers.length; i++) {
-        const q = questions.find(x => x.id === answers[i].questionId);
-        if (!q) continue;
-        perDomain[q.domain].total++;
-        if (answers[i].correct) perDomain[q.domain].correct++;
-      }
+      const questionMap = new Map(questions.map(q => [q.id, q]));
 
-      // Stub FSIQ: total correct / total * 40 + 80, clamped [70, 140].
-      // Real scoring per-domain z-scoring lands in M3.
-      const totalCorrect = Object.values(perDomain).reduce((s, x) => s + x.correct, 0);
-      const totalAsked = Object.values(perDomain).reduce((s, x) => s + x.total, 0);
-      const rawFraction = totalAsked > 0 ? totalCorrect / totalAsked : 0;
-      const fsiqRaw = 80 + Math.round(rawFraction * 60);
-      const fsiq = Math.max(70, Math.min(140, fsiqRaw));
+      // Build the answer rows for the scoring engine — enrich each stored
+      // answer with its question's domain (scoring is domain-aware).
+      const rows = answers.map(a => {
+        const q = questionMap.get(a.questionId);
+        return {
+          questionId: a.questionId,
+          domain: (q?.domain || "fluid") as IqDomain,
+          correct: !!a.correct,
+          timedOut: !!a.timedOut,
+          timeMs: (a.serverEndMs || 0) - (a.serverStartMs || 0),
+        };
+      });
+      const totalTimeSec = rows.reduce((s, r) => s + Math.max(0, r.timeMs / 1000), 0);
+
+      // Real scoring (per-domain scaled bands + FSIQ + percentile + archetype).
+      const score = scoreIqSession({
+        answers: rows,
+        totalTimeSec,
+        mode: session.mode,
+      });
+
+      // AI narrative (Bahasa Indonesia). NEVER throws — falls back to a
+      // hardcoded generic narrative if both DeepSeek and GLM fail, so the
+      // student always sees a valid result.
+      const narrative = await generateIqNarrative(
+        score,
+        session.studentName || "Kamu",
+        session.mode,
+      );
 
       const result = {
-        fsiq,
-        confidenceRange: session.mode === "preview" ? 15 : 8,
-        totalCorrect,
-        totalAsked,
-        perDomain,
-        // Archetype + narrative feedback come in M3.
+        ...score,
+        narrative,
         mode: session.mode,
+        studentName: session.studentName || null,
       };
 
       await updateIqSession(input.sessionId, {
