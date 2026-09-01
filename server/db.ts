@@ -34,6 +34,8 @@ import {
   userChecklistProgress, InsertUserChecklistProgress, UserChecklistProgress,
   aptitudeProOrders, InsertAptitudeProOrder, AptitudeProOrder,
   iqQuestions, InsertIqQuestion, IqQuestion,
+  iqSessions, InsertIqSession, IqSession,
+  iqAccessTokens, InsertIqAccessToken, IqAccessToken,
   whatsappMessages,
   blogCategories, InsertBlogCategory, BlogCategory,
   blogPosts, InsertBlogPost, BlogPost,
@@ -4050,5 +4052,102 @@ export async function iqQuestionCounts(): Promise<{
     if (isApproved) perDomain[r.domain].approved++;
   }
   return { totalGenerated, totalApproved, perDomain };
+}
+
+// ── IQ session helpers ──────────────────────────────────────────────────
+
+/** Fetch a set of approved IQ questions for a given domain, ordered
+ *  by difficulty asc. Used by session assembly to build a balanced test. */
+export async function pickIqQuestionsForDomain(
+  domain: "fluid" | "quantitative" | "verbal" | "spatial" | "memory",
+  count: number,
+): Promise<IqQuestion[]> {
+  const db = await getDb();
+  if (!db) return [];
+  // MySQL random pick — good enough for our volume; if the bank grows huge
+  // we can move to explicit ID-list sampling.
+  const rows = await db.select().from(iqQuestions)
+    .where(and(eq(iqQuestions.domain, domain), eq(iqQuestions.approved, 1)))
+    .orderBy(sql`RAND()`)
+    .limit(count);
+  // Return sorted by difficulty ascending so easy questions come first.
+  return [...rows].sort((a, b) => a.difficulty - b.difficulty);
+}
+
+export async function getIqQuestionsByIds(ids: number[]): Promise<IqQuestion[]> {
+  const db = await getDb();
+  if (!db || ids.length === 0) return [];
+  const rows = await db.select().from(iqQuestions).where(inArray(iqQuestions.id, ids));
+  // Preserve the requested order (rows come back arbitrary).
+  const byId = new Map(rows.map(r => [r.id, r]));
+  return ids.map(id => byId.get(id)).filter(Boolean) as IqQuestion[];
+}
+
+export async function createIqSession(input: InsertIqSession): Promise<IqSession | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(iqSessions).values(input);
+  const insertId = (result as any)[0]?.insertId;
+  if (!insertId) return null;
+  const [row] = await db.select().from(iqSessions).where(eq(iqSessions.id, Number(insertId)));
+  return row || null;
+}
+
+export async function getIqSession(id: number): Promise<IqSession | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(iqSessions).where(eq(iqSessions.id, id));
+  return row || null;
+}
+
+export async function updateIqSession(id: number, patch: Partial<InsertIqSession>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(iqSessions).set(patch).where(eq(iqSessions.id, id));
+}
+
+// ── IQ access-token helpers ─────────────────────────────────────────────
+
+export async function createIqAccessToken(input: InsertIqAccessToken): Promise<IqAccessToken | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(iqAccessTokens).values(input);
+  const insertId = (result as any)[0]?.insertId;
+  if (!insertId) return null;
+  const [row] = await db.select().from(iqAccessTokens).where(eq(iqAccessTokens.id, Number(insertId)));
+  return row || null;
+}
+
+export async function getIqAccessTokenByToken(token: string): Promise<IqAccessToken | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(iqAccessTokens).where(eq(iqAccessTokens.token, token));
+  return row || null;
+}
+
+export async function markIqTokenInProgress(
+  token: string, name: string, email: string, phone: string, sessionId: number,
+): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  await db.update(iqAccessTokens).set({
+    status: "in_progress",
+    usedByName: name,
+    usedByEmail: email,
+    usedByPhone: phone,
+    usedAt: new Date(),
+    sessionId,
+  }).where(eq(iqAccessTokens.token, token));
+  return true;
+}
+
+export async function markIqTokenCompleted(token: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  await db.update(iqAccessTokens).set({
+    status: "completed",
+    completedAt: new Date(),
+  }).where(eq(iqAccessTokens.token, token));
+  return true;
 }
 

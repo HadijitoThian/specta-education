@@ -227,6 +227,7 @@ import { ieltsAdminRouter } from "./ieltsAdminRouter";
 import { waAttributionAdminRouter } from "./waAttributionAdminRouter";
 import { tutorAdminRouter } from "./tutorAdminRouter";
 import { iqAdminRouter } from "./iqAdminRouter";
+import { iqSessionRouter } from "./iqSessionRouter";
 import { ieltsRouter } from "./ieltsRouter";
 import { voiceCloneAdminRouter } from "./voiceCloneAdminRouter";
 import { crmTeamRouter } from "./crmTeamRouter";
@@ -2655,6 +2656,9 @@ Rules:
       }),
   }),
   // ==========================================
+  // SpecTa IQ Discovery — public session flow
+  iq: iqSessionRouter,
+
   // APTITUDE TEST ROUTER
   // ==========================================
   aptitude: router({
