@@ -25,6 +25,7 @@ export default function AdminIqBank() {
   const [filter, setFilter] = useState<DomainFilter>("all");
   const [showApprovedOnly, setShowApprovedOnly] = useState(false);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
+  const [batchSize, setBatchSize] = useState<2 | 4 | 8>(2);
 
   const utils = trpc.useUtils();
   const counts = trpc.admin.iq.counts.useQuery();
@@ -102,14 +103,26 @@ export default function AdminIqBank() {
                 </div>
               ) : null}
             </div>
-            <button
-              onClick={() => generate.mutate({})}
-              disabled={generate.isPending}
-              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold disabled:opacity-60 flex items-center gap-2"
-            >
-              {generate.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-              {generate.isPending ? "Generating…" : "Generate 10 samples"}
-            </button>
+            <div className="flex items-center gap-2">
+              <select
+                value={batchSize}
+                onChange={e => setBatchSize(Number(e.target.value) as 2 | 4 | 8)}
+                disabled={generate.isPending}
+                className="px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-medium bg-white disabled:opacity-50"
+              >
+                <option value={2}>10 items · ~30s</option>
+                <option value={4}>20 items · ~1 min</option>
+                <option value={8}>40 items · ~2-3 min</option>
+              </select>
+              <button
+                onClick={() => generate.mutate({ perDomain: batchSize })}
+                disabled={generate.isPending}
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold disabled:opacity-60 flex items-center gap-2"
+              >
+                {generate.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {generate.isPending ? "Generating…" : "Generate"}
+              </button>
+            </div>
           </div>
         </div>
 

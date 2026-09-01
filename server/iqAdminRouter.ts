@@ -66,11 +66,20 @@ export const iqAdminRouter = router({
    *  puzzles. Text items are AI-generated (DeepSeek) and vary every call.
    */
   generateStarterBatch: protectedProcedure
-    .input(z.object({ seed: z.number().int().optional() }).optional())
+    .input(z.object({
+      seed: z.number().int().optional(),
+      /** How many items per domain. 2 = 10-total starter, 4 = 20-total,
+       *  8 = 40-total bulk fill. Capped at 10 (=50 items) per request to
+       *  stay within Railway's request-timeout window (verbal + numeric
+       *  AI calls total ~4s each). Split larger builds across multiple
+       *  clicks. */
+      perDomain: z.number().int().min(1).max(10).default(2),
+    }).optional())
     .mutation(async ({ ctx, input }) => {
       assertAdmin(ctx);
       const seed = input?.seed || Date.now();
-      const batch = await generateStarterBatch(seed);
+      const perDomain = input?.perDomain || 2;
+      const batch = await generateStarterBatch(seed, perDomain);
 
       const saved: number[] = [];
       const saveErrors: string[] = [];

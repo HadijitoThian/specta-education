@@ -475,7 +475,7 @@ async function generateVerbalAnalogy(): Promise<AiGeneratedText> {
   const res = await invokeLLM({
     model: "deepseek-v4-pro",
     messages: [
-      { role: "system", content: "You are creating verbal analogy questions for an Indonesian IQ test aimed at 14-20 year olds. Output JSON only. Use Bahasa Indonesia. Every analogy MUST have exactly one correct answer among the 4 options and the correctness must be defensible (not opinion). Use everyday cultural context (Indonesian food, geography, everyday objects) — not obscure topics." },
+      { role: "system", content: "You are creating verbal analogy questions for an Indonesian IQ test aimed at 14-20 year olds ACROSS ALL of Indonesia (Sumatra, Java, Kalimantan, Sulawesi, Papua, etc.). Every reference MUST be recognizable to a student anywhere in the country — never region-specific. Output JSON only. Use Bahasa Indonesia. Every analogy MUST have exactly one correct answer among the 4 options and the correctness must be defensible logically, not opinion-based." },
       { role: "user", content: `Generate ONE original verbal analogy question in the exact format:
 
 {
@@ -485,12 +485,42 @@ async function generateVerbalAnalogy(): Promise<AiGeneratedText> {
   "explanation": "Penjelasan singkat 1 kalimat mengapa opsi tersebut benar."
 }
 
-RULES:
-- prompt is the analogy in format "X : Y :: A : ?"
-- Exactly 4 options
-- correctIndex is 0-3
-- All options must be plausible (no obviously silly ones)
-- Prefer Indonesian cultural context (makanan daerah, kota, tokoh, hewan)
+STRICT RULES ON CULTURAL REFERENCES — universal only:
+
+  ✅ ALLOWED (recognized by every Indonesian 14-20yo nationwide):
+     - National foods: nasi goreng, mie ayam, bakso, sate, rendang, gado-gado, soto
+     - Common animals: kucing, anjing, sapi, ayam, ikan, burung, gajah
+     - Weather / nature: hujan, matahari, bulan, laut, gunung, sungai, hutan
+     - Big-name cities/places EVERYONE knows: Jakarta, Bali, Sumatra, Papua, Indonesia,
+       ASEAN countries (Malaysia, Singapura, Thailand), major world countries
+     - Common professions: dokter, guru, polisi, petani, pilot
+     - Colors, numbers, shapes, materials (kayu, besi, air, api)
+     - Universal concepts: siang/malam, tua/muda, panas/dingin
+     - School subjects everyone learns: matematika, bahasa, IPA, IPS
+     - Universal transport: mobil, motor, sepeda, pesawat, kapal
+     - Global tech: HP, laptop, komputer, internet
+
+  ❌ FORBIDDEN (regionally specific, kids in other provinces won't know):
+     - Regional dishes: gudeg (Yogya), pempek (Palembang), papeda (Papua),
+       coto Makassar, ayam betutu (Bali), rujak cingur (Jatim), soto Kudus
+     - Local wayang / cultural figures known only in one region
+     - Small cities: Bandung is OK, but Ponorogo, Solo-specific figures, etc. not
+     - Regional dialect words (only Bahasa Indonesia standard)
+     - Traditional dance / instruments only known in one region
+     - Local plants / animals only found in specific regions
+
+  Test yourself: "Would a 15-year-old in rural Kalimantan AND a 15-year-old
+  in Jakarta AND a 15-year-old in Papua ALL immediately understand this
+  reference?" If NO, pick a different one.
+
+OTHER RULES:
+- prompt uses format "X : Y :: A : ?"
+- Exactly 4 options, all plausible (no silly obvious wrong answers)
+- Prefer categorical / functional / part-whole relationships:
+  * "buah : pohon :: ikan : laut" (habitat)
+  * "guru : sekolah :: dokter : rumah sakit" (workplace)
+  * "matahari : siang :: bulan : malam" (associated time)
+  * "roda : mobil :: kaki : manusia" (part-whole)
 - Do NOT copy famous published analogies (must be original)
 - Return JSON only, no prose wrapper.` },
     ],
@@ -570,39 +600,75 @@ export interface StarterBatch {
 }
 
 /**
- * Generate a 10-question review batch: 2 per domain, one easy + one medium.
- * Hadi eyeballs these via admin UI before we scale to 200.
- * Programmatic items are deterministic (seeded); text items are AI-generated
- * and thus vary between calls — that's the whole point of review.
+ * Generate a batch balanced across all 5 domains at 3 difficulty levels.
+ * `perDomain` controls how many items per domain (default 2 = 10-item
+ * starter batch; pass 8 for a 40-item bulk build, etc.).
+ *
+ * Programmatic items are deterministic (seeded); AI items (verbal
+ * analogies + numeric sequences) vary between calls — that's the point
+ * of AI vs programmatic split.
+ *
+ * Difficulty distribution within each domain follows a rough easy-
+ * medium-hard curve (2/3 medium, 1/6 easy, 1/6 hard).
  */
-export async function generateStarterBatch(seed = Date.now()): Promise<StarterBatch> {
+export async function generateStarterBatch(seed = Date.now(), perDomain = 2): Promise<StarterBatch> {
   const rng = makeRng(seed);
   const questions: GeneratedQuestion[] = [];
   const errors: string[] = [];
 
-  // Fluid (2)
-  questions.push(generateMatrix3x3(rng, 2));
-  questions.push(generateMatrix3x3(rng, 4));
+  // Pick a difficulty for slot i out of N, biased toward medium.
+  const difficultyFor = (i: number, n: number): 1 | 2 | 3 | 4 | 5 => {
+    const t = n <= 1 ? 0.5 : i / (n - 1);
+    if (t < 0.15) return 2;
+    if (t < 0.5) return 3;
+    if (t < 0.85) return 4;
+    return 5;
+  };
 
-  // Quantitative (2) — AI-generated numeric sequences
-  try { questions.push(await generateVerbalQuestion("numeric")); }
-  catch (e) { errors.push(`quantitative#1: ${(e as Error).message}`); }
-  try { questions.push(await generateVerbalQuestion("numeric")); }
-  catch (e) { errors.push(`quantitative#2: ${(e as Error).message}`); }
+  // Fluid — mix of matrix (most), sequence, odd_one_out
+  for (let i = 0; i < perDomain; i++) {
+    const d = difficultyFor(i, perDomain);
+    const kind = i % 3 === 0 ? "matrix" : i % 3 === 1 ? "sequence" : "odd";
+    if (kind === "matrix") questions.push(generateMatrix3x3(rng, d));
+    else if (kind === "sequence") questions.push(generateSequence(rng, d));
+    else questions.push(generateOddOneOut(rng, d));
+  }
 
-  // Verbal (2) — AI-generated Bahasa analogies
-  try { questions.push(await generateVerbalQuestion("analogy")); }
-  catch (e) { errors.push(`verbal#1: ${(e as Error).message}`); }
-  try { questions.push(await generateVerbalQuestion("analogy")); }
-  catch (e) { errors.push(`verbal#2: ${(e as Error).message}`); }
+  // Quantitative — mostly AI numeric sequences, some programmatic sequences
+  for (let i = 0; i < perDomain; i++) {
+    try {
+      if (i % 2 === 0) {
+        questions.push(await generateVerbalQuestion("numeric"));
+      } else {
+        // Reuse programmatic sequence as a quantitative-flavored puzzle
+        // (pattern recognition is the underlying cognitive skill).
+        const q = generateSequence(rng, difficultyFor(i, perDomain));
+        q.domain = "quantitative";
+        q.generatedBy = `${q.generatedBy}_as_quant`;
+        questions.push(q);
+      }
+    } catch (e) {
+      errors.push(`quantitative#${i}: ${(e as Error).message}`);
+    }
+  }
 
-  // Spatial (2)
-  questions.push(generateRotation3D(rng, 2));
-  questions.push(generatePaperFold(rng, 3));
+  // Verbal — all AI-generated Bahasa analogies
+  for (let i = 0; i < perDomain; i++) {
+    try { questions.push(await generateVerbalQuestion("analogy")); }
+    catch (e) { errors.push(`verbal#${i}: ${(e as Error).message}`); }
+  }
 
-  // Memory (2)
-  questions.push(generateMemoryFlash(rng, 2));
-  questions.push(generateMemoryFlash(rng, 4));
+  // Spatial — alternate rotation_3d and paper_fold
+  for (let i = 0; i < perDomain; i++) {
+    const d = difficultyFor(i, perDomain);
+    if (i % 2 === 0) questions.push(generateRotation3D(rng, d));
+    else questions.push(generatePaperFold(rng, d));
+  }
+
+  // Memory — all memory_flash with graded difficulty
+  for (let i = 0; i < perDomain; i++) {
+    questions.push(generateMemoryFlash(rng, difficultyFor(i, perDomain)));
+  }
 
   return { questions, errors };
 }
