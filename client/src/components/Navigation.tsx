@@ -71,10 +71,7 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             so the whole nav fits comfortably in ~950px of horizontal
             space (works down to a 1024px window with room to spare). */}
         {isDesktop && (
-        <div className="flex items-center gap-3 xl:gap-4 whitespace-nowrap">
-          <button onClick={() => handleNavClick("/about")} className={`text-sm font-medium transition-colors ${isActive("about") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
-            About
-          </button>
+        <div className="flex items-center gap-4 xl:gap-5 whitespace-nowrap">
           {/* IELTS Dropdown */}
           <div className="relative group">
             <button className={`text-sm font-semibold transition-colors flex items-center gap-1 ${isActive("ielts") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
@@ -149,10 +146,6 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             </div>
           </div>
           
-          <button onClick={() => handleNavClick("/scholarships")} className={`flex text-sm font-medium transition-colors items-center gap-1.5 ${isActive("scholarships") ? "text-primary" : "text-amber-600 hover:text-amber-700"}`}>
-            <GraduationCap className="w-4 h-4" />
-            <span>Scholarships</span>
-          </button>
           {/* SpecTa Tutor Dropdown — umbrella for syllabus-specific AI Teachers */}
           <div className="relative group">
             <button className={`text-sm font-semibold transition-colors flex items-center gap-1 ${isActive("igcse") || isActive("tutor") ? "text-violet-600" : "text-violet-600 hover:text-violet-700"}`}>
@@ -182,20 +175,39 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
               </div>
             </div>
           </div>
-          <button onClick={() => handleNavClick("/contact")} className={`text-sm font-medium transition-colors ${isActive("contact") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
-            Contact
-          </button>
-          <button onClick={() => handleNavClick("/track")} className={`text-sm font-medium transition-colors ${isActive("track") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
-            Track
-          </button>
-          <button onClick={() => handleNavClick("/play")} className={`flex text-sm font-medium transition-colors items-center gap-1.5 ${isActive("play") ? "text-primary" : "text-purple-600 hover:text-purple-700"}`}>
-            <Gamepad2 className="w-4 h-4" />
-            <span>Play</span>
-          </button>
-          <button onClick={() => handleNavClick("/iq-discovery")} className={`text-sm font-semibold transition-colors flex items-center gap-1.5 ${isActive("iq-discovery") ? "text-primary" : "text-indigo-600 hover:text-indigo-700"}`}>
+          <button onClick={() => handleNavClick("/iq-discovery")} className={`text-sm font-semibold transition-colors flex items-center gap-1 ${isActive("iq-discovery") ? "text-primary" : "text-indigo-600 hover:text-indigo-700"}`}>
             <span>🧠 IQ Discovery</span>
             <span className="text-[10px] align-top bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-semibold">NEW</span>
           </button>
+
+          {/* More ▼ — everything secondary lives here so the top bar can
+              NEVER overflow: About, Scholarships, Play, Contact, Track. */}
+          <div className="relative group">
+            <button className="text-sm font-medium transition-colors flex items-center gap-1 text-muted-foreground hover:text-primary">
+              More
+              <ChevronDown className="w-3 h-3 transition-transform group-hover:rotate-180" />
+            </button>
+            <div className="absolute top-full right-0 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+              <div className="bg-white rounded-lg shadow-lg border border-border py-2 min-w-[200px]">
+                <button onClick={() => handleNavClick("/about")} className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
+                  About Us
+                </button>
+                <button onClick={() => handleNavClick("/scholarships")} className="block w-full text-left px-4 py-2.5 text-sm text-amber-600 hover:text-amber-700 hover:bg-amber-50 transition-colors">
+                  🎓 Scholarships
+                </button>
+                <button onClick={() => handleNavClick("/play")} className="block w-full text-left px-4 py-2.5 text-sm text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors">
+                  🎮 SpecTa Play
+                </button>
+                <div className="border-t border-border my-1"></div>
+                <button onClick={() => handleNavClick("/contact")} className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
+                  Contact
+                </button>
+                <button onClick={() => handleNavClick("/track")} className="block w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
+                  Track Application
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
         )}
 
