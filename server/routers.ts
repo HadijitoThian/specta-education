@@ -252,6 +252,7 @@ import { seedIgcseBiologyTopicsIfEmpty } from "./igcseBiologyTopicSeed";
 import { seedIgcseBiologyExamplesIfEmpty } from "./igcseBiologyExamplesSeed";
 import { startTutorImages } from "./tutorImages";
 import { startVoiceCloneImages } from "./voiceCloneImages";
+import { startIqDiscoveryImages } from "./iqDiscoveryImages";
 import { crmJourneyRouter } from "./crmJourneyRouter";
 import { sosmedRouter } from "./sosmedRouter";
 import { startCrmReportScheduler } from "./crmReportScheduler";
@@ -8508,6 +8509,7 @@ startTutorImages();
 
 // Voice Clone landing imagery — generate once via DeepInfra (idempotent).
 startVoiceCloneImages();
+startIqDiscoveryImages();
 
 // Auto-seed universities on startup
 seedUniversitiesIfEmpty().then(r => {
