@@ -39,17 +39,19 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
         
         {/* Desktop Navigation — progressive disclosure so the nav NEVER
             overflows regardless of screen width:
-              md  (≥768px)  → essentials only: IELTS + Destinations +
-                              SpecTa Tutor + IQ Discovery + Book Call.
-              lg  (≥1024px) → adds: About, Scholarships, Play.
-              xl  (≥1280px) → adds: Contact, Track, Apply.
-            This mirrors how Airbnb / Booking / Vercel / etc. handle
-            crowded navs — secondary items promoted to visibility as
-            more horizontal space becomes available. Every item stays
-            accessible via the mobile drawer (also visible in the
-            hamburger menu on any device below md). */}
-        <div className="hidden md:flex items-center gap-3 lg:gap-4 xl:gap-5 whitespace-nowrap">
-          <button onClick={() => handleNavClick("/about")} className={`hidden lg:inline-block text-sm font-medium transition-colors ${isActive("about") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
+              md   (≥768px)  → 4 essentials: IELTS ▼ / Destinations ▼ /
+                               SpecTa Tutor ▼ / IQ Discovery + Book Call.
+              xl   (≥1200px) → adds: About, Scholarships, Play, Apply CTA.
+              2xl  (≥1440px) → adds: Contact, Track (fullest nav).
+            Item counts: md=5, xl=9, 2xl=11 (+logo everywhere).
+            Rewind: lg tier removed because 900-1199px was showing 8-9
+            items which overflowed on Windows-DPI-scaled displays. Now
+            lg = md tier (same 5 items). This mirrors how Airbnb /
+            Booking / Vercel handle crowded navs — reveal secondary
+            items only as horizontal space actually appears. All hidden
+            items stay accessible via the hamburger drawer on md-xl. */}
+        <div className="hidden md:flex items-center gap-3 lg:gap-3.5 xl:gap-4 2xl:gap-5 whitespace-nowrap">
+          <button onClick={() => handleNavClick("/about")} className={`hidden xl:inline-block text-sm font-medium transition-colors ${isActive("about") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             About
           </button>
           {/* IELTS Dropdown */}
@@ -126,7 +128,7 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             </div>
           </div>
           
-          <button onClick={() => handleNavClick("/scholarships")} className={`hidden lg:flex text-sm font-medium transition-colors items-center gap-1.5 ${isActive("scholarships") ? "text-primary" : "text-amber-600 hover:text-amber-700"}`}>
+          <button onClick={() => handleNavClick("/scholarships")} className={`hidden xl:flex text-sm font-medium transition-colors items-center gap-1.5 ${isActive("scholarships") ? "text-primary" : "text-amber-600 hover:text-amber-700"}`}>
             <GraduationCap className="w-4 h-4" />
             <span>Scholarships</span>
           </button>
@@ -159,13 +161,13 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
               </div>
             </div>
           </div>
-          <button onClick={() => handleNavClick("/contact")} className={`hidden xl:inline-block text-sm font-medium transition-colors ${isActive("contact") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
+          <button onClick={() => handleNavClick("/contact")} className={`hidden 2xl:inline-block text-sm font-medium transition-colors ${isActive("contact") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             Contact
           </button>
-          <button onClick={() => handleNavClick("/track")} className={`hidden xl:inline-block text-sm font-medium transition-colors ${isActive("track") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
+          <button onClick={() => handleNavClick("/track")} className={`hidden 2xl:inline-block text-sm font-medium transition-colors ${isActive("track") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             Track
           </button>
-          <button onClick={() => handleNavClick("/play")} className={`hidden lg:flex text-sm font-medium transition-colors items-center gap-1.5 ${isActive("play") ? "text-primary" : "text-purple-600 hover:text-purple-700"}`}>
+          <button onClick={() => handleNavClick("/play")} className={`hidden xl:flex text-sm font-medium transition-colors items-center gap-1.5 ${isActive("play") ? "text-primary" : "text-purple-600 hover:text-purple-700"}`}>
             <Gamepad2 className="w-4 h-4" />
             <span>Play</span>
           </button>
@@ -180,14 +182,18 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
           <button onClick={() => handleNavClick("/book")} className="px-3.5 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-blue-200 transition-all">
             Book Call
           </button>
-          <button onClick={() => handleNavClick("/apply")} className="hidden lg:inline-block px-3.5 py-1.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-pink-200 transition-all">
+          <button onClick={() => handleNavClick("/apply")} className="hidden xl:inline-block px-3.5 py-1.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-pink-200 transition-all">
             Apply
           </button>
         </div>
 
         {/* Mobile Menu Button */}
+        {/* Hamburger drawer — visible until xl so md/lg users (who only see
+            5 essentials) can still reach Contact / Track / About / etc.
+            through the drawer. Common pattern (see GitHub, YouTube). Hides
+            at xl (≥1200px) when the fuller nav is on screen. */}
         <button
-          className="md:hidden p-2"
+          className="xl:hidden p-2"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label="Toggle menu"
         >
@@ -197,7 +203,7 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
 
       {/* Mobile Navigation */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-white border-t border-border max-h-[calc(100vh-4rem)] overflow-y-auto">
+        <div className="xl:hidden bg-white border-t border-border max-h-[calc(100vh-4rem)] overflow-y-auto">
           <div className="container py-4 space-y-4">
             <button onClick={() => handleNavClick("/about")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
               About Us
