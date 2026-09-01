@@ -11,7 +11,7 @@
  * upsold to a product they just used.
  */
 
-type ProductSlug = "tutor" | "voice-clone" | "mock" | "aptitude-pro" | "practice";
+type ProductSlug = "tutor" | "voice-clone" | "mock" | "aptitude-pro" | "practice" | "iq-discovery";
 
 interface Opts {
   exclude?: ProductSlug[];
@@ -77,6 +77,19 @@ export function crossSellBlocksHtml(opts: Opts): string {
       gradient: "linear-gradient(135deg,#eff6ff,#dbeafe)",
       border: "#bfdbfe",
       ctaBg: "linear-gradient(135deg,#2563eb,#4f46e5)",
+    },
+    {
+      slug: "iq-discovery",
+      emoji: "🧠",
+      headline: lang === "id" ? "Kenalan sama otakmu — SpecTa IQ Discovery" : "Meet your brain — SpecTa IQ Discovery",
+      body: lang === "id"
+        ? "40 soal, 5 dimensi kognitif. Estimasi IQ + arketip unik + laporan PDF + gambar untuk IG Story. Rp 59.000, hasil dalam 45 menit."
+        : "40 questions, 5 cognitive dimensions. IQ estimate + unique archetype + PDF report + IG Story image. Rp 59,000, results in 45 minutes.",
+      cta: lang === "id" ? "🧠 Discover otakmu → Rp 59k" : "🧠 Discover your brain → Rp 59k",
+      href: utm("/iq-discovery"),
+      gradient: "linear-gradient(135deg,#eef2ff,#f3e8ff)",
+      border: "#c7d2fe",
+      ctaBg: "linear-gradient(135deg,#4f46e5,#a855f7)",
     },
     {
       slug: "aptitude-pro",

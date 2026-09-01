@@ -162,6 +162,10 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             <Gamepad2 className="w-4 h-4" />
             <span>Play</span>
           </button>
+          <button onClick={() => handleNavClick("/iq-discovery")} className={`text-sm font-semibold transition-colors flex items-center gap-1.5 ${isActive("iq-discovery") ? "text-primary" : "text-indigo-600 hover:text-indigo-700"}`}>
+            <span>🧠 IQ Discovery</span>
+            <span className="text-[10px] align-top bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-semibold">NEW</span>
+          </button>
         </div>
 
         {/* Desktop CTA Buttons — see Navigation md: note above */}
@@ -278,6 +282,10 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             <button onClick={() => handleNavClick("/play")} className="block w-full text-left text-sm font-medium text-purple-600 hover:text-purple-700 flex items-center gap-2">
               <Gamepad2 className="w-4 h-4" />
               SpecTa Play
+            </button>
+            <button onClick={() => handleNavClick("/iq-discovery")} className="block w-full text-left text-sm font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-2">
+              🧠 IQ Discovery
+              <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">NEW</span>
             </button>
             <div className="pt-4 border-t border-border space-y-3">
               <button onClick={() => handleNavClick("/book")} className="block w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg text-sm font-semibold text-center hover:shadow-lg transition-all">
