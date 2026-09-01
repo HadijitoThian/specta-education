@@ -177,6 +177,16 @@
       max-width: 1280px; /* Standard content width */
     }
   }
+
+  /* Wider content bound at xl+ so the full desktop nav (12 elements at
+     xl breakpoint) has breathing room instead of feeling cramped on
+     1440p+ monitors. Wider than 1440px still gets centered whitespace,
+     which is the industry-standard bounded-content pattern. */
+  @media (min-width: 1440px) {
+    .container {
+      max-width: 1400px;
+    }
+  }
 }
 
 @layer utilities {

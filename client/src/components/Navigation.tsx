@@ -37,12 +37,19 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
           <img src="/specta-logo.png" alt="SpecTa Education" className="h-10 w-auto max-w-[150px] object-contain" />
         </button>
         
-        {/* Desktop Navigation — md: breakpoint (768px) so laptops and
-            standard-zoom browsers get horizontal nav, not the hamburger.
-            Previously lg: (1024px) misfired for any laptop under 1024px OR
-            when browser zoom was ≥125% (narrows the effective viewport). */}
-        <div className="hidden md:flex items-center gap-4 lg:gap-5 xl:gap-6 whitespace-nowrap">
-          <button onClick={() => handleNavClick("/about")} className={`text-sm font-medium transition-colors ${isActive("about") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
+        {/* Desktop Navigation — progressive disclosure so the nav NEVER
+            overflows regardless of screen width:
+              md  (≥768px)  → essentials only: IELTS + Destinations +
+                              SpecTa Tutor + IQ Discovery + Book Call.
+              lg  (≥1024px) → adds: About, Scholarships, Play.
+              xl  (≥1280px) → adds: Contact, Track, Apply.
+            This mirrors how Airbnb / Booking / Vercel / etc. handle
+            crowded navs — secondary items promoted to visibility as
+            more horizontal space becomes available. Every item stays
+            accessible via the mobile drawer (also visible in the
+            hamburger menu on any device below md). */}
+        <div className="hidden md:flex items-center gap-3 lg:gap-4 xl:gap-5 whitespace-nowrap">
+          <button onClick={() => handleNavClick("/about")} className={`hidden lg:inline-block text-sm font-medium transition-colors ${isActive("about") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             About
           </button>
           {/* IELTS Dropdown */}
@@ -119,7 +126,7 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             </div>
           </div>
           
-          <button onClick={() => handleNavClick("/scholarships")} className={`text-sm font-medium transition-colors flex items-center gap-1.5 ${isActive("scholarships") ? "text-primary" : "text-amber-600 hover:text-amber-700"}`}>
+          <button onClick={() => handleNavClick("/scholarships")} className={`hidden lg:flex text-sm font-medium transition-colors items-center gap-1.5 ${isActive("scholarships") ? "text-primary" : "text-amber-600 hover:text-amber-700"}`}>
             <GraduationCap className="w-4 h-4" />
             <span>Scholarships</span>
           </button>
@@ -152,13 +159,13 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
               </div>
             </div>
           </div>
-          <button onClick={() => handleNavClick("/contact")} className={`text-sm font-medium transition-colors ${isActive("contact") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
+          <button onClick={() => handleNavClick("/contact")} className={`hidden xl:inline-block text-sm font-medium transition-colors ${isActive("contact") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             Contact
           </button>
-          <button onClick={() => handleNavClick("/track")} className={`text-sm font-medium transition-colors ${isActive("track") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
+          <button onClick={() => handleNavClick("/track")} className={`hidden xl:inline-block text-sm font-medium transition-colors ${isActive("track") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             Track
           </button>
-          <button onClick={() => handleNavClick("/play")} className={`text-sm font-medium transition-colors flex items-center gap-1.5 ${isActive("play") ? "text-primary" : "text-purple-600 hover:text-purple-700"}`}>
+          <button onClick={() => handleNavClick("/play")} className={`hidden lg:flex text-sm font-medium transition-colors items-center gap-1.5 ${isActive("play") ? "text-primary" : "text-purple-600 hover:text-purple-700"}`}>
             <Gamepad2 className="w-4 h-4" />
             <span>Play</span>
           </button>
@@ -173,7 +180,7 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
           <button onClick={() => handleNavClick("/book")} className="px-3.5 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-blue-200 transition-all">
             Book Call
           </button>
-          <button onClick={() => handleNavClick("/apply")} className="px-3.5 py-1.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-pink-200 transition-all">
+          <button onClick={() => handleNavClick("/apply")} className="hidden lg:inline-block px-3.5 py-1.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-pink-200 transition-all">
             Apply
           </button>
         </div>
