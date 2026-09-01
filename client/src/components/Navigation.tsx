@@ -10,37 +10,25 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [, setLocation] = useLocation();
 
-  // Actual-device detection instead of CSS-pixel breakpoints. Uses the
-  // browser's pointer capability queries which respond to physical
-  // input hardware, not the DPI-scaled viewport width. On a 1920×1080
-  // Windows monitor at 150% DPI scaling the CSS viewport reports 1280px,
-  // which trips CSS breakpoints unpredictably; matchMedia("(pointer: fine)")
-  // says "yes there's a mouse" regardless of DPI, so we can reliably show
-  // the desktop nav without an "essentials + hamburger" mobile fallback.
-  //
-  // Fallback logic:
-  //   isTouchOnly = has touch input AND no mouse → true mobile/tablet
-  //   isDesktop  = has mouse pointer → laptop / desktop / hybrid tablet-with-keyboard
-  // Anything with a mouse gets the full desktop nav.
+  // The full horizontal nav (logo + 5 items + 2 CTAs) needs roughly
+  // 1050 CSS px. Below that — narrow window, high browser zoom, phone,
+  // tablet — we render logo + hamburger instead. Measuring the actual
+  // viewport (and re-measuring on resize AND zoom changes, both of which
+  // fire the resize event) makes overlap PHYSICALLY IMPOSSIBLE: if the
+  // full bar can't fit, it is never rendered. This replaced two failed
+  // approaches (CSS breakpoints — broken by Windows DPI scaling; pure
+  // pointer detection — overlapped when a mouse-equipped browser was
+  // zoomed in, e.g. Edge at 125-150% zoom).
+  const NAV_MIN_WIDTH = 1100;
   const [isDesktop, setIsDesktop] = useState(true); // SSR default = desktop (progressive enhancement)
 
   useEffect(() => {
-    const check = () => {
-      // "pointer: fine" = precise pointer available (mouse/trackpad).
-      // "any-pointer: coarse" = a coarse pointer (finger) is also available.
-      // Desktop = has mouse. Touch-only tablets / phones = has coarse but no fine.
-      const hasFinePointer = window.matchMedia("(pointer: fine)").matches;
-      setIsDesktop(hasFinePointer);
-    };
+    const check = () => setIsDesktop(window.innerWidth >= NAV_MIN_WIDTH);
     check();
-    const mm = window.matchMedia("(pointer: fine)");
-    // Safari <14 uses addListener; modern uses addEventListener.
-    if (mm.addEventListener) mm.addEventListener("change", check);
-    else mm.addListener(check);
-    return () => {
-      if (mm.removeEventListener) mm.removeEventListener("change", check);
-      else mm.removeListener(check);
-    };
+    // Browser zoom changes also fire `resize`, so this single listener
+    // covers window resizing, zoom, DPI moves between monitors, rotation.
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
   const isActive = (page: string) => currentPage === page;
@@ -71,7 +59,7 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             so the whole nav fits comfortably in ~950px of horizontal
             space (works down to a 1024px window with room to spare). */}
         {isDesktop && (
-        <div className="flex items-center gap-4 xl:gap-5 whitespace-nowrap">
+        <div className="flex items-center gap-4 shrink-0 whitespace-nowrap">
           {/* IELTS Dropdown */}
           <div className="relative group">
             <button className={`text-sm font-semibold transition-colors flex items-center gap-1 ${isActive("ielts") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
