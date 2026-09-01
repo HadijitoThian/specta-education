@@ -4,6 +4,7 @@ import crypto from "crypto";
 const XENDIT_API_BASE = "https://api.xendit.co";
 const PRO_TEST_PRICE = 79000; // Rp 79.000
 const PRO_TEST_DISCOUNT_PRICE = 59000; // Rp 59.000 (24-hour discount)
+const IQ_DISCOVERY_PRICE = 59000; // Rp 59.000 — SpecTa IQ Discovery
 
 interface CreateInvoiceParams {
   externalId: string;
@@ -95,6 +96,64 @@ export function generateExternalId(): string {
   const timestamp = Date.now().toString(36);
   const random = crypto.randomBytes(4).toString("hex");
   return `TESBAKAT-PRO-${timestamp}-${random}`;
+}
+
+// ── SpecTa IQ Discovery — Rp 59k paid test ───────────────────────────────
+
+export function getIqDiscoveryPrice(): number {
+  return IQ_DISCOVERY_PRICE;
+}
+
+export function generateIqExternalId(): string {
+  const timestamp = Date.now().toString(36);
+  const random = crypto.randomBytes(4).toString("hex");
+  return `IQ-${timestamp}-${random}`;
+}
+
+/**
+ * Create a Xendit invoice for a SpecTa IQ Discovery purchase.
+ * Payload mirrors createProTestInvoice (24h expiry, email + WhatsApp
+ * notifications, success + failure redirects).
+ */
+export async function createIqDiscoveryInvoice(params: CreateInvoiceParams): Promise<XenditInvoiceResponse> {
+  const { externalId, customerName, customerEmail, customerPhone, successRedirectUrl, failureRedirectUrl } = params;
+
+  const body: Record<string, unknown> = {
+    external_id: externalId,
+    amount: IQ_DISCOVERY_PRICE,
+    currency: "IDR",
+    description: "SpecTa IQ Discovery — Cognitive-abilities assessment",
+    customer: {
+      given_names: customerName,
+      email: customerEmail,
+      ...(customerPhone ? { mobile_number: customerPhone } : {}),
+    },
+    customer_notification_preference: {
+      invoice_created: ["email", "whatsapp"],
+      invoice_reminder: ["email"],
+      invoice_paid: ["email"],
+    },
+    invoice_duration: 86400, // 24 hours
+    ...(successRedirectUrl ? { success_redirect_url: successRedirectUrl } : {}),
+    ...(failureRedirectUrl ? { failure_redirect_url: failureRedirectUrl } : {}),
+  };
+
+  const response = await fetch(`${XENDIT_API_BASE}/v2/invoices`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Basic ${Buffer.from(ENV.xenditSecretKey + ":").toString("base64")}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error("[Xendit] IQ invoice creation failed:", response.status, error);
+    throw new Error(`Xendit IQ invoice creation failed: ${response.status}`);
+  }
+
+  return response.json() as Promise<XenditInvoiceResponse>;
 }
 
 // ── AI IELTS Tutor subscriptions ─────────────────────────────────────────────

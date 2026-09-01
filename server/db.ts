@@ -36,6 +36,7 @@ import {
   iqQuestions, InsertIqQuestion, IqQuestion,
   iqSessions, InsertIqSession, IqSession,
   iqAccessTokens, InsertIqAccessToken, IqAccessToken,
+  iqOrders, InsertIqOrder, IqOrder,
   whatsappMessages,
   blogCategories, InsertBlogCategory, BlogCategory,
   blogPosts, InsertBlogPost, BlogPost,
@@ -4149,5 +4150,40 @@ export async function markIqTokenCompleted(token: string): Promise<boolean> {
     completedAt: new Date(),
   }).where(eq(iqAccessTokens.token, token));
   return true;
+}
+
+// ── IQ order helpers ────────────────────────────────────────────────────
+
+export async function createIqOrder(input: InsertIqOrder): Promise<IqOrder | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(iqOrders).values(input);
+  const insertId = (result as any)[0]?.insertId;
+  if (!insertId) return null;
+  const [row] = await db.select().from(iqOrders).where(eq(iqOrders.id, Number(insertId)));
+  return row || null;
+}
+
+export async function getIqOrderByExternalId(externalId: string): Promise<IqOrder | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(iqOrders).where(eq(iqOrders.externalId, externalId));
+  return row || null;
+}
+
+export async function updateIqOrderStatus(
+  externalId: string,
+  status: "pending" | "paid" | "expired" | "failed",
+  patch: Partial<InsertIqOrder> = {},
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(iqOrders).set({ status, ...patch }).where(eq(iqOrders.externalId, externalId));
+}
+
+export async function listIqOrders(limit = 100): Promise<IqOrder[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(iqOrders).orderBy(desc(iqOrders.createdAt)).limit(limit);
 }
 

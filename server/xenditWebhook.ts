@@ -63,7 +63,7 @@ function fireOfflineConversion(
  * conversionUploadedAt is stamped on success so webhook retries don't re-fire.
  */
 function fireWebCheckoutConversion(input: {
-  table: "mock" | "tutor" | "igcse" | "aptitudePro";
+  table: "mock" | "tutor" | "igcse" | "aptitudePro" | "iqDiscovery";
   entityId: number;
   gclid?: string | null;
   valueIdr: number;
@@ -78,6 +78,7 @@ function fireWebCheckoutConversion(input: {
         tutor: "AI Tutor subscribed",
         igcse: "IGCSE subscribed",
         aptitudePro: "Tes Bakat AI Pro purchased",
+        iqDiscovery: "IQ Discovery purchased",
       } as const;
       const result = await uploadOfflineConversion({
         kind: kindByTable[input.table],
@@ -97,6 +98,7 @@ function fireWebCheckoutConversion(input: {
           input.table === "mock" ? "ieltsMockAttempts" :
           input.table === "tutor" ? "tutor_subscriptions" :
           input.table === "aptitudePro" ? "aptitudeProOrders" :
+          input.table === "iqDiscovery" ? "iq_orders" :
           "igcse_subscriptions";
         await db.execute(sql.raw(
           `UPDATE ${tableName} SET conversionUploadedAt = NOW() WHERE id = ${input.entityId}`
@@ -441,6 +443,74 @@ export function registerXenditWebhook(app: Express) {
           }
         }
         return res.status(200).json({ received: true, igcse: true });
+      }
+
+      // ----- SpecTa IQ Discovery — Rp 59k paid test -----
+      // externalId format: IQ-<timestamp>-<random> (see generateIqExternalId).
+      // On paid: mint access token, mark order paid, email the access link,
+      // notify owner, fire Google Ads offline conversion.
+      if (externalId && externalId.startsWith("IQ-")) {
+        if (body.status !== "PAID" && body.status !== "SETTLED") {
+          if (body.status === "EXPIRED" || body.status === "FAILED") {
+            const { updateIqOrderStatus } = await import("./db");
+            await updateIqOrderStatus(externalId, body.status === "EXPIRED" ? "expired" : "failed");
+          }
+          return res.status(200).json({ received: true, iq: true });
+        }
+
+        const { getIqOrderByExternalId, updateIqOrderStatus, createIqAccessToken } = await import("./db");
+        const iqOrder = await getIqOrderByExternalId(externalId);
+        if (!iqOrder) {
+          console.error(`[Xendit Webhook][IQ] Order not found: ${externalId}`);
+          return res.status(404).json({ error: "IQ order not found" });
+        }
+        if (iqOrder.status === "paid") {
+          console.log(`[Xendit Webhook][IQ] Order already processed: ${externalId}`);
+          return res.status(200).json({ received: true, iq: true, already_processed: true });
+        }
+
+        // Mint a single-use 7-day access token.
+        const tokenValue = crypto.randomBytes(32).toString("hex");
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        const createdToken = await createIqAccessToken({
+          token: tokenValue,
+          status: "unused",
+          expiresAt,
+        });
+
+        await updateIqOrderStatus(externalId, "paid", {
+          xenditInvoiceId: body.id,
+          paidAt: new Date(),
+          accessTokenId: createdToken?.id,
+        });
+
+        // Email the access link (Bahasa, brand-consistent).
+        const { sendIqAccessLinkEmail } = await import("./iqDiscoveryEmail");
+        await sendIqAccessLinkEmail({
+          to: iqOrder.customerEmail,
+          customerName: iqOrder.customerName,
+          token: tokenValue,
+        });
+
+        const formattedAmount = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(iqOrder.amount);
+        await notifyOwner({
+          title: `💜 New IQ Discovery Purchase: ${iqOrder.customerName}`,
+          content: `${iqOrder.customerName} (${iqOrder.customerEmail}) just purchased SpecTa IQ Discovery for ${formattedAmount}. Access link sent automatically. Order: ${externalId}`,
+        });
+
+        // Google Ads offline conversion — same helper the aptitude flow uses.
+        if (!iqOrder.conversionUploadedAt) {
+          fireWebCheckoutConversion({
+            table: "iqDiscovery",
+            entityId: iqOrder.id,
+            gclid: iqOrder.gclid,
+            valueIdr: iqOrder.amount,
+            orderId: externalId,
+          });
+        }
+
+        console.log(`[Xendit Webhook][IQ] ✅ Paid + link sent: ${externalId}`);
+        return res.status(200).json({ received: true, iq: true });
       }
 
       // ----- Tes Bakat AI Pro purchases (existing path) -----

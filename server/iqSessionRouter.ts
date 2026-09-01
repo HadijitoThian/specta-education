@@ -24,16 +24,23 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { publicProcedure, router } from "./_core/trpc";
+import crypto from "crypto";
 import {
   pickIqQuestionsForDomain, getIqQuestionsByIds,
   createIqSession, getIqSession, updateIqSession,
   getIqAccessTokenByToken, markIqTokenInProgress,
+  createIqOrder, getIqOrderByExternalId,
 } from "./db";
 import { scoreIqSession } from "./iqScoring";
 import { generateIqNarrative } from "./iqFeedbackEngine";
 import { generateIqDiscoveryPdf } from "./iqPdfGenerator";
 import { generateIqShareGraphic } from "./iqShareGraphic";
+import { sendIqResultEmail } from "./iqDiscoveryEmail";
 import { storagePut } from "./storage";
+import {
+  createIqDiscoveryInvoice, generateIqExternalId, getIqDiscoveryPrice,
+} from "./xenditService";
+import { ENV } from "./_core/env";
 import type { IqDomain } from "./iqQuestionTypes";
 
 const DOMAINS = ["fluid", "quantitative", "verbal", "spatial", "memory"] as const;
@@ -103,6 +110,102 @@ export const iqSessionRouter = router({
   // ═════════════════════════════════════════════════════════════════════
   // START FREE PREVIEW — no auth required, immediate access
   // ═════════════════════════════════════════════════════════════════════
+  // ═════════════════════════════════════════════════════════════════════
+  // GET PRICE — returned to landing/pricing pages
+  // ═════════════════════════════════════════════════════════════════════
+  getPrice: publicProcedure.query(() => ({ price: getIqDiscoveryPrice(), currency: "IDR" })),
+
+  // ═════════════════════════════════════════════════════════════════════
+  // CREATE INVOICE — Rp 59k Xendit payment for a new access token
+  // ═════════════════════════════════════════════════════════════════════
+  createInvoice: publicProcedure
+    .input(z.object({
+      name: z.string().min(1).max(255),
+      email: z.string().email(),
+      phone: z.string().min(6).max(50),
+      // UTM attribution captured client-side from URL params + sessionStorage.
+      gclid: z.string().max(512).optional(),
+      utmSource: z.string().max(120).optional(),
+      utmMedium: z.string().max(120).optional(),
+      utmCampaign: z.string().max(160).optional(),
+      source: z.string().max(50).default("landing"),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // Anti-abuse: same guard the aptitude flow uses (blocks role-based
+      // emails, gibberish names, per-IP rate limit) so bots can't burn quota.
+      const { validateGuestCheckout, extractClientIp } = await import("./antiAbuse");
+      const ip = extractClientIp((ctx as any).req?.headers || {});
+      const abuse = validateGuestCheckout({
+        customerName: input.name,
+        customerEmail: input.email,
+        ip,
+      });
+      if (abuse) throw new TRPCError({ code: abuse.code, message: abuse.message });
+
+      const externalId = generateIqExternalId();
+      const baseUrl = ENV.appUrl.replace(/\/+$/, "");
+      const price = getIqDiscoveryPrice();
+
+      const invoice = await createIqDiscoveryInvoice({
+        externalId,
+        customerName: input.name,
+        customerEmail: input.email,
+        customerPhone: input.phone,
+        successRedirectUrl: `${baseUrl}/iq-discovery/payment-success?order=${externalId}`,
+        failureRedirectUrl: `${baseUrl}/iq-discovery/beli?payment=failed`,
+      });
+
+      await createIqOrder({
+        externalId,
+        xenditInvoiceId: invoice.id,
+        xenditInvoiceUrl: invoice.invoice_url,
+        customerName: input.name,
+        customerEmail: input.email,
+        customerPhone: input.phone || null,
+        amount: price,
+        status: "pending",
+        source: input.source,
+        gclid: input.gclid || null,
+        utmSource: input.utmSource || null,
+        utmMedium: input.utmMedium || null,
+        utmCampaign: input.utmCampaign || null,
+      });
+
+      return {
+        invoiceUrl: invoice.invoice_url,
+        externalId,
+      };
+    }),
+
+  // ═════════════════════════════════════════════════════════════════════
+  // CHECK ORDER STATUS — used by /payment-success to poll paid + get link
+  // ═════════════════════════════════════════════════════════════════════
+  checkOrderStatus: publicProcedure
+    .input(z.object({ externalId: z.string() }))
+    .query(async ({ input }) => {
+      const order = await getIqOrderByExternalId(input.externalId);
+      if (!order) return { found: false, status: null, accessTokenId: null };
+      // If paid + we have a linked token, look up the token value so the
+      // client can redirect straight to /iq-discovery?token=<value>.
+      let accessToken: string | null = null;
+      if (order.accessTokenId) {
+        const { getDb } = await import("./db");
+        const { iqAccessTokens } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = await getDb();
+        if (db) {
+          const [row] = await db.select().from(iqAccessTokens).where(eq(iqAccessTokens.id, order.accessTokenId)).limit(1);
+          if (row) accessToken = row.token;
+        }
+      }
+      return {
+        found: true,
+        status: order.status,
+        accessTokenId: order.accessTokenId,
+        accessToken,
+      };
+    }),
+
   startPreview: publicProcedure.mutation(async () => {
     const ids = await assemblePreviewQuestionIds();
     if (ids.length < 3) {
@@ -314,10 +417,12 @@ export const iqSessionRouter = router({
       // result. The PDF+share generation adds ~2-5s to the finish call.
       let pdfUrl: string | undefined;
       let shareImageUrl: string | undefined;
+      let pdfBuffer: Buffer | undefined;
+      let shareBuffer: Buffer | undefined;
       if (session.mode === "full") {
         const displayName = session.studentName || "Kamu";
         try {
-          const pdfBuffer = await generateIqDiscoveryPdf({
+          pdfBuffer = await generateIqDiscoveryPdf({
             studentName: displayName,
             score,
             narrative,
@@ -330,16 +435,31 @@ export const iqSessionRouter = router({
           console.error(`[IqDiscovery] PDF generation failed for session ${input.sessionId}:`, (e as Error).message);
         }
         try {
-          const png = await generateIqShareGraphic({
+          shareBuffer = await generateIqShareGraphic({
             studentName: displayName,
             score,
           });
           const shareKey = `iq-discovery/share/${input.sessionId}-${Date.now()}.png`;
-          const uploaded = await storagePut(shareKey, png, "image/png");
+          const uploaded = await storagePut(shareKey, shareBuffer, "image/png");
           shareImageUrl = `/files/${uploaded.key}`;
-          console.log(`[IqDiscovery] share graphic generated (${(png.length / 1024).toFixed(1)}KB) → ${shareImageUrl}`);
+          console.log(`[IqDiscovery] share graphic generated (${(shareBuffer.length / 1024).toFixed(1)}KB) → ${shareImageUrl}`);
         } catch (e) {
           console.error(`[IqDiscovery] share graphic generation failed for session ${input.sessionId}:`, (e as Error).message);
+        }
+
+        // Email the deliverables — student always has a permanent copy even
+        // if they close the browser. Fire-and-forget; failure doesn't block
+        // the client response.
+        if (session.studentEmail) {
+          void sendIqResultEmail({
+            to: session.studentEmail,
+            studentName: displayName,
+            fsiq: score.fsiq,
+            archetypeLabel: score.archetype.labelId,
+            archetypeEmoji: score.archetype.emoji,
+            pdfBuffer,
+            shareImageBuffer: shareBuffer,
+          }).catch(e => console.error(`[IqDiscovery] result email failed for ${session.studentEmail}:`, e?.message));
         }
       }
 

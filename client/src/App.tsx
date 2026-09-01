@@ -66,6 +66,8 @@ const IeltsTutor = lazyWithReload(() => import("./pages/IeltsTutor"));
 const IqRendererPreview = lazyWithReload(() => import("./pages/IqRendererPreview"));
 const AdminIqBank = lazyWithReload(() => import("./pages/AdminIqBank"));
 const IqDiscovery = lazyWithReload(() => import("./pages/IqDiscovery"));
+const IqDiscoveryBuy = lazyWithReload(() => import("./pages/IqDiscoveryBuy"));
+const IqDiscoverySuccess = lazyWithReload(() => import("./pages/IqDiscoverySuccess"));
 const IeltsTutorRedeem = lazyWithReload(() => import("./pages/IeltsTutorRedeem"));
 const Igcse = lazyWithReload(() => import("./pages/Igcse"));
 const IgcseApp = lazyWithReload(() => import("./pages/IgcseApp"));
@@ -182,6 +184,8 @@ function Router() {
         <Route path={"/ielts/tutor/redeem/:token"} component={IeltsTutorRedeem} />
         <Route path={"/iq-preview"} component={IqRendererPreview} />
         <Route path={"/iq-discovery"} component={IqDiscovery} />
+        <Route path={"/iq-discovery/beli"} component={IqDiscoveryBuy} />
+        <Route path={"/iq-discovery/payment-success"} component={IqDiscoverySuccess} />
         <Route path={"/igcse"} component={Igcse} />
         <Route path={"/igcse/app"} component={IgcseApp} />
         <Route path={"/igcse/lesson/:id"} component={IgcseLesson} />

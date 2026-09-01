@@ -1355,6 +1355,7 @@ export type ConversionKind =
   | "AI Tutor subscribed"
   | "IGCSE subscribed"
   | "Tes Bakat AI Pro purchased"
+  | "IQ Discovery purchased"
   | "Student registered";
 
 // ── Conversion action audit ─────────────────────────────────────────────────
