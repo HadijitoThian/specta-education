@@ -33,6 +33,7 @@ import {
   checklistItems, InsertChecklistItem, ChecklistItem,
   userChecklistProgress, InsertUserChecklistProgress, UserChecklistProgress,
   aptitudeProOrders, InsertAptitudeProOrder, AptitudeProOrder,
+  iqQuestions, InsertIqQuestion, IqQuestion,
   whatsappMessages,
   blogCategories, InsertBlogCategory, BlogCategory,
   blogPosts, InsertBlogPost, BlogPost,
@@ -3953,3 +3954,101 @@ export async function upsertVisaTracking(leadId: number, data: {
     return result;
   }
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// SpecTa IQ Discovery — question bank helpers
+// ══════════════════════════════════════════════════════════════════════════
+
+/** Insert a freshly-generated IQ question into the bank. Serializes prompt
+ *  and options as JSON strings — the schema uses LONGTEXT for these. */
+export async function insertIqQuestion(input: {
+  domain: "fluid" | "quantitative" | "verbal" | "spatial" | "memory";
+  type: string;
+  difficulty: number;
+  prompt: any;
+  options: any[];
+  correctIndex: number;
+  timeLimitSec: number;
+  explanation: string;
+  generatedBy: string;
+}): Promise<IqQuestion | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const values: InsertIqQuestion = {
+    domain: input.domain as any,
+    type: input.type,
+    difficulty: input.difficulty,
+    prompt: JSON.stringify(input.prompt),
+    options: JSON.stringify(input.options),
+    correctIndex: input.correctIndex,
+    timeLimitSec: input.timeLimitSec,
+    explanation: input.explanation,
+    generatedBy: input.generatedBy,
+  };
+  const result = await db.insert(iqQuestions).values(values);
+  const insertId = (result as any)[0]?.insertId;
+  if (insertId) {
+    const [row] = await db.select().from(iqQuestions).where(eq(iqQuestions.id, Number(insertId)));
+    return row || null;
+  }
+  return null;
+}
+
+/** List IQ questions with optional filters. Used by the admin review UI
+ *  and by the session-assembly logic when composing a real test. */
+export async function listIqQuestions(opts: {
+  domain?: "fluid" | "quantitative" | "verbal" | "spatial" | "memory";
+  approvedOnly?: boolean;
+  limit?: number;
+} = {}): Promise<IqQuestion[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const limit = Math.max(1, Math.min(1000, opts.limit || 100));
+  let query = db.select().from(iqQuestions).$dynamic();
+  if (opts.domain) query = query.where(eq(iqQuestions.domain, opts.domain));
+  if (opts.approvedOnly) query = query.where(eq(iqQuestions.approved, 1));
+  const rows = await query.orderBy(desc(iqQuestions.createdAt)).limit(limit);
+  return rows;
+}
+
+/** Toggle the approved flag on an IQ question. Approved=1 means the item
+ *  can be served to real students; approved=0 means it's still under
+ *  human review. */
+export async function setIqQuestionApproved(id: number, approved: boolean): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  await db.update(iqQuestions).set({ approved: approved ? 1 : 0 }).where(eq(iqQuestions.id, id));
+  return true;
+}
+
+/** Delete an IQ question — used to permanently reject items that shouldn't
+ *  stay in the bank. */
+export async function deleteIqQuestion(id: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  await db.delete(iqQuestions).where(eq(iqQuestions.id, id));
+  return true;
+}
+
+/** Aggregate counts by domain × approved for the admin dashboard tile. */
+export async function iqQuestionCounts(): Promise<{
+  totalGenerated: number;
+  totalApproved: number;
+  perDomain: Record<string, { generated: number; approved: number }>;
+}> {
+  const db = await getDb();
+  if (!db) return { totalGenerated: 0, totalApproved: 0, perDomain: {} };
+  const rows = await db.select().from(iqQuestions);
+  const perDomain: Record<string, { generated: number; approved: number }> = {};
+  let totalGenerated = 0, totalApproved = 0;
+  for (const r of rows) {
+    totalGenerated++;
+    const isApproved = r.approved === 1;
+    if (isApproved) totalApproved++;
+    if (!perDomain[r.domain]) perDomain[r.domain] = { generated: 0, approved: 0 };
+    perDomain[r.domain].generated++;
+    if (isApproved) perDomain[r.domain].approved++;
+  }
+  return { totalGenerated, totalApproved, perDomain };
+}
+

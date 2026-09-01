@@ -226,6 +226,7 @@ import { adsAgentRouter } from "./adsAgent";
 import { ieltsAdminRouter } from "./ieltsAdminRouter";
 import { waAttributionAdminRouter } from "./waAttributionAdminRouter";
 import { tutorAdminRouter } from "./tutorAdminRouter";
+import { iqAdminRouter } from "./iqAdminRouter";
 import { ieltsRouter } from "./ieltsRouter";
 import { voiceCloneAdminRouter } from "./voiceCloneAdminRouter";
 import { crmTeamRouter } from "./crmTeamRouter";
@@ -1272,6 +1273,7 @@ Return as JSON:
     ielts: ieltsAdminRouter,
     tutor: tutorAdminRouter,
     waAttribution: waAttributionAdminRouter,
+    iq: iqAdminRouter,
 
     /** Send the IELTS-practice follow-up DRAFT to yourself (or a given email) for review. */
     previewPracticeFollowup: protectedProcedure

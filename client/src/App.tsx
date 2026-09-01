@@ -64,6 +64,7 @@ const IELTS = lazyWithReload(() => import("./pages/IELTS"));
 const IELTSPractice = lazyWithReload(() => import("./pages/IELTSPractice"));
 const IeltsTutor = lazyWithReload(() => import("./pages/IeltsTutor"));
 const IqRendererPreview = lazyWithReload(() => import("./pages/IqRendererPreview"));
+const AdminIqBank = lazyWithReload(() => import("./pages/AdminIqBank"));
 const IeltsTutorRedeem = lazyWithReload(() => import("./pages/IeltsTutorRedeem"));
 const Igcse = lazyWithReload(() => import("./pages/Igcse"));
 const IgcseApp = lazyWithReload(() => import("./pages/IgcseApp"));
@@ -254,6 +255,7 @@ function Router() {
         <Route path={"/admin/ads-agent"} component={AdsAgent} />
         <Route path={"/admin/ielts-tests"} component={AdminIeltsTests} />
         <Route path={"/admin/ielts-tutor"} component={AdminIeltsTutor} />
+        <Route path={"/admin/iq-bank"} component={AdminIqBank} />
         <Route path={"/admin/ads-launcher"} component={AdminAdsLauncher} />
         <Route path={"/admin/wa-links"} component={AdminWaLinks} />
         <Route path={"/ielts/mock-test"} component={IeltsMockTest} />
