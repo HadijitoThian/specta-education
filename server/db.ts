@@ -721,6 +721,88 @@ export async function ensureMarketingSchema(): Promise<void> {
       "ALTER TABLE aptitudeProOrders ADD COLUMN utmMedium VARCHAR(120) NULL",
       "ALTER TABLE aptitudeProOrders ADD COLUMN utmCampaign VARCHAR(160) NULL",
       "ALTER TABLE aptitudeProOrders ADD COLUMN conversionUploadedAt TIMESTAMP NULL",
+
+      // ── SpecTa IQ Discovery — Rp 59k cognitive-abilities assessment ──────
+      // Question bank. Populated by iqQuestionGenerator (AI-driven).
+      `CREATE TABLE IF NOT EXISTS iq_questions (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         domain ENUM('fluid','quantitative','verbal','spatial','memory') NOT NULL,
+         type VARCHAR(40) NOT NULL,
+         difficulty TINYINT NOT NULL,
+         prompt LONGTEXT NOT NULL,
+         options LONGTEXT NOT NULL,
+         correctIndex TINYINT NOT NULL,
+         timeLimitSec INT NOT NULL DEFAULT 60,
+         explanation TEXT NULL,
+         timesShown INT NOT NULL DEFAULT 0,
+         timesCorrect INT NOT NULL DEFAULT 0,
+         approved TINYINT NOT NULL DEFAULT 0,
+         generatedBy VARCHAR(60) NULL,
+         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         INDEX idx_iq_q_domain (domain),
+         INDEX idx_iq_q_approved (approved),
+         INDEX idx_iq_q_domain_diff (domain, difficulty, approved)
+       )`,
+      // Per-attempt sessions. Server picks question IDs at start so client
+      // can never see what's coming next → prevents skip/cache attacks.
+      `CREATE TABLE IF NOT EXISTS iq_sessions (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         leadId INT NULL,
+         mode ENUM('preview','full') NOT NULL,
+         accessTokenId INT NULL,
+         studentName VARCHAR(255) NULL,
+         studentEmail VARCHAR(320) NULL,
+         studentPhone VARCHAR(50) NULL,
+         questionIds LONGTEXT NOT NULL,
+         answers LONGTEXT NOT NULL,
+         scores LONGTEXT NULL,
+         status ENUM('in_progress','completed','abandoned') NOT NULL DEFAULT 'in_progress',
+         startedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         completedAt TIMESTAMP NULL,
+         INDEX idx_iq_s_lead (leadId),
+         INDEX idx_iq_s_status (status),
+         INDEX idx_iq_s_token (accessTokenId)
+       )`,
+      // Single-use access tokens (mirrors aptitudeAccessTokens exactly).
+      `CREATE TABLE IF NOT EXISTS iq_access_tokens (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         token VARCHAR(64) NOT NULL UNIQUE,
+         status ENUM('unused','in_progress','completed','expired') NOT NULL DEFAULT 'unused',
+         expiresAt TIMESTAMP NOT NULL,
+         usedByName VARCHAR(255) NULL,
+         usedByEmail VARCHAR(320) NULL,
+         usedByPhone VARCHAR(50) NULL,
+         usedAt TIMESTAMP NULL,
+         completedAt TIMESTAMP NULL,
+         sessionId INT NULL,
+         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         INDEX idx_iq_at_status (status),
+         INDEX idx_iq_at_email (usedByEmail)
+       )`,
+      // Xendit orders (mirrors aptitudeProOrders shape → shared webhook code).
+      `CREATE TABLE IF NOT EXISTS iq_orders (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         externalId VARCHAR(128) NOT NULL UNIQUE,
+         xenditInvoiceId VARCHAR(128) NULL,
+         xenditInvoiceUrl VARCHAR(512) NULL,
+         customerName VARCHAR(255) NOT NULL,
+         customerEmail VARCHAR(320) NOT NULL,
+         customerPhone VARCHAR(50) NULL,
+         amount INT NOT NULL,
+         status ENUM('pending','paid','expired','failed') NOT NULL DEFAULT 'pending',
+         accessTokenId INT NULL,
+         paidAt TIMESTAMP NULL,
+         source VARCHAR(50) NOT NULL DEFAULT 'landing',
+         gclid VARCHAR(512) NULL,
+         utmSource VARCHAR(120) NULL,
+         utmMedium VARCHAR(120) NULL,
+         utmCampaign VARCHAR(160) NULL,
+         conversionUploadedAt TIMESTAMP NULL,
+         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         INDEX idx_iq_o_email (customerEmail),
+         INDEX idx_iq_o_status (status),
+         INDEX idx_iq_o_paid (paidAt)
+       )`,
     ]) {
       try { await db.execute(sql.raw(stmt)); }
       catch (e: any) {

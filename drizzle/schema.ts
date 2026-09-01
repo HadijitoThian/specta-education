@@ -2650,3 +2650,150 @@ export const igcseProgress = mysqlTable("igcse_progress", {
   lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
 });
 export type IgcseProgress = typeof igcseProgress.$inferSelect;
+
+// ══════════════════════════════════════════════════════════════════════════
+// SpecTa IQ Discovery — cognitive-abilities assessment product (Rp 59,000)
+//
+// Rp 59k paid test + free 5-question preview, targeted at 14-20yo Indonesian
+// students. Positioned as fun / self-discovery, NOT clinical. Every item is
+// AI-generated original (no adapted Raven's / WAIS / copyrighted content).
+// Five CHC-inspired domains: fluid, quantitative, verbal, spatial, memory.
+// Result = estimated IQ ± confidence + cognitive archetype (top-2 domains).
+// ══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Question bank for the IQ test. Populated by iqQuestionGenerator (AI-driven,
+ * curated). Each row is one immutable question with its correct answer, so
+ * the client can ONLY receive the prompt+options — never the answer.
+ *
+ * `prompt` and `options` are structured JSON tailored to the `type` field.
+ * See server/iqQuestionTypes.ts for the shape of each renderer.
+ */
+export const iqQuestions = mysqlTable("iq_questions", {
+  id: int("id").autoincrement().primaryKey(),
+  // Which cognitive domain this question measures. Weighted equally in
+  // scoring — 5 domains × 8 questions = 40 in a full test.
+  domain: mysqlEnum("domain", ["fluid", "quantitative", "verbal", "spatial", "memory"]).notNull(),
+  // Renderer type — the client picks the right SVG/text component to draw
+  // this. Kept as a string (not enum) so we can add new question types
+  // without a migration.
+  type: varchar("type", { length: 40 }).notNull(),
+  // Difficulty 1 (easy — served early or in preview) to 5 (hard — only in
+  // the last third of a full test). Used by session assembly to build a
+  // balanced test that ramps up.
+  difficulty: tinyint("difficulty").notNull(), // 1..5
+  // Structured JSON for the question stem — shape depends on `type`.
+  prompt: text("prompt").notNull(),
+  // JSON array of options — usually 4. Shape depends on `type`.
+  options: text("options").notNull(),
+  // Zero-indexed correct option. Server-side only; never sent to the client
+  // until scoring reveals it in the result screen.
+  correctIndex: tinyint("correctIndex").notNull(),
+  // Per-question time limit in seconds. Enforced server-side too so the
+  // client can't fake a fast submission.
+  timeLimitSec: int("timeLimitSec").default(60).notNull(),
+  // Free-form explanation shown in the results screen when this question
+  // was seen. Helps make the report feel real ("here's why").
+  explanation: text("explanation"),
+  // Metadata for later item-response-theory culling (Phase 2).
+  timesShown: int("timesShown").default(0).notNull(),
+  timesCorrect: int("timesCorrect").default(0).notNull(),
+  // Human-review flag — once a curator has eyeballed and approved an item,
+  // set to 1. Only approved items are served to paid students. Preview
+  // questions can use approved-only too for consistency.
+  approved: tinyint("approved").default(0).notNull(),
+  // Which AI generator + prompt version produced this item (useful for
+  // culling entire batches if we discover a bad prompt).
+  generatedBy: varchar("generatedBy", { length: 60 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type IqQuestion = typeof iqQuestions.$inferSelect;
+export type InsertIqQuestion = typeof iqQuestions.$inferInsert;
+
+/**
+ * IQ test sessions — one row per test attempt (preview OR full). The session
+ * chooses questions server-side at start so the client can never see which
+ * items are coming next (prevents skipping / caching). Answers stream in one
+ * at a time and are marked in server-side state.
+ */
+export const iqSessions = mysqlTable("iq_sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  // leadId is nullable to support the anonymous free preview flow. Full
+  // paid sessions always have a lead (via the access token).
+  leadId: int("leadId"),
+  mode: mysqlEnum("mode", ["preview", "full"]).notNull(),
+  // For paid sessions: which access token unlocked this (mirrors
+  // aptitudeAccessTokens flow).
+  accessTokenId: int("accessTokenId"),
+  // Contact info captured at session start (name/email/phone for paid;
+  // usually empty for preview).
+  studentName: varchar("studentName", { length: 255 }),
+  studentEmail: varchar("studentEmail", { length: 320 }),
+  studentPhone: varchar("studentPhone", { length: 50 }),
+  // Ordered list of question IDs the server chose for this session. JSON
+  // array, kept immutable once set.
+  questionIds: text("questionIds").notNull(),
+  // Per-question answers: [{questionId, chosenIndex, correct, timeMs}].
+  // Grows as the student progresses.
+  answers: text("answers").notNull(), // JSON array
+  // Aggregate scores computed at finish. JSON: { fsiq, confidenceRange,
+  // perDomain: { fluid: n, quantitative: n, ... }, archetype: "..." }.
+  scores: text("scores"),
+  status: mysqlEnum("status", ["in_progress", "completed", "abandoned"]).default("in_progress").notNull(),
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+});
+export type IqSession = typeof iqSessions.$inferSelect;
+export type InsertIqSession = typeof iqSessions.$inferInsert;
+
+/**
+ * Single-use access tokens for paid IQ Discovery test sessions. Mirrors
+ * aptitudeAccessTokens exactly — same 7-day expiry, one-attempt-per-token
+ * semantics. Kept as a separate table so we can charge different prices
+ * and track conversion independently.
+ */
+export const iqAccessTokens = mysqlTable("iq_access_tokens", {
+  id: int("id").autoincrement().primaryKey(),
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  status: mysqlEnum("status", ["unused", "in_progress", "completed", "expired"]).default("unused").notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  usedByName: varchar("usedByName", { length: 255 }),
+  usedByEmail: varchar("usedByEmail", { length: 320 }),
+  usedByPhone: varchar("usedByPhone", { length: 50 }),
+  usedAt: timestamp("usedAt"),
+  completedAt: timestamp("completedAt"),
+  sessionId: int("sessionId"), // links to iqSessions.id after use
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type IqAccessToken = typeof iqAccessTokens.$inferSelect;
+export type InsertIqAccessToken = typeof iqAccessTokens.$inferInsert;
+
+/**
+ * Xendit orders for the Rp 59k IQ Discovery product. Same shape as
+ * aptitudeProOrders so the webhook handler can share attribution logic.
+ */
+export const iqOrders = mysqlTable("iq_orders", {
+  id: int("id").autoincrement().primaryKey(),
+  externalId: varchar("externalId", { length: 128 }).notNull().unique(),
+  xenditInvoiceId: varchar("xenditInvoiceId", { length: 128 }),
+  xenditInvoiceUrl: varchar("xenditInvoiceUrl", { length: 512 }),
+  customerName: varchar("customerName", { length: 255 }).notNull(),
+  customerEmail: varchar("customerEmail", { length: 320 }).notNull(),
+  customerPhone: varchar("customerPhone", { length: 50 }),
+  amount: int("amount").notNull(), // IDR, e.g. 59000
+  status: mysqlEnum("status", ["pending", "paid", "expired", "failed"]).default("pending").notNull(),
+  accessTokenId: int("accessTokenId"),
+  paidAt: timestamp("paidAt"),
+  source: varchar("source", { length: 50 }).default("landing").notNull(),
+  // Marketing attribution captured at checkout, same as aptitudeProOrders,
+  // so the Xendit webhook can push offline conversions to Google Ads
+  // regardless of client-side loss.
+  gclid: varchar("gclid", { length: 512 }),
+  utmSource: varchar("utmSource", { length: 120 }),
+  utmMedium: varchar("utmMedium", { length: 120 }),
+  utmCampaign: varchar("utmCampaign", { length: 160 }),
+  conversionUploadedAt: timestamp("conversionUploadedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type IqOrder = typeof iqOrders.$inferSelect;
+export type InsertIqOrder = typeof iqOrders.$inferInsert;
