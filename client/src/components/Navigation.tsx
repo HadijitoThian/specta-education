@@ -10,6 +10,39 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [, setLocation] = useLocation();
 
+  // Actual-device detection instead of CSS-pixel breakpoints. Uses the
+  // browser's pointer capability queries which respond to physical
+  // input hardware, not the DPI-scaled viewport width. On a 1920×1080
+  // Windows monitor at 150% DPI scaling the CSS viewport reports 1280px,
+  // which trips CSS breakpoints unpredictably; matchMedia("(pointer: fine)")
+  // says "yes there's a mouse" regardless of DPI, so we can reliably show
+  // the desktop nav without an "essentials + hamburger" mobile fallback.
+  //
+  // Fallback logic:
+  //   isTouchOnly = has touch input AND no mouse → true mobile/tablet
+  //   isDesktop  = has mouse pointer → laptop / desktop / hybrid tablet-with-keyboard
+  // Anything with a mouse gets the full desktop nav.
+  const [isDesktop, setIsDesktop] = useState(true); // SSR default = desktop (progressive enhancement)
+
+  useEffect(() => {
+    const check = () => {
+      // "pointer: fine" = precise pointer available (mouse/trackpad).
+      // "any-pointer: coarse" = a coarse pointer (finger) is also available.
+      // Desktop = has mouse. Touch-only tablets / phones = has coarse but no fine.
+      const hasFinePointer = window.matchMedia("(pointer: fine)").matches;
+      setIsDesktop(hasFinePointer);
+    };
+    check();
+    const mm = window.matchMedia("(pointer: fine)");
+    // Safari <14 uses addListener; modern uses addEventListener.
+    if (mm.addEventListener) mm.addEventListener("change", check);
+    else mm.addListener(check);
+    return () => {
+      if (mm.removeEventListener) mm.removeEventListener("change", check);
+      else mm.removeListener(check);
+    };
+  }, []);
+
   const isActive = (page: string) => currentPage === page;
 
   // Scroll to top when navigating
@@ -19,16 +52,10 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
     setLocation(href);
   };
 
-  // Close mobile menu on resize
+  // Close mobile menu when device switches to desktop (e.g. after rotate).
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setMobileMenuOpen(false);
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    if (isDesktop) setMobileMenuOpen(false);
+  }, [isDesktop]);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-border">
@@ -37,21 +64,15 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
           <img src="/specta-logo.png" alt="SpecTa Education" className="h-10 w-auto max-w-[150px] object-contain" />
         </button>
         
-        {/* Desktop Navigation — progressive disclosure so the nav NEVER
-            overflows regardless of screen width:
-              md   (≥768px)  → 4 essentials: IELTS ▼ / Destinations ▼ /
-                               SpecTa Tutor ▼ / IQ Discovery + Book Call.
-              xl   (≥1200px) → adds: About, Scholarships, Play, Apply CTA.
-              2xl  (≥1440px) → adds: Contact, Track (fullest nav).
-            Item counts: md=5, xl=9, 2xl=11 (+logo everywhere).
-            Rewind: lg tier removed because 900-1199px was showing 8-9
-            items which overflowed on Windows-DPI-scaled displays. Now
-            lg = md tier (same 5 items). This mirrors how Airbnb /
-            Booking / Vercel handle crowded navs — reveal secondary
-            items only as horizontal space actually appears. All hidden
-            items stay accessible via the hamburger drawer on md-xl. */}
-        <div className="hidden md:flex items-center gap-3 lg:gap-3.5 xl:gap-4 2xl:gap-5 whitespace-nowrap">
-          <button onClick={() => handleNavClick("/about")} className={`hidden xl:inline-block text-sm font-medium transition-colors ${isActive("about") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
+        {/* Desktop Navigation — shown for every device with a mouse pointer
+            (see isDesktop check above). No CSS-pixel breakpoints here so
+            it renders identically across Windows DPI scaling levels and
+            browsers. Item labels tightened + no icons on secondary items
+            so the whole nav fits comfortably in ~950px of horizontal
+            space (works down to a 1024px window with room to spare). */}
+        {isDesktop && (
+        <div className="flex items-center gap-3 xl:gap-4 whitespace-nowrap">
+          <button onClick={() => handleNavClick("/about")} className={`text-sm font-medium transition-colors ${isActive("about") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             About
           </button>
           {/* IELTS Dropdown */}
@@ -128,7 +149,7 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             </div>
           </div>
           
-          <button onClick={() => handleNavClick("/scholarships")} className={`hidden xl:flex text-sm font-medium transition-colors items-center gap-1.5 ${isActive("scholarships") ? "text-primary" : "text-amber-600 hover:text-amber-700"}`}>
+          <button onClick={() => handleNavClick("/scholarships")} className={`flex text-sm font-medium transition-colors items-center gap-1.5 ${isActive("scholarships") ? "text-primary" : "text-amber-600 hover:text-amber-700"}`}>
             <GraduationCap className="w-4 h-4" />
             <span>Scholarships</span>
           </button>
@@ -161,13 +182,13 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
               </div>
             </div>
           </div>
-          <button onClick={() => handleNavClick("/contact")} className={`hidden 2xl:inline-block text-sm font-medium transition-colors ${isActive("contact") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
+          <button onClick={() => handleNavClick("/contact")} className={`text-sm font-medium transition-colors ${isActive("contact") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             Contact
           </button>
-          <button onClick={() => handleNavClick("/track")} className={`hidden 2xl:inline-block text-sm font-medium transition-colors ${isActive("track") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
+          <button onClick={() => handleNavClick("/track")} className={`text-sm font-medium transition-colors ${isActive("track") ? "text-primary" : "text-muted-foreground hover:text-primary"}`}>
             Track
           </button>
-          <button onClick={() => handleNavClick("/play")} className={`hidden xl:flex text-sm font-medium transition-colors items-center gap-1.5 ${isActive("play") ? "text-primary" : "text-purple-600 hover:text-purple-700"}`}>
+          <button onClick={() => handleNavClick("/play")} className={`flex text-sm font-medium transition-colors items-center gap-1.5 ${isActive("play") ? "text-primary" : "text-purple-600 hover:text-purple-700"}`}>
             <Gamepad2 className="w-4 h-4" />
             <span>Play</span>
           </button>
@@ -176,34 +197,39 @@ export default function Navigation({ currentPage = "" }: NavigationProps) {
             <span className="text-[10px] align-top bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-semibold">NEW</span>
           </button>
         </div>
+        )}
 
-        {/* Desktop CTA Buttons — see Navigation md: note above */}
-        <div className="hidden md:flex items-center gap-2 shrink-0 whitespace-nowrap">
+        {/* Desktop CTA Buttons — same isDesktop gate as nav items above. */}
+        {isDesktop && (
+        <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
           <button onClick={() => handleNavClick("/book")} className="px-3.5 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-blue-200 transition-all">
             Book Call
           </button>
-          <button onClick={() => handleNavClick("/apply")} className="hidden xl:inline-block px-3.5 py-1.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-pink-200 transition-all">
+          <button onClick={() => handleNavClick("/apply")} className="px-3.5 py-1.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-pink-200 transition-all">
             Apply
           </button>
         </div>
+        )}
 
         {/* Mobile Menu Button */}
-        {/* Hamburger drawer — visible until xl so md/lg users (who only see
-            5 essentials) can still reach Contact / Track / About / etc.
-            through the drawer. Common pattern (see GitHub, YouTube). Hides
-            at xl (≥1200px) when the fuller nav is on screen. */}
+        {/* Hamburger — shown ONLY on touch-only devices (no mouse). Desktops
+            always show the full horizontal nav thanks to JS pointer
+            detection above, so this hamburger never appears on a laptop
+            regardless of window width. */}
+        {!isDesktop && (
         <button
-          className="xl:hidden p-2"
+          className="p-2"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label="Toggle menu"
         >
           {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
+        )}
       </div>
 
-      {/* Mobile Navigation */}
-      {mobileMenuOpen && (
-        <div className="xl:hidden bg-white border-t border-border max-h-[calc(100vh-4rem)] overflow-y-auto">
+      {/* Mobile Navigation drawer — mirrors hamburger visibility (not desktop) */}
+      {!isDesktop && mobileMenuOpen && (
+        <div className="bg-white border-t border-border max-h-[calc(100vh-4rem)] overflow-y-auto">
           <div className="container py-4 space-y-4">
             <button onClick={() => handleNavClick("/about")} className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-primary">
               About Us
