@@ -4,6 +4,17 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* Responsive breakpoints — tightened to work better on Windows displays
+     running 125–150% DPI scaling (which is the default on modern laptops).
+     Tailwind's stock lg (1024px) misfires there because a 1440×900 physical
+     display at 150% DPI reports effective 960×600 → below lg → user gets
+     the crowded "essentials only" nav even on a large monitor.
+     Lower lg to 900px so anything wider than that gets the fuller nav. */
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 900px;
+  --breakpoint-xl: 1200px;
+  --breakpoint-2xl: 1440px;
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
