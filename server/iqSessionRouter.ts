@@ -31,6 +31,9 @@ import {
 } from "./db";
 import { scoreIqSession } from "./iqScoring";
 import { generateIqNarrative } from "./iqFeedbackEngine";
+import { generateIqDiscoveryPdf } from "./iqPdfGenerator";
+import { generateIqShareGraphic } from "./iqShareGraphic";
+import { storagePut } from "./storage";
 import type { IqDomain } from "./iqQuestionTypes";
 
 const DOMAINS = ["fluid", "quantitative", "verbal", "spatial", "memory"] as const;
@@ -305,11 +308,48 @@ export const iqSessionRouter = router({
         session.mode,
       );
 
+      // Generate deliverables — PDF report + Instagram share graphic.
+      // Only for FULL mode; preview gets neither (no PDF for a 5Q sample).
+      // Best-effort — if generation fails, the student still sees the on-screen
+      // result. The PDF+share generation adds ~2-5s to the finish call.
+      let pdfUrl: string | undefined;
+      let shareImageUrl: string | undefined;
+      if (session.mode === "full") {
+        const displayName = session.studentName || "Kamu";
+        try {
+          const pdfBuffer = await generateIqDiscoveryPdf({
+            studentName: displayName,
+            score,
+            narrative,
+          });
+          const pdfKey = `iq-discovery/reports/${input.sessionId}-${Date.now()}.pdf`;
+          const uploaded = await storagePut(pdfKey, pdfBuffer, "application/pdf");
+          pdfUrl = `/files/${uploaded.key}`;
+          console.log(`[IqDiscovery] PDF generated (${(pdfBuffer.length / 1024).toFixed(1)}KB) → ${pdfUrl}`);
+        } catch (e) {
+          console.error(`[IqDiscovery] PDF generation failed for session ${input.sessionId}:`, (e as Error).message);
+        }
+        try {
+          const png = await generateIqShareGraphic({
+            studentName: displayName,
+            score,
+          });
+          const shareKey = `iq-discovery/share/${input.sessionId}-${Date.now()}.png`;
+          const uploaded = await storagePut(shareKey, png, "image/png");
+          shareImageUrl = `/files/${uploaded.key}`;
+          console.log(`[IqDiscovery] share graphic generated (${(png.length / 1024).toFixed(1)}KB) → ${shareImageUrl}`);
+        } catch (e) {
+          console.error(`[IqDiscovery] share graphic generation failed for session ${input.sessionId}:`, (e as Error).message);
+        }
+      }
+
       const result = {
         ...score,
         narrative,
         mode: session.mode,
         studentName: session.studentName || null,
+        pdfUrl: pdfUrl || null,
+        shareImageUrl: shareImageUrl || null,
       };
 
       await updateIqSession(input.sessionId, {

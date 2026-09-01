@@ -10,7 +10,7 @@
  * Kept legally safe with visible "estimasi bukan tes klinis" footer.
  */
 
-import { Sparkles, TrendingUp, Target, Compass, ArrowRight, Trophy } from "lucide-react";
+import { Sparkles, TrendingUp, Target, Compass, ArrowRight, Trophy, Download, Share2, Instagram } from "lucide-react";
 
 // ── Palette that matches the landing hero ───────────────────────────────
 const DOMAIN_COLORS: Record<string, string> = {
@@ -296,12 +296,45 @@ export function IqResultScreen({ summary }: IqResultScreenProps) {
           </div>
         )}
 
-        {/* ── Full-test share CTA (only for full mode) ────────────── */}
-        {!isPreview && (
+        {/* ── Full-test downloads (only for full mode) ────────────── */}
+        {!isPreview && (summary.pdfUrl || summary.shareImageUrl) && (
+          <div className="rounded-2xl shadow-lg border-2 border-indigo-200 p-6 bg-gradient-to-br from-indigo-600 to-purple-700 text-white">
+            <h3 className="text-lg font-bold text-center mb-1">Simpan & bagikan 📥</h3>
+            <p className="text-sm text-indigo-100 text-center mb-4">
+              PDF lengkap + gambar untuk IG Story sudah siap.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {summary.pdfUrl && (
+                <a
+                  href={summary.pdfUrl}
+                  download={`SpecTa-IQ-${summary.studentName || "Result"}.pdf`}
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white text-indigo-700 text-sm font-bold hover:bg-indigo-50"
+                >
+                  <Download className="w-4 h-4" /> Download PDF
+                </a>
+              )}
+              {summary.shareImageUrl && (
+                <a
+                  href={summary.shareImageUrl}
+                  download={`SpecTa-IQ-Share-${summary.studentName || "Result"}.png`}
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white text-fuchsia-700 text-sm font-bold hover:bg-fuchsia-50"
+                >
+                  <Instagram className="w-4 h-4" /> Gambar IG Story
+                </a>
+              )}
+            </div>
+            <p className="text-xs text-indigo-200 text-center mt-3">
+              Tag <strong>@spectaeducation</strong> kalau kamu share! 💜
+            </p>
+          </div>
+        )}
+
+        {/* ── Full-test placeholder if generation still processing ──── */}
+        {!isPreview && !summary.pdfUrl && !summary.shareImageUrl && (
           <div className="rounded-2xl shadow-lg border-2 border-indigo-200 p-6 bg-gradient-to-br from-indigo-600 to-purple-700 text-white text-center">
             <h3 className="text-lg font-bold">Cek email kamu 📧</h3>
             <p className="text-sm text-indigo-100 mt-1">
-              Laporan PDF + gambar untuk IG Story sudah dikirim ke inbox. Tag @spectaeducation kalau kamu share!
+              Laporan PDF + gambar IG Story sedang di-generate — dikirim ke email dalam 1-2 menit.
             </p>
           </div>
         )}
