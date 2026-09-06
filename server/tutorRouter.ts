@@ -669,6 +669,27 @@ export const tutorRouter = router({
       return assessment;
     }),
 
+  // ── SpecTa Voice Concierge (test) ─────────────────────────────────────
+  //
+  // Separate ElevenLabs agent ("Emma" the front-desk) that answers questions
+  // about SpecTa, studying abroad, tests, pricing, and booking in Bahasa —
+  // and surfaces clickable link cards. Public + no login (this is a private
+  // test surface on /ielts/tutor/live), bounded by its OWN per-IP + global
+  // daily caps so a looping tester can't rack up ElevenLabs minutes.
+  conciergeStart: publicProcedure.mutation(async ({ ctx }) => {
+    const {
+      getConciergeSignedUrl, CONCIERGE_MAX_SECONDS,
+      checkConciergeQuota, recordConciergeStart,
+    } = await import("./conciergeAgent");
+    const { extractClientIp } = await import("./antiAbuse");
+    const ip = extractClientIp((ctx as any).req?.headers || {}) || "unknown";
+    const quota = await checkConciergeQuota(ip);
+    if (!quota.ok) throw new TRPCError({ code: "FORBIDDEN", message: quota.reason });
+    const { signedUrl } = await getConciergeSignedUrl();
+    await recordConciergeStart(ip);
+    return { signedUrl, maxSeconds: CONCIERGE_MAX_SECONDS };
+  }),
+
   // ── History ──
   listSessions: publicProcedure.query(async ({ ctx }) => {
     const leadId = await resolveLead(ctx);

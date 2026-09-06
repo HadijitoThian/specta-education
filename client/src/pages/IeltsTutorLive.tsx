@@ -21,12 +21,32 @@ import { trpc } from "@/lib/trpc";
 import {
   Loader2, Mic, MicOff, PhoneOff, Phone, Clock, Sparkles,
   ShieldCheck, MessageCircle, GraduationCap, Volume2,
+  HelpCircle, ExternalLink, ArrowUpRight,
 } from "lucide-react";
 
 const PINK = "#E91E8C";
 const PURPLE = "#9C27B0";
 
 type Phase = "intro" | "connecting" | "live" | "ended";
+/** Which agent this call is with: the IELTS examiner, or the SpecTa concierge. */
+type Mode = "ielts" | "concierge";
+
+interface LinkCard { title: string; url: string; subtitle?: string }
+
+/** Turn a tool-provided url into a safe href. Allows same-site relative paths
+ *  and https/wa.me/mailto/tel; anything else (javascript:, data:, etc.) is
+ *  dropped. Returns null if unsafe. */
+function safeHref(raw: string): string | null {
+  const u = (raw || "").trim();
+  if (!u) return null;
+  if (u.startsWith("/")) return u;                       // same-site path
+  if (/^https:\/\//i.test(u)) return u;                  // https only
+  if (/^(mailto:|tel:)/i.test(u)) return u;
+  if (/^wa\.me\//i.test(u)) return `https://${u}`;
+  if (/^(www\.)?spectaeducation\./i.test(u)) return `https://${u}`;
+  return null;
+}
+const isExternal = (href: string) => /^https?:/i.test(href);
 
 /** The SDK's hooks require a ConversationProvider ancestor — the default
  *  export wraps the actual page so useConversation works. */
@@ -49,6 +69,9 @@ function IeltsTutorLiveInner() {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [assessment, setAssessment] = useState<any>(null);
   const [sessionId, setSessionId] = useState<number | null>(null);
+  const [mode, setMode] = useState<Mode>("ielts");
+  const [links, setLinks] = useState<LinkCard[]>([]);
+  const modeRef = useRef<Mode>("ielts");
   const endedByUserRef = useRef(false);
   const transcriptRef = useRef<TranscriptEntry[]>([]);
   const assessedRef = useRef(false);
@@ -67,7 +90,10 @@ function IeltsTutorLiveInner() {
   useEffect(() => { transcriptRef.current = transcript; }, [transcript]);
 
   // When the call ends, fire the assessment ONCE using the captured transcript.
+  // Only the IELTS examiner call produces a band report — the concierge call
+  // is a Q&A, so it has no assessment.
   const runAssessment = () => {
+    if (modeRef.current === "concierge") return;
     if (assessedRef.current) return;
     assessedRef.current = true;
     const t = transcriptRef.current;
@@ -77,6 +103,19 @@ function IeltsTutorLiveInner() {
   };
 
   const conversation = useConversation({
+    // Client tool: the concierge Emma calls show_link to surface a clickable
+    // card for a SpecTa page she mentions. Fire-and-forget (returns void).
+    clientTools: {
+      show_link: (p: any) => {
+        try {
+          const url = String(p?.url || "").trim();
+          const title = String(p?.title || "Buka halaman").trim();
+          const subtitle = p?.subtitle ? String(p.subtitle).trim() : undefined;
+          if (!url || !safeHref(url)) return;
+          setLinks(prev => (prev.some(l => l.url === url) ? prev : [...prev, { title, url, subtitle }]));
+        } catch { /* non-critical */ }
+      },
+    },
     onConnect: () => { endedByUserRef.current = false; assessedRef.current = false; setAssessment(null); setTranscript([]); setPhase("live"); },
     onDisconnect: (details?: any) => {
       runAssessment(); // fire the assessment the moment the call ends
@@ -143,8 +182,26 @@ function IeltsTutorLiveInner() {
     },
   });
 
-  const beginCall = async () => {
+  const conciergeStart = trpc.tutor.conciergeStart.useMutation({
+    onSuccess: (d) => {
+      setMaxSeconds(d.maxSeconds);
+      setSecondsLeft(d.maxSeconds);
+      setRemaining(null);
+      setSessionId(null);
+      conversation.startSession({ signedUrl: d.signedUrl });
+    },
+    onError: (e) => {
+      setErrorMsg(e.message);
+      setPhase("intro");
+    },
+  });
+
+  /** Start a call. `m` selects the agent: IELTS examiner or SpecTa concierge. */
+  const beginCall = async (m: Mode) => {
     setErrorMsg(null);
+    setMode(m);
+    modeRef.current = m;
+    setLinks([]);
     setPhase("connecting");
     try {
       // Ask for the mic BEFORE burning a session slot — if the student
@@ -155,7 +212,8 @@ function IeltsTutorLiveInner() {
       setPhase("intro");
       return;
     }
-    start.mutate();
+    if (m === "concierge") conciergeStart.mutate();
+    else start.mutate();
   };
 
   const endCall = () => {
@@ -230,7 +288,7 @@ function IeltsTutorLiveInner() {
                   <p className="text-xs text-slate-500 mb-3">Sisa kuota: <strong>{(st as any).remaining}</strong> dari {(st as any).limit} sesi / 14 hari</p>
                 )}
                 <button
-                  onClick={beginCall}
+                  onClick={() => beginCall("ielts")}
                   disabled={start.isPending}
                   className="w-full py-4 rounded-2xl text-white font-black text-lg flex items-center justify-center gap-3 shadow-lg transition-transform hover:scale-[1.01]"
                   style={{ background: `linear-gradient(90deg, ${PINK}, ${PURPLE})` }}
@@ -261,6 +319,32 @@ function IeltsTutorLiveInner() {
             {errorMsg && (
               <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{errorMsg}</div>
             )}
+          </div>
+
+          {/* ── Concierge test card (internal QA only) ── */}
+          <div className="mt-5 bg-white rounded-3xl shadow-xl border-2 border-dashed border-indigo-200 p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-indigo-100 text-indigo-700">Tes Internal</span>
+              <span className="text-[10px] text-slate-400">belum dipublikasikan</span>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 shrink-0 rounded-full flex items-center justify-center text-xl shadow" style={{ background: `linear-gradient(135deg, ${PINK}, ${PURPLE})` }}>💬</div>
+              <div className="min-w-0">
+                <h2 className="text-lg font-black text-slate-900 leading-tight">Tanya SpecTa — ngobrol sama Emma</h2>
+                <p className="text-sm text-slate-600 mt-1">
+                  Telepon Emma dan tanya apa saja soal SpecTa: IELTS, tes aptitude, IQ, kuliah ke luar negeri, harga, atau cara daftar. Dia jawab pakai suara (Bahasa Indonesia) dan kasih link yang bisa langsung kamu klik.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => beginCall("concierge")}
+              disabled={conciergeStart.isPending}
+              className="mt-4 w-full py-3.5 rounded-2xl text-white font-black flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-[1.01] disabled:opacity-60"
+              style={{ background: "linear-gradient(90deg, #4f46e5, #9C27B0)" }}
+            >
+              <HelpCircle className="w-5 h-5" /> Tanya SpecTa (Test)
+            </button>
+            <p className="text-[11px] text-slate-400 mt-2 text-center">Untuk evaluasi tim — sebelum diputuskan tayang di homepage.</p>
           </div>
         </main>
         <Footer />
@@ -319,7 +403,11 @@ function IeltsTutorLiveInner() {
               <div className="h-full flex flex-col items-center justify-center text-center text-purple-300/70 px-6">
                 <div className="text-4xl mb-3">💬</div>
                 <p className="text-sm">Percakapan akan muncul di sini saat kamu dan Emma bicara.</p>
-                <p className="text-xs mt-2 text-purple-300/50">Kamu bisa <strong>membaca</strong> setiap pertanyaan Emma sambil mendengarkan — terutama berguna untuk cue card Part 2.</p>
+                {mode === "concierge" ? (
+                  <p className="text-xs mt-2 text-purple-300/50">Tanya apa saja soal SpecTa — Emma jawab pakai suara dan kasih link yang bisa langsung kamu klik di bawah.</p>
+                ) : (
+                  <p className="text-xs mt-2 text-purple-300/50">Kamu bisa <strong>membaca</strong> setiap pertanyaan Emma sambil mendengarkan — terutama berguna untuk cue card Part 2.</p>
+                )}
               </div>
             ) : (
               <div className="space-y-3">
@@ -341,6 +429,37 @@ function IeltsTutorLiveInner() {
             )}
           </div>
         </div>
+
+        {/* ── Link cards Emma surfaced (concierge mode) ── */}
+        {mode === "concierge" && links.length > 0 && (
+          <div className="max-w-2xl mx-auto w-full mb-3">
+            <div className="text-[11px] uppercase tracking-widest font-bold text-purple-300 mb-1.5 flex items-center gap-1">
+              <ArrowUpRight className="w-3.5 h-3.5" /> Link dari Emma
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {links.map((l, i) => {
+                const href = safeHref(l.url);
+                if (!href) return null;
+                const ext = isExternal(href);
+                return (
+                  <a
+                    key={i}
+                    href={href}
+                    {...(ext ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                    className="shrink-0 max-w-[220px] bg-white rounded-xl px-3 py-2 shadow hover:shadow-md transition flex items-center gap-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-bold text-slate-900 truncate flex items-center gap-1">
+                        {l.title}{ext && <ExternalLink className="w-3 h-3 text-slate-400 shrink-0" />}
+                      </div>
+                      {l.subtitle && <div className="text-[11px] text-slate-500 truncate">{l.subtitle}</div>}
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── Controls ── */}
         <div className="flex items-center justify-center gap-4 pb-2">
@@ -364,7 +483,73 @@ function IeltsTutorLiveInner() {
     );
   }
 
-  // ── ENDED — with instant assessment ─────────────────────────────────
+  // ── ENDED — concierge recap (no band report) ────────────────────────
+  if (mode === "concierge") {
+    const shown = links.map(l => ({ ...l, href: safeHref(l.url) })).filter(l => l.href);
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
+        <Navigation />
+        <main className="max-w-xl mx-auto p-4 pt-24 pb-16 space-y-4">
+          <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-6 text-center">
+            <div className="text-4xl mb-2">👋</div>
+            <h1 className="text-2xl font-black text-slate-900">Sampai jumpa!</h1>
+            <p className="text-slate-600 mt-1 text-sm">Semoga membantu ya! Ini link yang Emma kasih selama ngobrol.</p>
+            {errorMsg && (
+              <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">{errorMsg}</div>
+            )}
+          </div>
+
+          {shown.length > 0 ? (
+            <div className="bg-white rounded-3xl shadow border border-slate-200 p-4 space-y-2">
+              {shown.map((l, i) => {
+                const ext = isExternal(l.href!);
+                return (
+                  <a
+                    key={i}
+                    href={l.href!}
+                    {...(ext ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                    className="flex items-center gap-3 p-3 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/40 transition"
+                  >
+                    <div className="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center text-white" style={{ background: "linear-gradient(135deg, #4f46e5, #9C27B0)" }}>
+                      <ArrowUpRight className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-bold text-slate-900 truncate flex items-center gap-1">{l.title}{ext && <ExternalLink className="w-3 h-3 text-slate-400" />}</div>
+                      {l.subtitle && <div className="text-xs text-slate-500 truncate">{l.subtitle}</div>}
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="bg-white rounded-3xl shadow border border-slate-200 p-6 text-center text-sm text-slate-600">
+              Emma tidak menyematkan link kali ini. Butuh bantuan langsung? <a href="https://wa.me/62818218388" target="_blank" rel="noopener noreferrer" className="underline font-semibold" style={{ color: PINK }}>WhatsApp admin</a>.
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-2 justify-center pt-2">
+            <button
+              onClick={() => beginCall("concierge")}
+              className="px-5 py-3 rounded-xl text-white font-semibold text-sm text-center"
+              style={{ background: "linear-gradient(90deg, #4f46e5, #9C27B0)" }}
+            >
+              Tanya lagi
+            </button>
+            <button
+              onClick={() => { setMode("ielts"); modeRef.current = "ielts"; setPhase("intro"); setErrorMsg(null); setLinks([]); }}
+              className="px-5 py-3 rounded-xl font-semibold text-sm border-2"
+              style={{ borderColor: PINK, color: PINK }}
+            >
+              ← Kembali
+            </button>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // ── ENDED — IELTS with instant assessment ───────────────────────────
   const bandColor = (b: number) => b >= 7 ? "#10b981" : b >= 6 ? "#6366f1" : b >= 5 ? "#f59e0b" : "#ef4444";
   const a = assessment && !assessment.__failed && !assessment.__empty ? assessment : null;
 
