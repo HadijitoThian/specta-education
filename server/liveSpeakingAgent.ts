@@ -140,9 +140,12 @@ function buildAgentPayload(customLlmSecretId: string | null): any {
       },
       tts: {
         // British female examiner voice (Bella) — same default the mock-test
-        // examiner uses. Turbo v2.5 = lowest latency for live conversation.
+        // examiner uses. ElevenLabs requires English agents to use turbo v2
+        // or flash v2 (the multilingual v2_5 models are rejected with
+        // "English Agents must use turbo or flash v2"). Flash v2 is their
+        // lowest-latency English model — ideal for live conversation.
         voice_id: ENV.elevenLabsDefaultVoiceId,
-        model_id: "eleven_turbo_v2_5",
+        model_id: "eleven_flash_v2",
       },
       conversation: {
         // Hard server-side cap — even a modified client can't extend the call.
