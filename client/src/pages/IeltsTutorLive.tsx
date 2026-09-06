@@ -38,25 +38,32 @@ export default function IeltsTutorLive() {
   );
 }
 
+interface TranscriptEntry { role: "emma" | "you"; text: string }
+
 function IeltsTutorLiveInner() {
   const [phase, setPhase] = useState<Phase>("intro");
   const [secondsLeft, setSecondsLeft] = useState(900);
   const [maxSeconds, setMaxSeconds] = useState(900);
   const [remaining, setRemaining] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
+  const endedByUserRef = useRef(false);
+  const transcriptEndRef = useRef<HTMLDivElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const status = trpc.tutor.liveSpeakingStatus.useQuery();
 
   const conversation = useConversation({
-    onConnect: () => setPhase("live"),
+    onConnect: () => { endedByUserRef.current = false; setTranscript([]); setPhase("live"); },
     onDisconnect: (details?: any) => {
-      // Capture the disconnect reason so we can diagnose instant drops.
+      // A normal user hang-up reports reason "user" — that's not an error,
+      // so don't show a scary message. Only surface genuine technical drops.
       try {
-        const reason = details?.reason || details?.message || (typeof details === "string" ? details : "");
-        if (reason) {
+        const reason = String(details?.reason || details?.message || (typeof details === "string" ? details : "")).toLowerCase();
+        const isUserEnd = endedByUserRef.current || reason === "user" || reason.includes("user") || reason === "agent" || reason === "";
+        if (!isUserEnd) {
           console.error("[LiveSpeaking] disconnect reason:", details);
-          setErrorMsg(`Panggilan terputus. Detail teknis: ${String(reason).slice(0, 300)}`);
+          setErrorMsg(`Panggilan terputus karena masalah teknis: ${String(details?.reason || details?.message || "unknown").slice(0, 200)}. Coba mulai lagi.`);
         }
       } catch { /* ignore */ }
       setPhase(p => (p === "live" || p === "connecting" ? "ended" : p));
@@ -64,13 +71,37 @@ function IeltsTutorLiveInner() {
     onError: (message: any) => {
       console.error("[LiveSpeaking] conversation error:", message);
       const raw = typeof message === "string" ? message : (message?.message || JSON.stringify(message));
-      // Show the REAL error text so we can debug from a screenshot instead
-      // of a generic message.
       setErrorMsg(`Error teknis: ${String(raw).slice(0, 400)}`);
       setPhase("ended");
     },
+    // Live transcript: the SDK emits a message per completed utterance from
+    // either side. Append it so the student can READ Emma's questions (huge
+    // for Part 2 cue cards) and see their own answers transcribed.
+    onMessage: (msg: any) => {
+      try {
+        const source = msg?.source || msg?.role;   // "ai"/"agent" vs "user"
+        const text = (msg?.message ?? msg?.text ?? "").toString().trim();
+        if (!text) return;
+        const role: "emma" | "you" = (source === "user" || source === "human") ? "you" : "emma";
+        setTranscript(prev => {
+          // Coalesce consecutive same-role fragments into one bubble.
+          const last = prev[prev.length - 1];
+          if (last && last.role === role) {
+            const merged = [...prev];
+            merged[merged.length - 1] = { role, text: `${last.text} ${text}`.trim() };
+            return merged;
+          }
+          return [...prev, { role, text }];
+        });
+      } catch { /* non-critical */ }
+    },
   });
   const muted = conversation.isMuted;
+
+  // Auto-scroll the transcript to the newest line.
+  useEffect(() => {
+    transcriptEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [transcript]);
 
   const start = trpc.tutor.liveSpeakingStart.useMutation({
     onSuccess: (d) => {
@@ -103,6 +134,7 @@ function IeltsTutorLiveInner() {
   };
 
   const endCall = () => {
+    endedByUserRef.current = true; // mark hang-up as intentional (no error msg)
     try { conversation.endSession(); } catch { /* already closed */ }
     setPhase("ended");
   };
@@ -229,42 +261,62 @@ function IeltsTutorLiveInner() {
   if (phase === "live") {
     const agentSpeaking = conversation.isSpeaking;
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex flex-col items-center justify-center p-4">
-        {/* Timer */}
-        <div className={`mb-8 px-4 py-2 rounded-full text-sm font-bold tabular-nums flex items-center gap-2
-          ${timeDanger ? "bg-red-500/20 text-red-300" : "bg-white/10 text-purple-100"}`}>
-          <Clock className={`w-4 h-4 ${timeDanger ? "animate-pulse" : ""}`} />
-          {mmss(secondsLeft)}
-        </div>
-
-        {/* Emma avatar with speaking animation */}
-        <div className="relative w-40 h-40 mb-6">
-          {agentSpeaking && (
-            <>
-              <div className="absolute inset-0 rounded-full animate-ping opacity-20" style={{ background: PINK }} />
-              <div className="absolute -inset-3 rounded-full animate-pulse opacity-10" style={{ background: PURPLE }} />
-            </>
-          )}
-          <div className="relative w-40 h-40 rounded-full flex items-center justify-center text-6xl shadow-2xl" style={{ background: `linear-gradient(135deg, ${PINK}, ${PURPLE})` }}>
-            👩🏻‍🏫
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex flex-col p-4">
+        {/* ── Header: timer + compact Emma status ── */}
+        <div className="flex items-center justify-between max-w-2xl mx-auto w-full pt-2">
+          <div className="flex items-center gap-3">
+            <div className="relative w-11 h-11">
+              {agentSpeaking && <div className="absolute inset-0 rounded-full animate-ping opacity-30" style={{ background: PINK }} />}
+              <div className="relative w-11 h-11 rounded-full flex items-center justify-center text-xl shadow-lg" style={{ background: `linear-gradient(135deg, ${PINK}, ${PURPLE})` }}>👩🏻‍🏫</div>
+            </div>
+            <div>
+              <div className="text-white font-bold leading-tight">Emma</div>
+              <div className="text-[11px] text-purple-200 flex items-center gap-1">
+                {agentSpeaking
+                  ? <><Volume2 className="w-3 h-3 animate-pulse" /> sedang bicara…</>
+                  : <><Mic className="w-3 h-3" style={{ color: "#4ade80" }} /> giliran kamu</>}
+              </div>
+            </div>
+          </div>
+          <div className={`px-3 py-1.5 rounded-full text-sm font-bold tabular-nums flex items-center gap-1.5
+            ${timeDanger ? "bg-red-500/20 text-red-300" : "bg-white/10 text-purple-100"}`}>
+            <Clock className={`w-4 h-4 ${timeDanger ? "animate-pulse" : ""}`} />
+            {mmss(secondsLeft)}
           </div>
         </div>
 
-        <div className="text-center text-white mb-2">
-          <div className="text-2xl font-bold">Emma</div>
-          <div className="text-sm text-purple-200 flex items-center justify-center gap-1.5 mt-1">
-            {agentSpeaking
-              ? <><Volume2 className="w-4 h-4 animate-pulse" /> Emma sedang bicara…</>
-              : <><Mic className="w-4 h-4" style={{ color: "#4ade80" }} /> Giliran kamu — bicaralah!</>}
+        {/* ── Live transcript — read Emma's questions + your answers ── */}
+        <div className="flex-1 max-w-2xl mx-auto w-full my-4 min-h-0">
+          <div className="h-full bg-white/5 backdrop-blur rounded-2xl border border-white/10 p-4 overflow-y-auto">
+            {transcript.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-purple-300/70 px-6">
+                <div className="text-4xl mb-3">💬</div>
+                <p className="text-sm">Percakapan akan muncul di sini saat kamu dan Emma bicara.</p>
+                <p className="text-xs mt-2 text-purple-300/50">Kamu bisa <strong>membaca</strong> setiap pertanyaan Emma sambil mendengarkan — terutama berguna untuk cue card Part 2.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {transcript.map((t, i) => (
+                  <div key={i} className={`flex ${t.role === "you" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed
+                      ${t.role === "you"
+                        ? "bg-white/15 text-white rounded-br-sm"
+                        : "bg-white text-slate-800 rounded-bl-sm"}`}>
+                      <div className={`text-[10px] font-bold uppercase tracking-wide mb-0.5 ${t.role === "you" ? "text-purple-200" : "text-pink-600"}`}>
+                        {t.role === "you" ? "Kamu" : "Emma"}
+                      </div>
+                      {t.text}
+                    </div>
+                  </div>
+                ))}
+                <div ref={transcriptEndRef} />
+              </div>
+            )}
           </div>
         </div>
 
-        <p className="text-purple-300/70 text-xs max-w-xs text-center mb-10">
-          Bicara natural saja. Kamu boleh menyela, bertanya, atau minta topik diganti kapan pun.
-        </p>
-
-        {/* Controls */}
-        <div className="flex items-center gap-4">
+        {/* ── Controls ── */}
+        <div className="flex items-center justify-center gap-4 pb-2">
           <button
             onClick={toggleMute}
             className={`w-14 h-14 rounded-full flex items-center justify-center transition
