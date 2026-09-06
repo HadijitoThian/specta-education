@@ -29,7 +29,17 @@ import { ENV } from "./_core/env";
 import { readFlag, writeFlag } from "./systemFlags";
 
 const EL_API = "https://api.elevenlabs.io";
-const AGENT_FLAG_KEY = "live_speaking_agent_id_v1";
+// v2: bumped after v1's DeepSeek-custom-LLM agent connected then instantly
+// dropped every call (ElevenLabs↔DeepSeek handshake failure). v2 uses
+// ElevenLabs' bundled LLM by default — faster, more reliable, and the cost
+// difference is pennies per session. Bumping the key forces a fresh agent.
+const AGENT_FLAG_KEY = "live_speaking_agent_id_v2";
+
+// Opt-in: wire DeepSeek as the custom LLM only when explicitly enabled.
+// Default OFF — the bundled model is lower-latency (better for live calls)
+// and can't break on a custom-endpoint handshake. Set
+// LIVE_SPEAKING_USE_DEEPSEEK=true on Railway to try DeepSeek again later.
+const USE_DEEPSEEK = () => process.env.LIVE_SPEAKING_USE_DEEPSEEK === "true";
 
 /** Max session length — mirrors the marketing promise of "15 minutes". */
 export const LIVE_SESSION_MAX_SECONDS = 900;
@@ -155,11 +165,12 @@ function buildAgentPayload(customLlmSecretId: string | null): any {
   };
 }
 
-/** Create the agent (custom LLM first, bundled-model fallback). */
+/** Create the agent. Bundled LLM by default; DeepSeek custom LLM only if
+ *  LIVE_SPEAKING_USE_DEEPSEEK=true (opt-in, with bundled fallback). */
 async function createAgent(): Promise<ElAgentCreateResult> {
-  const secretId = ENV.deepseekApiKey ? await createDeepSeekSecret() : null;
+  const secretId = (USE_DEEPSEEK() && ENV.deepseekApiKey) ? await createDeepSeekSecret() : null;
 
-  // Attempt 1: with DeepSeek custom LLM
+  // Attempt 1: with DeepSeek custom LLM (only when opted in)
   if (secretId) {
     const res = await elFetch("/v1/convai/agents/create", {
       method: "POST",
