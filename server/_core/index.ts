@@ -66,6 +66,8 @@ async function startServer() {
             "'self'",
             "'unsafe-inline'",
             "'unsafe-eval'",
+            "blob:", // ElevenLabs Conversational AI loads its AudioWorklet
+                     // (rawAudioProcessor) from a blob: URL — blocked without this.
             "https://www.googletagmanager.com",
             "https://www.google-analytics.com",
             "https://ssl.google-analytics.com",
@@ -73,6 +75,10 @@ async function startServer() {
             "https://maps.gstatic.com",
             "https://cdn.jsdelivr.net",
           ],
+          // AudioWorklet / Worker sources — the ElevenLabs live-speaking
+          // SDK spins up its audio-processing worklet from a blob URL.
+          workerSrc: ["'self'", "blob:"],
+          childSrc: ["'self'", "blob:"],
           styleSrc: [
             "'self'",
             "'unsafe-inline'",
@@ -87,9 +93,13 @@ async function startServer() {
             "https://analytics.google.com",
             "https://www.googletagmanager.com",
             "https://maps.googleapis.com",
-            "wss:",
+            "https://api.elevenlabs.io",   // signed-url + agent API
+            "https://api.us.elevenlabs.io", // regional API host
+            "wss:",  // ElevenLabs live conversation WebSocket
             "ws:",
           ],
+          // ElevenLabs streams agent audio as blob/media — allow blob media.
+          mediaSrc: ["'self'", "blob:", "data:", "https:"],
           frameSrc: ["'self'", "https://www.google.com"],
           frameAncestors: ["'self'"],
           objectSrc: ["'none'"],
