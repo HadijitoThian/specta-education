@@ -197,25 +197,11 @@ function IeltsTutorLiveInner() {
 
             {status.isLoading ? (
               <div className="text-center py-4"><Loader2 className="w-6 h-6 animate-spin mx-auto text-slate-400" /></div>
-            ) : !st?.loggedIn ? (
+            ) : st?.allowed ? (
+              // Allowed (open beta = anyone, or entitled member) → show call CTA.
               <div className="text-center">
-                <p className="text-sm text-slate-600 mb-3">Masuk dulu untuk mulai latihan live.</p>
-                <a href="/ielts/tutor" className="inline-block px-6 py-3 rounded-xl text-white font-semibold" style={{ background: PINK }}>Masuk / Daftar di AI Tutor →</a>
-              </div>
-            ) : st.reason === "subscription" ? (
-              <div className="text-center">
-                <p className="text-sm text-slate-600 mb-3">Live speaking practice adalah fitur premium untuk pelanggan AI Tutor.</p>
-                <a href="/ielts/tutor" className="inline-block px-6 py-3 rounded-xl text-white font-semibold" style={{ background: PURPLE }}>Lihat Paket AI Tutor →</a>
-              </div>
-            ) : st.reason === "limit" ? (
-              <div className="text-center">
-                <p className="text-sm text-slate-600 mb-1">Kuota live session kamu sudah terpakai ({st.limit} per 14 hari).</p>
-                <p className="text-xs text-slate-500">Kuota reset otomatis. Butuh lebih? <a href="https://wa.me/62818218388" className="underline font-semibold" style={{ color: PINK }}>WhatsApp admin</a>.</p>
-              </div>
-            ) : (
-              <div className="text-center">
-                {typeof st.remaining === "number" && (
-                  <p className="text-xs text-slate-500 mb-3">Sisa kuota: <strong>{st.remaining}</strong> dari {st.limit} sesi / 14 hari</p>
+                {typeof (st as any).remaining === "number" && (st as any).limit && (
+                  <p className="text-xs text-slate-500 mb-3">Sisa kuota: <strong>{(st as any).remaining}</strong> dari {(st as any).limit} sesi / 14 hari</p>
                 )}
                 <button
                   onClick={beginCall}
@@ -228,6 +214,21 @@ function IeltsTutorLiveInner() {
                 <p className="text-[11px] text-slate-400 mt-3 flex items-center justify-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5" /> Kami akan minta izin mikrofon — percakapan hanya untuk penilaian kamu.
                 </p>
+              </div>
+            ) : st?.reason === "subscription" ? (
+              <div className="text-center">
+                <p className="text-sm text-slate-600 mb-3">Live speaking practice adalah fitur premium untuk pelanggan AI Tutor.</p>
+                <a href="/ielts/tutor" className="inline-block px-6 py-3 rounded-xl text-white font-semibold" style={{ background: PURPLE }}>Lihat Paket AI Tutor →</a>
+              </div>
+            ) : st?.reason === "limit" ? (
+              <div className="text-center">
+                <p className="text-sm text-slate-600 mb-1">Kuota live session kamu sudah terpakai.</p>
+                <p className="text-xs text-slate-500">Kuota reset otomatis. Butuh lebih? <a href="https://wa.me/62818218388" className="underline font-semibold" style={{ color: PINK }}>WhatsApp admin</a>.</p>
+              </div>
+            ) : (
+              <div className="text-center">
+                <p className="text-sm text-slate-600 mb-3">Masuk dulu untuk mulai latihan live.</p>
+                <a href="/ielts/tutor" className="inline-block px-6 py-3 rounded-xl text-white font-semibold" style={{ background: PINK }}>Masuk / Daftar di AI Tutor →</a>
               </div>
             )}
 

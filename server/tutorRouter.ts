@@ -517,11 +517,21 @@ export const tutorRouter = router({
   /** Entitlement + remaining-session status for the live-practice UI. */
   liveSpeakingStatus: publicProcedure.query(async ({ ctx }) => {
     const leadId = await resolveLead(ctx);
+
+    // OPEN BETA: no login required at all — anyone can practise. Cost is
+    // bounded by silent per-IP + global daily caps enforced at start.
+    if (LIVE_OPEN_BETA() && !leadId) {
+      return { loggedIn: false as const, allowed: true as const, reason: null, beta: true as const };
+    }
+
     if (!leadId) return { loggedIn: false as const, allowed: false as const, reason: "login" as const };
     if (await isLiveSpeakingTester(leadId)) {
       return { loggedIn: true as const, allowed: true as const, reason: null, remaining: 999, limit: 999, tester: true as const };
     }
-    if (!LIVE_OPEN_BETA()) {
+    if (LIVE_OPEN_BETA()) {
+      return { loggedIn: true as const, allowed: true as const, reason: null, beta: true as const };
+    }
+    {
       const sub = await getActiveTutorSubscription(leadId);
       if (!sub && !FREE_TESTING()) {
         return { loggedIn: true as const, allowed: false as const, reason: "subscription" as const };
@@ -545,9 +555,30 @@ export const tutorRouter = router({
 
   /** Start a live session: verify entitlement, mint a signed URL, log it. */
   liveSpeakingStart: publicProcedure.mutation(async ({ ctx }) => {
-    const leadId = requireLead(await resolveLead(ctx));
+    const leadId = await resolveLead(ctx);
+    const openBeta = LIVE_OPEN_BETA();
+    const {
+      getLiveSpeakingSignedUrl, LIVE_SESSION_MAX_SECONDS, LIVE_SESSIONS_PER_PERIOD,
+      checkAnonLiveQuota, recordAnonLiveStart,
+    } = await import("./liveSpeakingAgent");
+
+    // ── Anonymous open-beta path (no login) ──────────────────────────────
+    if (!leadId) {
+      if (!openBeta) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Please sign in to use live speaking practice." });
+      }
+      const { extractClientIp } = await import("./antiAbuse");
+      const ip = extractClientIp((ctx as any).req?.headers || {}) || "unknown";
+      const quota = await checkAnonLiveQuota(ip);
+      if (!quota.ok) throw new TRPCError({ code: "FORBIDDEN", message: quota.reason });
+      const { signedUrl } = await getLiveSpeakingSignedUrl();
+      await recordAnonLiveStart(ip); // count against per-IP + global caps
+      return { signedUrl, sessionId: null, maxSeconds: LIVE_SESSION_MAX_SECONDS, remaining: null };
+    }
+
+    // ── Logged-in path ───────────────────────────────────────────────────
     const tester = await isLiveSpeakingTester(leadId);
-    if (!tester && !LIVE_OPEN_BETA()) {
+    if (!tester && !openBeta) {
       const sub = await getActiveTutorSubscription(leadId);
       if (!sub && !FREE_TESTING()) {
         throw new TRPCError({
@@ -556,42 +587,48 @@ export const tutorRouter = router({
         });
       }
     }
-    const { getLiveSpeakingSignedUrl, LIVE_SESSION_MAX_SECONDS, LIVE_SESSIONS_PER_PERIOD } = await import("./liveSpeakingAgent");
 
-    // Per-period cap — recount server-side at start time (the status query
-    // is advisory; this is the enforcement point). Testers skip the cap.
-    const recent = await listTutorSessions(leadId, 100);
-    const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
-    const used = recent.filter(s =>
-      s.taskType === "live_speaking" && s.createdAt && new Date(s.createdAt).getTime() >= cutoff
-    ).length;
-    if (!tester && used >= LIVE_SESSIONS_PER_PERIOD && !FREE_TESTING()) {
-      throw new TRPCError({
-        code: "FORBIDDEN",
-        message: `Kuota live session kamu habis (${LIVE_SESSIONS_PER_PERIOD} per 14 hari). Kuota reset otomatis — atau upgrade paket via WhatsApp admin.`,
-      });
+    // Per-period cap applies only to non-tester logged-in users when the
+    // paywall is on (post-beta). During open beta, logged-in users are also
+    // uncapped (the global daily cap still protects total spend).
+    if (!tester && !openBeta) {
+      const recent = await listTutorSessions(leadId, 100);
+      const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+      const used = recent.filter(s =>
+        s.taskType === "live_speaking" && s.createdAt && new Date(s.createdAt).getTime() >= cutoff
+      ).length;
+      if (used >= LIVE_SESSIONS_PER_PERIOD && !FREE_TESTING()) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: `Kuota live session kamu habis (${LIVE_SESSIONS_PER_PERIOD} per 14 hari). Kuota reset otomatis — atau upgrade paket via WhatsApp admin.`,
+        });
+      }
+    }
+
+    // Global daily cap still applies to logged-in beta users as a spend ceiling.
+    if (openBeta && !tester) {
+      const { extractClientIp } = await import("./antiAbuse");
+      const ip = extractClientIp((ctx as any).req?.headers || {}) || "unknown";
+      const quota = await checkAnonLiveQuota(ip);
+      if (!quota.ok) throw new TRPCError({ code: "FORBIDDEN", message: quota.reason });
+      await recordAnonLiveStart(ip);
     }
 
     const { signedUrl, agentId } = await getLiveSpeakingSignedUrl();
-
-    // Log the session row BEFORE the call starts — this is what the cap
-    // counts, so a student can't dodge the quota by killing the tab
-    // mid-call. Phase 2's post-call webhook will enrich this row with the
-    // transcript + assessment.
     const session = await createTutorSession({
       leadId,
       skill: "speaking",
       taskType: "live_speaking",
       prompt: "Live speaking practice session (15 min)",
       feedback: { agentId, startedAt: new Date().toISOString(), tester } as any,
-      isFree: tester || LIVE_OPEN_BETA(), // tester + open-beta sessions flagged free so revenue stats stay clean
+      isFree: tester || openBeta,
     });
 
     return {
       signedUrl,
       sessionId: session?.id,
       maxSeconds: LIVE_SESSION_MAX_SECONDS,
-      remaining: Math.max(0, LIVE_SESSIONS_PER_PERIOD - used - 1),
+      remaining: null,
     };
   }),
 

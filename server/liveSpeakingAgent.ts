@@ -231,6 +231,54 @@ export async function ensureLiveSpeakingAgent(): Promise<string> {
   return agentId;
 }
 
+// ── Anonymous-access cost guardrails (open beta) ──────────────────────────
+//
+// During the frictionless beta ANYONE can start a call without logging in.
+// Each call spends real money (~Rp 30-50k), so two silent circuit breakers
+// bound the damage from abuse / bots / a single looping user:
+//   1. Per-IP daily cap (in-memory; resets on deploy — fine for beta).
+//   2. Global daily cap (DB-backed; survives restarts) — hard spend ceiling.
+// Both are env-tunable. Neither is visible to a normal user.
+
+export const LIVE_ANON_PER_IP_PER_DAY = Number(process.env.LIVE_SPEAKING_ANON_PER_IP_PER_DAY || 5);
+export const LIVE_GLOBAL_PER_DAY = Number(process.env.LIVE_SPEAKING_GLOBAL_PER_DAY || 80);
+
+const ipHits = new Map<string, number[]>(); // ip → start timestamps (ms)
+
+function pruneAndCountIp(ip: string): number {
+  const now = Date.now();
+  const dayAgo = now - 24 * 60 * 60 * 1000;
+  const arr = (ipHits.get(ip) || []).filter(t => t >= dayAgo);
+  ipHits.set(ip, arr);
+  return arr.length;
+}
+
+/** Returns null if allowed, or a reason string if a cap is hit. */
+export async function checkAnonLiveQuota(ip: string): Promise<{ ok: true } | { ok: false; reason: string }> {
+  // Per-IP
+  const ipCount = pruneAndCountIp(ip || "unknown");
+  if (ipCount >= LIVE_ANON_PER_IP_PER_DAY) {
+    return { ok: false, reason: `Kuota harian dari perangkat ini sudah tercapai (${LIVE_ANON_PER_IP_PER_DAY} sesi/hari selama beta). Coba lagi besok.` };
+  }
+  // Global daily
+  const dayKey = `live_speaking_global_${new Date().toISOString().slice(0, 10)}`;
+  const current = Number((await readFlag(dayKey)) || "0");
+  if (current >= LIVE_GLOBAL_PER_DAY) {
+    return { ok: false, reason: "Kuota beta harian SpecTa sudah penuh untuk hari ini 🙏 Coba lagi besok — atau login sebagai member untuk akses prioritas." };
+  }
+  return { ok: true };
+}
+
+/** Record one anonymous session start against both caps. */
+export async function recordAnonLiveStart(ip: string): Promise<void> {
+  const arr = ipHits.get(ip || "unknown") || [];
+  arr.push(Date.now());
+  ipHits.set(ip || "unknown", arr);
+  const dayKey = `live_speaking_global_${new Date().toISOString().slice(0, 10)}`;
+  const current = Number((await readFlag(dayKey)) || "0");
+  await writeFlag(dayKey, String(current + 1));
+}
+
 /**
  * Mint a signed URL for one conversation session. Signed URLs are
  * short-lived and single-conversation — the entitlement check happens in
