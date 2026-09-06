@@ -47,15 +47,39 @@ function IeltsTutorLiveInner() {
   const [remaining, setRemaining] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
+  const [assessment, setAssessment] = useState<any>(null);
+  const [sessionId, setSessionId] = useState<number | null>(null);
   const endedByUserRef = useRef(false);
+  const transcriptRef = useRef<TranscriptEntry[]>([]);
+  const assessedRef = useRef(false);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const status = trpc.tutor.liveSpeakingStatus.useQuery();
 
+  const assess = trpc.tutor.liveSpeakingAssess.useMutation({
+    onSuccess: (d) => setAssessment(d),
+    onError: () => setAssessment({ __failed: true }),
+  });
+
+  // Keep a ref copy of the transcript so we can read the final version at
+  // hang-up time without stale-closure issues.
+  useEffect(() => { transcriptRef.current = transcript; }, [transcript]);
+
+  // When the call ends, fire the assessment ONCE using the captured transcript.
+  const runAssessment = () => {
+    if (assessedRef.current) return;
+    assessedRef.current = true;
+    const t = transcriptRef.current;
+    const studentTurns = t.filter(x => x.role === "you").length;
+    if (studentTurns === 0) { setAssessment({ __empty: true }); return; }
+    assess.mutate({ sessionId, transcript: t.map(x => ({ role: x.role, text: x.text.slice(0, 4000) })).slice(0, 200) });
+  };
+
   const conversation = useConversation({
-    onConnect: () => { endedByUserRef.current = false; setTranscript([]); setPhase("live"); },
+    onConnect: () => { endedByUserRef.current = false; assessedRef.current = false; setAssessment(null); setTranscript([]); setPhase("live"); },
     onDisconnect: (details?: any) => {
+      runAssessment(); // fire the assessment the moment the call ends
       // A normal user hang-up reports reason "user" — that's not an error,
       // so don't show a scary message. Only surface genuine technical drops.
       try {
@@ -108,6 +132,7 @@ function IeltsTutorLiveInner() {
       setMaxSeconds(d.maxSeconds);
       setSecondsLeft(d.maxSeconds);
       setRemaining(d.remaining);
+      setSessionId(d.sessionId ?? null);
       // startSession is fire-and-forget in this SDK version; connection
       // outcome arrives via onConnect / onError callbacks above.
       conversation.startSession({ signedUrl: d.signedUrl });
@@ -136,6 +161,7 @@ function IeltsTutorLiveInner() {
   const endCall = () => {
     endedByUserRef.current = true; // mark hang-up as intentional (no error msg)
     try { conversation.endSession(); } catch { /* already closed */ }
+    runAssessment();
     setPhase("ended");
   };
 
@@ -338,35 +364,138 @@ function IeltsTutorLiveInner() {
     );
   }
 
-  // ── ENDED ───────────────────────────────────────────────────────────
+  // ── ENDED — with instant assessment ─────────────────────────────────
+  const bandColor = (b: number) => b >= 7 ? "#10b981" : b >= 6 ? "#6366f1" : b >= 5 ? "#f59e0b" : "#ef4444";
+  const a = assessment && !assessment.__failed && !assessment.__empty ? assessment : null;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
       <Navigation />
-      <main className="max-w-xl mx-auto p-4 pt-24 pb-16">
-        <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-8 text-center">
-          <div className="text-5xl mb-3">🎉</div>
+      <main className="max-w-xl mx-auto p-4 pt-24 pb-16 space-y-4">
+        {/* Header card */}
+        <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-6 text-center">
+          <div className="text-4xl mb-2">🎉</div>
           <h1 className="text-2xl font-black text-slate-900">Sesi selesai!</h1>
-          <p className="text-slate-600 mt-2 text-sm">
-            Kerja bagus! Latihan konsisten seperti ini adalah cara tercepat menaikkan band Speaking kamu.
-          </p>
-          {typeof remaining === "number" && (
-            <p className="text-xs text-slate-500 mt-3">Sisa kuota live session: <strong>{remaining}</strong> / 14 hari ke depan</p>
-          )}
+          <p className="text-slate-600 mt-1 text-sm">Kerja bagus! Ini hasil latihanmu bareng Emma.</p>
           {errorMsg && (
-            <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">{errorMsg}</div>
+            <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">{errorMsg}</div>
           )}
-          <div className="mt-6 flex flex-col sm:flex-row gap-2 justify-center">
-            <a href="/ielts/tutor" className="px-5 py-3 rounded-xl text-white font-semibold text-sm" style={{ background: PURPLE }}>
-              ← Kembali ke AI Tutor
-            </a>
-            <button
-              onClick={() => { setPhase("intro"); setErrorMsg(null); status.refetch(); }}
-              className="px-5 py-3 rounded-xl font-semibold text-sm border-2"
-              style={{ borderColor: PINK, color: PINK }}
-            >
-              Mulai sesi lagi
-            </button>
+        </div>
+
+        {/* Assessment states */}
+        {assess.isPending && (
+          <div className="bg-white rounded-3xl shadow border border-slate-200 p-8 text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-500 mb-3" />
+            <p className="text-sm text-slate-600">Emma sedang menilai speaking kamu…</p>
+            <p className="text-xs text-slate-400 mt-1">Estimasi band + koreksi grammar sedang disiapkan.</p>
           </div>
+        )}
+
+        {assessment?.__empty && (
+          <div className="bg-white rounded-3xl shadow border border-slate-200 p-6 text-center text-sm text-slate-600">
+            Percakapan terlalu singkat untuk dinilai. Coba lagi dan bicara lebih banyak — jawab tiap pertanyaan dengan beberapa kalimat!
+          </div>
+        )}
+        {assessment?.__failed && (
+          <div className="bg-white rounded-3xl shadow border border-slate-200 p-6 text-center text-sm text-slate-600">
+            Penilaian gagal dimuat. Kerja bagus sudah menyelesaikan sesi — coba lagi nanti.
+          </div>
+        )}
+
+        {a && (
+          <>
+            {/* Overall band */}
+            <div className="bg-gradient-to-br from-indigo-950 via-purple-900 to-slate-900 rounded-3xl p-6 text-center text-white shadow-xl">
+              <div className="text-xs uppercase tracking-widest text-purple-300 font-semibold">Estimasi Band Speaking</div>
+              <div className="text-6xl font-black my-1" style={{ color: bandColor(a.overallBand) === "#6366f1" ? "#c4b5fd" : bandColor(a.overallBand) }}>{a.overallBand.toFixed(1)}</div>
+              <div className="text-[11px] text-purple-300">berdasarkan ~{a.wordCount} kata yang kamu ucapkan</div>
+            </div>
+
+            {/* Per-criterion */}
+            <div className="bg-white rounded-3xl shadow border border-slate-200 p-6 space-y-4">
+              <div className="text-xs uppercase tracking-widest text-purple-600 font-bold">Per Kriteria</div>
+              {([
+                ["Fluency & Coherence", a.criteria.fluency],
+                ["Lexical Resource", a.criteria.lexical],
+                ["Grammatical Range & Accuracy", a.criteria.grammar],
+              ] as const).map(([label, c]: any, i) => (
+                <div key={i}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-semibold text-slate-800">{label}</span>
+                    <span className="text-sm font-black tabular-nums px-2 py-0.5 rounded" style={{ color: bandColor(c.band), background: `${bandColor(c.band)}15` }}>{c.band.toFixed(1)}</span>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">{c.comment}</p>
+                </div>
+              ))}
+              <div className="flex items-start gap-2 pt-2 border-t border-slate-100">
+                <span className="text-sm">🔊</span>
+                <p className="text-[11px] text-slate-400 leading-relaxed">{a.pronunciationNote}</p>
+              </div>
+            </div>
+
+            {/* Summary */}
+            {a.summary && (
+              <div className="bg-white rounded-3xl shadow border border-slate-200 p-6">
+                <div className="text-xs uppercase tracking-widest text-purple-600 font-bold mb-2">Ringkasan</div>
+                <p className="text-sm text-slate-700 leading-relaxed">{a.summary}</p>
+              </div>
+            )}
+
+            {/* Grammar corrections */}
+            {a.corrections?.length > 0 && (
+              <div className="bg-white rounded-3xl shadow border border-slate-200 p-6">
+                <div className="text-xs uppercase tracking-widest text-purple-600 font-bold mb-3">Koreksi Grammar</div>
+                <div className="space-y-3">
+                  {a.corrections.map((c: any, i: number) => (
+                    <div key={i} className="text-sm">
+                      <span className="line-through text-red-500">{c.original}</span>
+                      <span className="mx-1.5 text-slate-400">→</span>
+                      <span className="text-green-700 font-medium">{c.fixed}</span>
+                      {c.note && <div className="text-[11px] text-slate-400 mt-0.5">{c.note}</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Strengths */}
+            {a.strengths?.length > 0 && (
+              <div className="bg-white rounded-3xl shadow border border-slate-200 p-6">
+                <div className="text-xs uppercase tracking-widest text-green-600 font-bold mb-3">Kekuatan Kamu</div>
+                <ul className="space-y-1.5">
+                  {a.strengths.map((s: string, i: number) => (
+                    <li key={i} className="flex gap-2 text-sm text-slate-700"><span className="text-green-500 font-bold">✓</span>{s}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Practice plan */}
+            {a.improvements?.length > 0 && (
+              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-3xl border border-indigo-100 p-6">
+                <div className="text-xs uppercase tracking-widest text-indigo-700 font-bold mb-3">Rencana Latihan</div>
+                <ul className="space-y-2">
+                  {a.improvements.map((s: string, i: number) => (
+                    <li key={i} className="flex gap-2 text-sm text-slate-700"><span className="text-indigo-500 font-bold">→</span>{s}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* CTAs */}
+        <div className="flex flex-col sm:flex-row gap-2 justify-center pt-2">
+          <a href="/ielts/tutor" className="px-5 py-3 rounded-xl text-white font-semibold text-sm text-center" style={{ background: PURPLE }}>
+            ← Kembali ke AI Tutor
+          </a>
+          <button
+            onClick={() => { setPhase("intro"); setErrorMsg(null); setAssessment(null); status.refetch(); }}
+            className="px-5 py-3 rounded-xl font-semibold text-sm border-2"
+            style={{ borderColor: PINK, color: PINK }}
+          >
+            Mulai sesi lagi
+          </button>
         </div>
       </main>
       <Footer />

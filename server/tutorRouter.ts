@@ -632,6 +632,43 @@ export const tutorRouter = router({
     };
   }),
 
+  /** Assess a finished live-speaking transcript → instant band report.
+   *  Public (open beta anon), transcript comes from the client. Never
+   *  throws — always returns a usable assessment. */
+  liveSpeakingAssess: publicProcedure
+    .input(z.object({
+      sessionId: z.number().int().positive().nullable().optional(),
+      transcript: z.array(z.object({
+        role: z.enum(["emma", "you"]),
+        text: z.string().max(4000),
+      })).max(200),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const { assessLiveSpeaking } = await import("./liveSpeakingAssess");
+      const assessment = await assessLiveSpeaking(input.transcript);
+
+      // If this was a logged-in session, persist the assessment onto the row.
+      if (input.sessionId) {
+        try {
+          const leadId = await resolveLead(ctx);
+          if (leadId) {
+            const session = await getTutorSession(input.sessionId, leadId);
+            if (session) {
+              await updateTutorSession(input.sessionId, {
+                overallBand: String(assessment.overallBand) as any,
+                scores: { overallBand: assessment.overallBand, perCriterion: assessment.criteria } as any,
+                feedback: { ...(session.feedback as any), assessment, transcript: input.transcript } as any,
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("[LiveAssess] failed to persist assessment:", (e as Error).message);
+        }
+      }
+
+      return assessment;
+    }),
+
   // ── History ──
   listSessions: publicProcedure.query(async ({ ctx }) => {
     const leadId = await resolveLead(ctx);
