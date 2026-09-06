@@ -137,6 +137,10 @@ function IeltsTutorLiveInner() {
   // (e.g. after a call where the agent called remember_user).
   useEffect(() => { if (phase === "intro" || phase === "ended") setMem(readConciergeMemory()); }, [phase]);
 
+  // Jump to the top when the results/recap screen opens, so the score is right
+  // there instead of leaving the student scrolled where the call controls were.
+  useEffect(() => { if (phase === "ended") window.scrollTo(0, 0); }, [phase]);
+
   // When the call ends, fire the assessment ONCE using the captured transcript.
   // Only the IELTS examiner call produces a band report — the concierge call
   // is a Q&A, so it has no assessment.
@@ -474,9 +478,11 @@ function IeltsTutorLiveInner() {
   if (phase === "live") {
     const agentSpeaking = conversation.isSpeaking;
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex flex-col p-4">
-        {/* ── Header: timer + compact Emma status ── */}
-        <div className="flex items-center justify-between max-w-2xl mx-auto w-full pt-2">
+      // Fixed dynamic-viewport height + hidden overflow: header and controls
+      // stay pinned, only the transcript scrolls — so End call is always in view.
+      <div className="h-[100dvh] overflow-hidden bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex flex-col p-4">
+        {/* ── Header: timer + compact status ── */}
+        <div className="shrink-0 flex items-center justify-between max-w-2xl mx-auto w-full pt-2">
           <div className="flex items-center gap-3">
             <div className="relative w-11 h-11">
               {agentSpeaking && <div className="absolute inset-0 rounded-full animate-ping opacity-30" style={{ background: PINK }} />}
@@ -498,8 +504,14 @@ function IeltsTutorLiveInner() {
           </div>
         </div>
 
-        {/* ── Live transcript — read Emma's questions + your answers ── */}
-        <div className="flex-1 max-w-2xl mx-auto w-full my-4 min-h-0">
+        {/* ── "Just speak" hint ── */}
+        <div className="shrink-0 max-w-2xl mx-auto w-full mt-2 text-center text-[12px] text-purple-200/80 flex items-center justify-center gap-1.5">
+          <Mic className="w-3.5 h-3.5" style={{ color: "#4ade80" }} />
+          Just speak — no need to press anything. {callName} is always listening.
+        </div>
+
+        {/* ── Live transcript — read the questions + your answers ── */}
+        <div className="flex-1 max-w-2xl mx-auto w-full my-3 min-h-0">
           <div className="h-full bg-white/5 backdrop-blur rounded-2xl border border-white/10 p-4 overflow-y-auto">
             {transcript.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center text-purple-300/70 px-6">
@@ -534,7 +546,7 @@ function IeltsTutorLiveInner() {
 
         {/* ── Link cards Emma surfaced (concierge mode) ── */}
         {mode === "concierge" && links.length > 0 && (
-          <div className="max-w-2xl mx-auto w-full mb-3">
+          <div className="shrink-0 max-w-2xl mx-auto w-full mb-2">
             <div className="text-[11px] uppercase tracking-widest font-bold text-purple-300 mb-1.5 flex items-center gap-1">
               <ArrowUpRight className="w-3.5 h-3.5" /> Link dari Emma
             </div>
@@ -563,23 +575,29 @@ function IeltsTutorLiveInner() {
           </div>
         )}
 
-        {/* ── Controls ── */}
-        <div className="flex items-center justify-center gap-4 pb-2">
-          <button
-            onClick={toggleMute}
-            className={`w-14 h-14 rounded-full flex items-center justify-center transition
-              ${muted ? "bg-amber-500 text-white" : "bg-white/10 text-white hover:bg-white/20"}`}
-            aria-label={muted ? "Unmute" : "Mute"}
-          >
-            {muted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-          </button>
-          <button
-            onClick={endCall}
-            className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg shadow-red-500/40 transition"
-            aria-label="End call"
-          >
-            <PhoneOff className="w-7 h-7" />
-          </button>
+        {/* ── Controls (pinned) ── */}
+        <div className="shrink-0 flex items-end justify-center gap-6 pb-1">
+          <div className="flex flex-col items-center gap-1">
+            <button
+              onClick={toggleMute}
+              className={`w-14 h-14 rounded-full flex items-center justify-center transition
+                ${muted ? "bg-amber-500 text-white" : "bg-white/10 text-white hover:bg-white/20"}`}
+              aria-label={muted ? "Unmute" : "Mute"}
+            >
+              {muted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+            </button>
+            <span className="text-[11px] text-purple-200/80">{muted ? "Muted" : "Mute"}</span>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <button
+              onClick={endCall}
+              className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg shadow-red-500/40 transition"
+              aria-label="End call"
+            >
+              <PhoneOff className="w-7 h-7" />
+            </button>
+            <span className="text-[11px] text-purple-200/80">End call</span>
+          </div>
         </div>
       </div>
     );
