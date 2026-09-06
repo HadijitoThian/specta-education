@@ -17,7 +17,6 @@ import { useEffect, useRef, useState } from "react";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import TalkingAvatar from "@/components/TalkingAvatar";
 import { trpc } from "@/lib/trpc";
 import {
   Loader2, Mic, MicOff, PhoneOff, Phone, Clock, Sparkles,
@@ -327,7 +326,6 @@ function IeltsTutorLiveInner() {
   // Who the student is talking to (name + avatar) for the call UI.
   const callName = mode === "concierge" ? (persona === "arron" ? "Arron" : "Emma") : "Emma";
   const callEmoji = mode === "concierge" ? (persona === "arron" ? "🧑🏻‍💼" : "💁🏻‍♀️") : "👩🏻‍🏫";
-  const avatarVariant: "emma" | "arron" = mode === "concierge" && persona === "arron" ? "arron" : "emma";
 
   // ── INTRO / GATE ────────────────────────────────────────────────────
   if (phase === "intro") {
@@ -465,8 +463,9 @@ function IeltsTutorLiveInner() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center p-4">
         <div className="text-center text-white">
-          <div className="mx-auto mb-6 w-fit">
-            <TalkingAvatar variant={avatarVariant} isSpeaking={false} size={112} />
+          <div className="relative w-24 h-24 mx-auto mb-6">
+            <div className="absolute inset-0 rounded-full animate-ping opacity-30" style={{ background: PINK }} />
+            <div className="relative w-24 h-24 rounded-full flex items-center justify-center text-4xl" style={{ background: `linear-gradient(135deg, ${PINK}, ${PURPLE})` }}>{callEmoji}</div>
           </div>
           <h2 className="text-xl font-bold">Menghubungkan ke {callName}…</h2>
           <p className="text-purple-200 text-sm mt-2">Siapkan dirimu — percakapan dimulai sebentar lagi.</p>
@@ -482,26 +481,26 @@ function IeltsTutorLiveInner() {
       // Fixed dynamic-viewport height + hidden overflow: header and controls
       // stay pinned, only the transcript scrolls — so End call is always in view.
       <div className="h-[100dvh] overflow-hidden bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex flex-col p-4">
-        {/* ── Header: talking avatar + timer ── */}
-        <div className="shrink-0 relative max-w-2xl mx-auto w-full pt-1">
-          <div className={`absolute right-0 top-0 px-3 py-1.5 rounded-full text-sm font-bold tabular-nums flex items-center gap-1.5
+        {/* ── Header: name + status + timer ── */}
+        <div className="shrink-0 flex items-center justify-between max-w-2xl mx-auto w-full pt-2">
+          <div className="flex items-center gap-3">
+            <div className="relative w-11 h-11">
+              {agentSpeaking && <div className="absolute inset-0 rounded-full animate-ping opacity-30" style={{ background: PINK }} />}
+              <div className="relative w-11 h-11 rounded-full flex items-center justify-center text-xl shadow-lg" style={{ background: `linear-gradient(135deg, ${PINK}, ${PURPLE})` }}>{callEmoji}</div>
+            </div>
+            <div>
+              <div className="text-white font-bold leading-tight">{callName}</div>
+              <div className="text-[11px] text-purple-200 flex items-center gap-1">
+                {agentSpeaking
+                  ? <><Volume2 className="w-3 h-3 animate-pulse" /> speaking…</>
+                  : <><Mic className="w-3 h-3" style={{ color: "#4ade80" }} /> your turn</>}
+              </div>
+            </div>
+          </div>
+          <div className={`px-3 py-1.5 rounded-full text-sm font-bold tabular-nums flex items-center gap-1.5
             ${timeDanger ? "bg-red-500/20 text-red-300" : "bg-white/10 text-purple-100"}`}>
             <Clock className={`w-4 h-4 ${timeDanger ? "animate-pulse" : ""}`} />
             {mmss(secondsLeft)}
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <TalkingAvatar
-              variant={avatarVariant}
-              isSpeaking={agentSpeaking}
-              getFrequencyData={conversation.getOutputByteFrequencyData}
-              size={104}
-            />
-            <div className="text-white font-bold leading-tight">{callName}</div>
-            <div className="text-[11px] text-purple-200 flex items-center gap-1">
-              {agentSpeaking
-                ? <><Volume2 className="w-3 h-3 animate-pulse" /> speaking…</>
-                : <><Mic className="w-3 h-3" style={{ color: "#4ade80" }} /> your turn</>}
-            </div>
           </div>
         </div>
 
