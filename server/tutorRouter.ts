@@ -60,6 +60,31 @@ function requireLead(leadId: number | null): number {
 const FREE_TESTING = () =>
   process.env.NODE_ENV !== "production" && process.env.TUTOR_FREE_TESTING === "true";
 
+/**
+ * Live-speaking QA allowlist: the owner's known emails + any extras in the
+ * comma-separated LIVE_SPEAKING_TEST_EMAILS env var. Testers bypass the
+ * subscription + quota gates on live sessions so the product can be QA'd
+ * in production before going on sale.
+ */
+async function isLiveSpeakingTester(leadId: number): Promise<boolean> {
+  try {
+    const lead = await getLeadById(leadId);
+    const email = (lead?.studentEmail || "").trim().toLowerCase();
+    if (!email) return false;
+    const allowlist = new Set(
+      [
+        (ENV.ownerEmail || "").toLowerCase(),
+        "hjthian@gmail.com",
+        "hadijitothian@gmail.com",
+        ...(process.env.LIVE_SPEAKING_TEST_EMAILS || "").split(",").map(s => s.trim().toLowerCase()),
+      ].filter(Boolean)
+    );
+    return allowlist.has(email);
+  } catch {
+    return false;
+  }
+}
+
 /** Gate a practice: active subscription → unlimited; else allow the free taster. */
 async function gate(leadId: number, skill: "speaking" | "writing"): Promise<{ isFree: boolean }> {
   if (FREE_TESTING()) return { isFree: true };
@@ -470,11 +495,20 @@ export const tutorRouter = router({
   // money per minute (ElevenLabs ~$0.08/min), so unlike text/recorded
   // practice there is NO free taster: an active subscription is required,
   // and sessions are capped per rolling 14 days to protect margin.
+  //
+  // TESTER BYPASS: the owner's emails (plus any in the comma-separated
+  // LIVE_SPEAKING_TEST_EMAILS env var) skip BOTH the subscription check
+  // and the quota, so the product can be QA'd in production before it
+  // goes on sale. Minutes still bill to the ElevenLabs account — this
+  // bypasses the paywall, not the vendor.
 
   /** Entitlement + remaining-session status for the live-practice UI. */
   liveSpeakingStatus: publicProcedure.query(async ({ ctx }) => {
     const leadId = await resolveLead(ctx);
     if (!leadId) return { loggedIn: false as const, allowed: false as const, reason: "login" as const };
+    if (await isLiveSpeakingTester(leadId)) {
+      return { loggedIn: true as const, allowed: true as const, reason: null, remaining: 999, limit: 999, tester: true as const };
+    }
     const sub = await getActiveTutorSubscription(leadId);
     if (!sub && !FREE_TESTING()) {
       return { loggedIn: true as const, allowed: false as const, reason: "subscription" as const };
@@ -498,23 +532,26 @@ export const tutorRouter = router({
   /** Start a live session: verify entitlement, mint a signed URL, log it. */
   liveSpeakingStart: publicProcedure.mutation(async ({ ctx }) => {
     const leadId = requireLead(await resolveLead(ctx));
-    const sub = await getActiveTutorSubscription(leadId);
-    if (!sub && !FREE_TESTING()) {
-      throw new TRPCError({
-        code: "FORBIDDEN",
-        message: "Live speaking practice membutuhkan langganan AI Tutor aktif.",
-      });
+    const tester = await isLiveSpeakingTester(leadId);
+    if (!tester) {
+      const sub = await getActiveTutorSubscription(leadId);
+      if (!sub && !FREE_TESTING()) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Live speaking practice membutuhkan langganan AI Tutor aktif.",
+        });
+      }
     }
     const { getLiveSpeakingSignedUrl, LIVE_SESSION_MAX_SECONDS, LIVE_SESSIONS_PER_PERIOD } = await import("./liveSpeakingAgent");
 
     // Per-period cap — recount server-side at start time (the status query
-    // is advisory; this is the enforcement point).
+    // is advisory; this is the enforcement point). Testers skip the cap.
     const recent = await listTutorSessions(leadId, 100);
     const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
     const used = recent.filter(s =>
       s.taskType === "live_speaking" && s.createdAt && new Date(s.createdAt).getTime() >= cutoff
     ).length;
-    if (used >= LIVE_SESSIONS_PER_PERIOD && !FREE_TESTING()) {
+    if (!tester && used >= LIVE_SESSIONS_PER_PERIOD && !FREE_TESTING()) {
       throw new TRPCError({
         code: "FORBIDDEN",
         message: `Kuota live session kamu habis (${LIVE_SESSIONS_PER_PERIOD} per 14 hari). Kuota reset otomatis — atau upgrade paket via WhatsApp admin.`,
@@ -532,8 +569,8 @@ export const tutorRouter = router({
       skill: "speaking",
       taskType: "live_speaking",
       prompt: "Live speaking practice session (15 min)",
-      feedback: { agentId, startedAt: new Date().toISOString() } as any,
-      isFree: false,
+      feedback: { agentId, startedAt: new Date().toISOString(), tester } as any,
+      isFree: tester, // tester sessions flagged free so revenue stats stay clean
     });
 
     return {
