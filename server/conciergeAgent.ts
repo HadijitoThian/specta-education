@@ -65,11 +65,13 @@ function personaConfig(p: ConciergePersona): PersonaConfig {
       key: "arron",
       displayName: "Arron",
       gender: "male",
-      voiceId: process.env.CONCIERGE_VOICE_ARRON || "nPczCjzI2devNBz1zQrb", // Brian (premade male)
-      // v2: pinned voice settings + smoother greeting for natural Bahasa.
-      flagKey: "specta_concierge_arron_id_v2",
-      genderLine: "Kamu laki-laki — santai dan bersahabat, boleh panggil dirimu 'aku' atau 'bang Arron' kalau cocok.",
-      firstMessage: "Halo, selamat datang di SpecTa Education! Aku Arron, asisten kamu di sini, dan aku senang bisa ngobrol sama kamu. Aku siap bantu jawab apa aja — mulai dari IELTS, tes minat dan bakat, IQ, sampai rencana kuliah ke luar negeri. Jadi, ada yang bisa aku bantu hari ini?",
+      // Liam — young, warm, energetic male (was Brian = too old/formal).
+      // Override with a NATIVE Indonesian young male voice via env for best feel.
+      voiceId: process.env.CONCIERGE_VOICE_ARRON || "TX3LPaxmHKxFdv7VOQHJ",
+      // v3: younger/fun persona + memory (dynamic-variable greeting & recall).
+      flagKey: "specta_concierge_arron_id_v3",
+      genderLine: "Kamu cowok muda yang energik, seru, dan santai — kayak kakak tingkat atau temen yang asik. Ngobrol penuh semangat dan positif, pakai bahasa santai (boleh bahasa gaul yang wajar), JANGAN formal atau kaku.",
+      firstMessage: "{{opening_line}}",
     };
   }
   return {
@@ -77,15 +79,22 @@ function personaConfig(p: ConciergePersona): PersonaConfig {
     displayName: "Emma",
     gender: "female",
     voiceId: process.env.CONCIERGE_VOICE_EMMA || ENV.elevenLabsDefaultVoiceId,
-    flagKey: "specta_concierge_emma_id_v2",
-    genderLine: "Kamu perempuan — hangat dan ramah, boleh panggil dirimu 'aku' atau 'kak Emma' kalau cocok.",
-    firstMessage: "Halo, selamat datang di SpecTa Education! Aku Emma, asisten kamu di sini, dan aku senang bisa ngobrol sama kamu. Aku siap bantu jawab apa aja — mulai dari IELTS, tes minat dan bakat, IQ, sampai rencana kuliah ke luar negeri. Jadi, ada yang bisa aku bantu hari ini?",
+    flagKey: "specta_concierge_emma_id_v3",
+    genderLine: "Kamu cewek yang hangat, ramah, dan bersemangat — bikin siswa nyaman. Ngobrol santai dan ramah, jangan kaku.",
+    firstMessage: "{{opening_line}}",
   };
 }
 
 // ── Shared knowledge + behaviour (persona name injected at the top) ───────
 
-const SHARED_BODY = `BAHASA:
+const SHARED_BODY = `MEMORI USER (dari sesi sebelumnya):
+- Nama user: {{known_name}}
+- Minat / topik terakhir: {{known_interest}}
+- Kalau nama user BUKAN "kosong": kamu sudah kenal dia dari obrolan sebelumnya. Sapa dengan namanya, JANGAN tanya nama lagi, dan jangan ulang perkenalan panjang. Kalau minat terakhirnya bukan "kosong", boleh singgung sedikit untuk nyambungin obrolan.
+- Kalau nama user "kosong": ini pertama kali ngobrol. Kenalan dulu dengan ramah dan tanyakan namanya. Begitu kamu tahu namanya (dan minat utamanya kalau sudah kelihatan), PANGGIL tool remember_user supaya kamu ingat dia di kunjungan berikutnya.
+- Kalau di tengah obrolan kamu tahu minat baru yang penting, panggil remember_user lagi untuk memperbaruinya.
+
+BAHASA:
 - Bicara dalam Bahasa Indonesia yang natural, santai, dan ramah (seperti kakak yang asik, bukan robot formal). Boleh selipkan istilah Inggris yang umum (IELTS, mock test, dsb).
 - Kalau siswa bicara Bahasa Inggris, ikuti dalam Bahasa Inggris. Ikuti bahasa siswa.
 
@@ -161,6 +170,25 @@ const SHOW_LINK_TOOL = {
   expects_response: false,
 };
 
+// Persistent memory: the agent calls this once it learns who it's talking to,
+// so a returning student is remembered (name + main interest) on their next
+// visit. Stored client-side (browser), no login needed. Fire-and-forget.
+const REMEMBER_USER_TOOL = {
+  type: "client",
+  name: "remember_user",
+  description:
+    "Simpan info user supaya kamu ingat dia di kunjungan berikutnya. Panggil begitu kamu tahu nama user (dan minat utamanya kalau sudah kelihatan), atau saat ada info penting baru.",
+  parameters: {
+    type: "object",
+    properties: {
+      name: { type: "string", description: "Nama panggilan user, mis. 'Budi'." },
+      interest: { type: "string", description: "Minat / topik utama user dalam satu frasa singkat, mis. 'kuliah ke Australia' atau 'persiapan IELTS' (opsional)." },
+    },
+    required: ["name"],
+  },
+  expects_response: false,
+};
+
 async function elFetch(path: string, init: RequestInit = {}): Promise<Response> {
   return fetch(`${EL_API}${path}`, {
     ...init,
@@ -178,7 +206,7 @@ function buildAgentPayload(cfg: PersonaConfig, withTools: boolean): any {
     prompt: buildSystemPrompt(cfg),
     llm: process.env.CONCIERGE_LLM || "gemini-2.0-flash",
   };
-  if (withTools) promptConfig.tools = [SHOW_LINK_TOOL];
+  if (withTools) promptConfig.tools = [SHOW_LINK_TOOL, REMEMBER_USER_TOOL];
   return {
     name: `SpecTa Voice Concierge (${cfg.displayName})`,
     conversation_config: {

@@ -50,6 +50,46 @@ function safeHref(raw: string): string | null {
 }
 const isExternal = (href: string) => /^https?:/i.test(href);
 
+// ── Concierge memory (per-browser, no login) ──────────────────────────────
+// The concierge agents call the `remember_user` tool once they learn who
+// they're talking to; we persist it here so a returning student is greeted by
+// name and doesn't start from scratch. Shared between Emma & Arron (same
+// student). localStorage may be unavailable (private mode) — always guarded.
+const CONCIERGE_MEMORY_KEY = "specta_concierge_memory_v1";
+interface ConciergeMemory { name?: string; interest?: string; updatedAt?: number }
+
+function readConciergeMemory(): ConciergeMemory {
+  try { const raw = localStorage.getItem(CONCIERGE_MEMORY_KEY); return raw ? JSON.parse(raw) : {}; }
+  catch { return {}; }
+}
+function writeConciergeMemory(patch: Partial<ConciergeMemory>) {
+  try {
+    const next = { ...readConciergeMemory(), ...patch, updatedAt: Date.now() };
+    localStorage.setItem(CONCIERGE_MEMORY_KEY, JSON.stringify(next));
+  } catch { /* storage unavailable — memory just won't persist */ }
+}
+
+/** The spoken opening line, personalized from memory. New users get a warm
+ *  persona-flavored intro; returning users get greeted by name (no re-intro). */
+function buildOpeningLine(persona: Persona, mem: ConciergeMemory): string {
+  const name = (mem.name || "").trim();
+  const interest = (mem.interest || "").trim();
+  if (name) {
+    if (persona === "arron") {
+      return interest
+        ? `Yoo ${name}, balik lagi nih! Asik! Kemarin kita sempat ngobrolin soal ${interest} — mau lanjut, atau ada hal lain yang mau kamu tanyain?`
+        : `Yoo ${name}, balik lagi nih! Seneng banget! Ada yang bisa aku bantuin hari ini?`;
+    }
+    return interest
+      ? `Halo lagi, ${name}! Seneng kamu balik ngobrol sama aku. Terakhir kita sempat bahas soal ${interest} — mau lanjut, atau ada hal lain yang mau kamu tanyain?`
+      : `Halo lagi, ${name}! Seneng kamu balik ngobrol sama aku. Ada yang bisa aku bantu hari ini?`;
+  }
+  if (persona === "arron") {
+    return "Haloo! Aku Arron dari SpecTa Education, seneng banget bisa ngobrol bareng kamu! Kamu bisa tanya apa aja ke aku — soal IELTS, tes minat bakat, IQ, atau rencana kuliah ke luar negeri. Jadi, ada yang pengen kamu tanyain hari ini?";
+  }
+  return "Halo, selamat datang di SpecTa Education! Aku Emma, asisten kamu di sini, dan aku senang bisa ngobrol sama kamu. Aku siap bantu jawab apa aja — mulai dari IELTS, tes minat dan bakat, IQ, sampai rencana kuliah ke luar negeri. Jadi, ada yang bisa aku bantu hari ini?";
+}
+
 /** The SDK's hooks require a ConversationProvider ancestor — the default
  *  export wraps the actual page so useConversation works. */
 export default function IeltsTutorLive() {
@@ -74,6 +114,7 @@ function IeltsTutorLiveInner() {
   const [mode, setMode] = useState<Mode>("ielts");
   const [persona, setPersona] = useState<Persona>("emma");
   const [links, setLinks] = useState<LinkCard[]>([]);
+  const [mem, setMem] = useState<ConciergeMemory>({});
   const modeRef = useRef<Mode>("ielts");
   const endedByUserRef = useRef(false);
   const transcriptRef = useRef<TranscriptEntry[]>([]);
@@ -91,6 +132,10 @@ function IeltsTutorLiveInner() {
   // Keep a ref copy of the transcript so we can read the final version at
   // hang-up time without stale-closure issues.
   useEffect(() => { transcriptRef.current = transcript; }, [transcript]);
+
+  // Refresh the shown "remembered as" name whenever we land back on the intro
+  // (e.g. after a call where the agent called remember_user).
+  useEffect(() => { if (phase === "intro" || phase === "ended") setMem(readConciergeMemory()); }, [phase]);
 
   // When the call ends, fire the assessment ONCE using the captured transcript.
   // Only the IELTS examiner call produces a band report — the concierge call
@@ -116,6 +161,14 @@ function IeltsTutorLiveInner() {
           const subtitle = p?.subtitle ? String(p.subtitle).trim() : undefined;
           if (!url || !safeHref(url)) return;
           setLinks(prev => (prev.some(l => l.url === url) ? prev : [...prev, { title, url, subtitle }]));
+        } catch { /* non-critical */ }
+      },
+      // Persist who we're talking to so returning students are remembered.
+      remember_user: (p: any) => {
+        try {
+          const name = p?.name ? String(p.name).trim().slice(0, 60) : undefined;
+          const interest = p?.interest ? String(p.interest).trim().slice(0, 120) : undefined;
+          if (name || interest) writeConciergeMemory({ ...(name ? { name } : {}), ...(interest ? { interest } : {}) });
         } catch { /* non-critical */ }
       },
     },
@@ -191,7 +244,20 @@ function IeltsTutorLiveInner() {
       setSecondsLeft(d.maxSeconds);
       setRemaining(null);
       setSessionId(null);
-      conversation.startSession({ signedUrl: d.signedUrl });
+      // Personalize from memory: greet returning students by name, and pass
+      // known_name/known_interest so the agent doesn't re-ask. These resolve
+      // the {{opening_line}} / {{known_name}} / {{known_interest}} placeholders
+      // baked into the agent config.
+      const mem = readConciergeMemory();
+      const p: Persona = (d.persona as Persona) || "emma";
+      conversation.startSession({
+        signedUrl: d.signedUrl,
+        dynamicVariables: {
+          opening_line: buildOpeningLine(p, mem),
+          known_name: (mem.name || "").trim() || "kosong",
+          known_interest: (mem.interest || "").trim() || "kosong",
+        },
+      });
     },
     onError: (e) => {
       setErrorMsg(e.message);
@@ -366,9 +432,21 @@ function IeltsTutorLiveInner() {
                 <span className="text-[11px] font-medium opacity-90">suara laki-laki</span>
               </button>
             </div>
-            <p className="text-[11px] text-slate-400 mt-3 text-center flex items-center justify-center gap-1">
-              <HelpCircle className="w-3.5 h-3.5" /> Untuk evaluasi tim — sebelum diputuskan tayang di homepage.
-            </p>
+            {mem.name ? (
+              <div className="mt-3 text-[11px] text-slate-500 flex items-center justify-center gap-2">
+                <span>👋 Kamu dikenali sebagai <strong>{mem.name}</strong>{mem.interest ? ` · ${mem.interest}` : ""}</span>
+                <button
+                  onClick={() => { try { localStorage.removeItem(CONCIERGE_MEMORY_KEY); } catch { /* */ } setMem({}); }}
+                  className="underline text-slate-400 hover:text-slate-600"
+                >
+                  Lupakan
+                </button>
+              </div>
+            ) : (
+              <p className="text-[11px] text-slate-400 mt-3 text-center flex items-center justify-center gap-1">
+                <HelpCircle className="w-3.5 h-3.5" /> Untuk evaluasi tim — sebelum diputuskan tayang di homepage.
+              </p>
+            )}
           </div>
         </main>
         <Footer />
