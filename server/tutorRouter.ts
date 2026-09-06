@@ -464,6 +464,86 @@ export const tutorRouter = router({
       return result;
     }),
 
+  // ── Live Speaking Practice (ElevenLabs Conversational AI) ─────────────
+  //
+  // Real-time phone-call-style practice with an AI partner. Costs real
+  // money per minute (ElevenLabs ~$0.08/min), so unlike text/recorded
+  // practice there is NO free taster: an active subscription is required,
+  // and sessions are capped per rolling 14 days to protect margin.
+
+  /** Entitlement + remaining-session status for the live-practice UI. */
+  liveSpeakingStatus: publicProcedure.query(async ({ ctx }) => {
+    const leadId = await resolveLead(ctx);
+    if (!leadId) return { loggedIn: false as const, allowed: false as const, reason: "login" as const };
+    const sub = await getActiveTutorSubscription(leadId);
+    if (!sub && !FREE_TESTING()) {
+      return { loggedIn: true as const, allowed: false as const, reason: "subscription" as const };
+    }
+    const { LIVE_SESSIONS_PER_PERIOD } = await import("./liveSpeakingAgent");
+    const recent = await listTutorSessions(leadId, 100);
+    const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+    const used = recent.filter(s =>
+      s.taskType === "live_speaking" && s.createdAt && new Date(s.createdAt).getTime() >= cutoff
+    ).length;
+    const remaining = Math.max(0, LIVE_SESSIONS_PER_PERIOD - used);
+    return {
+      loggedIn: true as const,
+      allowed: remaining > 0,
+      reason: remaining > 0 ? null : ("limit" as const),
+      remaining,
+      limit: LIVE_SESSIONS_PER_PERIOD,
+    };
+  }),
+
+  /** Start a live session: verify entitlement, mint a signed URL, log it. */
+  liveSpeakingStart: publicProcedure.mutation(async ({ ctx }) => {
+    const leadId = requireLead(await resolveLead(ctx));
+    const sub = await getActiveTutorSubscription(leadId);
+    if (!sub && !FREE_TESTING()) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Live speaking practice membutuhkan langganan AI Tutor aktif.",
+      });
+    }
+    const { getLiveSpeakingSignedUrl, LIVE_SESSION_MAX_SECONDS, LIVE_SESSIONS_PER_PERIOD } = await import("./liveSpeakingAgent");
+
+    // Per-period cap — recount server-side at start time (the status query
+    // is advisory; this is the enforcement point).
+    const recent = await listTutorSessions(leadId, 100);
+    const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+    const used = recent.filter(s =>
+      s.taskType === "live_speaking" && s.createdAt && new Date(s.createdAt).getTime() >= cutoff
+    ).length;
+    if (used >= LIVE_SESSIONS_PER_PERIOD && !FREE_TESTING()) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: `Kuota live session kamu habis (${LIVE_SESSIONS_PER_PERIOD} per 14 hari). Kuota reset otomatis — atau upgrade paket via WhatsApp admin.`,
+      });
+    }
+
+    const { signedUrl, agentId } = await getLiveSpeakingSignedUrl();
+
+    // Log the session row BEFORE the call starts — this is what the cap
+    // counts, so a student can't dodge the quota by killing the tab
+    // mid-call. Phase 2's post-call webhook will enrich this row with the
+    // transcript + assessment.
+    const session = await createTutorSession({
+      leadId,
+      skill: "speaking",
+      taskType: "live_speaking",
+      prompt: "Live speaking practice session (15 min)",
+      feedback: { agentId, startedAt: new Date().toISOString() } as any,
+      isFree: false,
+    });
+
+    return {
+      signedUrl,
+      sessionId: session?.id,
+      maxSeconds: LIVE_SESSION_MAX_SECONDS,
+      remaining: Math.max(0, LIVE_SESSIONS_PER_PERIOD - used - 1),
+    };
+  }),
+
   // ── History ──
   listSessions: publicProcedure.query(async ({ ctx }) => {
     const leadId = await resolveLead(ctx);

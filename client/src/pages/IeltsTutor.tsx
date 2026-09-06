@@ -1371,6 +1371,10 @@ function SpeakingPartner({ onBack }: { onBack: () => void }) {
       <div className="flex gap-2">
         <button onClick={() => setSmode("quick")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${smode === "quick" ? "text-white" : "bg-slate-100 text-slate-600"}`} style={smode === "quick" ? { background: PINK } : {}}>Latihan Cepat</button>
         <button onClick={() => setSmode("test")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${smode === "test" ? "text-white" : "bg-slate-100 text-slate-600"}`} style={smode === "test" ? { background: PINK } : {}}>Tes Lengkap (Part 1 + 2 + 3)</button>
+        <a href="/ielts/tutor/live" className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white flex items-center gap-1.5" style={{ background: `linear-gradient(90deg, ${PINK}, ${PURPLE})` }}>
+          📞 Live Call
+          <span className="text-[9px] bg-white/25 px-1.5 py-0.5 rounded-full">NEW</span>
+        </a>
       </div>
 
       {smode === "test" ? <SpeakingFullTest /> : <>

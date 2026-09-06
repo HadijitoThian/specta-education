@@ -69,6 +69,7 @@ const IqDiscovery = lazyWithReload(() => import("./pages/IqDiscovery"));
 const IqDiscoveryBuy = lazyWithReload(() => import("./pages/IqDiscoveryBuy"));
 const IqDiscoverySuccess = lazyWithReload(() => import("./pages/IqDiscoverySuccess"));
 const IeltsTutorRedeem = lazyWithReload(() => import("./pages/IeltsTutorRedeem"));
+const IeltsTutorLive = lazyWithReload(() => import("./pages/IeltsTutorLive"));
 const Igcse = lazyWithReload(() => import("./pages/Igcse"));
 const IgcseApp = lazyWithReload(() => import("./pages/IgcseApp"));
 const IgcseLesson = lazyWithReload(() => import("./pages/IgcseLesson"));
@@ -182,6 +183,7 @@ function Router() {
         <Route path={"/ielts/practice"} component={IELTSPractice} />
         <Route path={"/ielts/tutor"} component={IeltsTutor} />
         <Route path={"/ielts/tutor/redeem/:token"} component={IeltsTutorRedeem} />
+        <Route path={"/ielts/tutor/live"} component={IeltsTutorLive} />
         <Route path={"/iq-preview"} component={IqRendererPreview} />
         <Route path={"/iq-discovery"} component={IqDiscovery} />
         <Route path={"/iq-discovery/beli"} component={IqDiscoveryBuy} />
