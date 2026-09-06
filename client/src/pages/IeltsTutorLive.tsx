@@ -132,6 +132,9 @@ function IeltsTutorLiveInner() {
           <div className="text-center mb-8">
             <div className="text-5xl mb-3">📞</div>
             <div className="text-xs uppercase tracking-widest font-bold mb-2" style={{ color: PINK }}>SpecTa AI Tutor · Live</div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold mb-2">
+              🎉 GRATIS selama Beta
+            </div>
             <h1 className="text-3xl font-black text-slate-900 leading-tight">
               Latihan Speaking<br />
               <span style={{ background: `linear-gradient(90deg, ${PINK}, ${PURPLE})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>langsung ngobrol.</span>

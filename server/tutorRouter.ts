@@ -66,6 +66,10 @@ const FREE_TESTING = () =>
  * subscription + quota gates on live sessions so the product can be QA'd
  * in production before going on sale.
  */
+/** Open-beta switch — default ON. Set LIVE_SPEAKING_OPEN_BETA=false on
+ *  Railway to re-enable the subscription requirement when ready to sell. */
+const LIVE_OPEN_BETA = () => process.env.LIVE_SPEAKING_OPEN_BETA !== "false";
+
 async function isLiveSpeakingTester(leadId: number): Promise<boolean> {
   try {
     const lead = await getLeadById(leadId);
@@ -501,6 +505,14 @@ export const tutorRouter = router({
   // and the quota, so the product can be QA'd in production before it
   // goes on sale. Minutes still bill to the ElevenLabs account — this
   // bypasses the paywall, not the vendor.
+  //
+  // OPEN BETA (2026-09-06, per Hadi): live speaking is FREE for every
+  // logged-in student while we evaluate the product. The subscription
+  // requirement is skipped; the per-user quota (3 sessions / 14 days)
+  // REMAINS as cost protection — each call costs ~Rp 20k in ElevenLabs
+  // minutes, so an uncapped public endpoint is a financial risk.
+  // To end the beta and start selling: set LIVE_SPEAKING_OPEN_BETA=false
+  // on Railway (no deploy needed beyond the restart).
 
   /** Entitlement + remaining-session status for the live-practice UI. */
   liveSpeakingStatus: publicProcedure.query(async ({ ctx }) => {
@@ -509,9 +521,11 @@ export const tutorRouter = router({
     if (await isLiveSpeakingTester(leadId)) {
       return { loggedIn: true as const, allowed: true as const, reason: null, remaining: 999, limit: 999, tester: true as const };
     }
-    const sub = await getActiveTutorSubscription(leadId);
-    if (!sub && !FREE_TESTING()) {
-      return { loggedIn: true as const, allowed: false as const, reason: "subscription" as const };
+    if (!LIVE_OPEN_BETA()) {
+      const sub = await getActiveTutorSubscription(leadId);
+      if (!sub && !FREE_TESTING()) {
+        return { loggedIn: true as const, allowed: false as const, reason: "subscription" as const };
+      }
     }
     const { LIVE_SESSIONS_PER_PERIOD } = await import("./liveSpeakingAgent");
     const recent = await listTutorSessions(leadId, 100);
@@ -533,7 +547,7 @@ export const tutorRouter = router({
   liveSpeakingStart: publicProcedure.mutation(async ({ ctx }) => {
     const leadId = requireLead(await resolveLead(ctx));
     const tester = await isLiveSpeakingTester(leadId);
-    if (!tester) {
+    if (!tester && !LIVE_OPEN_BETA()) {
       const sub = await getActiveTutorSubscription(leadId);
       if (!sub && !FREE_TESTING()) {
         throw new TRPCError({
@@ -570,7 +584,7 @@ export const tutorRouter = router({
       taskType: "live_speaking",
       prompt: "Live speaking practice session (15 min)",
       feedback: { agentId, startedAt: new Date().toISOString(), tester } as any,
-      isFree: tester, // tester sessions flagged free so revenue stats stay clean
+      isFree: tester || LIVE_OPEN_BETA(), // tester + open-beta sessions flagged free so revenue stats stay clean
     });
 
     return {
