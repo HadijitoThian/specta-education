@@ -1,23 +1,29 @@
 /**
- * SpecTa Voice Concierge — ElevenLabs Conversational AI agent ("Emma").
+ * SpecTa Voice Concierge — ElevenLabs Conversational AI agents.
  *
- * A phone-call-style helpdesk: a student taps "Tanya SpecTa" and talks to
- * Emma, who answers ANYTHING about SpecTa Education, studying abroad, tests,
- * pricing, and booking — in Bahasa Indonesia — and surfaces CLICKABLE LINK
+ * A phone-call-style helpdesk. The student taps "Tanya SpecTa", picks who to
+ * talk to, and speaks with either:
+ *   - Emma  (female voice)
+ *   - Arron (male voice)
+ * Both answer ANYTHING about SpecTa Education, studying abroad, tests,
+ * pricing, and booking — in Bahasa Indonesia — and surface CLICKABLE LINK
  * CARDS (via the `show_link` client tool) so the student can open the exact
- * page she mentions (prediction test, IQ Discovery, book a call, WhatsApp…).
+ * page mentioned (prediction test, IQ Discovery, book a call, WhatsApp…).
  *
- * This is a SEPARATE agent from the IELTS Live Speaking partner
- * (server/liveSpeakingAgent.ts). Same infrastructure — programmatic
- * idempotent creation, signed URLs, CSP already opened for AudioWorklet —
- * but a different persona, language (id), and a client tool.
+ * These are SEPARATE agents from the IELTS Live Speaking partner
+ * (server/liveSpeakingAgent.ts, which stays Emma-only). Same infrastructure —
+ * programmatic idempotent creation, signed URLs, CSP already opened for the
+ * AudioWorklet — but different personas, voices, and a client tool.
  *
- * STATUS (2026-09): TEST ONLY. Exposed as a second button on
- * /ielts/tutor/live so Hadi can evaluate it privately before deciding to
- * put a voice concierge on the homepage. Not mounted anywhere public yet.
+ * NATURAL BAHASA: the two big levers are the VOICE and the MODEL. Voices are
+ * env-configurable (CONCIERGE_VOICE_EMMA / CONCIERGE_VOICE_ARRON) so a native
+ * Indonesian voice from the workspace's library can be dropped in — that is
+ * what makes it sound human rather than an English voice reading Indonesian.
+ * The model defaults to eleven_multilingual_v2 (much more natural prosody for
+ * non-English than the flash models), overridable via CONCIERGE_TTS_MODEL.
  *
- * Cost: ElevenLabs ~$0.08-0.10/min. Q&A sessions are short, so the cap is
- * 10 minutes and there are silent per-IP + global daily guardrails.
+ * STATUS (2026-09): TEST ONLY — a second button on /ielts/tutor/live so Hadi
+ * can evaluate before deciding on a homepage voice concierge.
  */
 
 import { ENV } from "./_core/env";
@@ -25,29 +31,61 @@ import { readFlag, writeFlag } from "./systemFlags";
 
 const EL_API = "https://api.elevenlabs.io";
 
-// Bump this key to force a fresh agent after a prompt / tool / voice change.
-// v2: pinned explicit voice_settings + smoother greeting so the first_message
-// stops sounding childish/clipped vs the (good) generated answers.
-const AGENT_FLAG_KEY = "specta_concierge_agent_id_v2";
+export type ConciergePersona = "emma" | "arron";
 
-// Bundled LLM (same reliable low-latency model the IELTS agent uses).
-// Gemini handles Bahasa Indonesia well. Overridable without a deploy.
-const BUNDLED_LLM = () => process.env.CONCIERGE_LLM || "gemini-2.0-flash";
+/** TTS model. multilingual_v2 = most natural Bahasa (slightly higher latency
+ *  than flash — worth it for a helpdesk). Override to eleven_turbo_v2_5 for
+ *  lower latency if needed. */
+const TTS_MODEL = () => process.env.CONCIERGE_TTS_MODEL || "eleven_multilingual_v2";
 
 /** Max concierge session length. Q&A, not practice — 10 min is plenty.
  *  Enforced server-side by the agent config so a hacked client can't extend. */
 export const CONCIERGE_MAX_SECONDS = Number(process.env.CONCIERGE_MAX_SECONDS || 600);
 
-// ── Emma the SpecTa concierge — knowledge + behaviour ─────────────────────
+// ── Persona config ────────────────────────────────────────────────────────
 //
-// Prices are stated softly ("mulai dari…") and Emma is told to ALWAYS surface
-// the page link so the student sees the live price — this avoids Emma quoting
-// a stale number if pricing changes. URLs are relative paths; the client
-// turns them into same-site links (or new-tab for wa.me / external).
+// Voice ids are env-first so the best NATIVE INDONESIAN voices from the
+// workspace's ElevenLabs library can be set without a deploy. Defaults:
+//   - Emma  → the workspace default voice (already known-good in this account)
+//   - Arron → a premade male voice (Brian). If Arron ever errors on connect,
+//     set CONCIERGE_VOICE_ARRON to a male voice id from THIS account.
+interface PersonaConfig {
+  key: ConciergePersona;
+  displayName: string;
+  gender: "female" | "male";
+  voiceId: string;
+  flagKey: string;
+  genderLine: string;   // one line injected into the system prompt
+  firstMessage: string;
+}
 
-const AGENT_SYSTEM_PROMPT = `Kamu adalah Emma, front-desk digital SpecTa Education yang ramah, hangat, dan sangat membantu. Kamu sedang menerima panggilan telepon dari calon siswa Indonesia yang ingin bertanya tentang SpecTa Education, kuliah ke luar negeri, tes, harga, atau cara mendaftar.
+function personaConfig(p: ConciergePersona): PersonaConfig {
+  if (p === "arron") {
+    return {
+      key: "arron",
+      displayName: "Arron",
+      gender: "male",
+      voiceId: process.env.CONCIERGE_VOICE_ARRON || "nPczCjzI2devNBz1zQrb", // Brian (premade male)
+      // v2: pinned voice settings + smoother greeting for natural Bahasa.
+      flagKey: "specta_concierge_arron_id_v2",
+      genderLine: "Kamu laki-laki — santai dan bersahabat, boleh panggil dirimu 'aku' atau 'bang Arron' kalau cocok.",
+      firstMessage: "Halo, selamat datang di SpecTa Education! Aku Arron, asisten kamu di sini, dan aku senang bisa ngobrol sama kamu. Aku siap bantu jawab apa aja — mulai dari IELTS, tes minat dan bakat, IQ, sampai rencana kuliah ke luar negeri. Jadi, ada yang bisa aku bantu hari ini?",
+    };
+  }
+  return {
+    key: "emma",
+    displayName: "Emma",
+    gender: "female",
+    voiceId: process.env.CONCIERGE_VOICE_EMMA || ENV.elevenLabsDefaultVoiceId,
+    flagKey: "specta_concierge_emma_id_v2",
+    genderLine: "Kamu perempuan — hangat dan ramah, boleh panggil dirimu 'aku' atau 'kak Emma' kalau cocok.",
+    firstMessage: "Halo, selamat datang di SpecTa Education! Aku Emma, asisten kamu di sini, dan aku senang bisa ngobrol sama kamu. Aku siap bantu jawab apa aja — mulai dari IELTS, tes minat dan bakat, IQ, sampai rencana kuliah ke luar negeri. Jadi, ada yang bisa aku bantu hari ini?",
+  };
+}
 
-BAHASA:
+// ── Shared knowledge + behaviour (persona name injected at the top) ───────
+
+const SHARED_BODY = `BAHASA:
 - Bicara dalam Bahasa Indonesia yang natural, santai, dan ramah (seperti kakak yang asik, bukan robot formal). Boleh selipkan istilah Inggris yang umum (IELTS, mock test, dsb).
 - Kalau siswa bicara Bahasa Inggris, ikuti dalam Bahasa Inggris. Ikuti bahasa siswa.
 
@@ -99,16 +137,13 @@ ATURAN:
 - Jangan sebut kamu AI kecuali ditanya langsung — kalau ditanya, jujur dan ramah aja.
 - Jaga energi tetap positif dan bikin siswa semangat lanjut sama SpecTa.`;
 
-// Fuller, warmer, standard-casual Indonesian in complete sentences — a
-// staccato greeting ("...apa nih?") reads childish/clipped through TTS,
-// while flowing sentences render like her (good) answers. The soft opener
-// also absorbs any onset clipping on the very first audio frames.
-const FIRST_MESSAGE = "Halo, selamat datang di SpecTa Education! Aku Emma, asisten kamu di sini, dan aku senang bisa ngobrol sama kamu. Aku siap bantu jawab apa aja — mulai dari IELTS, tes minat dan bakat, IQ, sampai rencana kuliah ke luar negeri. Jadi, ada yang bisa aku bantu hari ini?";
+function buildSystemPrompt(cfg: PersonaConfig): string {
+  return `Kamu adalah ${cfg.displayName}, front-desk digital SpecTa Education yang ramah, hangat, dan sangat membantu. ${cfg.genderLine} Kamu sedang menerima panggilan telepon dari calon siswa Indonesia yang ingin bertanya tentang SpecTa Education, kuliah ke luar negeri, tes, harga, atau cara mendaftar.
 
-// ── Client tool declaration ───────────────────────────────────────────────
-// Declared on the agent so the LLM knows it can call it; the IMPLEMENTATION
-// lives client-side (renders a clickable card). expects_response:false =
-// fire-and-forget, so the call doesn't stall the conversation.
+${SHARED_BODY}`;
+}
+
+// ── Client tool declaration (implementation lives client-side) ────────────
 const SHOW_LINK_TOOL = {
   type: "client",
   name: "show_link",
@@ -137,34 +172,26 @@ async function elFetch(path: string, init: RequestInit = {}): Promise<Response> 
   });
 }
 
-/** Build the agent config. `withTools` → declare the show_link client tool. */
-function buildAgentPayload(withTools: boolean): any {
+/** Build the agent config for a persona. `withTools` → declare show_link. */
+function buildAgentPayload(cfg: PersonaConfig, withTools: boolean): any {
   const promptConfig: any = {
-    prompt: AGENT_SYSTEM_PROMPT,
-    llm: BUNDLED_LLM(),
+    prompt: buildSystemPrompt(cfg),
+    llm: process.env.CONCIERGE_LLM || "gemini-2.0-flash",
   };
   if (withTools) promptConfig.tools = [SHOW_LINK_TOOL];
   return {
-    name: "SpecTa Voice Concierge (Emma)",
+    name: `SpecTa Voice Concierge (${cfg.displayName})`,
     conversation_config: {
       agent: {
         prompt: promptConfig,
-        first_message: FIRST_MESSAGE,
+        first_message: cfg.firstMessage,
         language: "id",
       },
       tts: {
-        // Bahasa needs a MULTILINGUAL model — flash v2.5 is the low-latency
-        // multilingual option (the English-only flash/turbo v2 models that the
-        // IELTS agent uses would not speak Indonesian well). ElevenLabs only
-        // rejects v2.5 for English-language agents, not Indonesian ones.
-        voice_id: ENV.elevenLabsDefaultVoiceId,
-        model_id: "eleven_flash_v2_5",
-        // Pin explicit voice settings so the static first_message renders with
-        // the SAME character as the generated turns. Without this, ElevenLabs
-        // synthesizes the greeting at the voice's defaults (often low
-        // stability → wobbly, high-pitched, "childish") while conversational
-        // turns sound mature — the exact intro-vs-answers mismatch Hadi heard.
-        // Higher stability = steadier, less sing-songy; speaker boost = clearer.
+        voice_id: cfg.voiceId,
+        model_id: TTS_MODEL(),
+        // Pin voice settings so the static first_message renders with the same
+        // character as generated turns (otherwise the greeting sounds off).
         stability: 0.6,
         similarity_boost: 0.85,
         use_speaker_boost: true,
@@ -176,50 +203,51 @@ function buildAgentPayload(withTools: boolean): any {
   };
 }
 
-async function createAgent(): Promise<string> {
+async function createAgent(cfg: PersonaConfig): Promise<string> {
   // Attempt 1: with the show_link client tool.
   {
     const res = await elFetch("/v1/convai/agents/create", {
       method: "POST",
-      body: JSON.stringify(buildAgentPayload(true)),
+      body: JSON.stringify(buildAgentPayload(cfg, true)),
     });
     if (res.ok) {
       const data: any = await res.json();
       if (data?.agent_id) {
-        console.log(`[Concierge] ✅ Agent created WITH show_link tool: ${data.agent_id}`);
+        console.log(`[Concierge:${cfg.key}] ✅ Agent created WITH show_link tool: ${data.agent_id}`);
         return data.agent_id;
       }
     } else {
-      console.warn(`[Concierge] tool-enabled creation rejected (${res.status}): ${(await res.text()).slice(0, 300)} — retrying without tools`);
+      console.warn(`[Concierge:${cfg.key}] tool-enabled creation rejected (${res.status}): ${(await res.text()).slice(0, 300)} — retrying without tools`);
     }
   }
 
-  // Attempt 2: without tools — Emma still answers everything and speaks the
-  // URLs aloud (they also appear in the live transcript); just no click cards.
+  // Attempt 2: without tools — the agent still answers everything and speaks
+  // the URLs aloud (they also appear in the live transcript); no click cards.
   const res = await elFetch("/v1/convai/agents/create", {
     method: "POST",
-    body: JSON.stringify(buildAgentPayload(false)),
+    body: JSON.stringify(buildAgentPayload(cfg, false)),
   });
   if (!res.ok) {
-    throw new Error(`ElevenLabs concierge agent creation failed (${res.status}): ${(await res.text()).slice(0, 300)}`);
+    throw new Error(`ElevenLabs concierge (${cfg.key}) creation failed (${res.status}): ${(await res.text()).slice(0, 300)}`);
   }
   const data: any = await res.json();
-  if (!data?.agent_id) throw new Error("ElevenLabs concierge creation returned no agent_id");
-  console.log(`[Concierge] ✅ Agent created WITHOUT tools (fallback): ${data.agent_id}`);
+  if (!data?.agent_id) throw new Error(`ElevenLabs concierge (${cfg.key}) creation returned no agent_id`);
+  console.log(`[Concierge:${cfg.key}] ✅ Agent created WITHOUT tools (fallback): ${data.agent_id}`);
   return data.agent_id;
 }
 
-/** Get the concierge agent id, creating it idempotently on first call. */
-export async function ensureConciergeAgent(): Promise<string> {
+/** Get a persona's agent id, creating it idempotently on first call. */
+export async function ensureConciergeAgent(persona: ConciergePersona = "emma"): Promise<string> {
   if (!ENV.elevenLabsApiKey) throw new Error("ELEVENLABS_API_KEY is not configured");
-  const existing = await readFlag(AGENT_FLAG_KEY);
+  const cfg = personaConfig(persona);
+  const existing = await readFlag(cfg.flagKey);
   if (existing) return existing;
-  const agentId = await createAgent();
-  await writeFlag(AGENT_FLAG_KEY, agentId);
+  const agentId = await createAgent(cfg);
+  await writeFlag(cfg.flagKey, agentId);
   return agentId;
 }
 
-// ── Cost guardrails (own caps, separate from IELTS live) ──────────────────
+// ── Cost guardrails (shared across personas — protects total spend) ───────
 export const CONCIERGE_ANON_PER_IP_PER_DAY = Number(process.env.CONCIERGE_ANON_PER_IP_PER_DAY || 8);
 export const CONCIERGE_GLOBAL_PER_DAY = Number(process.env.CONCIERGE_GLOBAL_PER_DAY || 100);
 
@@ -233,7 +261,6 @@ function pruneAndCountIp(ip: string): number {
   return arr.length;
 }
 
-/** null-safe: returns {ok:false, reason} when a cap is hit. */
 export async function checkConciergeQuota(ip: string): Promise<{ ok: true } | { ok: false; reason: string }> {
   const key = ip || "unknown";
   if (pruneAndCountIp(key) >= CONCIERGE_ANON_PER_IP_PER_DAY) {
@@ -247,7 +274,6 @@ export async function checkConciergeQuota(ip: string): Promise<{ ok: true } | { 
   return { ok: true };
 }
 
-/** Record one concierge session start against both caps. */
 export async function recordConciergeStart(ip: string): Promise<void> {
   const key = ip || "unknown";
   const arr = ipHits.get(key) || [];
@@ -259,13 +285,13 @@ export async function recordConciergeStart(ip: string): Promise<void> {
 }
 
 /** Mint a signed URL for one concierge conversation. Caps checked by caller. */
-export async function getConciergeSignedUrl(): Promise<{ signedUrl: string; agentId: string }> {
-  const agentId = await ensureConciergeAgent();
+export async function getConciergeSignedUrl(persona: ConciergePersona = "emma"): Promise<{ signedUrl: string; agentId: string }> {
+  const agentId = await ensureConciergeAgent(persona);
   const res = await elFetch(`/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(agentId)}`, { method: "GET" });
   if (!res.ok) {
-    throw new Error(`ElevenLabs concierge signed-url failed (${res.status}): ${(await res.text()).slice(0, 200)}`);
+    throw new Error(`ElevenLabs concierge (${persona}) signed-url failed (${res.status}): ${(await res.text()).slice(0, 200)}`);
   }
   const data: any = await res.json();
-  if (!data?.signed_url) throw new Error("ElevenLabs returned no signed_url for concierge");
+  if (!data?.signed_url) throw new Error(`ElevenLabs returned no signed_url for concierge (${persona})`);
   return { signedUrl: data.signed_url, agentId };
 }

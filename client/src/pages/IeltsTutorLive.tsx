@@ -30,6 +30,8 @@ const PURPLE = "#9C27B0";
 type Phase = "intro" | "connecting" | "live" | "ended";
 /** Which agent this call is with: the IELTS examiner, or the SpecTa concierge. */
 type Mode = "ielts" | "concierge";
+/** Concierge voice/persona the student picked. */
+type Persona = "emma" | "arron";
 
 interface LinkCard { title: string; url: string; subtitle?: string }
 
@@ -70,6 +72,7 @@ function IeltsTutorLiveInner() {
   const [assessment, setAssessment] = useState<any>(null);
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [mode, setMode] = useState<Mode>("ielts");
+  const [persona, setPersona] = useState<Persona>("emma");
   const [links, setLinks] = useState<LinkCard[]>([]);
   const modeRef = useRef<Mode>("ielts");
   const endedByUserRef = useRef(false);
@@ -196,11 +199,12 @@ function IeltsTutorLiveInner() {
     },
   });
 
-  /** Start a call. `m` selects the agent: IELTS examiner or SpecTa concierge. */
-  const beginCall = async (m: Mode) => {
+  /** Start a call. `m` selects the agent; `p` picks the concierge voice. */
+  const beginCall = async (m: Mode, p: Persona = "emma") => {
     setErrorMsg(null);
     setMode(m);
     modeRef.current = m;
+    setPersona(p);
     setLinks([]);
     setPhase("connecting");
     try {
@@ -212,7 +216,7 @@ function IeltsTutorLiveInner() {
       setPhase("intro");
       return;
     }
-    if (m === "concierge") conciergeStart.mutate();
+    if (m === "concierge") conciergeStart.mutate({ persona: p });
     else start.mutate();
   };
 
@@ -248,6 +252,10 @@ function IeltsTutorLiveInner() {
 
   const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   const timeDanger = secondsLeft <= 60;
+
+  // Who the student is talking to (name + avatar) for the call UI.
+  const callName = mode === "concierge" ? (persona === "arron" ? "Arron" : "Emma") : "Emma";
+  const callEmoji = mode === "concierge" ? (persona === "arron" ? "🧑🏻‍💼" : "💁🏻‍♀️") : "👩🏻‍🏫";
 
   // ── INTRO / GATE ────────────────────────────────────────────────────
   if (phase === "intro") {
@@ -330,21 +338,37 @@ function IeltsTutorLiveInner() {
             <div className="flex items-start gap-3">
               <div className="w-11 h-11 shrink-0 rounded-full flex items-center justify-center text-xl shadow" style={{ background: `linear-gradient(135deg, ${PINK}, ${PURPLE})` }}>💬</div>
               <div className="min-w-0">
-                <h2 className="text-lg font-black text-slate-900 leading-tight">Tanya SpecTa — ngobrol sama Emma</h2>
+                <h2 className="text-lg font-black text-slate-900 leading-tight">Tanya SpecTa — pilih siapa yang mau kamu ajak ngobrol</h2>
                 <p className="text-sm text-slate-600 mt-1">
-                  Telepon Emma dan tanya apa saja soal SpecTa: IELTS, tes aptitude, IQ, kuliah ke luar negeri, harga, atau cara daftar. Dia jawab pakai suara (Bahasa Indonesia) dan kasih link yang bisa langsung kamu klik.
+                  Tanya apa saja soal SpecTa: IELTS, tes aptitude, IQ, kuliah ke luar negeri, harga, atau cara daftar. Dijawab pakai suara (Bahasa Indonesia) + kasih link yang bisa langsung kamu klik.
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => beginCall("concierge")}
-              disabled={conciergeStart.isPending}
-              className="mt-4 w-full py-3.5 rounded-2xl text-white font-black flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-[1.01] disabled:opacity-60"
-              style={{ background: "linear-gradient(90deg, #4f46e5, #9C27B0)" }}
-            >
-              <HelpCircle className="w-5 h-5" /> Tanya SpecTa (Test)
-            </button>
-            <p className="text-[11px] text-slate-400 mt-2 text-center">Untuk evaluasi tim — sebelum diputuskan tayang di homepage.</p>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <button
+                onClick={() => beginCall("concierge", "emma")}
+                disabled={conciergeStart.isPending}
+                className="rounded-2xl p-4 text-white font-black flex flex-col items-center gap-1.5 shadow-lg transition-transform hover:scale-[1.02] disabled:opacity-60"
+                style={{ background: "linear-gradient(135deg, #E91E8C, #9C27B0)" }}
+              >
+                <span className="text-3xl">💁🏻‍♀️</span>
+                <span className="text-base">Emma</span>
+                <span className="text-[11px] font-medium opacity-90">suara perempuan</span>
+              </button>
+              <button
+                onClick={() => beginCall("concierge", "arron")}
+                disabled={conciergeStart.isPending}
+                className="rounded-2xl p-4 text-white font-black flex flex-col items-center gap-1.5 shadow-lg transition-transform hover:scale-[1.02] disabled:opacity-60"
+                style={{ background: "linear-gradient(135deg, #4f46e5, #0ea5e9)" }}
+              >
+                <span className="text-3xl">🧑🏻‍💼</span>
+                <span className="text-base">Arron</span>
+                <span className="text-[11px] font-medium opacity-90">suara laki-laki</span>
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-3 text-center flex items-center justify-center gap-1">
+              <HelpCircle className="w-3.5 h-3.5" /> Untuk evaluasi tim — sebelum diputuskan tayang di homepage.
+            </p>
           </div>
         </main>
         <Footer />
@@ -359,9 +383,9 @@ function IeltsTutorLiveInner() {
         <div className="text-center text-white">
           <div className="relative w-24 h-24 mx-auto mb-6">
             <div className="absolute inset-0 rounded-full animate-ping opacity-30" style={{ background: PINK }} />
-            <div className="relative w-24 h-24 rounded-full flex items-center justify-center text-4xl" style={{ background: `linear-gradient(135deg, ${PINK}, ${PURPLE})` }}>📞</div>
+            <div className="relative w-24 h-24 rounded-full flex items-center justify-center text-4xl" style={{ background: `linear-gradient(135deg, ${PINK}, ${PURPLE})` }}>{callEmoji}</div>
           </div>
-          <h2 className="text-xl font-bold">Menghubungkan ke Emma…</h2>
+          <h2 className="text-xl font-bold">Menghubungkan ke {callName}…</h2>
           <p className="text-purple-200 text-sm mt-2">Siapkan dirimu — percakapan dimulai sebentar lagi.</p>
         </div>
       </div>
@@ -378,10 +402,10 @@ function IeltsTutorLiveInner() {
           <div className="flex items-center gap-3">
             <div className="relative w-11 h-11">
               {agentSpeaking && <div className="absolute inset-0 rounded-full animate-ping opacity-30" style={{ background: PINK }} />}
-              <div className="relative w-11 h-11 rounded-full flex items-center justify-center text-xl shadow-lg" style={{ background: `linear-gradient(135deg, ${PINK}, ${PURPLE})` }}>👩🏻‍🏫</div>
+              <div className="relative w-11 h-11 rounded-full flex items-center justify-center text-xl shadow-lg" style={{ background: `linear-gradient(135deg, ${PINK}, ${PURPLE})` }}>{callEmoji}</div>
             </div>
             <div>
-              <div className="text-white font-bold leading-tight">Emma</div>
+              <div className="text-white font-bold leading-tight">{callName}</div>
               <div className="text-[11px] text-purple-200 flex items-center gap-1">
                 {agentSpeaking
                   ? <><Volume2 className="w-3 h-3 animate-pulse" /> sedang bicara…</>
@@ -418,7 +442,7 @@ function IeltsTutorLiveInner() {
                         ? "bg-white/15 text-white rounded-br-sm"
                         : "bg-white text-slate-800 rounded-bl-sm"}`}>
                       <div className={`text-[10px] font-bold uppercase tracking-wide mb-0.5 ${t.role === "you" ? "text-purple-200" : "text-pink-600"}`}>
-                        {t.role === "you" ? "Kamu" : "Emma"}
+                        {t.role === "you" ? "Kamu" : callName}
                       </div>
                       {t.text}
                     </div>
@@ -493,7 +517,7 @@ function IeltsTutorLiveInner() {
           <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-6 text-center">
             <div className="text-4xl mb-2">👋</div>
             <h1 className="text-2xl font-black text-slate-900">Sampai jumpa!</h1>
-            <p className="text-slate-600 mt-1 text-sm">Semoga membantu ya! Ini link yang Emma kasih selama ngobrol.</p>
+            <p className="text-slate-600 mt-1 text-sm">Semoga membantu ya! Ini link yang {callName} kasih selama ngobrol.</p>
             {errorMsg && (
               <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">{errorMsg}</div>
             )}
@@ -523,17 +547,17 @@ function IeltsTutorLiveInner() {
             </div>
           ) : (
             <div className="bg-white rounded-3xl shadow border border-slate-200 p-6 text-center text-sm text-slate-600">
-              Emma tidak menyematkan link kali ini. Butuh bantuan langsung? <a href="https://wa.me/62818218388" target="_blank" rel="noopener noreferrer" className="underline font-semibold" style={{ color: PINK }}>WhatsApp admin</a>.
+              {callName} tidak menyematkan link kali ini. Butuh bantuan langsung? <a href="https://wa.me/62818218388" target="_blank" rel="noopener noreferrer" className="underline font-semibold" style={{ color: PINK }}>WhatsApp admin</a>.
             </div>
           )}
 
           <div className="flex flex-col sm:flex-row gap-2 justify-center pt-2">
             <button
-              onClick={() => beginCall("concierge")}
+              onClick={() => beginCall("concierge", persona)}
               className="px-5 py-3 rounded-xl text-white font-semibold text-sm text-center"
               style={{ background: "linear-gradient(90deg, #4f46e5, #9C27B0)" }}
             >
-              Tanya lagi
+              Tanya {callName} lagi
             </button>
             <button
               onClick={() => { setMode("ielts"); modeRef.current = "ielts"; setPhase("intro"); setErrorMsg(null); setLinks([]); }}
