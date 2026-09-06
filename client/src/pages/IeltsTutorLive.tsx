@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { useConversation } from "@elevenlabs/react";
+import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { trpc } from "@/lib/trpc";
@@ -28,13 +28,22 @@ const PURPLE = "#9C27B0";
 
 type Phase = "intro" | "connecting" | "live" | "ended";
 
+/** The SDK's hooks require a ConversationProvider ancestor — the default
+ *  export wraps the actual page so useConversation works. */
 export default function IeltsTutorLive() {
+  return (
+    <ConversationProvider>
+      <IeltsTutorLiveInner />
+    </ConversationProvider>
+  );
+}
+
+function IeltsTutorLiveInner() {
   const [phase, setPhase] = useState<Phase>("intro");
   const [secondsLeft, setSecondsLeft] = useState(900);
   const [maxSeconds, setMaxSeconds] = useState(900);
   const [remaining, setRemaining] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [muted, setMuted] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const status = trpc.tutor.liveSpeakingStatus.useQuery();
@@ -50,20 +59,16 @@ export default function IeltsTutorLive() {
       setPhase("ended");
     },
   });
+  const muted = conversation.isMuted;
 
   const start = trpc.tutor.liveSpeakingStart.useMutation({
-    onSuccess: async (d) => {
+    onSuccess: (d) => {
       setMaxSeconds(d.maxSeconds);
       setSecondsLeft(d.maxSeconds);
       setRemaining(d.remaining);
-      try {
-        await conversation.startSession({ signedUrl: d.signedUrl });
-        // onConnect flips phase → "live"
-      } catch (e) {
-        console.error("[LiveSpeaking] startSession failed:", e);
-        setErrorMsg("Gagal memulai panggilan. Pastikan mikrofon diizinkan, lalu coba lagi.");
-        setPhase("intro");
-      }
+      // startSession is fire-and-forget in this SDK version; connection
+      // outcome arrives via onConnect / onError callbacks above.
+      conversation.startSession({ signedUrl: d.signedUrl });
     },
     onError: (e) => {
       setErrorMsg(e.message);
@@ -86,8 +91,8 @@ export default function IeltsTutorLive() {
     start.mutate();
   };
 
-  const endCall = async () => {
-    try { await conversation.endSession(); } catch { /* already closed */ }
+  const endCall = () => {
+    try { conversation.endSession(); } catch { /* already closed */ }
     setPhase("ended");
   };
 
@@ -101,7 +106,7 @@ export default function IeltsTutorLive() {
       setSecondsLeft(s => {
         if (s <= 1) {
           // Server enforces the real cap; this just ends the UI cleanly.
-          try { void conversation.endSession(); } catch { /* already closed */ }
+          try { conversation.endSession(); } catch { /* already closed */ }
           return 0;
         }
         return s - 1;
@@ -111,16 +116,8 @@ export default function IeltsTutorLive() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
-  // Mic mute toggle via the SDK's volume/mic controls.
-  const toggleMute = () => {
-    const next = !muted;
-    setMuted(next);
-    try {
-      // SDK exposes setVolume for output; for input muting we use the
-      // micMuted property if available in this SDK version.
-      (conversation as any).setMicMuted?.(next);
-    } catch { /* non-critical */ }
-  };
+  // Mic mute toggle — native to the SDK in this version.
+  const toggleMute = () => conversation.setMuted(!conversation.isMuted);
 
   const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   const timeDanger = secondsLeft <= 60;
