@@ -25,8 +25,10 @@ import { readFlag, writeFlag } from "./systemFlags";
 
 const EL_API = "https://api.elevenlabs.io";
 
-// Bump this key to force a fresh agent after a prompt / tool change.
-const AGENT_FLAG_KEY = "specta_concierge_agent_id_v1";
+// Bump this key to force a fresh agent after a prompt / tool / voice change.
+// v2: pinned explicit voice_settings + smoother greeting so the first_message
+// stops sounding childish/clipped vs the (good) generated answers.
+const AGENT_FLAG_KEY = "specta_concierge_agent_id_v2";
 
 // Bundled LLM (same reliable low-latency model the IELTS agent uses).
 // Gemini handles Bahasa Indonesia well. Overridable without a deploy.
@@ -97,7 +99,11 @@ ATURAN:
 - Jangan sebut kamu AI kecuali ditanya langsung — kalau ditanya, jujur dan ramah aja.
 - Jaga energi tetap positif dan bikin siswa semangat lanjut sama SpecTa.`;
 
-const FIRST_MESSAGE = "Halo! Aku Emma dari SpecTa Education, seneng banget kamu telepon! Ada yang bisa aku bantu? Kamu bisa tanya apa aja — soal IELTS, tes minat-bakat, IQ test, atau kuliah ke luar negeri. Mau tanya apa nih?";
+// Fuller, warmer, standard-casual Indonesian in complete sentences — a
+// staccato greeting ("...apa nih?") reads childish/clipped through TTS,
+// while flowing sentences render like her (good) answers. The soft opener
+// also absorbs any onset clipping on the very first audio frames.
+const FIRST_MESSAGE = "Halo, selamat datang di SpecTa Education! Aku Emma, asisten kamu di sini, dan aku senang bisa ngobrol sama kamu. Aku siap bantu jawab apa aja — mulai dari IELTS, tes minat dan bakat, IQ, sampai rencana kuliah ke luar negeri. Jadi, ada yang bisa aku bantu hari ini?";
 
 // ── Client tool declaration ───────────────────────────────────────────────
 // Declared on the agent so the LLM knows it can call it; the IMPLEMENTATION
@@ -153,6 +159,15 @@ function buildAgentPayload(withTools: boolean): any {
         // rejects v2.5 for English-language agents, not Indonesian ones.
         voice_id: ENV.elevenLabsDefaultVoiceId,
         model_id: "eleven_flash_v2_5",
+        // Pin explicit voice settings so the static first_message renders with
+        // the SAME character as the generated turns. Without this, ElevenLabs
+        // synthesizes the greeting at the voice's defaults (often low
+        // stability → wobbly, high-pitched, "childish") while conversational
+        // turns sound mature — the exact intro-vs-answers mismatch Hadi heard.
+        // Higher stability = steadier, less sing-songy; speaker boost = clearer.
+        stability: 0.6,
+        similarity_boost: 0.85,
+        use_speaker_boost: true,
       },
       conversation: {
         max_duration_seconds: CONCIERGE_MAX_SECONDS,
