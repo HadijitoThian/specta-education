@@ -33,7 +33,13 @@ const EL_API = "https://api.elevenlabs.io";
 // dropped every call (ElevenLabs↔DeepSeek handshake failure). v2 uses
 // ElevenLabs' bundled LLM by default — faster, more reliable, and the cost
 // difference is pennies per session. Bumping the key forces a fresh agent.
-const AGENT_FLAG_KEY = "live_speaking_agent_id_v2";
+const AGENT_FLAG_KEY = "live_speaking_agent_id_v3";
+
+// Explicit bundled LLM. Omitting it left the agent with no working model →
+// connect-then-instant-disconnect. Set explicitly. Overridable without a
+// deploy via LIVE_SPEAKING_LLM in case this exact model id isn't available
+// on the workspace's plan (then the raw error in the UI will name a valid one).
+const BUNDLED_LLM = () => process.env.LIVE_SPEAKING_LLM || "gemini-2.0-flash";
 
 // Opt-in: wire DeepSeek as the custom LLM only when explicitly enabled.
 // Default OFF — the bundled model is lower-latency (better for live calls)
@@ -131,9 +137,11 @@ async function createDeepSeekSecret(): Promise<string | null> {
 function buildAgentPayload(customLlmSecretId: string | null): any {
   const promptConfig: any = {
     prompt: AGENT_SYSTEM_PROMPT,
+    // Explicit LLM so the agent always has a working model. DeepSeek only
+    // when opted in; otherwise the bundled model (set explicitly, not omitted).
+    llm: (customLlmSecretId && ENV.deepseekApiKey) ? "custom-llm" : BUNDLED_LLM(),
   };
   if (customLlmSecretId && ENV.deepseekApiKey) {
-    promptConfig.llm = "custom-llm";
     promptConfig.custom_llm = {
       url: "https://api.deepseek.com/v1",
       model_id: "deepseek-v4-flash",

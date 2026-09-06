@@ -50,12 +50,23 @@ function IeltsTutorLiveInner() {
 
   const conversation = useConversation({
     onConnect: () => setPhase("live"),
-    onDisconnect: () => {
+    onDisconnect: (details?: any) => {
+      // Capture the disconnect reason so we can diagnose instant drops.
+      try {
+        const reason = details?.reason || details?.message || (typeof details === "string" ? details : "");
+        if (reason) {
+          console.error("[LiveSpeaking] disconnect reason:", details);
+          setErrorMsg(`Panggilan terputus. Detail teknis: ${String(reason).slice(0, 300)}`);
+        }
+      } catch { /* ignore */ }
       setPhase(p => (p === "live" || p === "connecting" ? "ended" : p));
     },
-    onError: (message: string) => {
+    onError: (message: any) => {
       console.error("[LiveSpeaking] conversation error:", message);
-      setErrorMsg("Koneksi terputus. Coba mulai lagi — kuota sesi kamu tidak hilang untuk error teknis di awal panggilan.");
+      const raw = typeof message === "string" ? message : (message?.message || JSON.stringify(message));
+      // Show the REAL error text so we can debug from a screenshot instead
+      // of a generic message.
+      setErrorMsg(`Error teknis: ${String(raw).slice(0, 400)}`);
       setPhase("ended");
     },
   });
