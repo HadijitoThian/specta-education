@@ -125,6 +125,8 @@ function IeltsTutorLiveInner() {
   const status = trpc.tutor.liveSpeakingStatus.useQuery();
 
   const assess = trpc.tutor.liveSpeakingAssess.useMutation({
+    retry: 1,               // recover from a transient timeout before giving up
+    retryDelay: 1500,
     onSuccess: (d) => setAssessment(d),
     onError: () => setAssessment({ __failed: true }),
   });

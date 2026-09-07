@@ -60,9 +60,27 @@ function parseLooseJson(text: string): any {
   throw new Error("could not extract JSON");
 }
 
+/** Bound a promise so a hung LLM fetch can't stall the whole request past the
+ *  gateway timeout — on timeout we reject, the caller catches, and we move on
+ *  to the next provider / hardcoded fallback. The dangling fetch is harmless. */
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)),
+  ]);
+}
+
 function buildPrompt(turns: TranscriptTurn[], studentWords: number): string {
+  // Keep the student's turns in full (that's what we grade); trim the
+  // examiner's long questions so the prompt stays small and fast.
   const convo = turns
-    .map(t => `${t.role === "you" ? "STUDENT" : "EXAMINER (Emma)"}: ${t.text}`)
+    .map(t => {
+      const who = t.role === "you" ? "STUDENT" : "EXAMINER (Emma)";
+      const text = t.role === "you"
+        ? t.text
+        : (t.text.length > 240 ? t.text.slice(0, 240) + "…" : t.text);
+      return `${who}: ${text}`;
+    })
     .join("\n");
   return `You are a certified IELTS Speaking examiner assessing a student from a live practice conversation. Assess ONLY the STUDENT's spoken English (ignore the examiner's turns except as context).
 
@@ -166,9 +184,13 @@ export async function assessLiveSpeaking(turns: TranscriptTurn[]): Promise<LiveS
     { role: "user" as const, content: prompt },
   ];
 
-  // DeepSeek primary
+  // DeepSeek primary — flash is fast and plenty for scoring a transcript;
+  // bounded so a slow/hung call fails over instead of stalling the request.
   try {
-    const res = await invokeLLM({ model: "deepseek-v4-pro", messages, response_format: { type: "json_object" } });
+    const res = await withTimeout(
+      invokeLLM({ model: "deepseek-v4-flash", messages, response_format: { type: "json_object" } }),
+      22000, "DeepSeek assess",
+    );
     const text = res.choices?.[0]?.message?.content;
     if (typeof text === "string" && text) {
       const parsed = parseLooseJson(text);
@@ -180,7 +202,10 @@ export async function assessLiveSpeaking(turns: TranscriptTurn[]): Promise<LiveS
 
   // GLM fallback
   try {
-    const res = await invokeLLMFallback({ messages, response_format: { type: "json_object" } });
+    const res = await withTimeout(
+      invokeLLMFallback({ messages, response_format: { type: "json_object" } }),
+      22000, "GLM assess",
+    );
     const text = res.choices?.[0]?.message?.content;
     if (typeof text === "string" && text) {
       const parsed = parseLooseJson(text);
