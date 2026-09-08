@@ -29,7 +29,8 @@ const EL_API = "https://api.elevenlabs.io";
 // v3: resumed calls get the session-so-far transcript; update_profile tool so
 // name/target/test date told verbally are remembered.
 // v4: time-boxed lesson plans; must not end before the system's wrap-up note.
-const AGENT_FLAG_KEY = "writing_teacher_agent_id_v4";
+// v5: no break before the 55-minute note (the system refuses earlier ones).
+const AGENT_FLAG_KEY = "writing_teacher_agent_id_v5";
 export const AGENT_VARIANT_FLAG_KEY = "writing_teacher_agent_variant";
 
 /** Per-CALL cap. A 2h session is split by the 60-min break into two calls,
@@ -82,6 +83,7 @@ THE STUDENT'S WRITING
 PACING (this is a 2-HOUR session — the most common mistake is finishing far too early)
 - Follow the LESSON PLAN IN ORDER in THIS SESSION above. Each step has a time box. Do not skip steps and do not compress the lesson into 10 minutes.
 - NEVER call end_class before the system sends "[SYSTEM] 110 minutes in". If you call it earlier the system will refuse it and tell you to continue — so don't. Finishing the diagnostic is NOT finishing the session.
+- NEVER call request_break before the system sends "[SYSTEM] 55 minutes in". A break belongs at the 60-minute mark of a 2-hour class, not at the start. If you call it earlier the system will refuse it and tell you to continue.
 - If you are unsure what to do next, do the next step of the lesson plan.
 
 TIME (the system keeps time, you do not)
@@ -179,7 +181,7 @@ const TOOLS = [
   },
   {
     type: "client", name: "request_break",
-    description: "Pause the class for a short break (the clock stops). Call after telling the student you'll take a 5-minute break.",
+    description: "Pause the class for a short 5-minute break (the clock stops). ONLY after the system's '[SYSTEM] 55 minutes in' note, around the 60-minute mark. Calling it earlier is refused.",
     parameters: { type: "object", properties: {}, required: [] },
     expects_response: false,
   },

@@ -30,6 +30,7 @@ const KEY_STORAGE = "specta_writing_student_key";
 const NOTES_STORAGE = (sid: number) => `specta_writing_notes_${sid}`;
 const QUIET_MODE_MIN_MINUTES = 15;   // timed writing ≥ this drops the voice call
 const MIN_END_MINUTES = 100;         // Emma may not close the session before this (student's End button is unaffected)
+const MIN_BREAK_MINUTES = 50;        // Emma may not call a break before this (student's Pause button is unaffected)
 
 type Phase = "overview" | "connecting" | "class" | "paused" | "ended";
 interface Card { id: string; kind: "note" | "correction"; title?: string; content?: string; original?: string; corrected?: string; explanation?: string; type?: string; at: number }
@@ -208,7 +209,14 @@ function ClassroomInner() {
         assign.mutate({ studentKey: key, sessionId: sessionIdRef.current, taskType: p?.taskType === "task1" ? "task1" : "task2", prompt: String(p?.prompt || ""), guidance: p?.guidance ? String(p.guidance) : undefined },
           { onSuccess: () => utils.writing.getCourse.invalidate({ studentKey: key }) });
       },
-      request_break: () => { void pauseSession("Break time. Take 5 minutes — your clock is paused.", true); },
+      request_break: () => {
+        const min = Math.floor(elapsedRef.current / 60);
+        if (min < MIN_BREAK_MINUTES) {
+          say(`[SYSTEM] REFUSED: it is only ${min} minutes into this 120-minute session — no break yet. The break is offered only after the "55 minutes in" note. Continue with the next step of the LESSON PLAN IN ORDER.`);
+          return;
+        }
+        void pauseSession("Break time. Take 5 minutes — your clock is paused.", true);
+      },
       end_class: () => {
         const min = Math.floor(elapsedRef.current / 60);
         if (min < MIN_END_MINUTES) {
