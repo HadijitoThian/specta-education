@@ -101,12 +101,16 @@ function ClassroomInner() {
   const conversationIdRef = useRef<string | null>(null);
   const pendingMsgsRef = useRef<string[]>([]);
   const taskRef = useRef<WritingTask | null>(null);
+  const padRef = useRef("");
+  const lastGroundingRef = useRef(0);   // throttle "no submission yet" reminders
+  const lastTripwireRef = useRef(0);    // throttle the invented-[WRITTEN] correction
   const boardEndRef = useRef<HTMLDivElement | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => { boardRef.current = board; boardEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [board]);
   useEffect(() => { transcriptRef.current = transcript; transcriptEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [transcript]);
   useEffect(() => { taskRef.current = task; }, [task]);
+  useEffect(() => { padRef.current = padText; }, [padText]);
   useEffect(() => { elapsedRef.current = elapsed; }, [elapsed]);
 
   const start = trpc.writing.startSession.useMutation();
@@ -259,6 +263,18 @@ function ClassroomInner() {
         if (!text) return;
         const role: "emma" | "you" = (source === "user" || source === "human") ? "you" : "emma";
         if (role === "you" && text.startsWith("[")) return; // our own [SYSTEM]/[WRITTEN] messages
+        // Tripwire: she must never produce the student's channel herself.
+        if (role === "emma" && /\[WRITTEN\]/i.test(text) && Date.now() - lastTripwireRef.current > 30000) {
+          lastTripwireRef.current = Date.now();
+          say("[SYSTEM] STOP. You just produced a '[WRITTEN]' message yourself — that channel belongs to the student only. The student has NOT submitted anything; you invented that text. Apologise briefly, do not review or correct it, and ask them to write in the pad and press Send. Then wait.");
+        }
+        // Grounding: student speaks while a task is open and nothing was sent.
+        if (role === "you" && taskRef.current && Date.now() - lastGroundingRef.current > 20000) {
+          lastGroundingRef.current = Date.now();
+          try {
+            conversation.sendContextualUpdate(`[SYSTEM] No submission yet: the writing pad currently has ${words(padRef.current)} words and "Send to Emma" has NOT been pressed. The student has not written anything you can see. Do not assume or invent any text.`);
+          } catch { /* */ }
+        }
         setTranscript(prev => {
           const last = prev[prev.length - 1];
           if (last && last.role === role) { const m = [...prev]; m[m.length - 1] = { role, text: `${last.text} ${text}`.trim() }; return m; }
@@ -320,6 +336,9 @@ function ClassroomInner() {
   // ── writing pad ──
   function openTask(t: WritingTask) {
     setTask(t); setPadText(""); setMobileTab("write");
+    try {
+      conversation.sendContextualUpdate(`[SYSTEM] The writing pad is now open for "${t.label || t.taskType}" (${t.minutes} min, ${t.minWords}+ words). The student has NOT submitted anything yet. Do not review, quote or correct any writing until a message beginning "[WRITTEN]" arrives from the student.`);
+    } catch { /* */ }
     if (taskTimerRef.current) clearInterval(taskTimerRef.current);
     let left = t.minutes * 60; setTaskLeft(left);
     taskTimerRef.current = setInterval(() => {

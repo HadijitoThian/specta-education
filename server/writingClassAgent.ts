@@ -30,7 +30,15 @@ const EL_API = "https://api.elevenlabs.io";
 // name/target/test date told verbally are remembered.
 // v4: time-boxed lesson plans; must not end before the system's wrap-up note.
 // v5: no break before the 55-minute note (the system refuses earlier ones).
-const AGENT_FLAG_KEY = "writing_teacher_agent_id_v5";
+// v6: REALITY RULES (never invent the student's writing) + Claude Sonnet 4
+// as the default brain (Gemini Flash fabricated submissions), with fallback.
+const AGENT_FLAG_KEY = "writing_teacher_agent_id_v6";
+
+/** Preferred LLM for the teacher. A long, tool-heavy 2-hour class needs a
+ *  strong instruction-follower; the fast Gemini Flash model hallucinated
+ *  student submissions. Env-overridable; falls back if ElevenLabs rejects it. */
+const PREFERRED_LLM = () => process.env.WRITING_TEACHER_LLM || "claude-sonnet-4";
+const FALLBACK_LLM = "gemini-2.0-flash";
 export const AGENT_VARIANT_FLAG_KEY = "writing_teacher_agent_variant";
 
 /** Per-CALL cap. A 2h session is split by the 60-min break into two calls,
@@ -66,6 +74,12 @@ HOW YOU TEACH (this is what makes the class excellent):
 - Be honest about level, kindly: frame it as "you are around X now, your target is Y, here is the gap and how we close it". Never give a false high band.
 - Watch for typical Indonesian-learner errors: missing articles, dropped plural -s, tense drift, subject–verb agreement, "in the other hand", overused "besides/moreover", comma splices and run-ons, informal register, and direct translation from Bahasa.
 - Track the student's recurring errors during the class and name the pattern, not just the instance.
+
+REALITY RULES (never break these — inventing a student's text is the worst mistake you can make)
+- The ONLY way you can see the student's writing is a message FROM THE STUDENT that begins with "[WRITTEN]". You NEVER write "[WRITTEN]" yourself. You never guess, imagine, remember, paraphrase or "quote" writing that has not arrived that way.
+- If no "[WRITTEN]" message has arrived for the current task, the student has NOT written anything yet. If they ask what to do, tell them to type in the writing pad and press "Send to Emma", then WAIT silently for it.
+- Never review, correct, praise or put on the board any student sentence that did not arrive in a "[WRITTEN]" message. If you are unsure whether they submitted, ask: "Have you pressed Send yet?"
+- "[SYSTEM]" messages are ground truth about what exists. If one says nothing has been submitted, nothing has.
 
 REMEMBERING THE STUDENT
 - The moment the student tells you their name, target band, test date or test type, call update_profile with it. Never ask again for something already in THE STUDENT or EARLIER IN THIS SESSION above.
@@ -200,10 +214,10 @@ async function elFetch(path: string, init: RequestInit = {}): Promise<Response> 
   });
 }
 
-function buildAgentPayload(withTools: boolean, withTurn: boolean): any {
+function buildAgentPayload(withTools: boolean, withTurn: boolean, llm: string): any {
   const promptConfig: any = {
     prompt: TEACHER_PROMPT,
-    llm: process.env.WRITING_TEACHER_LLM || "gemini-2.0-flash",
+    llm,
   };
   if (withTools) promptConfig.tools = TOOLS;
   // Long silences are normal here (the student is writing) — never hang up
@@ -236,20 +250,26 @@ async function createAgent(): Promise<string> {
     { label: "tools", tools: true, turn: false },
     { label: "bare", tools: false, turn: false },
   ];
+  // Preferred LLM first; if ElevenLabs rejects every variant with it (e.g.
+  // the model id isn't available on the plan), retry with the fallback LLM.
+  const llms = PREFERRED_LLM() === FALLBACK_LLM ? [PREFERRED_LLM()] : [PREFERRED_LLM(), FALLBACK_LLM];
   let lastErr = "";
-  for (const v of variants) {
-    const res = await elFetch("/v1/convai/agents/create", { method: "POST", body: JSON.stringify(buildAgentPayload(v.tools, v.turn)) });
-    if (res.ok) {
-      const data: any = await res.json();
-      if (data?.agent_id) {
-        console.log(`[WritingTeacher] ✅ agent created (${v.label}): ${data.agent_id}`);
-        await writeFlag(AGENT_VARIANT_FLAG_KEY, v.label); // visible via writing.config
-        return data.agent_id;
+  for (const llm of llms) {
+    for (const v of variants) {
+      const res = await elFetch("/v1/convai/agents/create", { method: "POST", body: JSON.stringify(buildAgentPayload(v.tools, v.turn, llm)) });
+      if (res.ok) {
+        const data: any = await res.json();
+        if (data?.agent_id) {
+          const label = `${v.label} · ${llm}`;
+          console.log(`[WritingTeacher] ✅ agent created (${label}): ${data.agent_id}`);
+          await writeFlag(AGENT_VARIANT_FLAG_KEY, label); // visible via writing.config
+          return data.agent_id;
+        }
+        lastErr = "no agent_id in response";
+      } else {
+        lastErr = `(${res.status}) ${(await res.text()).slice(0, 300)}`;
+        console.warn(`[WritingTeacher] variant "${v.label}" with ${llm} rejected ${lastErr} — trying next`);
       }
-      lastErr = "no agent_id in response";
-    } else {
-      lastErr = `(${res.status}) ${(await res.text()).slice(0, 300)}`;
-      console.warn(`[WritingTeacher] variant "${v.label}" rejected ${lastErr} — trying next`);
     }
   }
   throw new Error(`ElevenLabs writing teacher creation failed: ${lastErr}`);
