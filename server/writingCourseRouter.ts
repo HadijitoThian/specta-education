@@ -301,6 +301,20 @@ export const writingCourseRouter = router({
       return { ok: true };
     }),
 
+  /** Trial only: abandon the current course so the student can start again
+   *  from Session 1 (used for testing the lesson plan). */
+  resetCourse: publicProcedure
+    .input(z.object({ studentKey: STUDENT_KEY }))
+    .mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      if (!OPEN_TRIAL()) throw new TRPCError({ code: "FORBIDDEN", message: "Not available." });
+      const { key } = await studentKeyFor(ctx, input.studentKey);
+      await db.update(writingCourses).set({ status: "cancelled" })
+        .where(and(eq(writingCourses.studentKey, key), eq(writingCourses.status, "active")));
+      return { ok: true };
+    }),
+
   /** Emma's update_profile tool — remember name / target / test date / type. */
   updateProfile: publicProcedure
     .input(z.object({

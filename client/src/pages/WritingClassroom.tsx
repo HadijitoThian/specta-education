@@ -117,6 +117,7 @@ function ClassroomInner() {
   const assign = trpc.writing.assignHomework.useMutation();
   const complete = trpc.writing.completeSession.useMutation();
   const submitHw = trpc.writing.submitHomework.useMutation({ onSuccess: () => utils.writing.getCourse.invalidate({ studentKey: key }) });
+  const resetCourse = trpc.writing.resetCourse.useMutation({ onSuccess: () => { setErrorMsg(null); utils.writing.getCourse.invalidate({ studentKey: key }); } });
 
   // ── helpers ──
   const addCard = (c: Omit<Card, "id" | "at">) => setBoard(prev => [...prev, { ...c, id: Math.random().toString(36).slice(2), at: Date.now() }]);
@@ -466,6 +467,14 @@ function ClassroomInner() {
                 ) : (
                   <button onClick={beginOrResume} disabled={start.isPending} className="w-full py-4 rounded-2xl text-white font-black text-lg flex items-center justify-center gap-2 shadow-lg" style={{ background: "linear-gradient(90deg,#4f46e5,#9C27B0)" }}>
                     {current ? <><Play className="w-5 h-5" /> Resume Session {current.sessionNumber} · {hhmm(current.elapsedSeconds)} used</> : <><Play className="w-5 h-5" /> Start Session {nextNum}</>}
+                  </button>
+                )}
+                {config.data?.openTrial && (
+                  <button
+                    onClick={() => { if (confirm("Restart the whole course from Session 1? This is for testing (trial only).")) resetCourse.mutate({ studentKey: key }); }}
+                    className="mt-3 w-full text-xs text-slate-400 underline hover:text-slate-600"
+                  >
+                    Restart course from Session 1 (trial)
                   </button>
                 )}
               </div>
