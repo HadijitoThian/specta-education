@@ -47,9 +47,16 @@ export async function assessPronunciationFromAudio(args: {
   transcript: string;   // role-labelled transcript for reference
   mixed?: boolean;
 }): Promise<PronunciationResult | null> {
-  const key = process.env.GEMINI_API_KEY;
+  // Accept the common names for the Google AI Studio key so a differently
+  // named Railway variable still works.
+  const key =
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.GOOGLE_AI_API_KEY ||
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+    process.env.GEMINI_KEY;
   if (!key) {
-    console.warn("[Pronunciation] GEMINI_API_KEY not set — skipping audio assessment");
+    console.warn("[Pronunciation] no Gemini key found (GEMINI_API_KEY / GOOGLE_API_KEY / GOOGLE_AI_API_KEY) — skipping audio assessment");
     return null;
   }
   if (!args.buffer || args.buffer.length < 2000) return null;
