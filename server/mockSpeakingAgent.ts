@@ -28,7 +28,10 @@ import { readFlag, writeFlag } from "./systemFlags";
 const EL_API = "https://api.elevenlabs.io";
 
 // Bump to force a fresh agent after a prompt / tool change.
-const AGENT_FLAG_KEY = "mock_speaking_examiner_agent_id_v1";
+// v2: Part 2 fixes — read the topic line before calling show_cue_card (no
+// mid-sentence cut-off), strict silence for the full 1-minute prep, longer
+// turn timeout + no silence hang-up so she doesn't nudge during prep.
+const AGENT_FLAG_KEY = "mock_speaking_examiner_agent_id_v2";
 
 /** Hard cap. A real test runs 11–14 minutes; 15 is the safety ceiling. */
 export const MOCK_SPEAKING_MAX_SECONDS = Number(process.env.MOCK_SPEAKING_MAX_SECONDS || 900);
@@ -46,7 +49,7 @@ EXAMINER BEHAVIOUR (strict):
 - NEVER correct the candidate. NEVER give feedback, hints, vocabulary, praise beyond a neutral "Thank you." or "Okay.", and NEVER comment on how well they are doing.
 - NEVER reveal or hint at a band score.
 - If the candidate asks for help or the meaning of a word, do not explain — repeat or rephrase the question once, neutrally.
-- If the candidate goes silent, prompt once neutrally ("Take your time."), then move on.
+- If the candidate goes silent in Part 1 or Part 3, say "Take your time." once, then move on. This does NOT apply during Part 2 preparation time (see below) — there you stay silent.
 - If the candidate speaks Indonesian, say "Please answer in English." and continue.
 - Do NOT read out anything in square brackets. Messages beginning with "[SYSTEM]" come from the test system's clock, NOT from the candidate — obey them silently and move on to the instructed step.
 
@@ -63,11 +66,11 @@ PART 1 — Interview (about 4–5 minutes)
 
 PART 2 — Long turn (cue card)
 - Call the tool start_part with part 2.
-- Say: "Now I'm going to give you a topic, and I'd like you to talk about it for one to two minutes. Before you talk, you'll have one minute to think about what you're going to say. You can make some notes if you wish. Here is your topic."
-- Then call the tool show_cue_card with the full cue card text below, and read the TOPIC LINE aloud (only the first line, not every bullet):
+- In ONE complete spoken turn, say: "Now I'm going to give you a topic, and I'd like you to talk about it for one to two minutes. Before you talk, you'll have one minute to think about what you're going to say. You can make some notes if you wish. Here is your topic: [read ONLY the first line of the cue card below]. You have one minute to prepare." Always finish the whole sentence — never stop mid-sentence.
+- ONLY AFTER you have finished speaking, call the tool show_cue_card with the full cue card text below. The candidate reads the bullet points on screen — you do not read them aloud:
 {{part2_cue_card}}
-- Then STOP TALKING and wait in silence. Do not speak again until you receive "[SYSTEM] Preparation time is over".
-- When you receive it, say: "All right? Remember, you have one to two minutes for this, so don't worry if I stop you. I'll tell you when the time is up. Can you start speaking now, please?"
+- PREPARATION TIME (strict): the candidate now has ONE FULL MINUTE of silence to prepare. The test system keeps the time — you do not. Say NOTHING during this minute: do not ask if they are ready, do not tell them to begin, do not fill the silence. If you are prompted to speak while they are preparing, say at most a single quiet "Take your time." and nothing else. Wait until you receive "[SYSTEM] Preparation time is over".
+- When you receive "[SYSTEM] Preparation time is over", say: "All right? Remember, you have one to two minutes for this, so don't worry if I stop you. I'll tell you when the time is up. Can you start speaking now, please?"
 - Let the candidate speak WITHOUT interrupting. Do not respond to pauses. Only when you receive "[SYSTEM] Two minutes are up" (or the candidate has clearly finished after at least a minute), say "Thank you." and ask ONE short rounding-off question related to the topic.
 
 PART 3 — Discussion (about 4–5 minutes)
@@ -129,12 +132,16 @@ async function elFetch(path: string, init: RequestInit = {}): Promise<Response> 
   });
 }
 
-function buildAgentPayload(withTools: boolean): any {
+function buildAgentPayload(withTools: boolean, withTurn: boolean): any {
   const promptConfig: any = {
     prompt: EXAMINER_PROMPT,
     llm: process.env.MOCK_SPEAKING_LLM || "gemini-2.0-flash",
   };
   if (withTools) promptConfig.tools = TOOLS;
+  // Turn-taking: the default ~7s silence timeout makes the agent speak
+  // during the candidate's 1-minute prep. Lengthen it, and never hang up on
+  // silence (a real examiner waits). Client [SYSTEM] nudges keep the pace.
+  const turn = withTurn ? { turn_timeout: 30, silence_end_call_timeout: -1 } : undefined;
   return {
     name: "SpecTa IELTS Mock Speaking Examiner",
     conversation_config: {
@@ -154,39 +161,39 @@ function buildAgentPayload(withTools: boolean): any {
       conversation: {
         max_duration_seconds: MOCK_SPEAKING_MAX_SECONDS,
       },
+      ...(turn ? { turn } : {}),
     },
   };
 }
 
 async function createAgent(): Promise<string> {
-  {
+  // Try the richest config first, degrading gracefully if ElevenLabs
+  // rejects a field: tools+turn → tools only → bare. Without tools the
+  // client detects parts from the examiner's words; the test still runs.
+  const variants: Array<{ label: string; tools: boolean; turn: boolean }> = [
+    { label: "tools+turn", tools: true, turn: true },
+    { label: "tools", tools: true, turn: false },
+    { label: "bare", tools: false, turn: false },
+  ];
+  let lastErr = "";
+  for (const v of variants) {
     const res = await elFetch("/v1/convai/agents/create", {
       method: "POST",
-      body: JSON.stringify(buildAgentPayload(true)),
+      body: JSON.stringify(buildAgentPayload(v.tools, v.turn)),
     });
     if (res.ok) {
       const data: any = await res.json();
       if (data?.agent_id) {
-        console.log(`[MockSpeaking] ✅ Examiner agent created WITH tools: ${data.agent_id}`);
+        console.log(`[MockSpeaking] ✅ Examiner agent created (${v.label}): ${data.agent_id}`);
         return data.agent_id;
       }
+      lastErr = "no agent_id in response";
     } else {
-      console.warn(`[MockSpeaking] tool-enabled creation rejected (${res.status}): ${(await res.text()).slice(0, 300)} — retrying without tools`);
+      lastErr = `(${res.status}) ${(await res.text()).slice(0, 300)}`;
+      console.warn(`[MockSpeaking] creation variant "${v.label}" rejected ${lastErr} — trying next`);
     }
   }
-  // Without tools the client falls back to detecting parts from the
-  // examiner's words; the test still runs and is graded.
-  const res = await elFetch("/v1/convai/agents/create", {
-    method: "POST",
-    body: JSON.stringify(buildAgentPayload(false)),
-  });
-  if (!res.ok) {
-    throw new Error(`ElevenLabs mock examiner creation failed (${res.status}): ${(await res.text()).slice(0, 300)}`);
-  }
-  const data: any = await res.json();
-  if (!data?.agent_id) throw new Error("ElevenLabs mock examiner creation returned no agent_id");
-  console.log(`[MockSpeaking] ✅ Examiner agent created WITHOUT tools (fallback): ${data.agent_id}`);
-  return data.agent_id;
+  throw new Error(`ElevenLabs mock examiner creation failed: ${lastErr}`);
 }
 
 export async function ensureMockSpeakingAgent(): Promise<string> {

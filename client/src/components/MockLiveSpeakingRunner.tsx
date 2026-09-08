@@ -150,6 +150,13 @@ function RunnerInner({ token, onFinished }: { token: string; onFinished: () => v
     // Preparation: mute the mic so silence/notes don't confuse turn-taking,
     // count down 60s, then tell the examiner to invite the candidate to speak.
     try { conversation.setMuted(true); } catch { /* */ }
+    // Tell the examiner prep has started (context only — doesn't trigger a
+    // reply) so she holds her silence for the full minute.
+    try {
+      conversation.sendContextualUpdate(
+        "PREPARATION TIME has started: the candidate is silently preparing for one minute. Do not speak until you receive '[SYSTEM] Preparation time is over'."
+      );
+    } catch { /* */ }
     let left = PREP_S; setPrepLeft(left);
     const iv = every(1000, () => {
       left -= 1; setPrepLeft(left);
