@@ -11,7 +11,7 @@ export default function IeltsMockTake() {
   const [, params] = useRoute<{ token: string }>("/ielts/mock-test/take/:token");
   const token = params?.token ?? "";
   const [, setLocation] = useLocation();
-  const { loading: authLoading } = useAuth();
+  const { loading: authLoading, user } = useAuth();
   const utils = trpc.useUtils();
 
   // Guest flow: no login required. The secret token in the URL (emailed to the
@@ -43,6 +43,22 @@ export default function IeltsMockTake() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
+
+  // ADMIN QA shortcut: open /ielts/mock-test/take/<token>?skipto=speaking
+  // while logged in as admin to jump an attempt straight to the Speaking
+  // section (skips Listening/Reading/Writing). Admin-only so students can't
+  // skip sections of a paid test.
+  const skipTo = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("skipto")
+    : null;
+  useEffect(() => {
+    if (skipTo !== "speaking") return;
+    if ((user as any)?.role !== "admin") return;
+    if (!status || !["ready", "listening", "reading", "writing"].includes(status)) return;
+    if (startSkill.isPending) return;
+    startSkill.mutate({ token, skill: "speaking" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [skipTo, status, user]);
 
   // ----- Gates -----
 
