@@ -7,7 +7,7 @@
  * Admin-only. Nothing goes live until Hadi presses Publish.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Navigation from "@/components/Navigation";
 import { trpc } from "@/lib/trpc";
 import { Loader2, Sparkles, CheckCircle2, ExternalLink, RefreshCw, Archive, Eye } from "lucide-react";
@@ -46,13 +46,20 @@ export default function AdminAnswers() {
   const pages = trpc.admin.geo.list.useQuery(filter === "all" ? undefined : { status: filter });
   const cats = trpc.geo.categories.useQuery(undefined, { staleTime: Infinity });
   const refreshAll = () => { utils.admin.geo.seeds.invalidate(); utils.admin.geo.list.invalidate(); };
+  // Background generation: poll while anything is queued/running; refresh
+  // the lists whenever a job finishes.
+  const jobs = trpc.admin.geo.jobs.useQuery(undefined, { refetchInterval: 4000 });
+  const activeJobs = (jobs.data || []).filter(j => j.status === "queued" || j.status === "running").length;
+  const prevActive = useRef(0);
+  useEffect(() => { if (prevActive.current > activeJobs) refreshAll(); prevActive.current = activeJobs; }, [activeJobs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const jobFor = (key: string) => (jobs.data || []).find(j => j.key === key);
 
   const generate = trpc.admin.geo.generate.useMutation({
-    onSuccess: (d) => { setMsg(`Generated. Review notes: ${d.verifyNotes.slice(0, 200)}…`); refreshAll(); },
+    onSuccess: (d) => { setMsg(d.started ? "Queued. Generating the Bahasa + English pair takes 2–5 minutes — the row shows progress and the drafts appear below when done." : `Not started: ${d.reason}`); jobs.refetch(); },
     onError: (e) => setMsg(`Error: ${e.message}`),
   });
   const generateCustom = trpc.admin.geo.generateCustom.useMutation({
-    onSuccess: () => { setMsg("Custom pair generated as drafts."); setCustomId(""); setCustomEn(""); refreshAll(); },
+    onSuccess: (d) => { setMsg(d.started ? "Queued. The custom pair will appear as drafts in 2–5 minutes." : `Not started: ${d.reason}`); setCustomId(""); setCustomEn(""); jobs.refetch(); },
     onError: (e) => setMsg(`Error: ${e.message}`),
   });
   const setStatus = trpc.admin.geo.setStatus.useMutation({ onSuccess: () => { refreshAll(); setMsg("Status updated."); } });
@@ -102,9 +109,9 @@ export default function AdminAnswers() {
             <button onClick={() => {
               const next = (seeds.data || []).filter(s => !s.id && !s.en).slice(0, 3);
               if (!next.length) { setMsg("Every seed question already has pages."); return; }
-              setMsg(`Generating ${next.length} pairs… (about 1–2 minutes each)`);
-              next.reduce((p, s) => p.then(() => generate.mutateAsync({ key: s.key }).then(() => undefined).catch(() => undefined)), Promise.resolve());
-            }} disabled={generate.isPending} className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold flex items-center gap-1 disabled:opacity-50"><Sparkles className="w-3.5 h-3.5" /> Generate next 3 missing</button>
+              setMsg(`Queued ${next.length} pairs — they run one after another in the background (2–5 minutes each).`);
+              next.forEach(s => generate.mutate({ key: s.key }));
+            }} disabled={activeJobs > 0} className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold flex items-center gap-1 disabled:opacity-50"><Sparkles className="w-3.5 h-3.5" /> {activeJobs > 0 ? `${activeJobs} in progress…` : "Generate next 3 missing"}</button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -115,7 +122,13 @@ export default function AdminAnswers() {
                   <td className="py-2"><div className="text-slate-900">{s.questionId}</div><div className="text-xs text-slate-500">{s.questionEn}</div></td>
                   <td className="py-2"><Badge s={s.id?.status} /></td>
                   <td className="py-2"><Badge s={s.en?.status} /></td>
-                  <td className="py-2 text-right"><button onClick={() => { setMsg(`Generating "${s.questionEn.slice(0, 50)}…" (1–2 min)`); generate.mutate({ key: s.key }); }} disabled={generate.isPending} className="text-xs px-2.5 py-1 rounded-lg border border-indigo-300 text-indigo-700 font-semibold disabled:opacity-50">{s.id || s.en ? "Regenerate" : "Generate"}</button></td>
+                  <td className="py-2 text-right">
+                    {(() => { const j = jobFor(s.key); if (j && (j.status === "queued" || j.status === "running")) return <span className="text-xs text-indigo-700 animate-pulse">{j.status === "running" ? "generating…" : "queued"}</span>; return null; })()}
+                    {(() => { const j = jobFor(s.key); if (j && j.status === "error") return <div className="text-[11px] text-red-600 max-w-[220px] text-right">{j.error}</div>; return null; })()}
+                    {(() => { const j = jobFor(s.key); const busy = !!j && (j.status === "queued" || j.status === "running"); return (
+                      <button onClick={() => generate.mutate({ key: s.key })} disabled={busy} className="text-xs px-2.5 py-1 rounded-lg border border-indigo-300 text-indigo-700 font-semibold disabled:opacity-50">{s.id || s.en ? "Regenerate" : "Generate"}</button>
+                    ); })()}
+                  </td>
                 </tr>
               ))}</tbody>
             </table>

@@ -128,22 +128,31 @@ function normalize(seed: SeedQuestion, lang: "id" | "en", raw: any): GeneratedAn
   };
 }
 
+/** Generation runs in a background job (see geoRouter), so these timeouts
+ *  are generous: quality model first, fast model second, GLM last. */
 async function callLLM(prompt: string): Promise<any> {
   const messages = [
     { role: "system" as const, content: "You are a meticulous education writer. Output valid JSON only." },
     { role: "user" as const, content: prompt },
   ];
-  try {
-    const res = await withTimeout(invokeLLM({ model: "deepseek-v4-pro", messages, response_format: { type: "json_object" }, max_tokens: 7000 }), 110000, "DeepSeek");
-    const t = res.choices?.[0]?.message?.content;
-    if (typeof t === "string" && t) return parseLooseJson(t);
-  } catch (e) {
-    console.warn("[GEO] DeepSeek generation failed:", (e as Error).message);
+  const attempts: Array<() => Promise<any>> = [
+    () => withTimeout(invokeLLM({ model: "deepseek-v4-pro", messages, response_format: { type: "json_object" }, max_tokens: 7000 }), 240000, "DeepSeek pro"),
+    () => withTimeout(invokeLLM({ model: "deepseek-v4-flash", messages, response_format: { type: "json_object" }, max_tokens: 7000 }), 150000, "DeepSeek flash"),
+    () => withTimeout(invokeLLMFallback({ messages, response_format: { type: "json_object" } }), 200000, "GLM"),
+  ];
+  let lastErr = "";
+  for (const run of attempts) {
+    try {
+      const res = await run();
+      const t = res.choices?.[0]?.message?.content;
+      if (typeof t === "string" && t) return parseLooseJson(t);
+      lastErr = "empty content";
+    } catch (e) {
+      lastErr = (e as Error).message;
+      console.warn("[GEO] generation attempt failed:", lastErr);
+    }
   }
-  const res = await withTimeout(invokeLLMFallback({ messages, response_format: { type: "json_object" } }), 110000, "GLM");
-  const t = res.choices?.[0]?.message?.content;
-  if (typeof t !== "string" || !t) throw new Error("no LLM content");
-  return parseLooseJson(t);
+  throw new Error(lastErr || "no LLM content");
 }
 
 /** Generate the Bahasa page first, then the English twin from it. */

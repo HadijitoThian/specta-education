@@ -20,6 +20,43 @@ function assertAdmin(ctx: { user: { role: string } | null }) {
 
 const LANG = z.enum(["id", "en"]);
 
+// ── Background generation queue ──────────────────────────────────────────
+// Generating a Bahasa + English pair takes 2–5 minutes — far longer than a
+// web request may live — so the mutation only ENQUEUES; a single worker
+// runs jobs one at a time (rate-limit friendly) and the admin page polls.
+interface Job { key: string; label: string; status: "queued" | "running" | "done" | "error"; error?: string; startedAt?: number; finishedAt?: number; queuedAt: number; run: () => Promise<unknown> }
+const jobs = new Map<string, Job>();
+let workerBusy = false;
+
+async function pumpQueue(): Promise<void> {
+  if (workerBusy) return;
+  const next = Array.from(jobs.values()).filter(j => j.status === "queued").sort((a, b) => a.queuedAt - b.queuedAt)[0];
+  if (!next) return;
+  workerBusy = true;
+  next.status = "running"; next.startedAt = Date.now();
+  try {
+    await next.run();
+    next.status = "done";
+  } catch (e) {
+    next.status = "error"; next.error = String((e as Error)?.message || e).slice(0, 400);
+    console.error(`[GEO] job ${next.key} failed:`, next.error);
+  } finally {
+    next.finishedAt = Date.now();
+    workerBusy = false;
+    // Forget finished jobs after an hour.
+    for (const [k, j] of Array.from(jobs.entries())) if (j.finishedAt && Date.now() - j.finishedAt > 3600000) jobs.delete(k);
+    void pumpQueue();
+  }
+}
+
+function enqueue(key: string, label: string, run: () => Promise<unknown>): { started: boolean; reason?: string } {
+  const existing = jobs.get(key);
+  if (existing && (existing.status === "queued" || existing.status === "running")) return { started: false, reason: "already " + existing.status };
+  jobs.set(key, { key, label, status: "queued", queuedAt: Date.now(), run });
+  void pumpQueue();
+  return { started: true };
+}
+
 function slugify(s: string): string {
   return s.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/[\s_]+/g, "-").replace(/-+/g, "-").slice(0, 120);
 }
@@ -105,8 +142,14 @@ export const geoAdminRouter = router({
       assertAdmin(ctx);
       const seed = SEED_QUESTIONS.find(s => s.key === input.key);
       if (!seed) throw new TRPCError({ code: "NOT_FOUND", message: "Unknown seed key." });
-      return generateAndStore(seed);
+      return enqueue(seed.key, seed.en.question, () => generateAndStore(seed));
     }),
+
+  /** Status of background generation jobs (the admin page polls this). */
+  jobs: protectedProcedure.query(({ ctx }) => {
+    assertAdmin(ctx);
+    return Array.from(jobs.values()).map(j => ({ key: j.key, label: j.label, status: j.status, error: j.error, startedAt: j.startedAt, finishedAt: j.finishedAt, queuedAt: j.queuedAt }));
+  }),
 
   /** Generate a pair for a custom question (not in the seed bank). */
   generateCustom: protectedProcedure
@@ -119,7 +162,7 @@ export const geoAdminRouter = router({
         id: { question: input.questionId.trim(), slug: slugify(input.questionId) },
         en: { question: input.questionEn.trim(), slug: slugify(input.questionEn) },
       };
-      return generateAndStore(seed);
+      return enqueue(seed.key, seed.en.question, () => generateAndStore(seed));
     }),
 
   list: protectedProcedure
