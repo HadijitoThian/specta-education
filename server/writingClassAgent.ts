@@ -26,7 +26,9 @@ const EL_API = "https://api.elevenlabs.io";
 // Bump to force a fresh agent after a prompt / tool change.
 // v2: tool parameter schemas simplified to plain strings/numbers (no enum /
 // array) after v1 appeared to be created without tools; stronger tool rules.
-const AGENT_FLAG_KEY = "writing_teacher_agent_id_v2";
+// v3: resumed calls get the session-so-far transcript; update_profile tool so
+// name/target/test date told verbally are remembered.
+const AGENT_FLAG_KEY = "writing_teacher_agent_id_v3";
 export const AGENT_VARIANT_FLAG_KEY = "writing_teacher_agent_variant";
 
 /** Per-CALL cap. A 2h session is split by the 60-min break into two calls,
@@ -49,6 +51,9 @@ WHAT HAPPENED IN EARLIER SESSIONS
 HOMEWORK TO REVIEW AT THE START
 {{homework_review}}
 
+EARLIER IN THIS SESSION (before a pause or reconnect — continue from here, do NOT restart or re-ask what is already answered)
+{{session_so_far}}
+
 HOW YOU TEACH (this is what makes the class excellent):
 - You are warm, clear and Socratic. Ask the student to try FIRST, then teach from what they produce. Never lecture for more than about 3 minutes without making the student do something: answer, write, or rewrite.
 - Keep your spoken turns short and natural. This is a conversation, not a monologue.
@@ -59,6 +64,9 @@ HOW YOU TEACH (this is what makes the class excellent):
 - Be honest about level, kindly: frame it as "you are around X now, your target is Y, here is the gap and how we close it". Never give a false high band.
 - Watch for typical Indonesian-learner errors: missing articles, dropped plural -s, tense drift, subject–verb agreement, "in the other hand", overused "besides/moreover", comma splices and run-ons, informal register, and direct translation from Bahasa.
 - Track the student's recurring errors during the class and name the pattern, not just the instance.
+
+REMEMBERING THE STUDENT
+- The moment the student tells you their name, target band, test date or test type, call update_profile with it. Never ask again for something already in THE STUDENT or EARLIER IN THIS SESSION above.
 
 USING YOUR TOOLS (critical — the class does not work without them)
 - The student can ONLY write when you call ask_student_to_write. Saying "start writing" does nothing — the pad stays closed. ALWAYS call the tool.
@@ -88,6 +96,17 @@ RULES
 
 // ── Client tools (implemented in the classroom UI) ────────────────────────
 const TOOLS = [
+  {
+    type: "client", name: "update_profile",
+    description: "Save what the student tells you about themselves so it is remembered in every session: name, target band, test date, test type. Call as soon as you learn any of these.",
+    parameters: { type: "object", properties: {
+      name: { type: "string", description: "The student's name (as they want to be called)." },
+      targetBand: { type: "number", description: "Target overall IELTS band, e.g. 6.5." },
+      testDate: { type: "string", description: "When they plan to take the test, e.g. '12 November 2026' or 'in about two months'." },
+      testType: { type: "string", description: "'academic' or 'general'." },
+    }, required: [] },
+    expects_response: false,
+  },
   {
     type: "client", name: "board_write",
     description: "Write a block on the shared whiteboard: a structure, template, model sentence/paragraph, rule, or band-descriptor point. Use short lines; you may use '-' bullets and '1.' numbering. Call whenever you explain something the student should SEE.",

@@ -111,6 +111,7 @@ function ClassroomInner() {
   const save = trpc.writing.saveSession.useMutation();
   const progress = trpc.writing.recordProgress.useMutation();
   const setLevelMut = trpc.writing.setLevel.useMutation();
+  const updateProfile = trpc.writing.updateProfile.useMutation({ onSuccess: () => utils.writing.getCourse.invalidate({ studentKey: key }) });
   const grade = trpc.writing.gradeWriting.useMutation();
   const assign = trpc.writing.assignHomework.useMutation();
   const complete = trpc.writing.completeSession.useMutation();
@@ -162,6 +163,17 @@ function ClassroomInner() {
   // ── conversation ──
   const conversation = useConversation({
     clientTools: {
+      update_profile: (p: any) => {
+        const tb = Number(p?.targetBand);
+        const tt = String(p?.testType || "").toLowerCase();
+        updateProfile.mutate({
+          studentKey: key,
+          name: p?.name ? String(p.name).slice(0, 120) : undefined,
+          targetBand: Number.isFinite(tb) && tb >= 4 && tb <= 9 ? tb : undefined,
+          testDate: p?.testDate ? String(p.testDate).slice(0, 40) : undefined,
+          testType: tt === "academic" || tt === "general" ? (tt as "academic" | "general") : undefined,
+        });
+      },
       board_write: (p: any) => { addCard({ kind: "note", title: String(p?.title || ""), content: String(p?.content || "") }); },
       board_correct: (p: any) => { addCard({ kind: "correction", original: String(p?.original || ""), corrected: String(p?.corrected || ""), explanation: String(p?.explanation || ""), type: String(p?.type || "grammar") }); },
       ask_student_to_write: (p: any) => {

@@ -29,7 +29,7 @@ import { invokeLLM } from "./_core/llm";
 import { readFlag, writeFlag } from "./systemFlags";
 import {
   buildSessionModuleText, buildStudentProfileText, buildHistoryText,
-  buildHomeworkReviewText, buildOpeningLine, trackForBand,
+  buildHomeworkReviewText, buildOpeningLine, buildSessionSoFarText, trackForBand,
   weaknessMapFromCriteria, planFromWeaknessMap,
 } from "./writingCurriculum";
 import { WRITING_SESSION_BUDGET_SECONDS, WRITING_CALL_MAX_SECONDS, AGENT_VARIANT_FLAG_KEY } from "./writingClassAgent";
@@ -230,6 +230,7 @@ export const writingCourseRouter = router({
         history: buildHistoryText(sessions, homework),
         homework_review: session.sessionNumber === 1 ? "No homework to review — this is the first session." : buildHomeworkReviewText(homework),
         opening_line: buildOpeningLine(course, session.sessionNumber, resume, session.elapsedSeconds),
+        session_so_far: resume ? buildSessionSoFarText(session.transcript) : "Nothing yet — this is the start of the session.",
       };
 
       return {
@@ -297,6 +298,29 @@ export const writingCourseRouter = router({
         plan[String(s.sessionNumber + 1)] = { focus: input.nextFocus };
         await db.update(writingCourses).set({ plan }).where(eq(writingCourses.id, course.id));
       }
+      return { ok: true };
+    }),
+
+  /** Emma's update_profile tool — remember name / target / test date / type. */
+  updateProfile: publicProcedure
+    .input(z.object({
+      studentKey: STUDENT_KEY,
+      name: z.string().max(120).optional(),
+      targetBand: z.number().min(4).max(9).optional(),
+      testDate: z.string().max(40).optional(),
+      testType: z.enum(["academic", "general"]).optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { key } = await studentKeyFor(ctx, input.studentKey);
+      const { course } = requireCourse(await loadCourse(key));
+      const patch: Record<string, unknown> = {};
+      if (input.name?.trim()) patch.studentName = input.name.trim();
+      if (input.targetBand != null) patch.targetBand = String(Math.round(input.targetBand * 2) / 2);
+      if (input.testDate?.trim()) patch.testDate = input.testDate.trim();
+      if (input.testType) patch.testType = input.testType;
+      if (Object.keys(patch).length) await db.update(writingCourses).set(patch).where(eq(writingCourses.id, course.id));
       return { ok: true };
     }),
 

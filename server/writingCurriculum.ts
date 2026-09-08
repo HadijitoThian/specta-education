@@ -258,6 +258,15 @@ export function planFromWeaknessMap(weak: Array<{ criterion: string; issue: stri
   };
 }
 
+/** What was said earlier in THIS session (before a pause / call cap), so a
+ *  resumed call continues instead of restarting. Last ~40 turns. */
+export function buildSessionSoFarText(transcript: unknown): string {
+  const turns = Array.isArray(transcript) ? (transcript as Array<{ role?: string; text?: string }>) : [];
+  const recent = turns.filter(t => t && typeof t.text === "string" && t.text.trim()).slice(-40);
+  if (!recent.length) return "Nothing yet — this is the start of the session.";
+  return recent.map(t => `${t.role === "you" ? "STUDENT" : "EMMA"}: ${String(t.text).slice(0, 700)}`).join("\n");
+}
+
 /** Emma's first spoken line for this call. */
 export function buildOpeningLine(course: WritingCourse, sessionNumber: number, resume: boolean, elapsedSeconds: number): string {
   const name = course.studentName ? ` ${course.studentName}` : "";
