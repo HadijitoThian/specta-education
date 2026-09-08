@@ -24,7 +24,10 @@ import { readFlag, writeFlag } from "./systemFlags";
 const EL_API = "https://api.elevenlabs.io";
 
 // Bump to force a fresh agent after a prompt / tool change.
-const AGENT_FLAG_KEY = "writing_teacher_agent_id_v1";
+// v2: tool parameter schemas simplified to plain strings/numbers (no enum /
+// array) after v1 appeared to be created without tools; stronger tool rules.
+const AGENT_FLAG_KEY = "writing_teacher_agent_id_v2";
+export const AGENT_VARIANT_FLAG_KEY = "writing_teacher_agent_variant";
 
 /** Per-CALL cap. A 2h session is split by the 60-min break into two calls,
  *  so 60 min per call is enough; the client auto-resumes if a call hits it. */
@@ -56,6 +59,11 @@ HOW YOU TEACH (this is what makes the class excellent):
 - Be honest about level, kindly: frame it as "you are around X now, your target is Y, here is the gap and how we close it". Never give a false high band.
 - Watch for typical Indonesian-learner errors: missing articles, dropped plural -s, tense drift, subject–verb agreement, "in the other hand", overused "besides/moreover", comma splices and run-ons, informal register, and direct translation from Bahasa.
 - Track the student's recurring errors during the class and name the pattern, not just the instance.
+
+USING YOUR TOOLS (critical — the class does not work without them)
+- The student can ONLY write when you call ask_student_to_write. Saying "start writing" does nothing — the pad stays closed. ALWAYS call the tool.
+- The whiteboard only shows what you put there with board_write / board_correct. If you explain a structure, a rule or a model sentence, call board_write at the same time. If you correct something, call board_correct. Speaking about it is not enough.
+- The student's screen has: the call with you (left), the whiteboard (top right) and the writing pad (bottom right). Refer to them accurately.
 
 THE STUDENT'S WRITING
 - To make them write, call ask_student_to_write with a clear prompt, a word target and a time limit. Use mode "guided" for short practice (you stay available) and mode "timed" for timed writing such as the diagnostic or a full essay (you stay silent while they write; your voice may pause to save cost — that is normal).
@@ -96,7 +104,7 @@ const TOOLS = [
       original: { type: "string", description: "The student's exact words containing the error." },
       corrected: { type: "string", description: "The corrected version." },
       explanation: { type: "string", description: "One line: the rule or reason." },
-      type: { type: "string", enum: ["grammar", "vocabulary", "cohesion", "task"], description: "The kind of error." },
+      type: { type: "string", description: "The kind of error: one of grammar, vocabulary, cohesion, task." },
     }, required: ["original", "corrected", "explanation", "type"] },
     expects_response: false,
   },
@@ -107,8 +115,8 @@ const TOOLS = [
       prompt: { type: "string", description: "The full task wording the student should respond to." },
       minWords: { type: "integer", description: "Target minimum word count." },
       minutes: { type: "integer", description: "Time limit in minutes." },
-      mode: { type: "string", enum: ["guided", "timed"] },
-      taskType: { type: "string", enum: ["task1", "task2"], description: "Which IELTS task this is (for objective grading)." },
+      mode: { type: "string", description: "'guided' for short practice while you stay available, or 'timed' for timed writing where you stay silent." },
+      taskType: { type: "string", description: "'task1' or 'task2' (for objective grading)." },
       label: { type: "string", description: "Short label, e.g. 'Diagnostic essay' or 'Body paragraph practice'." },
     }, required: ["prompt", "minWords", "minutes", "mode", "taskType"] },
     expects_response: false,
@@ -118,7 +126,7 @@ const TOOLS = [
     description: "Record the student's diagnosed level after the diagnostic (or update it when it changes).",
     parameters: { type: "object", properties: {
       band: { type: "number", description: "Estimated overall writing band, 0-9 in 0.5 steps." },
-      track: { type: "string", enum: ["foundation", "developing", "advanced"] },
+      track: { type: "string", description: "One of: foundation, developing, advanced." },
       note: { type: "string", description: "One line on the main strengths/weaknesses." },
     }, required: ["band", "track"] },
     expects_response: false,
@@ -128,8 +136,8 @@ const TOOLS = [
     description: "Save the session's progress so the next session continues from here. Call in the wrap-up (and again if something important changes).",
     parameters: { type: "object", properties: {
       summary: { type: "string", description: "3-5 sentences: what was covered and how the student did." },
-      covered: { type: "array", items: { type: "string" }, description: "Topics covered." },
-      corrections: { type: "array", items: { type: "string" }, description: "Key corrections as 'original -> corrected'." },
+      covered: { type: "string", description: "Topics covered, separated by ';'." },
+      corrections: { type: "string", description: "Key corrections as 'original -> corrected', separated by ';'." },
       nextFocus: { type: "string", description: "The single most important focus for the next session." },
     }, required: ["summary", "covered", "nextFocus"] },
     expects_response: false,
@@ -138,7 +146,7 @@ const TOOLS = [
     type: "client", name: "assign_homework",
     description: "Assign the homework for this session with the exact IELTS-style task wording.",
     parameters: { type: "object", properties: {
-      taskType: { type: "string", enum: ["task1", "task2"] },
+      taskType: { type: "string", description: "'task1' or 'task2'." },
       prompt: { type: "string", description: "Full task wording (include time and word-count lines)." },
       guidance: { type: "string", description: "1-2 lines of what to focus on." },
     }, required: ["taskType", "prompt"] },
@@ -208,6 +216,7 @@ async function createAgent(): Promise<string> {
       const data: any = await res.json();
       if (data?.agent_id) {
         console.log(`[WritingTeacher] ✅ agent created (${v.label}): ${data.agent_id}`);
+        await writeFlag(AGENT_VARIANT_FLAG_KEY, v.label); // visible via writing.config
         return data.agent_id;
       }
       lastErr = "no agent_id in response";

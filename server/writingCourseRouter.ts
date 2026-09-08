@@ -32,7 +32,12 @@ import {
   buildHomeworkReviewText, buildOpeningLine, trackForBand,
   weaknessMapFromCriteria, planFromWeaknessMap,
 } from "./writingCurriculum";
-import { WRITING_SESSION_BUDGET_SECONDS, WRITING_CALL_MAX_SECONDS } from "./writingClassAgent";
+import { WRITING_SESSION_BUDGET_SECONDS, WRITING_CALL_MAX_SECONDS, AGENT_VARIANT_FLAG_KEY } from "./writingClassAgent";
+
+/** Accept a list as an array or a ';'/newline-separated string (tool args
+ *  arrive as strings now that the schemas avoid array types). */
+const listish = z.union([z.array(z.string().max(400)), z.string().max(6000)]).optional()
+  .transform(v => Array.isArray(v) ? v : (v || "").split(/;|\n/).map(s => s.trim()).filter(Boolean));
 
 const OPEN_TRIAL = () => process.env.WRITING_COURSE_OPEN_TRIAL !== "false";
 const STARTS_PER_COURSE_PER_DAY = Number(process.env.WRITING_STARTS_PER_COURSE_PER_DAY || 8);
@@ -109,10 +114,11 @@ async function safeGrade(taskType: "task1" | "task2", prompt: string, text: stri
 
 export const writingCourseRouter = router({
   /** Trial switch + budget info for the UI. */
-  config: publicProcedure.query(() => ({
+  config: publicProcedure.query(async () => ({
     openTrial: OPEN_TRIAL(),
     budgetSeconds: WRITING_SESSION_BUDGET_SECONDS,
     callMaxSeconds: WRITING_CALL_MAX_SECONDS,
+    agentVariant: (await readFlag(AGENT_VARIANT_FLAG_KEY)) || null, // "tools+turn" | "tools" | "bare" | null
   })),
 
   /** The student's course (or null). */
@@ -272,8 +278,8 @@ export const writingCourseRouter = router({
     .input(z.object({
       studentKey: STUDENT_KEY, sessionId: z.number().int(),
       summary: z.string().max(4000),
-      covered: z.array(z.string().max(300)).max(40).default([]),
-      corrections: z.array(z.string().max(400)).max(60).default([]),
+      covered: listish,
+      corrections: listish,
       nextFocus: z.string().max(600).optional(),
     }))
     .mutation(async ({ input, ctx }) => {
@@ -284,7 +290,7 @@ export const writingCourseRouter = router({
       const s = sessions.find(x => x.id === input.sessionId);
       if (!s) throw new TRPCError({ code: "NOT_FOUND" });
       await db.update(writingCourseSessions).set({
-        summary: input.summary, covered: input.covered, corrections: input.corrections,
+        summary: input.summary, covered: input.covered.slice(0, 40), corrections: input.corrections.slice(0, 60),
       }).where(eq(writingCourseSessions.id, s.id));
       if (input.nextFocus) {
         const plan = ((course.plan as any) || {}) as Record<string, { focus: string }>;

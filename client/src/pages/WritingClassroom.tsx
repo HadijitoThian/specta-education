@@ -180,10 +180,10 @@ function ClassroomInner() {
       save_progress: (p: any) => {
         if (!sessionIdRef.current) return;
         setEndSummary(String(p?.summary || ""));
+        const list = (v: any) => Array.isArray(v) ? v.map(String) : (typeof v === "string" ? v : "");
         progress.mutate({
           studentKey: key, sessionId: sessionIdRef.current, summary: String(p?.summary || ""),
-          covered: Array.isArray(p?.covered) ? p.covered.map(String).slice(0, 40) : [],
-          corrections: Array.isArray(p?.corrections) ? p.corrections.map(String).slice(0, 60) : [],
+          covered: list(p?.covered), corrections: list(p?.corrections),
           nextFocus: p?.nextFocus ? String(p.nextFocus) : undefined,
         });
       },
@@ -309,8 +309,15 @@ function ClassroomInner() {
   }
 
   async function submitWriting() {
-    const t = taskRef.current; if (!t) return;
     const text = padText.trim(); if (words(text) < 10) return;
+    // Free writing (no task set — e.g. Emma asked verbally but didn't open the pad).
+    if (!taskRef.current) {
+      setTranscript(prev => [...prev, { role: "you", text: `✍️ (${words(text)} words): ${text}` }]);
+      say(`[WRITTEN] (${words(text)} words)\n${text}`);
+      setPadText(""); setMobileTab("class");
+      return;
+    }
+    const t = taskRef.current;
     if (taskTimerRef.current) { clearInterval(taskTimerRef.current); taskTimerRef.current = null; }
     setTaskLeft(null);
     setTranscript(prev => [...prev, { role: "you", text: `✍️ ${t.label || "Writing"} (${words(text)} words): ${text}` }]);
@@ -377,6 +384,7 @@ function ClassroomInner() {
             <h1 className="text-3xl font-black text-slate-900 mt-1">IELTS Writing, 1-on-1 with Emma</h1>
             <p className="text-slate-600 mt-2 text-sm">5 sessions × 2 hours · Task 1 + Task 2 · a plan built around <em>your</em> weaknesses.</p>
             {config.data?.openTrial && <span className="inline-block mt-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">Trial · free · no login</span>}
+            {config.data?.agentVariant && <div className="text-[10px] text-slate-400 mt-1">agent: {config.data.agentVariant}{config.data.agentVariant === "bare" ? " (tools unavailable — board/pad won't work)" : " ✓ tools"}</div>}
           </div>
 
           {courseQ.isLoading ? (
@@ -525,7 +533,16 @@ function ClassroomInner() {
         <div className="text-xs uppercase tracking-widest font-bold text-indigo-700 flex items-center gap-1.5"><PenLine className="w-3.5 h-3.5" /> {task?.label || "Writing pad"}</div>
         {task && taskLeft !== null && <div className={`text-xs font-bold ${taskLeft <= 60 ? "text-red-600" : "text-slate-600"}`}>⏱ {mmss(taskLeft)}</div>}
       </div>
-      {task ? (
+      {!task ? (
+        <div className="flex-1 min-h-0 flex flex-col">
+          <div className="shrink-0 px-4 py-2 bg-slate-50 border-b text-xs text-slate-500">You can write here any time. When Emma sets a task, it appears above the pad with a timer.</div>
+          <textarea value={padText} onChange={e => setPadText(e.target.value)} placeholder="Write here…" className="flex-1 min-h-0 w-full p-4 text-sm leading-relaxed outline-none resize-none" />
+          <div className="shrink-0 px-4 py-2.5 border-t flex items-center justify-between gap-3">
+            <div className="text-xs text-slate-500">{words(padText)} words</div>
+            <button onClick={submitWriting} disabled={words(padText) < 10} className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold flex items-center gap-1.5 disabled:opacity-50"><Send className="w-4 h-4" /> Send to Emma</button>
+          </div>
+        </div>
+      ) : (
         <div className="flex-1 min-h-0 flex flex-col">
           <div className="shrink-0 px-4 py-3 bg-amber-50 border-b border-amber-100 text-sm text-slate-800 whitespace-pre-wrap max-h-40 overflow-y-auto">{task.prompt}</div>
           <textarea value={padText} onChange={e => setPadText(e.target.value)} placeholder="Write here…" className="flex-1 min-h-0 w-full p-4 text-sm leading-relaxed outline-none resize-none" />
@@ -536,8 +553,6 @@ function ClassroomInner() {
             </button>
           </div>
         </div>
-      ) : (
-        <div className="flex-1 flex items-center justify-center text-sm text-slate-400 text-center px-6">When Emma gives you a writing task, it appears here.</div>
       )}
     </div>
   );
