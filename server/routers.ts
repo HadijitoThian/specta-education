@@ -229,6 +229,7 @@ import { tutorAdminRouter } from "./tutorAdminRouter";
 import { iqAdminRouter } from "./iqAdminRouter";
 import { iqSessionRouter } from "./iqSessionRouter";
 import { writingCourseRouter } from "./writingCourseRouter";
+import { geoRouter, geoAdminRouter } from "./geoRouter";
 import { ieltsRouter } from "./ieltsRouter";
 import { voiceCloneAdminRouter } from "./voiceCloneAdminRouter";
 import { crmTeamRouter } from "./crmTeamRouter";
@@ -1273,6 +1274,7 @@ Return as JSON:
   }),
 
   admin: router({
+    geo: geoAdminRouter,
     ielts: ieltsAdminRouter,
     tutor: tutorAdminRouter,
     waAttribution: waAttributionAdminRouter,
@@ -8436,6 +8438,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
   marketing: marketingRouter,
   tutor: tutorRouter,
   writing: writingCourseRouter,
+  geo: geoRouter,
   igcse: igcseRouter,
   journey: crmJourneyRouter,
   sosmed: sosmedRouter,
@@ -8538,6 +8541,12 @@ import("./db").then(async m => {
     await m.ensureWritingCourseSchema();
   } catch (e) {
     console.error('[WritingCourse] ensureWritingCourseSchema failed:', e);
+  }
+  // GEO answer pages (AI-engine citation content).
+  try {
+    await m.ensureGeoSchema();
+  } catch (e) {
+    console.error('[GEO] ensureGeoSchema failed:', e);
   }
   // WhatsApp attribution schema (wa_sessions + wa_campaigns) — powers
   // /wa/:code trackable links and Google Ads offline conversion upload.

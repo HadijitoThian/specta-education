@@ -4270,3 +4270,36 @@ export async function ensureWritingCourseSchema(): Promise<void> {
     }
   }
 }
+
+/** GEO answer pages table (see drizzle/schema.ts answerPages). */
+export async function ensureGeoSchema(): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.execute(sql.raw(`CREATE TABLE IF NOT EXISTS answer_pages (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       slug VARCHAR(200) NOT NULL UNIQUE,
+       lang ENUM('id','en') NOT NULL,
+       questionKey VARCHAR(120) NOT NULL,
+       pairSlug VARCHAR(200) NULL,
+       category VARCHAR(40) NOT NULL,
+       question VARCHAR(500) NOT NULL,
+       directAnswer TEXT NOT NULL,
+       content JSON NOT NULL,
+       sources JSON NULL,
+       verifyNotes TEXT NULL,
+       metaTitle VARCHAR(255) NULL,
+       metaDescription TEXT NULL,
+       keywords TEXT NULL,
+       status ENUM('draft','published','archived') NOT NULL DEFAULT 'draft',
+       publishedAt TIMESTAMP NULL,
+       lastReviewedAt TIMESTAMP NULL,
+       createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+       INDEX idx_ap_status_lang (status, lang),
+       INDEX idx_ap_qkey (questionKey)
+     )`));
+  } catch (e: any) {
+    if (!/already exists/i.test(e?.message || "")) console.error("[GEO] ensureGeoSchema failed:", e?.message);
+  }
+}

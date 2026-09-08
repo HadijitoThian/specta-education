@@ -47,6 +47,16 @@ const PAGE_META: Record<string, PageMeta> = {
     description: "Explore 10+ study abroad destinations including UK, USA, Australia, Canada, Singapore, Malaysia, and more with SpecTa Education.",
     keywords: "study abroad destinations, kuliah luar negeri, study in UK, study in USA, study in Australia, study in Canada, study in Singapore, study in Malaysia, study in China, education consultant Indonesia",
   },
+  "/jawab": {
+    title: "Jawab: Panduan Kuliah Luar Negeri & IELTS 2026 | SpecTa Education",
+    description: "Jawaban langsung, berbasis fakta, untuk pertanyaan pelajar Indonesia tentang biaya kuliah, visa pelajar, IELTS, beasiswa, dan cara memilih negara tujuan. Diperbarui 2026.",
+    keywords: "biaya kuliah luar negeri 2026, syarat visa pelajar, skor IELTS untuk kuliah, beasiswa luar negeri, kuliah di Australia, kuliah di Inggris, kuliah di Malaysia",
+  },
+  "/answers": {
+    title: "Answers: Study Abroad & IELTS Guide 2026 | SpecTa Education",
+    description: "Direct, fact-based answers for Indonesian students on study costs, student visas, IELTS scores, scholarships and choosing a destination. Updated 2026.",
+    keywords: "study abroad costs 2026, student visa requirements, IELTS score for university, scholarships for Indonesian students, study in Australia, study in the UK, study in Malaysia",
+  },
   "/scholarships": {
     title: "Study Abroad Scholarships 2026 | SpecTa Education",
     description: "Find scholarships for studying abroad in Australia, UK, USA, Canada, and more. SpecTa Education helps you secure funding for your education.",
@@ -535,9 +545,117 @@ export function injectBlogArticle(html: string, post: BlogPostSeo): string {
  * the DB and renders the full article + Article schema. Everything else falls
  * back to the synchronous meta-only injector.
  */
+/**
+ * Generic pre-render: replaces <head> meta, appends JSON-LD, and swaps the
+ * #seo-prerender container for real readable content. Used by the GEO pages
+ * (/jawab, /answers, /faq) so no-JS AI crawlers see the actual answers.
+ */
+export function injectPrerender(html: string, opts: {
+  title: string; description: string; keywords?: string; canonicalPath: string;
+  lang?: "id" | "en"; alternates?: Array<{ lang: string; path: string }>;
+  jsonLd?: Array<Record<string, unknown>>; bodyHtml: string; ogType?: string;
+}): string {
+  const canonicalUrl = `${BASE_URL}${opts.canonicalPath}`;
+  html = html.replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(opts.title)}</title>`);
+  html = html.replace(/<meta\s+name="description"\s+content="[^"]*"\s*\/?>/, `<meta name="description" content="${escapeAttr(opts.description)}" />`);
+  if (opts.keywords) html = html.replace(/<meta\s+name="keywords"\s+content="[^"]*"\s*\/?>/, `<meta name="keywords" content="${escapeAttr(opts.keywords)}" />`);
+  if (/<link\s+rel="canonical"/.test(html)) html = html.replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/, `<link rel="canonical" href="${escapeAttr(canonicalUrl)}" />`);
+  html = html.replace(/<meta\s+property="og:type"\s+content="[^"]*"\s*\/?>/, `<meta property="og:type" content="${opts.ogType || "article"}" />`);
+  html = html.replace(/<meta\s+property="og:url"\s+content="[^"]*"\s*\/?>/, `<meta property="og:url" content="${escapeAttr(canonicalUrl)}" />`);
+  html = html.replace(/<meta\s+property="og:title"\s+content="[^"]*"\s*\/?>/, `<meta property="og:title" content="${escapeAttr(opts.title)}" />`);
+  html = html.replace(/<meta\s+property="og:description"\s+content="[^"]*"\s*\/?>/, `<meta property="og:description" content="${escapeAttr(opts.description)}" />`);
+  html = html.replace(/<meta\s+name="twitter:title"\s+content="[^"]*"\s*\/?>/, `<meta name="twitter:title" content="${escapeAttr(opts.title)}" />`);
+  html = html.replace(/<meta\s+name="twitter:description"\s+content="[^"]*"\s*\/?>/, `<meta name="twitter:description" content="${escapeAttr(opts.description)}" />`);
+  const head: string[] = [];
+  if (opts.lang) html = html.replace(/<html\s+lang="[^"]*"/, `<html lang="${opts.lang}"`);
+  for (const alt of opts.alternates || []) head.push(`<link rel="alternate" hreflang="${escapeAttr(alt.lang)}" href="${escapeAttr(BASE_URL + alt.path)}" />`);
+  for (const ld of opts.jsonLd || []) head.push(`<script type="application/ld+json">${JSON.stringify(ld).replace(/<\//g, "<\\/")}</script>`);
+  if (head.length) html = html.replace("</head>", `\n    ${head.join("\n    ")}\n  </head>`);
+  html = html.replace(/<div id="seo-prerender">[\s\S]*?<\/div>\s*<\/div>/, `<div id="seo-prerender">${opts.bodyHtml}\n      </div>\n    </div>`);
+  return html;
+}
+
 export async function injectSeoMetaAsync(html: string, urlPath: string): Promise<string> {
   let path = urlPath.split("?")[0].split("#")[0];
   if (path !== "/" && path.endsWith("/")) path = path.slice(0, -1);
+
+  // ── GEO answer pages: /jawab/:slug (id) and /answers/:slug (en) ──
+  const ansMatch = path.match(/^\/(jawab|answers)\/([^/]+)$/);
+  if (ansMatch) {
+    try {
+      const lang = ansMatch[1] === "jawab" ? "id" : "en";
+      const slug = decodeURIComponent(ansMatch[2]);
+      const { getDb } = await import("./db");
+      const { answerPages } = await import("../drizzle/schema");
+      const { and, eq } = await import("drizzle-orm");
+      const { renderAnswerHtml, answerJsonLd, pagePath } = await import("./geoAnswers");
+      const db = await getDb();
+      if (db) {
+        const [p] = await db.select().from(answerPages).where(and(eq(answerPages.slug, slug), eq(answerPages.lang, lang), eq(answerPages.status, "published"))).limit(1);
+        if (p) {
+          const alternates = [{ lang, path: pagePath(p) }];
+          if (p.pairSlug) alternates.push({ lang: lang === "id" ? "en" : "id", path: `/${lang === "id" ? "answers" : "jawab"}/${p.pairSlug}` });
+          return injectPrerender(html, {
+            title: p.metaTitle || `${p.question} | SpecTa Education`,
+            description: p.metaDescription || p.directAnswer.slice(0, 158),
+            keywords: p.keywords || undefined, canonicalPath: pagePath(p), lang, alternates,
+            jsonLd: answerJsonLd(p), bodyHtml: renderAnswerHtml(p),
+          });
+        }
+      }
+    } catch (e) {
+      console.error("[seo] answer page injection failed:", (e as Error).message);
+    }
+  }
+
+  // ── GEO index pages: /jawab and /answers ──
+  if (path === "/jawab" || path === "/answers") {
+    try {
+      const lang = path === "/jawab" ? "id" : "en";
+      const { getDb } = await import("./db");
+      const { answerPages } = await import("../drizzle/schema");
+      const { and, eq, desc } = await import("drizzle-orm");
+      const { organizationJsonLd, pagePath } = await import("./geoAnswers");
+      const { CATEGORY_LABEL } = await import("./geoSeeds");
+      const db = await getDb();
+      const rows = db ? await db.select().from(answerPages).where(and(eq(answerPages.status, "published"), eq(answerPages.lang, lang))).orderBy(desc(answerPages.publishedAt)) : [];
+      const meta = getPageMeta(path);
+      const byCat = new Map<string, typeof rows>();
+      for (const r of rows) byCat.set(r.category, [...(byCat.get(r.category) || []), r]);
+      const body = [`<h1>${escapeHtml(meta.title.split(" | ")[0])}</h1><p>${escapeHtml(meta.description)}</p>`];
+      for (const [cat, list] of Array.from(byCat.entries())) {
+        const label = (CATEGORY_LABEL as any)[cat]?.[lang] || cat;
+        body.push(`<h2>${escapeHtml(label)}</h2><ul>${list.map(r => `<li><a href="${escapeAttr(pagePath(r))}">${escapeHtml(r.question)}</a> — ${escapeHtml(r.directAnswer.slice(0, 160))}</li>`).join("")}</ul>`);
+      }
+      return injectPrerender(html, {
+        title: meta.title, description: meta.description, keywords: meta.keywords, canonicalPath: path, lang,
+        alternates: [{ lang: "id", path: "/jawab" }, { lang: "en", path: "/answers" }],
+        jsonLd: [organizationJsonLd()], bodyHtml: body.join("\n"), ogType: "website",
+      });
+    } catch (e) {
+      console.error("[seo] answer index injection failed:", (e as Error).message);
+    }
+  }
+
+  // ── FAQ page: server-rendered Q&A + FAQPage schema ──
+  if (path === "/faq" || path === "/ai-answers") {
+    try {
+      const { FAQ_ITEMS } = await import("./geoSeeds");
+      const { faqPageJsonLd } = await import("./geoAnswers");
+      const body = [`<h1>Panduan Lengkap Kuliah Luar Negeri untuk Pelajar Indonesia</h1><p>Jawaban atas pertanyaan paling umum tentang IELTS, beasiswa, biaya kuliah, visa, dan cara memilih konsultan study abroad. Diperbarui 2026.</p>`];
+      for (const f of FAQ_ITEMS) body.push(`<h2>${escapeHtml(f.question)}</h2><p>${escapeHtml(f.answer)}</p><p lang="en"><em>${escapeHtml(f.questionEn)}</em> ${escapeHtml(f.answerEn)}</p>`);
+      body.push(`<p><a href="/jawab">Lihat semua jawaban (Bahasa)</a> · <a href="/answers">All answers (English)</a> · <a href="/book">Konsultasi gratis</a></p>`);
+      return injectPrerender(html, {
+        title: "FAQ Kuliah Luar Negeri & IELTS Indonesia | SpecTa Education",
+        description: "Jawaban lengkap pertanyaan tentang kuliah luar negeri, IELTS, beasiswa, biaya, visa, dan konsultan study abroad terbaik di Indonesia. SpecTa Education, sejak 2005.",
+        canonicalPath: "/faq", lang: "id",
+        jsonLd: faqPageJsonLd(FAQ_ITEMS.map(f => ({ question: f.question, answer: f.answer }))),
+        bodyHtml: body.join("\n"), ogType: "website",
+      });
+    } catch (e) {
+      console.error("[seo] faq injection failed:", (e as Error).message);
+    }
+  }
 
   const blogMatch = path.match(/^\/blog\/(.+)$/);
   if (blogMatch) {

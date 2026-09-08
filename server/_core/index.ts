@@ -692,8 +692,33 @@ ${rows}
         lastmod: LASTMOD[p.url] || DEFAULT_LASTMOD,
       }));
 
+      // GEO answer pages (published only) — their reviewed/updated date is a
+      // real lastmod signal, and both language twins are listed.
+      let answerUrls: Array<{ url: string; priority: string; changefreq: string; lastmod: string }> = [];
+      try {
+        const { answerPages } = await import("../../drizzle/schema");
+        const { getDb } = await import("../db");
+        const { eq } = await import("drizzle-orm");
+        const db = await getDb();
+        if (db) {
+          const rows = await db.select().from(answerPages).where(eq(answerPages.status, "published"));
+          answerUrls = rows.map(r => ({
+            url: `/${r.lang === "id" ? "jawab" : "answers"}/${r.slug}`,
+            priority: "0.7", changefreq: "monthly",
+            lastmod: new Date((r.lastReviewedAt || r.updatedAt) as Date).toISOString().split("T")[0],
+          }));
+          if (rows.length) {
+            answerUrls.unshift(
+              { url: "/jawab", priority: "0.8", changefreq: "weekly", lastmod: answerUrls[0].lastmod },
+              { url: "/answers", priority: "0.8", changefreq: "weekly", lastmod: answerUrls[0].lastmod },
+            );
+          }
+        }
+      } catch { /* answers optional */ }
+
       const allPages: Array<{ url: string; priority: string; changefreq: string; lastmod: string }> = [
         ...staticWithLastmod,
+        ...answerUrls,
         ...blogUrls,
       ];
 
@@ -728,6 +753,19 @@ ${allPages.map(p => `  <url>
         .map(p => `- [${p.title}](${baseUrl}/blog/${p.slug})${p.excerpt ? `: ${String(p.excerpt).replace(/\s+/g, " ").slice(0, 140)}` : ""}`)
         .join("\n");
     } catch { /* blog optional */ }
+    let answerLines = "";
+    try {
+      const { answerPages } = await import("../../drizzle/schema");
+      const { getDb } = await import("../db");
+      const { eq } = await import("drizzle-orm");
+      const db = await getDb();
+      if (db) {
+        const rows = await db.select().from(answerPages).where(eq(answerPages.status, "published"));
+        answerLines = rows.slice(0, 80)
+          .map(r => `- [${r.question}](${baseUrl}/${r.lang === "id" ? "jawab" : "answers"}/${r.slug}): ${String(r.directAnswer).replace(/\s+/g, " ").slice(0, 160)}`)
+          .join("\n");
+      }
+    } catch { /* answers optional */ }
 
     return `# SpecTa Education
 
@@ -751,6 +789,11 @@ ${allPages.map(p => `  <url>
 - [Tes Bakat AI](${"https://www.spectaeducation.com"}/play/aptitude): AI aptitude & major-matching test.
 - [Book a Consultation](${"https://www.spectaeducation.com"}/book): Free counseling.
 - [FAQ](${"https://www.spectaeducation.com"}/faq): Common questions answered.
+
+## Answers (fact-based, updated 2026)
+- [Jawab (Bahasa Indonesia)](${baseUrl}/jawab): Direct answers on costs, visas, IELTS, scholarships, destinations.
+- [Answers (English)](${baseUrl}/answers): The same answers in English.
+${answerLines}
 
 ## Blog & articles
 ${blogLines || "- [Blog](https://www.spectaeducation.com/blog): Study-abroad tips, IELTS guides, scholarship news."}

@@ -2871,3 +2871,33 @@ export const writingHomework = mysqlTable("writing_homework", {
 });
 export type WritingHomework = typeof writingHomework.$inferSelect;
 export type InsertWritingHomework = typeof writingHomework.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// GEO answer pages — question-first pages built to be cited by AI engines
+// (ChatGPT, Perplexity, Google AI Overviews). Served at /jawab/<slug> (id)
+// and /answers/<slug> (en); each page has a twin in the other language.
+// Created at boot via CREATE TABLE IF NOT EXISTS in server/db.ts.
+// ---------------------------------------------------------------------------
+export const answerPages = mysqlTable("answer_pages", {
+  id: int("id").autoincrement().primaryKey(),
+  slug: varchar("slug", { length: 200 }).notNull().unique(),
+  lang: mysqlEnum("lang", ["id", "en"]).notNull(),
+  questionKey: varchar("questionKey", { length: 120 }).notNull(),   // links the id/en twins
+  pairSlug: varchar("pairSlug", { length: 200 }),
+  category: varchar("category", { length: 40 }).notNull(),
+  question: varchar("question", { length: 500 }).notNull(),
+  directAnswer: text("directAnswer").notNull(),
+  content: json("content").notNull(),      // { sections, facts, faqs, keyTakeaways, cta }
+  sources: json("sources"),                // [{ title, url }]
+  verifyNotes: text("verifyNotes"),        // what the reviewer should double-check
+  metaTitle: varchar("metaTitle", { length: 255 }),
+  metaDescription: text("metaDescription"),
+  keywords: text("keywords"),
+  status: mysqlEnum("status", ["draft", "published", "archived"]).default("draft").notNull(),
+  publishedAt: timestamp("publishedAt"),
+  lastReviewedAt: timestamp("lastReviewedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type AnswerPage = typeof answerPages.$inferSelect;
+export type InsertAnswerPage = typeof answerPages.$inferInsert;

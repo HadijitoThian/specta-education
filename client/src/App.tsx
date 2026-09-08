@@ -71,6 +71,9 @@ const IqDiscoverySuccess = lazyWithReload(() => import("./pages/IqDiscoverySucce
 const IeltsTutorRedeem = lazyWithReload(() => import("./pages/IeltsTutorRedeem"));
 const IeltsTutorLive = lazyWithReload(() => import("./pages/IeltsTutorLive"));
 const WritingClassroom = lazyWithReload(() => import("./pages/WritingClassroom"));
+const AnswerPage = lazyWithReload(() => import("./pages/AnswerPage"));
+const AnswersIndex = lazyWithReload(() => import("./pages/AnswersIndex"));
+const AdminAnswers = lazyWithReload(() => import("./pages/AdminAnswers"));
 const Igcse = lazyWithReload(() => import("./pages/Igcse"));
 const IgcseApp = lazyWithReload(() => import("./pages/IgcseApp"));
 const IgcseLesson = lazyWithReload(() => import("./pages/IgcseLesson"));
@@ -225,6 +228,10 @@ function Router() {
         <Route path={"/simulator/experience"} component={SimulatorExperience} />
         <Route path={"/simulator/report"} component={SimulatorReport} />
         <Route path={"/ai-answers"} component={AIAnswers} />
+        <Route path={"/jawab"} component={AnswersIndex} />
+        <Route path={"/answers"} component={AnswersIndex} />
+        <Route path={"/jawab/:slug"} component={AnswerPage} />
+        <Route path={"/answers/:slug"} component={AnswerPage} />
         <Route path={"/faq"} component={AIAnswers} />
         <Route path={"/unsubscribe"} component={Unsubscribe} />
         {/* ── Staff / CRM ── */}
@@ -266,6 +273,7 @@ function Router() {
         <Route path={"/admin/ielts-tests"} component={AdminIeltsTests} />
         <Route path={"/admin/ielts-tutor"} component={AdminIeltsTutor} />
         <Route path={"/admin/iq-bank"} component={AdminIqBank} />
+        <Route path={"/admin/answers"} component={AdminAnswers} />
         <Route path={"/admin/ads-launcher"} component={AdminAdsLauncher} />
         <Route path={"/admin/wa-links"} component={AdminWaLinks} />
         <Route path={"/ielts/mock-test"} component={IeltsMockTest} />
