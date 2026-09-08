@@ -228,6 +228,7 @@ import { waAttributionAdminRouter } from "./waAttributionAdminRouter";
 import { tutorAdminRouter } from "./tutorAdminRouter";
 import { iqAdminRouter } from "./iqAdminRouter";
 import { iqSessionRouter } from "./iqSessionRouter";
+import { writingCourseRouter } from "./writingCourseRouter";
 import { ieltsRouter } from "./ieltsRouter";
 import { voiceCloneAdminRouter } from "./voiceCloneAdminRouter";
 import { crmTeamRouter } from "./crmTeamRouter";
@@ -8434,6 +8435,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
   intake: crmIntakeRouter,
   marketing: marketingRouter,
   tutor: tutorRouter,
+  writing: writingCourseRouter,
   igcse: igcseRouter,
   journey: crmJourneyRouter,
   sosmed: sosmedRouter,
@@ -8530,6 +8532,12 @@ import("./db").then(async m => {
     await m.ensureIgcseSubscriptionsSchema();
   } catch (e) {
     console.error('[IGCSE] ensureIgcseSubscriptionsSchema failed:', e);
+  }
+  // Emma 1-on-1 IELTS Writing Course tables (courses / sessions / homework).
+  try {
+    await m.ensureWritingCourseSchema();
+  } catch (e) {
+    console.error('[WritingCourse] ensureWritingCourseSchema failed:', e);
   }
   // WhatsApp attribution schema (wa_sessions + wa_campaigns) — powers
   // /wa/:code trackable links and Google Ads offline conversion upload.

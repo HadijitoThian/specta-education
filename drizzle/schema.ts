@@ -2797,3 +2797,77 @@ export const iqOrders = mysqlTable("iq_orders", {
 });
 export type IqOrder = typeof iqOrders.$inferSelect;
 export type InsertIqOrder = typeof iqOrders.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Emma 1-on-1 IELTS Writing Course (5 sessions x 2h, Task 1 + Task 2).
+// Tables are created at boot via CREATE TABLE IF NOT EXISTS in server/db.ts
+// (ensureWritingCourseSchema) — keep both definitions in sync.
+// ---------------------------------------------------------------------------
+
+export const writingCourses = mysqlTable("writing_courses", {
+  id: int("id").autoincrement().primaryKey(),
+  studentKey: varchar("studentKey", { length: 64 }).notNull(),   // per-browser id (trial) or "lead:<id>"
+  leadId: int("leadId"),
+  studentName: varchar("studentName", { length: 120 }),
+  testType: mysqlEnum("testType", ["academic", "general"]).default("academic").notNull(),
+  targetBand: decimal("targetBand", { precision: 2, scale: 1 }),
+  testDate: varchar("testDate", { length: 40 }),
+  baseline: json("baseline"),          // diagnostic bands per criterion + overall
+  currentLevel: json("currentLevel"),  // { band, track, criteria }
+  weaknessMap: json("weaknessMap"),    // [{ criterion, issue, priority, status }]
+  plan: json("plan"),                  // personalised per-session focus
+  sessionsCompleted: tinyint("sessionsCompleted").default(0).notNull(),
+  totalSessions: tinyint("totalSessions").default(5).notNull(),
+  status: mysqlEnum("status", ["active", "completed", "cancelled"]).default("active").notNull(),
+  purchaseRef: varchar("purchaseRef", { length: 128 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type WritingCourse = typeof writingCourses.$inferSelect;
+export type InsertWritingCourse = typeof writingCourses.$inferInsert;
+
+export const writingCourseSessions = mysqlTable("writing_course_sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  courseId: int("courseId").notNull(),
+  sessionNumber: tinyint("sessionNumber").notNull(),
+  status: mysqlEnum("status", ["not_started", "active", "paused", "completed"]).default("not_started").notNull(),
+  elapsedSeconds: int("elapsedSeconds").default(0).notNull(),
+  budgetSeconds: int("budgetSeconds").default(7200).notNull(),
+  board: json("board"),            // whiteboard cards
+  transcript: json("transcript"),
+  summary: text("summary"),        // Emma's end-of-session note
+  covered: json("covered"),        // topics covered
+  corrections: json("corrections"),
+  homeworkAssigned: json("homeworkAssigned"),
+  conversationIds: json("conversationIds"),
+  breakTakenAt: timestamp("breakTakenAt"),
+  startedAt: timestamp("startedAt"),
+  lastActiveAt: timestamp("lastActiveAt"),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type WritingCourseSession = typeof writingCourseSessions.$inferSelect;
+export type InsertWritingCourseSession = typeof writingCourseSessions.$inferInsert;
+
+export const writingHomework = mysqlTable("writing_homework", {
+  id: int("id").autoincrement().primaryKey(),
+  courseId: int("courseId").notNull(),
+  sessionNumber: tinyint("sessionNumber").notNull(),   // session it was assigned in
+  taskType: mysqlEnum("taskType", ["task1", "task2"]).notNull(),
+  prompt: text("prompt").notNull(),
+  guidance: text("guidance"),
+  submission: text("submission"),
+  wordCount: int("wordCount"),
+  overallBand: decimal("overallBand", { precision: 2, scale: 1 }),
+  scores: json("scores"),
+  feedback: json("feedback"),
+  status: mysqlEnum("status", ["assigned", "submitted", "graded"]).default("assigned").notNull(),
+  assignedAt: timestamp("assignedAt").defaultNow().notNull(),
+  submittedAt: timestamp("submittedAt"),
+  gradedAt: timestamp("gradedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type WritingHomework = typeof writingHomework.$inferSelect;
+export type InsertWritingHomework = typeof writingHomework.$inferInsert;

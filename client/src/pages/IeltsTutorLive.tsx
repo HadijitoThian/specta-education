@@ -454,6 +454,26 @@ function IeltsTutorLiveInner() {
               </p>
             )}
           </div>
+
+          {/* ── Writing Course card (trial) ── */}
+          <div className="mt-5 bg-white rounded-3xl shadow-xl border-2 border-dashed border-purple-200 p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-purple-100 text-purple-700">Trial</span>
+              <span className="text-[10px] text-slate-400">1-on-1 · 5 sessions × 2 hours</span>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 shrink-0 rounded-full flex items-center justify-center text-xl shadow" style={{ background: "linear-gradient(135deg, #4f46e5, #9C27B0)" }}>✍️</div>
+              <div className="min-w-0">
+                <h2 className="text-lg font-black text-slate-900 leading-tight">IELTS Writing Course with Emma</h2>
+                <p className="text-sm text-slate-600 mt-1">
+                  Live 1-on-1 classes with a whiteboard. Emma diagnoses your level, builds a plan around your weaknesses, and teaches Task 1 and Task 2 step by step across 5 sessions — with homework she marks between classes.
+                </p>
+              </div>
+            </div>
+            <a href="/ielts/tutor/live/writing" className="mt-4 w-full py-3.5 rounded-2xl text-white font-black flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-[1.01]" style={{ background: "linear-gradient(90deg, #4f46e5, #9C27B0)" }}>
+              Open my Writing Course →
+            </a>
+          </div>
         </main>
         <Footer />
       </div>

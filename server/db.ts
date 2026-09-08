@@ -4187,3 +4187,86 @@ export async function listIqOrders(limit = 100): Promise<IqOrder[]> {
   return await db.select().from(iqOrders).orderBy(desc(iqOrders.createdAt)).limit(limit);
 }
 
+
+/**
+ * Emma 1-on-1 IELTS Writing Course tables (5 sessions x 2h). Created at boot
+ * like the other product tables so a deploy never outruns a migration. Keep
+ * in sync with writingCourses / writingCourseSessions / writingHomework in
+ * drizzle/schema.ts.
+ */
+export async function ensureWritingCourseSchema(): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const statements = [
+    `CREATE TABLE IF NOT EXISTS writing_courses (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       studentKey VARCHAR(64) NOT NULL,
+       leadId INT NULL,
+       studentName VARCHAR(120) NULL,
+       testType ENUM('academic','general') NOT NULL DEFAULT 'academic',
+       targetBand DECIMAL(2,1) NULL,
+       testDate VARCHAR(40) NULL,
+       baseline JSON NULL,
+       currentLevel JSON NULL,
+       weaknessMap JSON NULL,
+       plan JSON NULL,
+       sessionsCompleted TINYINT NOT NULL DEFAULT 0,
+       totalSessions TINYINT NOT NULL DEFAULT 5,
+       status ENUM('active','completed','cancelled') NOT NULL DEFAULT 'active',
+       purchaseRef VARCHAR(128) NULL,
+       createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+       INDEX idx_wc_student (studentKey, status)
+     )`,
+    `CREATE TABLE IF NOT EXISTS writing_course_sessions (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       courseId INT NOT NULL,
+       sessionNumber TINYINT NOT NULL,
+       status ENUM('not_started','active','paused','completed') NOT NULL DEFAULT 'not_started',
+       elapsedSeconds INT NOT NULL DEFAULT 0,
+       budgetSeconds INT NOT NULL DEFAULT 7200,
+       board JSON NULL,
+       transcript JSON NULL,
+       summary TEXT NULL,
+       covered JSON NULL,
+       corrections JSON NULL,
+       homeworkAssigned JSON NULL,
+       conversationIds JSON NULL,
+       breakTakenAt TIMESTAMP NULL,
+       startedAt TIMESTAMP NULL,
+       lastActiveAt TIMESTAMP NULL,
+       completedAt TIMESTAMP NULL,
+       createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+       UNIQUE KEY uk_wcs_course_session (courseId, sessionNumber)
+     )`,
+    `CREATE TABLE IF NOT EXISTS writing_homework (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       courseId INT NOT NULL,
+       sessionNumber TINYINT NOT NULL,
+       taskType ENUM('task1','task2') NOT NULL,
+       prompt TEXT NOT NULL,
+       guidance TEXT NULL,
+       submission TEXT NULL,
+       wordCount INT NULL,
+       overallBand DECIMAL(2,1) NULL,
+       scores JSON NULL,
+       feedback JSON NULL,
+       status ENUM('assigned','submitted','graded') NOT NULL DEFAULT 'assigned',
+       assignedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       submittedAt TIMESTAMP NULL,
+       gradedAt TIMESTAMP NULL,
+       createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+       INDEX idx_wh_course (courseId)
+     )`,
+  ];
+  for (const stmt of statements) {
+    try { await db.execute(sql.raw(stmt)); }
+    catch (e: any) {
+      if (!/already exists/i.test(e?.message || "")) {
+        console.error("[WritingCourse] ensureWritingCourseSchema failed:", e?.message);
+      }
+    }
+  }
+}
