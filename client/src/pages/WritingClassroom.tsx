@@ -29,6 +29,7 @@ import {
 const KEY_STORAGE = "specta_writing_student_key";
 const NOTES_STORAGE = (sid: number) => `specta_writing_notes_${sid}`;
 const QUIET_MODE_MIN_MINUTES = 15;   // timed writing ≥ this drops the voice call
+const MIN_END_MINUTES = 100;         // Emma may not close the session before this (student's End button is unaffected)
 
 type Phase = "overview" | "connecting" | "class" | "paused" | "ended";
 interface Card { id: string; kind: "note" | "correction"; title?: string; content?: string; original?: string; corrected?: string; explanation?: string; type?: string; at: number }
@@ -139,7 +140,9 @@ function ClassroomInner() {
     try { const s = sentNotes(); s.add(m); localStorage.setItem(NOTES_STORAGE(sessionIdRef.current || 0), JSON.stringify(Array.from(s))); } catch { /* */ }
   };
   const TIME_NOTES: Array<[number, string]> = [
-    [30, "[SYSTEM] 30 minutes into the session."],
+    [20, "[SYSTEM] 20 minutes in. 100 minutes remain — this is a 2-hour session. Continue the LESSON PLAN IN ORDER; do not rush and do not end early."],
+    [40, "[SYSTEM] 40 minutes in. 80 minutes remain. Continue the lesson plan in order."],
+    [75, "[SYSTEM] 75 minutes in. 45 minutes remain. Continue the lesson plan — every step must be covered before the wrap-up."],
     [55, "[SYSTEM] 55 minutes in. Around the 60-minute mark, offer the student a short 5-minute break, then call request_break."],
     [90, "[SYSTEM] 90 minutes in. 30 minutes remain."],
     [110, "[SYSTEM] 110 minutes in. Begin wrapping up now: recap the 3 takeaways, call save_progress, call assign_homework, then end_class."],
@@ -205,7 +208,15 @@ function ClassroomInner() {
           { onSuccess: () => utils.writing.getCourse.invalidate({ studentKey: key }) });
       },
       request_break: () => { void pauseSession("Break time. Take 5 minutes — your clock is paused.", true); },
-      end_class: () => { void finishSession(null); },
+      end_class: () => {
+        const min = Math.floor(elapsedRef.current / 60);
+        if (min < MIN_END_MINUTES) {
+          // Refuse: this is a 2-hour session. Send her back to the lesson plan.
+          say(`[SYSTEM] REFUSED: it is only ${min} minutes into this 120-minute session. Do NOT end the class. Apologise briefly and continue with the next step of the LESSON PLAN IN ORDER. You may only end after the "110 minutes in" note.`);
+          return;
+        }
+        void finishSession(null);
+      },
     },
     onConnect: () => {
       try { conversationIdRef.current = conversation.getId(); } catch { /* */ }

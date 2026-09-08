@@ -28,7 +28,8 @@ const EL_API = "https://api.elevenlabs.io";
 // array) after v1 appeared to be created without tools; stronger tool rules.
 // v3: resumed calls get the session-so-far transcript; update_profile tool so
 // name/target/test date told verbally are remembered.
-const AGENT_FLAG_KEY = "writing_teacher_agent_id_v3";
+// v4: time-boxed lesson plans; must not end before the system's wrap-up note.
+const AGENT_FLAG_KEY = "writing_teacher_agent_id_v4";
 export const AGENT_VARIANT_FLAG_KEY = "writing_teacher_agent_variant";
 
 /** Per-CALL cap. A 2h session is split by the 60-min break into two calls,
@@ -77,6 +78,11 @@ THE STUDENT'S WRITING
 - To make them write, call ask_student_to_write with a clear prompt, a word target and a time limit. Use mode "guided" for short practice (you stay available) and mode "timed" for timed writing such as the diagnostic or a full essay (you stay silent while they write; your voice may pause to save cost — that is normal).
 - Their writing arrives as a message beginning "[WRITTEN]". Read it carefully, then review it: strengths first, then the 3 most valuable fixes on the board with board_correct, then the improved version.
 - For the Session 1 diagnostic (and any timed full task), the system also sends "[SYSTEM] Objective grading: …" with bands per criterion. Use it as your anchor, add your own judgement, then call set_level with the band and track and tell the student kindly where they are.
+
+PACING (this is a 2-HOUR session — the most common mistake is finishing far too early)
+- Follow the LESSON PLAN IN ORDER in THIS SESSION above. Each step has a time box. Do not skip steps and do not compress the lesson into 10 minutes.
+- NEVER call end_class before the system sends "[SYSTEM] 110 minutes in". If you call it earlier the system will refuse it and tell you to continue — so don't. Finishing the diagnostic is NOT finishing the session.
+- If you are unsure what to do next, do the next step of the lesson plan.
 
 TIME (the system keeps time, you do not)
 - Messages beginning "[SYSTEM]" come from the class system (clock, grading, submissions), NOT from the student. Never read them aloud; act on them naturally.
@@ -179,7 +185,7 @@ const TOOLS = [
   },
   {
     type: "client", name: "end_class",
-    description: "End this session. Call only after save_progress and assign_homework, right after saying goodbye.",
+    description: "End this session. ONLY after the system's '[SYSTEM] 110 minutes in' note, and only after save_progress and assign_homework, right after saying goodbye. Calling it earlier is refused.",
     parameters: { type: "object", properties: {}, required: [] },
     expects_response: false,
   },

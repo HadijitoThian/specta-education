@@ -39,26 +39,54 @@ interface SessionModule {
   practice: string;
   homework: { taskType: "task1" | "task2" | "both"; guidance: string };
   timing: string;
+  /** Ordered, time-boxed steps Emma must follow (she may not skip or end early). */
+  steps: string[];
 }
+
+/** The heart of Session 1 — taught to every student, adapted to level. */
+export const INTRO_FORMULA = `THE INTRODUCTION FORMULA (2–3 sentences, 40–60 words):
+1) PARAPHRASE the question in your own words — synonyms, change word forms, change the sentence structure. Never copy the question.
+2) (Only when the question type needs it) CONTEXT or the two sides: "While some people believe X, others argue Y."
+3) THESIS = your CLEAR position + what the essay will do.
+By question type:
+- Opinion (agree/disagree): "This essay completely agrees with this view because [reason 1] and [reason 2]."
+- Discussion + opinion: "While some believe X, others argue Y. This essay will discuss both views and argue that Z."
+- Advantages/disadvantages: "This essay will examine the main benefits and drawbacks of this development (and argue that the advantages outweigh the drawbacks)."
+- Problem/solution: "This essay will discuss the main causes of this problem and suggest some possible solutions."
+- Double question: "This essay will explain why [answer to question 1] and argue that [answer to question 2]."
+RULES: no memorised openers ("In this modern era…", "Nowadays…", "It is undeniable that…"); no new ideas or examples in the introduction; the position must match the whole essay; keep it short.
+TEACH IT LIKE THIS: put the formula on the board → show a model introduction for at least two question types → show a bad memorised introduction next to a good one → make the student write one with the formula → correct it on the board → have them rewrite it.`;
 
 export const CURRICULUM: SessionModule[] = [
   {
     number: 1,
-    title: "Diagnosis and Foundations",
+    title: "Diagnosis and Foundations — how Writing is marked + the Introduction Formula",
     objectives: [
-      "Learn the student's goals: target band, test date, test type, what they find hardest.",
-      "Run the written diagnostic and establish baseline bands per criterion.",
-      "Teach how IELTS Writing is marked and the architecture of a Task 2 essay.",
-      "Build the personal weakness map that steers sessions 2–5.",
+      "Learn the student's goals: target band, test date, test type, what they find hardest (save with update_profile).",
+      "Run the written diagnostic and establish baseline bands per criterion (set_level).",
+      "Teach how IELTS Writing is marked and the 5 Task 2 question types.",
+      "TEACH THE INTRODUCTION FORMULA and make the student write a correct introduction — this is the core outcome of Session 1.",
+      "Preview the body paragraph shape; assign homework.",
     ],
     teach: {
-      foundation: "How the 4 criteria work in plain terms. What 'a clear position' means and why examiners punish unclear ones. Simple essay shape: intro (say the topic + your view), 2 body paragraphs (one idea each), short conclusion. Sentence accuracy basics: subject–verb agreement, articles, plural -s, one tense per idea.",
-      developing: "The 4 criteria and what separates 6.0 from 7.0 in each. The 5 Task 2 question types and what each demands. Essay architecture: paraphrase + thesis, topic sentences, PEEL body paragraphs, a conclusion that restates the position without new ideas. Why memorised phrases cost marks.",
-      advanced: "How examiners read a 7+ script: precise position, fully extended ideas, natural cohesion, controlled complexity. The 5 question types with the traps in each. Architecture for 7.5+: nuanced thesis, concession, balanced development, precise conclusions. Avoiding over-formal or memorised language.",
+      foundation: "How the 4 criteria work in plain terms. What 'a clear position' means and why examiners punish unclear ones. The 5 question types with one simple example each. " + "THE INTRODUCTION FORMULA — for this level a 2-sentence introduction is fine: (1) paraphrase the question simply, (2) state your position clearly with 'This essay agrees/disagrees because …'. Fix sentence basics as they appear: subject–verb agreement, articles, plural -s, capital letters, one tense per idea.",
+      developing: "The 4 criteria and what separates 6.0 from 7.0 in each. The 5 Task 2 question types and what each demands. " + "THE INTRODUCTION FORMULA in full (paraphrase → context/two sides when needed → thesis with a clear position and outline), with the formula for every question type, and why memorised openers cost marks.",
+      advanced: "How examiners read a 7+ script: precise position, fully extended ideas, natural cohesion, controlled complexity. The 5 question types with the traps in each. " + "THE INTRODUCTION FORMULA at 7.5+ level: precise paraphrase without distortion, a nuanced thesis (concession where appropriate), no wasted words, no memorised language.",
     },
-    practice: "Written diagnostic: a short timed Task 2 (20 minutes, ~180–220 words) and a mini Task 1 (an overview + one detail paragraph, or a short letter for General). Then guided practice: plan and write an introduction and one body paragraph on a new question; correct it live on the board.",
-    homework: { taskType: "task2", guidance: "One full Task 2 essay, timed 40 minutes, 250+ words. Apply the essay architecture from today." },
-    timing: "~10 min goals · ~30 min diagnostic (student writes, you stay quiet) · ~35 min teaching · ~35 min guided practice · ~10 min wrap-up + homework",
+    practice: "Diagnostic: a timed Task 2 (20 minutes, 180–220 words) via ask_student_to_write in 'timed' mode. Later: the student writes an INTRODUCTION for a new question using the formula (guided, 8 minutes, 40–60 words); correct it on the board with board_correct; then they rewrite it once.",
+    homework: { taskType: "task2", guidance: "One full Task 2 essay, timed 40 minutes, 250+ words. Use the Introduction Formula from today." },
+    timing: "see LESSON PLAN",
+    steps: [
+      "0–10 min · GOALS: greet; if the name, target band or test date are unknown, ask and call update_profile. Ask what they find hardest about writing.",
+      "10–35 min · DIAGNOSTIC: call ask_student_to_write with mode 'timed', taskType 'task2', 20 minutes, 180–220 words and a full Task 2 question. Stay silent while they write.",
+      "35–45 min · LEVEL: read the [SYSTEM] Objective grading, add your judgement, call set_level, then explain kindly where they are now, the target, and the gap.",
+      "45–55 min · TEACH how Writing is marked: the 4 criteria in plain words and what the examiner rewards. Put it on the board (board_write).",
+      "55–60 min · TEACH the 5 Task 2 question types with one example question each (board_write). Then offer the 5-minute break and call request_break.",
+      "65–85 min · TEACH THE INTRODUCTION FORMULA — never skip this. Board: the formula; a model introduction for at least two question types; a bad memorised introduction next to a good one. Explain each sentence's job.",
+      "85–105 min · PRACTICE: call ask_student_to_write (mode 'guided', taskType 'task2', 8 minutes, 40–60 words): write an introduction for a NEW question using the formula. Correct it on the board (board_correct), explain, show the improved version, then ask them to rewrite it once more and check it.",
+      "105–110 min · PREVIEW: show the body paragraph shape (topic sentence → explain → example → link) and what a conclusion does (board_write) as a bridge to Session 2.",
+      "110–120 min · WRAP-UP: 3 takeaways; save_progress; assign_homework (full Task 2, 40 minutes); end_class.",
+    ],
   },
   {
     number: 2,
@@ -76,6 +104,16 @@ export const CURRICULUM: SessionModule[] = [
     },
     practice: "Full plan + two body paragraphs on a new question, written in the pad. Correct live on the board (coherence + cohesion cards). Rewrite one paragraph applying the correction.",
     homework: { taskType: "task2", guidance: "A Task 2 essay of a DIFFERENT question type from last time. Timed 40 minutes." },
+    steps: [
+      "0–20 min · HOMEWORK REVIEW: go through their essay; the top three fixes on the board with board_correct.",
+      "20–35 min · TEACH idea generation and the 5-minute plan (board_write). Practise planning one question together.",
+      "35–55 min · TEACH paragraph development: topic sentence → explanation → example → link, with a model paragraph on the board. Then natural cohesion: referencing and linking without connector-stuffing.",
+      "55–60 min · Offer the 5-minute break and call request_break.",
+      "65–80 min · TEACH the templates for the 5 question types (board_write), with what each must contain.",
+      "80–105 min · PRACTICE: ask_student_to_write (guided, 15 minutes): a plan plus two body paragraphs on a new question. Correct on the board (coherence + cohesion cards). They rewrite one paragraph.",
+      "105–110 min · Recap and preview Session 3 (grammar range and vocabulary).",
+      "110–120 min · WRAP-UP: 3 takeaways; save_progress; assign_homework (Task 2 of a different type, 40 minutes); end_class.",
+    ],
     timing: "~20 min homework review · ~35 min teaching · ~45 min guided practice + rewrite · ~10 min wrap-up + homework · take the break around 60 min",
   },
   {
@@ -94,6 +132,15 @@ export const CURRICULUM: SessionModule[] = [
     },
     practice: "Sentence-upgrading drills on the board (the student rewrites 5 sentences using target structures), then a body paragraph that must use three target structures. Correct live with grammar/vocabulary cards.",
     homework: { taskType: "task2", guidance: "A timed 40-minute Task 2 essay. Consciously use the three target structures from today." },
+    steps: [
+      "0–20 min · HOMEWORK REVIEW with a grammar and vocabulary lens; top three fixes on the board.",
+      "20–45 min · TEACH the target structures for this track (board_write with model sentences), including the student's own recurring errors from the weakness map.",
+      "45–60 min · DRILL: ask_student_to_write (guided, 10 minutes): rewrite 5 sentences from the board using the target structures. Correct each on the board. Then offer the break and call request_break.",
+      "65–85 min · TEACH vocabulary: collocation, paraphrase, topic vocabulary, register; killing memorised phrases (board_write).",
+      "85–105 min · PRACTICE: ask_student_to_write (guided, 15 minutes): a body paragraph that must use three target structures. Correct on the board; they rewrite it.",
+      "105–110 min · Recap and preview Session 4 (Task 1).",
+      "110–120 min · WRAP-UP: 3 takeaways; save_progress; assign_homework (timed 40-minute Task 2); end_class.",
+    ],
     timing: "~20 min homework review · ~40 min teaching + drills · ~40 min paragraph practice · ~10 min wrap-up · break around 60 min",
   },
   {
@@ -116,6 +163,15 @@ export const CURRICULUM: SessionModule[] = [
     },
     practice: "Write an introduction + overview + one detail paragraph for a Task 1 (or a full short letter for General). Correct live. Then a second, different Task 1 type.",
     homework: { taskType: "both", guidance: "One Task 1 (20 minutes) AND one Task 2 (40 minutes), done as a set." },
+    steps: [
+      "0–15 min · HOMEWORK REVIEW: top three fixes on the board.",
+      "15–40 min · TEACH Task 1 for their test type: format, timing, the 3-part shape; the overview paragraph as the key (board_write with a model).",
+      "40–60 min · TEACH the language of trends/comparison (Academic) or tone and letter structure (General), on the board. Offer the break and call request_break.",
+      "65–85 min · PRACTICE 1: ask_student_to_write (guided, 15 minutes): introduction + overview + one detail paragraph (or a full short letter). Correct on the board.",
+      "85–105 min · PRACTICE 2: a second, different Task 1 type (guided, 15 minutes). Correct on the board; they rewrite the overview.",
+      "105–110 min · Recap and preview Session 5 (full simulation).",
+      "110–120 min · WRAP-UP: 3 takeaways; save_progress; assign_homework (one Task 1 + one Task 2 as a set); end_class.",
+    ],
     timing: "~15 min homework review · ~40 min teaching · ~50 min practice on two Task 1 types · ~10 min wrap-up · break around 60 min",
   },
   {
@@ -138,6 +194,14 @@ export const CURRICULUM: SessionModule[] = [
     },
     practice: "The full timed test in the pad (Task 1 then Task 2). You stay silent while they write. Then detailed marking on the board: a band per criterion for each task, the three most valuable fixes, and a final before/after comparison with the Session 1 baseline.",
     homework: { taskType: "both", guidance: "A weekly plan until the test: one full timed Writing test per week, self-checked with the routine from today." },
+    steps: [
+      "0–15 min · HOMEWORK REVIEW of the Task 1 + Task 2 set; top fixes on the board.",
+      "15–35 min · FULL TEST part 1: ask_student_to_write (mode 'timed', taskType 'task1', 20 minutes, 150+ words). Stay silent.",
+      "35–75 min · FULL TEST part 2: ask_student_to_write (mode 'timed', taskType 'task2', 40 minutes, 250+ words). Stay silent. (No break during the test.)",
+      "75–100 min · MARKING on the board: a band per criterion for each task with board_write; the three most valuable fixes with board_correct; compare with the Session 1 baseline.",
+      "100–110 min · EXAM STRATEGY: time allocation, the checking routine for their own error list, last-minute traps (board_write).",
+      "110–120 min · WRAP-UP: final progress report (baseline vs now); save_progress; assign_homework (a weekly plan until the test); end_class.",
+    ],
     timing: "~15 min homework review · ~65 min timed test (silent) · ~30 min marking on the board · ~10 min strategy + progress report",
   },
 ];
@@ -160,6 +224,12 @@ export function buildSessionModuleText(course: WritingCourse, sessionNumber: num
   ];
   if (mod.task1) lines.push(``, `TASK 1 BRANCH: ${mod.task1[testType]}`);
   if (plan?.focus) lines.push(``, `PERSONAL FOCUS FOR THIS SESSION (from the weakness map): ${plan.focus}`);
+  lines.push(
+    ``,
+    `LESSON PLAN IN ORDER (time-boxed for the 2-hour session — do NOT skip steps and do NOT end early; the system tells you the time):`,
+    ...mod.steps.map((st, i) => `${i + 1}. ${st}`),
+  );
+  if (mod.number === 1) lines.push(``, INTRO_FORMULA);
   lines.push(
     ``,
     `GUIDED PRACTICE: ${mod.practice}`,
