@@ -24,8 +24,9 @@ import {
   ieltsSpeakingConversations,
   ieltsSpeakingResponses,
 } from "../drizzle/schema";
-import { invokeLLM } from "./_core/llm";
+import { invokeLLM, invokeLLMFallback } from "./_core/llm";
 import { synthesize as ttsSynthesize } from "./_core/elevenlabs";
+import { readFlag, writeFlag } from "./systemFlags";
 import { transcribeAudioBuffer } from "./_core/voiceTranscription";
 import { storagePut, storageGetBytes } from "./storage";
 import { nanoid } from "nanoid";
@@ -1238,6 +1239,132 @@ export const ieltsRouter = router({
       return { ok: true };
     }),
 
+  // ── LIVE Speaking (real-time examiner) ────────────────────────────────
+  //
+  // Replaces the turn-based recorded section with a live conversation that
+  // runs like the real test (see mockSpeakingAgent.ts). The client submits
+  // the transcript + a recording of the candidate's mic at the end; we
+  // persist the conversation, mark FC/LR/GRA from the transcript and
+  // Pronunciation from the audio, then finalize the attempt as usual so
+  // everything lands in the report/PDF. MOCK_SPEAKING_MODE=turns restores
+  // the old runner without a deploy.
+
+  /** Which speaking runner the client should mount. */
+  mockSpeakingMode: publicProcedure.query(() => ({
+    mode: (process.env.MOCK_SPEAKING_MODE === "turns" ? "turns" : "live") as "turns" | "live",
+  })),
+
+  /** Mint the examiner call + the test's standardised questions. */
+  startLiveSpeaking: publicProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const [attempt] = await db
+        .select().from(ieltsMockAttempts)
+        .where(eq(ieltsMockAttempts.attemptToken, input.token)).limit(1);
+      if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
+      if (attempt.status !== "speaking") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "The Speaking section is not active for this attempt." });
+      }
+
+      // Each start spends ElevenLabs minutes — cap reconnects per attempt.
+      const { MOCK_SPEAKING_MAX_STARTS, MOCK_SPEAKING_MAX_SECONDS, getMockSpeakingSignedUrl } =
+        await import("./mockSpeakingAgent");
+      const startsKey = `mock_live_starts_${attempt.id}`;
+      const starts = Number((await readFlag(startsKey)) || "0");
+      if (starts >= MOCK_SPEAKING_MAX_STARTS) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "This Speaking test has been started too many times. Please contact support." });
+      }
+
+      const prompts = await db
+        .select().from(ieltsSpeakingPrompts)
+        .where(eq(ieltsSpeakingPrompts.testId, attempt.testId))
+        .orderBy(ieltsSpeakingPrompts.partNumber, ieltsSpeakingPrompts.promptOrder);
+      const list = (part: number) => {
+        const qs = prompts.filter(p => p.partNumber === part).map((p, i) => `${i + 1}. ${p.prompt}`);
+        return qs.length ? qs.join("\n") : "none";
+      };
+      const p2 = prompts.find(p => p.partNumber === 2);
+      const cueCard = p2 ? (p2.cueCardText || p2.prompt) : "none";
+
+      const { signedUrl } = await getMockSpeakingSignedUrl();
+      await writeFlag(startsKey, String(starts + 1));
+
+      return {
+        signedUrl,
+        maxSeconds: MOCK_SPEAKING_MAX_SECONDS,
+        dynamicVariables: {
+          candidate_name: attempt.customerName || "the candidate",
+          part1_questions: list(1),
+          part2_cue_card: cueCard,
+          part3_questions: list(3),
+        },
+      };
+    }),
+
+  /** Persist the live test + mark it + finalize. Idempotent per attempt. */
+  finishLiveSpeaking: publicProcedure
+    .input(z.object({
+      token: z.string().min(1),
+      conversationId: z.string().max(200).optional(),
+      transcript: z.array(z.object({
+        role: z.enum(["examiner", "student"]),
+        part: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+        text: z.string().max(6000),
+      })).max(300),
+      audioBase64: z.string().optional(),
+      audioMimeType: z.string().max(80).optional(),
+      endReason: z.string().max(40).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const [attempt] = await db
+        .select().from(ieltsMockAttempts)
+        .where(eq(ieltsMockAttempts.attemptToken, input.token)).limit(1);
+      if (!attempt) throw new TRPCError({ code: "NOT_FOUND" });
+      if (attempt.status !== "speaking") return { ok: true, alreadyDone: true };
+
+      // Persist the conversation (replaces anything from an earlier start).
+      await db.delete(ieltsSpeakingConversations).where(eq(ieltsSpeakingConversations.attemptId, attempt.id));
+      let order = 0;
+      for (const t of input.transcript) {
+        if (!t.text.trim()) continue;
+        await db.insert(ieltsSpeakingConversations).values({
+          attemptId: attempt.id, partNumber: t.part, turnOrder: order++, role: t.role, text: t.text,
+        });
+      }
+
+      // Store the candidate's recording for pronunciation marking.
+      let audio: { buffer: Buffer; mimeType: string; key: string } | null = null;
+      if (input.audioBase64) {
+        try {
+          const buffer = Buffer.from(input.audioBase64, "base64");
+          if (buffer.length > 2000 && buffer.length <= 40 * 1024 * 1024) {
+            const mime = input.audioMimeType || "audio/webm";
+            const ext = mime.includes("mp4") ? "m4a" : mime.includes("ogg") ? "ogg" : mime.includes("wav") ? "wav" : "webm";
+            const put = await storagePut(`ielts/speaking-live/${attempt.id}/${Date.now()}.${ext}`, buffer, mime);
+            audio = { buffer, mimeType: mime, key: put.key };
+          }
+        } catch (e) {
+          console.warn("[IELTS Live Speaking] audio store failed:", (e as Error).message);
+        }
+      }
+
+      console.log(`[IELTS Live Speaking] attempt ${attempt.id} finished (${input.endReason || "?"}), ${input.transcript.length} turns, audio=${audio ? audio.buffer.length : 0}B`);
+
+      await gradeLiveSpeakingForAttempt(attempt.id, { audio, conversationId: input.conversationId });
+
+      await db.update(ieltsMockAttempts).set({ status: "grading" }).where(eq(ieltsMockAttempts.id, attempt.id));
+      try {
+        await finalizeAttempt(attempt.id);
+      } catch (err) {
+        console.error("[IELTS Live Speaking] finalize failed:", err);
+      }
+      return { ok: true };
+    }),
+
   /**
    * Returns the final report data + PDF URL for a completed attempt.
    * The client report page uses this. Falls back to "still grading" if
@@ -2222,31 +2349,173 @@ export async function regradeSpeakingForAttempt(
   return { gradedParts, reTranscribed };
 }
 
+/**
+ * Mark a LIVE speaking test (real-time examiner). Fluency, Lexical Resource
+ * and Grammar are graded per part from the transcript against the official
+ * descriptors; Pronunciation is assessed ONCE from the candidate's audio
+ * (browser mic recording, else the ElevenLabs conversation recording) and
+ * applied to every part — examiners rate pronunciation holistically across
+ * the whole test. Falls back to the text estimate if no audio is usable.
+ * Never throws for a single part — a failed part gets a neutral default so
+ * the report can still be produced.
+ */
+export async function gradeLiveSpeakingForAttempt(
+  attemptId: number,
+  opts: { audio: { buffer: Buffer; mimeType: string; key: string } | null; conversationId?: string }
+): Promise<{ graded: number; pronunciationSource: "audio" | "estimated" }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+
+  const conversation = await db
+    .select()
+    .from(ieltsSpeakingConversations)
+    .where(eq(ieltsSpeakingConversations.attemptId, attemptId))
+    .orderBy(ieltsSpeakingConversations.turnOrder);
+  const fullTranscript = conversation
+    .map(c => `${c.role.toUpperCase()}: ${c.text}`)
+    .join("\n");
+
+  // ── Pronunciation from audio ──
+  const { assessPronunciationFromAudio } = await import("./speakingPronunciation");
+  let pron: { scoreP: number; feedback: string } | null = null;
+  if (opts.audio) {
+    pron = await assessPronunciationFromAudio({
+      buffer: opts.audio.buffer, mimeType: opts.audio.mimeType, transcript: fullTranscript, mixed: false,
+    });
+  }
+  if (!pron && opts.conversationId) {
+    const { fetchConversationAudio } = await import("./mockSpeakingAgent");
+    const rec = await fetchConversationAudio(opts.conversationId);
+    if (rec) {
+      pron = await assessPronunciationFromAudio({ ...rec, transcript: fullTranscript, mixed: true });
+    }
+  }
+  console.log(`[IELTS Live Speaking] pronunciation source: ${pron ? "audio" : "estimated (text)"}`);
+
+  await db.delete(ieltsSpeakingResponses).where(eq(ieltsSpeakingResponses.attemptId, attemptId));
+
+  let graded = 0;
+  for (const partNumber of [1, 2, 3] as const) {
+    const studentTurns = conversation.filter(c => c.role === "student" && c.partNumber === partNumber);
+    if (studentTurns.length === 0) continue;
+    const studentText = studentTurns.map(t => t.text).filter(Boolean).join("\n\n");
+    if (!studentText.trim()) continue;
+    const transcriptForLLM = conversation
+      .filter(c => c.partNumber === partNumber)
+      .map(c => `${c.role.toUpperCase()}: ${c.text}`)
+      .join("\n");
+
+    let g: SpeakingGradeResult;
+    try {
+      g = await gradeSpeakingPart({ partNumber, transcript: transcriptForLLM, studentText, includePronunciation: !pron });
+    } catch (err) {
+      console.error(`[IELTS Live Speaking] part ${partNumber} marking failed:`, err);
+      g = {
+        scoreFC: 5, scoreLR: 5, scoreGRA: 5, scoreP: 5,
+        feedback: { fc: "Automatic marking was unavailable for this part.", lr: "", gra: "", p: "" },
+      };
+    }
+    const scoreP = pron ? pron.scoreP : g.scoreP;
+    const pFeedback = pron ? pron.feedback : g.feedback.p;
+    const partBand = roundToHalfBand((g.scoreFC + g.scoreLR + g.scoreGRA + scoreP) / 4);
+
+    await db.insert(ieltsSpeakingResponses).values({
+      attemptId,
+      partNumber,
+      audioKey: opts.audio?.key ?? null,
+      transcript: studentText,
+      scoreFC: String(g.scoreFC),
+      scoreLR: String(g.scoreLR),
+      scoreGRA: String(g.scoreGRA),
+      scoreP: String(scoreP),
+      partBand: String(partBand),
+      feedback: { ...g.feedback, p: pFeedback, pSource: pron ? "audio" : "estimated" },
+      gradedAt: new Date(),
+      completedAt: new Date(),
+    });
+    graded++;
+  }
+  return { graded, pronunciationSource: pron ? "audio" : "estimated" };
+}
+
+const SPEAKING_DESCRIPTORS = `OFFICIAL IELTS SPEAKING BAND DESCRIPTORS (public version) — grade STRICTLY against these.
+
+FLUENCY & COHERENCE
+9: speaks fluently with only rare repetition or self-correction; any hesitation is content-related, not to find words or grammar; speaks coherently with fully appropriate cohesive features; develops topics fully and appropriately.
+8: speaks fluently with only occasional repetition or self-correction; hesitation is usually content-related and only rarely to search for language; develops topics coherently and appropriately.
+7: speaks at length without noticeable effort or loss of coherence; may demonstrate language-related hesitation at times, or some repetition and/or self-correction; uses a range of connectives and discourse markers with some flexibility.
+6: is willing to speak at length, though may lose coherence at times due to occasional repetition, self-correction or hesitation; uses a range of connectives and discourse markers but not always appropriately.
+5: usually maintains flow of speech but uses repetition, self-correction and/or slow speech to keep going; may over-use certain connectives and discourse markers; produces simple speech fluently, but more complex communication causes fluency problems.
+4: cannot respond without noticeable pauses and may speak slowly, with frequent repetition and self-correction; links basic sentences but with repetitious use of simple connectives and some breakdowns in coherence.
+
+LEXICAL RESOURCE
+9: uses vocabulary with full flexibility and precision in all topics; uses idiomatic language naturally and accurately.
+8: uses a wide vocabulary resource readily and flexibly to convey precise meaning; uses less common and idiomatic vocabulary skilfully, with occasional inaccuracies; uses paraphrase effectively as required.
+7: uses vocabulary resource flexibly to discuss a variety of topics; uses some less common and idiomatic vocabulary and shows some awareness of style and collocation, with some inappropriate choices; uses paraphrase effectively.
+6: has a wide enough vocabulary to discuss topics at length and make meaning clear in spite of inappropriacies; generally paraphrases successfully.
+5: manages to talk about familiar and unfamiliar topics but uses vocabulary with limited flexibility; attempts to use paraphrase but with mixed success.
+4: is able to talk about familiar topics but can only convey basic meaning on unfamiliar topics and makes frequent errors in word choice; rarely attempts paraphrase.
+
+GRAMMATICAL RANGE & ACCURACY
+9: uses a full range of structures naturally and appropriately; produces consistently accurate structures apart from 'slips' characteristic of native speaker speech.
+8: uses a wide range of structures flexibly; produces a majority of error-free sentences with only very occasional inappropriacies or basic/non-systematic errors.
+7: uses a range of complex structures with some flexibility; frequently produces error-free sentences, though some grammatical mistakes persist.
+6: uses a mix of simple and complex structures, but with limited flexibility; may make frequent mistakes with complex structures, though these rarely cause comprehension problems.
+5: produces basic sentence forms with reasonable accuracy; uses a limited range of more complex structures, but these usually contain errors and may cause some comprehension problems.
+4: produces basic sentence forms and some correct simple sentences but subordinate structures are rare; errors are frequent and may lead to misunderstanding.
+
+PRONUNCIATION (only if asked to score it from the transcript)
+8-9: easy/effortless to understand, wide range of features sustained. 7: all positive features of 6 and some of 8. 6: mixed control, generally understood, mispronunciations reduce clarity at times. 5: features of 4 and some of 6. 4: limited range, frequent lapses cause some difficulty.`;
+
+/** Bound a promise so a hung LLM call fails over instead of stalling the request. */
+function withTimeoutMs<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)),
+  ]);
+}
+
+function parseJsonLoose(text: string): any {
+  try { return JSON.parse(text); } catch { /* extract */ }
+  const a = text.indexOf("{"), b = text.lastIndexOf("}");
+  if (a < 0 || b <= a) throw new Error(`LLM returned invalid JSON: ${text.slice(0, 200)}`);
+  return JSON.parse(text.slice(a, b + 1));
+}
+
+/**
+ * Grade one speaking part from its transcript against the official band
+ * descriptors. `includePronunciation` (default true — legacy turn-based
+ * flow) asks for a text-based pronunciation ESTIMATE; the live flow passes
+ * false and supplies Pronunciation from audio instead.
+ * DeepSeek primary → GLM fallback, both time-bounded.
+ */
 async function gradeSpeakingPart(args: {
   partNumber: 1 | 2 | 3;
   transcript: string;
   studentText: string;
+  includePronunciation?: boolean;
 }): Promise<SpeakingGradeResult> {
-  const system = `You are an experienced IELTS Speaking examiner. You grade the student strictly against the official IELTS Speaking public band descriptors.
+  const withP = args.includePronunciation !== false;
+
+  const system = `You are a certified IELTS Speaking examiner marking a candidate's performance in ONE part of the test. You mark the CANDIDATE only (ignore the examiner's turns except as context). You are reading an auto-generated transcript: ignore punctuation/casing artefacts and judge the real language.
+
+${SPEAKING_DESCRIPTORS}
 
 Return JSON ONLY (no prose). Schema:
 {
-  "scoreFC":  number,  // 0.0 - 9.0, half-band steps. Fluency & Coherence.
-  "scoreLR":  number,  // 0.0 - 9.0, half-band steps. Lexical Resource.
-  "scoreGRA": number,  // 0.0 - 9.0, half-band steps. Grammatical Range & Accuracy.
-  "scoreP":   number,  // 0.0 - 9.0, half-band steps. Pronunciation (estimate from transcript fluency, hesitation markers, filler words, sentence rhythm).
+  "scoreFC":  number,  // 0.0-9.0 in 0.5 steps — Fluency & Coherence
+  "scoreLR":  number,  // 0.0-9.0 in 0.5 steps — Lexical Resource
+  "scoreGRA": number,  // 0.0-9.0 in 0.5 steps — Grammatical Range & Accuracy${withP ? `
+  "scoreP":   number,  // 0.0-9.0 in 0.5 steps — Pronunciation, ESTIMATED from the transcript only (hesitation markers, false starts, rhythm)` : ""}
   "feedback": {
-    "fc":  "1-2 sentences on Fluency & Coherence.",
-    "lr":  "1-2 sentences on Lexical Resource.",
-    "gra": "1-2 sentences on Grammatical Range & Accuracy.",
-    "p":   "1-2 sentences on Pronunciation (caveat: estimated from text only)."
+    "fc":  "2 sentences on Fluency & Coherence, citing what the candidate actually did.",
+    "lr":  "2 sentences on Lexical Resource.",
+    "gra": "2 sentences on Grammatical Range & Accuracy, quoting one real error and its correction."${withP ? `,
+    "p":   "1-2 sentences on Pronunciation (state that it is estimated from text)."` : ""}
   }
 }
 
-Be accurate, not generous. Most candidates score 5.5-7.0. Use 0.5 steps only.
-Note: Pronunciation is estimated from transcript characteristics (filler
-words, false starts, hesitation markers transcribed as "uh", "um"); the
-official IELTS examiner hears audio. Make this caveat clear in feedback.p.`;
+Mark like a real examiner: accurate, neither generous nor harsh. Most candidates fall between 5.0 and 7.0. Use 0.5 steps only.`;
 
   const partLabel =
     args.partNumber === 1
@@ -2262,41 +2531,51 @@ Full conversation transcript for this part:
 ${args.transcript}
 """
 
-Student response excerpt (concatenated):
+Candidate's speech only (concatenated):
 """
 ${args.studentText}
 """
 
-Grade against the IELTS Speaking band descriptors. Return JSON only.`;
+Mark against the official descriptors. Return JSON only.`;
 
-  const response = await invokeLLM({
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
-    response_format: { type: "json_object" },
-    max_tokens: 1500,
-  });
+  const messages = [
+    { role: "system" as const, content: system },
+    { role: "user" as const, content: user },
+  ];
 
-  const raw = response.choices?.[0]?.message?.content;
-  if (typeof raw !== "string") throw new Error("LLM returned no content");
-  let parsed: any;
+  let raw: string | undefined;
   try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error(`LLM returned invalid JSON: ${raw.slice(0, 200)}`);
+    const response = await withTimeoutMs(
+      invokeLLM({ messages, response_format: { type: "json_object" }, max_tokens: 1500 }),
+      25000, "DeepSeek speaking mark",
+    );
+    const c = response.choices?.[0]?.message?.content;
+    raw = typeof c === "string" ? c : undefined;
+  } catch (e) {
+    console.warn(`[IELTS Speaking grade] DeepSeek failed for part ${args.partNumber}:`, (e as Error).message);
   }
+  if (typeof raw !== "string" || !raw) {
+    const response = await withTimeoutMs(
+      invokeLLMFallback({ messages, response_format: { type: "json_object" } }),
+      25000, "GLM speaking mark",
+    );
+    const c = response.choices?.[0]?.message?.content;
+    raw = typeof c === "string" ? c : undefined;
+    if (!raw) throw new Error("LLM returned no content");
+    console.log(`[IELTS Speaking grade] ✅ GLM fallback marked part ${args.partNumber}`);
+  }
+
+  const parsed = parseJsonLoose(raw);
 
   return {
     scoreFC: clampBand(Number(parsed.scoreFC)),
     scoreLR: clampBand(Number(parsed.scoreLR)),
     scoreGRA: clampBand(Number(parsed.scoreGRA)),
-    scoreP: clampBand(Number(parsed.scoreP)),
+    scoreP: withP ? clampBand(Number(parsed.scoreP)) : 0,
     feedback: {
       fc: typeof parsed.feedback?.fc === "string" ? parsed.feedback.fc : "",
       lr: typeof parsed.feedback?.lr === "string" ? parsed.feedback.lr : "",
-      gra:
-        typeof parsed.feedback?.gra === "string" ? parsed.feedback.gra : "",
+      gra: typeof parsed.feedback?.gra === "string" ? parsed.feedback.gra : "",
       p: typeof parsed.feedback?.p === "string" ? parsed.feedback.p : "",
     },
   };

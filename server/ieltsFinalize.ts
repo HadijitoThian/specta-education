@@ -281,12 +281,25 @@ export async function finalizeAttempt(
   const speakingBands = sResponses
     .map(r => (r.partBand ? Number(r.partBand) : null))
     .filter((n): n is number => n !== null);
+  // Official IELTS method: one score per criterion across the whole test
+  // (average each criterion over the parts), then the mean of the four
+  // criteria, rounded ONCE to the nearest half band. Falls back to the
+  // per-part band average if criteria are missing.
+  const critAvg = (pick: (r: (typeof sResponses)[number]) => string | null): number | null => {
+    const xs = sResponses.map(pick).filter((v): v is string => !!v).map(Number).filter(n => Number.isFinite(n));
+    return xs.length ? xs.reduce((s, n) => s + n, 0) / xs.length : null;
+  };
+  const sFC = critAvg(r => r.scoreFC);
+  const sLR = critAvg(r => r.scoreLR);
+  const sGRA = critAvg(r => r.scoreGRA);
+  const sP = critAvg(r => r.scoreP);
   const speakingBand =
-    speakingBands.length > 0
-      ? roundToHalfBand(
-          speakingBands.reduce((s, n) => s + n, 0) / speakingBands.length
-        )
-      : 0;
+    sFC !== null && sLR !== null && sGRA !== null && sP !== null
+      ? roundToHalfBand((sFC + sLR + sGRA + sP) / 4)
+      : speakingBands.length > 0
+        ? roundToHalfBand(speakingBands.reduce((s, n) => s + n, 0) / speakingBands.length)
+        : 0;
+  const pronunciationFromAudio = sResponses.some(r => (r.feedback as any)?.pSource === "audio");
 
   // ---- Overall ----
   const overallBand = roundOverall(
@@ -348,6 +361,7 @@ export async function finalizeAttempt(
     speaking: {
       band: speakingBand,
       partFeedback: speakingFeedback,
+      pronunciationFromAudio,
     },
     overallBand,
   };

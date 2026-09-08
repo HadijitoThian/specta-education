@@ -3,6 +3,7 @@ import { Link, useLocation, useRoute } from "wouter";
 import { Headphones, BookOpen, FileText, MessageCircle, Lock, CheckCircle2, Clock, ArrowRight } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import Navigation from "@/components/Navigation";
+import MockLiveSpeakingRunner from "@/components/MockLiveSpeakingRunner";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 
@@ -27,6 +28,12 @@ export default function IeltsMockTake() {
   });
 
   const status = attemptQuery.data?.attempt.status;
+
+  // Live examiner (default) vs the legacy turn-based runner; server-side
+  // switch (MOCK_SPEAKING_MODE=turns) so it can be flipped without a deploy.
+  const speakingMode = trpc.ielts.mockSpeakingMode.useQuery(undefined, {
+    staleTime: Infinity, refetchOnWindowFocus: false,
+  });
 
   // Redirect to the report once grading/completed. Done in an effect (NOT
   // during render) to avoid a render-time side effect that breaks hooks.
@@ -138,12 +145,27 @@ export default function IeltsMockTake() {
   }
 
   if (status === "speaking") {
+    const useLive = speakingMode.data
+      ? speakingMode.data.mode === "live"
+      : speakingMode.isError ? true : null; // default to live if the switch can't be read
     return (
       <Shell>
-        <SpeakingRunner
-          token={token}
-          onFinished={() => setLocation(`/ielts/mock-test/take/${token}`)}
-        />
+        {useLive === null ? (
+          <Card>Loading Speaking…</Card>
+        ) : useLive ? (
+          <MockLiveSpeakingRunner
+            token={token}
+            onFinished={() => {
+              utils.ielts.getAttempt.invalidate({ token });
+              setLocation(`/ielts/mock-test/take/${token}`);
+            }}
+          />
+        ) : (
+          <SpeakingRunner
+            token={token}
+            onFinished={() => setLocation(`/ielts/mock-test/take/${token}`)}
+          />
+        )}
       </Shell>
     );
   }

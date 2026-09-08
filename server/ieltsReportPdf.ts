@@ -63,6 +63,8 @@ export type IeltsReportData = {
       scoreP: number | null;
       feedback: { fc?: string; lr?: string; gra?: string; p?: string } | null;
     }>;
+    /** True when Pronunciation was marked from the candidate's audio. */
+    pronunciationFromAudio?: boolean;
   };
   overallBand: number;
 };
@@ -328,8 +330,9 @@ export async function renderIeltsReportPdf(
     }
   }
   speakingDetail.push({
-    text:
-      "* Pronunciation is estimated from transcript fluency markers — an audio examiner would assess it directly.",
+    text: data.speaking.pronunciationFromAudio
+      ? "* Pronunciation was assessed from the audio recording of your test against the official IELTS band descriptors."
+      : "* Pronunciation is estimated from transcript fluency markers — an audio examiner would assess it directly.",
     style: "footnote",
     margin: [22, 2, 22, 8],
   });
