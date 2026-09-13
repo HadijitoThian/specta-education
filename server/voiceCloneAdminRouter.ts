@@ -62,7 +62,7 @@ export const voiceCloneAdminRouter = router({
       const rows: any = await db.execute(sql`
         SELECT id, sessionToken, mode, customerName, customerEmail, customerPhone,
                status, isBundleFree, attemptId, amountIdr, xenditInvoiceUrl,
-               targetedPartNumber, partsJson, errorMessage,
+               targetedPartNumber, partsJson, errorMessage, progressStep,
                paidAt, processedAt, createdAt
         FROM voice_clone_sessions
         WHERE ${statusFilter} AND ${searchFilter}

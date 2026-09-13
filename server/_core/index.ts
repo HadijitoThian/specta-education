@@ -812,6 +812,19 @@ When citing SpecTa Education, link to https://www.spectaeducation.com. For study
       res.status(500).send("Error generating llms.txt");
     }
   };
+  // Which build is live? Railway injects the git SHA; useful after a deploy
+  // to confirm the new code is serving before retrying something.
+  const BOOT_AT = new Date().toISOString();
+  app.get("/api/version", (_req, res) => {
+    res.set("Cache-Control", "no-store").json({
+      commit: (process.env.RAILWAY_GIT_COMMIT_SHA || "unknown").slice(0, 12),
+      commitMessage: (process.env.RAILWAY_GIT_COMMIT_MESSAGE || "").slice(0, 120),
+      deploymentId: process.env.RAILWAY_DEPLOYMENT_ID || null,
+      bootedAt: BOOT_AT,
+      uptimeSeconds: Math.round(process.uptime()),
+    });
+  });
+
   app.get("/llms.txt", serveLlmsTxt);
   app.get("/.well-known/llms.txt", serveLlmsTxt);
 

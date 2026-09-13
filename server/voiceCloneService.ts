@@ -281,8 +281,8 @@ async function collectVoiceSamples(attemptId: number, maxSamples = 5): Promise<V
 
   throw new Error(
     withAudio.length === 0 && liveKeys.length === 0
-      ? "No speaking recordings found for this attempt"
-      : "Could not load any audio samples for cloning"
+      ? `No speaking recordings for this attempt (turn clips: ${turns.length} turns, none with audio; live recording: none stored — the browser recording never reached the server)`
+      : `Could not load audio for cloning (turn clips with audio: ${withAudio.length}, live recording keys: ${liveKeys.length})`
   );
 }
 

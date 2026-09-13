@@ -44,7 +44,12 @@ export default function VoiceCloneAdmin() {
   const [freePhone, setFreePhone] = useState("");
   const [freeNote, setFreeNote] = useState("");
 
-  const listQuery = trpc.voiceCloneAdmin.list.useQuery({ status: statusFilter, search: search.trim() || undefined, limit: 200 });
+  const listQuery = trpc.voiceCloneAdmin.list.useQuery(
+    { status: statusFilter, search: search.trim() || undefined, limit: 200 },
+    // Auto-refresh every 5s while a retry/processing run is in flight so the
+    // status pill moves processing → ready/failed without manual refreshes.
+    { refetchInterval: (q: any) => ((q?.state?.data || []).some((r: any) => r.status === "processing") ? 5000 : false) },
+  );
   const createFreeMut = trpc.voiceCloneAdmin.createFreeLink.useMutation({
     onSuccess: (data) => {
       toast.success(`Free link created${data.emailed ? " + emailed" : " (email failed — check logs)"}`);
@@ -192,7 +197,12 @@ export default function VoiceCloneAdmin() {
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLES[s.status] || "bg-slate-100"}`}>
                       {s.status}
                     </span>
-                    {s.errorMessage && (
+                    {s.status === "processing" && (
+                      <div className="text-[11px] text-indigo-600 mt-1 animate-pulse">
+                        {String((s as any).progressStep || "starting").replace(/_/g, " ")}… (auto-refreshing)
+                      </div>
+                    )}
+                    {s.status !== "processing" && s.errorMessage && (
                       <div className="text-[11px] text-red-600 mt-1 max-w-xs truncate" title={s.errorMessage}>
                         {s.errorMessage}
                       </div>
