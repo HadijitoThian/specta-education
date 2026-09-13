@@ -227,36 +227,63 @@ async function pickWeakestResponse(attemptId: number): Promise<{
   };
 }
 
+/** One audio sample for ElevenLabs IVC, with its real content type so the
+ *  upload is labelled correctly (WebM from the browser, MP3 from legacy turns). */
+interface VoiceSample { buffer: Buffer; contentType: string }
+
 /**
- * Fetch and concatenate 3-5 student speaking clips to reach ~30-60s of
- * clean audio for ElevenLabs IVC (which needs at least ~30s to make a
- * decent voice model). Returns raw MP3 buffers.
+ * Collect the student's own speaking audio for ElevenLabs IVC (needs ~30s+
+ * of clean voice). Two sources, tried in order:
+ *   1. Turn-based mock (before 2026-09-08): one clip per student turn in
+ *      ieltsSpeakingConversations — up to maxSamples of the longest answers.
+ *   2. Live-examiner mock (since 2026-09-08): the conversation turns carry
+ *      no audio; the candidate's whole-test microphone recording is stored
+ *      once and referenced by every graded part in ieltsSpeakingResponses.
+ *      That recording is candidate-only (their mic), which is ideal for
+ *      cloning.
+ * Throws only when neither source has usable audio.
  */
-async function collectVoiceSamples(attemptId: number, maxSamples = 5): Promise<Buffer[]> {
+async function collectVoiceSamples(attemptId: number, maxSamples = 5): Promise<VoiceSample[]> {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
+  const samples: VoiceSample[] = [];
+  const load = async (key: string) => {
+    try {
+      const { buffer, contentType } = await storageGetBytes(key);
+      if (buffer && buffer.length > 1000) samples.push({ buffer, contentType: contentType || "audio/mpeg" });
+    } catch (e) {
+      console.warn(`[VoiceClone] Failed to load audio ${key}:`, (e as Error).message);
+    }
+  };
+
+  // 1) Legacy turn-based flow: per-turn clips (prefer LONGER answers).
   const turns = await db.select().from(ieltsSpeakingConversations)
     .where(and(
       eq(ieltsSpeakingConversations.attemptId, attemptId),
       eq(ieltsSpeakingConversations.role, "student"),
     ));
   const withAudio = turns.filter(t => t.audioKey && (t.text || "").length > 30);
-  if (withAudio.length === 0) throw new Error("No speaking recordings found for this attempt");
-
-  // Prefer LONGER responses (more voice data per clip = better model)
   withAudio.sort((a, b) => (b.text || "").length - (a.text || "").length);
-  const chosen = withAudio.slice(0, maxSamples);
-  const buffers: Buffer[] = [];
-  for (const t of chosen) {
-    try {
-      const { buffer } = await storageGetBytes(t.audioKey!);
-      if (buffer && buffer.length > 1000) buffers.push(buffer);
-    } catch (e) {
-      console.warn(`[VoiceClone] Failed to load audio ${t.audioKey}:`, (e as Error).message);
-    }
+  for (const t of withAudio.slice(0, maxSamples)) await load(t.audioKey!);
+  if (samples.length > 0) return samples;
+
+  // 2) Live-examiner flow: the whole-test candidate recording on the graded parts.
+  const scored = await db.select().from(ieltsSpeakingResponses)
+    .where(eq(ieltsSpeakingResponses.attemptId, attemptId));
+  const liveKeys = Array.from(new Set(
+    scored.filter(r => r.audioKey && (r.transcript || "").length > 30).map(r => r.audioKey as string)
+  ));
+  for (const key of liveKeys.slice(0, maxSamples)) await load(key);
+  if (samples.length > 0) {
+    console.log(`[VoiceClone] attempt ${attemptId}: using live-examiner recording(s) (${samples.map(x => x.buffer.length).join("+")} bytes)`);
+    return samples;
   }
-  if (buffers.length === 0) throw new Error("Could not load any speaking audio for cloning");
-  return buffers;
+
+  throw new Error(
+    withAudio.length === 0 && liveKeys.length === 0
+      ? "No speaking recordings found for this attempt"
+      : "Could not load any audio samples for cloning"
+  );
 }
 
 /**
@@ -266,17 +293,24 @@ async function collectVoiceSamples(attemptId: number, maxSamples = 5): Promise<B
  */
 async function createElevenLabsVoiceClone(
   name: string,
-  audioBuffers: Buffer[],
+  audio: Array<Buffer | VoiceSample>,
 ): Promise<string> {
   if (!ENV.elevenLabsApiKey) throw new Error("ELEVENLABS_API_KEY is not configured");
 
   const form = new FormData();
   form.append("name", name.slice(0, 100));
   form.append("description", `Voice clone for SpecTa Voice Clone feature. Auto-delete in 90 days.`);
-  audioBuffers.forEach((buf, i) => {
-    // Node 22 has native File / Blob; if not, wrap in Blob-compatible.
-    const blob = new Blob([new Uint8Array(buf)], { type: "audio/mpeg" });
-    form.append("files", blob, `sample${i + 1}.mp3`);
+  audio.forEach((item, i) => {
+    const buf = Buffer.isBuffer(item) ? item : item.buffer;
+    // Label each file with its real type: browser recordings are WebM/Opus
+    // (or MP4 on Safari); legacy clips are MP3. ElevenLabs sniffs content,
+    // but a correct label avoids edge-case rejections.
+    const type = Buffer.isBuffer(item) ? "audio/mpeg" : (item.contentType || "audio/mpeg");
+    const ext = type.includes("webm") ? "webm" : type.includes("mp4") || type.includes("m4a") ? "m4a"
+      : type.includes("ogg") ? "ogg" : type.includes("wav") ? "wav" : "mp3";
+    if (buf.length > 10 * 1024 * 1024) console.warn(`[VoiceClone] sample ${i + 1} is ${(buf.length / 1048576).toFixed(1)}MB — above ElevenLabs' usual 10MB/file limit`);
+    const blob = new Blob([new Uint8Array(buf)], { type });
+    form.append("files", blob, `sample${i + 1}.${ext}`);
   });
 
   const res = await fetch(`${ELEVENLABS_API_BASE}/voices/add`, {
