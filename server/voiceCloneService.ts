@@ -37,6 +37,38 @@ import { storageGetBytes, storagePut } from "./storage";
 import { ENV } from "./_core/env";
 import { synthesize } from "./_core/elevenlabs";
 import { invokeLLM } from "./_core/llm";
+
+// ── Time-bounded AI calls ─────────────────────────────────────────────────
+// Nothing in this pipeline may hang: a stalled provider call left session 10
+// at "rewriting_p2" indefinitely (2026-09-13). Every LLM / TTS call is
+// bounded; the LLM falls back to the fast model, then fails loudly so the
+// session is marked failed and the owner alert fires.
+const LLM_CALL_TIMEOUT_MS = Number(process.env.VOICE_CLONE_LLM_TIMEOUT_MS || 150000);
+const TTS_CALL_TIMEOUT_MS = Number(process.env.VOICE_CLONE_TTS_TIMEOUT_MS || 120000);
+
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)), ms))]);
+}
+
+/** invokeLLM with a timeout; on timeout/error retries once on deepseek-v4-flash. */
+async function invokeLLMBounded(params: Parameters<typeof invokeLLM>[0]): Promise<Awaited<ReturnType<typeof invokeLLM>>> {
+  try {
+    return await withTimeout(invokeLLM(params), LLM_CALL_TIMEOUT_MS, `LLM (${params.model || "default"})`);
+  } catch (e) {
+    console.warn(`[VoiceClone] LLM call failed, retrying on deepseek-v4-flash:`, (e as Error).message);
+    return await withTimeout(invokeLLM({ ...params, model: "deepseek-v4-flash" }), LLM_CALL_TIMEOUT_MS, "LLM (deepseek-v4-flash)");
+  }
+}
+
+/** synthesize with a timeout and one retry. */
+async function synthesizeBounded(params: Parameters<typeof synthesize>[0]): Promise<Awaited<ReturnType<typeof synthesize>>> {
+  try {
+    return await withTimeout(synthesize(params), TTS_CALL_TIMEOUT_MS, "ElevenLabs TTS");
+  } catch (e) {
+    console.warn(`[VoiceClone] TTS call failed, retrying once:`, (e as Error).message);
+    return await withTimeout(synthesize(params), TTS_CALL_TIMEOUT_MS, "ElevenLabs TTS (retry)");
+  }
+}
 import { transcribeAudioBuffer } from "./_core/voiceTranscription";
 
 const ELEVENLABS_API_BASE = "https://api.elevenlabs.io/v1";
@@ -397,7 +429,7 @@ ${originalTranscript}
 
 Rewrite at Band 8, preserving their content + voice, EXPANDING to hit the word target if shorter, providing the full learning teardown.`;
 
-  const response = await invokeLLM({
+  const response = await invokeLLMBounded({
     model: "deepseek-v4-pro",
     messages: [
       { role: "system", content: systemPrompt },
@@ -507,7 +539,7 @@ ${transcriptBlock}
 
 Assess against IELTS Speaking band descriptors. Return JSON.`;
 
-  const response = await invokeLLM({
+  const response = await invokeLLMBounded({
     model: "deepseek-v4-pro",
     messages: [
       { role: "system", content: systemPrompt },
@@ -638,7 +670,7 @@ export async function runVoiceCloneForAttempt(attemptId: number): Promise<VoiceC
     if (!rw) continue;
     const { src, band8Text, changesSummary, vocabularyUpgrades, grammarUpgrades, discourseMarkersMissed } = rw;
     try {
-      const band8Audio = await synthesize({
+      const band8Audio = await synthesizeBounded({
         voiceId,
         text: band8Text,
         modelId: ENV.elevenLabsModelId || "eleven_multilingual_v2",
@@ -889,7 +921,7 @@ export async function runVoiceCloneStandalone(sessionId: number): Promise<VoiceC
     if (!rw) continue;
     const { recording, band8Text, changesSummary, vocabularyUpgrades, grammarUpgrades, discourseMarkersMissed } = rw;
     try {
-      const band8Audio = await synthesize({
+      const band8Audio = await synthesizeBounded({
         voiceId,
         text: band8Text,
         modelId: ENV.elevenLabsModelId || "eleven_multilingual_v2",
