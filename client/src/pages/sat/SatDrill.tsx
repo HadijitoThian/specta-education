@@ -9,6 +9,8 @@ import { Link, useLocation, useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Loader2, Flag, CheckCircle2, XCircle, Sparkles, Send } from "lucide-react";
 import SatShell, { MASTERY_TEXT } from "./SatShell";
+import SatLiveEmma from "./SatLiveEmma";
+import { Phone, Camera } from "lucide-react";
 
 type PubQ = { id: number; skillId: number; section: string; difficulty: number; format: "mc" | "spr"; passage: string | null; stem: string; choices: string[] | null };
 type Result = { correct: boolean; answer: string; explanationEn: string; explanationId: string | null; distractorNotes: Record<string, string> | null; given: string };
@@ -37,6 +39,27 @@ export default function SatDrill() {
   const [flagged, setFlagged] = useState<Record<number, boolean>>({});
   const [chat, setChat] = useState<Msg[]>([]);
   const [chatInput, setChatInput] = useState("");
+  const [live, setLive] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const tutorPhoto = trpc.sat.tutorPhoto.useMutation({
+    onSuccess: (d) => { setChat(c => [...c, { role: "emma", text: d.text }]); setPhotoBusy(false); },
+    onError: (e) => { setChat(c => [...c, { role: "emma", text: e.message }]); setPhotoBusy(false); },
+  });
+  /** Downscale to ≤1280px JPEG so uploads stay small and readable. */
+  const sendPhoto = async (file: File) => {
+    if (!q) return;
+    setPhotoBusy(true);
+    setChat(c => [...c, { role: "student", text: lang === "id" ? "📷 Foto pekerjaanku" : "📷 Photo of my working" }]);
+    try {
+      const bmp = await createImageBitmap(file);
+      const scale = Math.min(1, 1280 / Math.max(bmp.width, bmp.height));
+      const cv = document.createElement("canvas"); cv.width = Math.round(bmp.width * scale); cv.height = Math.round(bmp.height * scale);
+      cv.getContext("2d")!.drawImage(bmp, 0, 0, cv.width, cv.height);
+      const dataUrl = cv.toDataURL("image/jpeg", 0.82);
+      tutorPhoto.mutate({ questionId: q.id, imageBase64: dataUrl.split(",")[1], mimeType: "image/jpeg", studentAnswer: res?.given || choice || undefined });
+    } catch { setChat(c => [...c, { role: "emma", text: lang === "id" ? "Fotonya tidak bisa dibaca. Coba lagi." : "Couldn't read that photo. Please try again." }]); setPhotoBusy(false); }
+  };
   const topRef = useRef<HTMLDivElement>(null);
 
   // Resume: hydrate answered items and jump to the first unanswered.
@@ -152,14 +175,18 @@ export default function SatDrill() {
           <aside className="bg-white rounded-2xl border border-slate-200 p-4 lg:sticky lg:top-20 self-start">
             <div className="flex items-center gap-2 font-bold mb-3"><Sparkles className="w-4 h-4 text-indigo-600" />{t.emma}</div>
             <div className="flex flex-wrap gap-1.5 mb-3">
+              <button onClick={() => setLive(v => !v)} className={`text-xs px-2.5 py-1.5 rounded-full border flex items-center gap-1 ${live ? "bg-indigo-600 text-white border-indigo-600" : "border-indigo-300 text-indigo-700"}`}><Phone className="w-3 h-3" />{lang === "id" ? "Bicara dengan Emma" : "Talk to Emma"}</button>
+              <button onClick={() => fileRef.current?.click()} disabled={photoBusy} className="text-xs px-2.5 py-1.5 rounded-full border border-slate-300 flex items-center gap-1 disabled:opacity-50"><Camera className="w-3 h-3" />{lang === "id" ? "Foto pekerjaanku" : "Photo of my working"}</button>
+              <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) void sendPhoto(f); e.target.value = ""; }} />
               {!res && <button onClick={() => askEmma("hint")} className="text-xs px-2.5 py-1.5 rounded-full border border-slate-300 hover:bg-slate-50">{t.hint}</button>}
               {res && <button onClick={() => askEmma("explain")} className="text-xs px-2.5 py-1.5 rounded-full border border-slate-300 hover:bg-slate-50">{t.explainMore}</button>}
               {res && !res.correct && <button onClick={() => askEmma("whyWrong")} className="text-xs px-2.5 py-1.5 rounded-full border border-slate-300 hover:bg-slate-50">{t.why}</button>}
               {res && <button onClick={() => askEmma("similar")} className="text-xs px-2.5 py-1.5 rounded-full border border-slate-300 hover:bg-slate-50">{t.similar}</button>}
             </div>
+            {live && q && <div className="mb-3"><SatLiveEmma questionId={q.id} studentAnswer={res?.given || choice || undefined} lang={lang} onClose={() => setLive(false)} /></div>}
             <div className="space-y-2 max-h-[40vh] overflow-y-auto text-sm">
               {chat.map((m, i) => <div key={i} className={`rounded-xl px-3 py-2 whitespace-pre-wrap leading-relaxed ${m.role === "emma" ? "bg-indigo-50 text-slate-800" : "bg-slate-100 text-slate-700 text-right"}`}>{m.text}</div>)}
-              {tutor.isPending && <div className="text-xs text-slate-400 animate-pulse">{t.thinking}</div>}
+              {(tutor.isPending || photoBusy) && <div className="text-xs text-slate-400 animate-pulse">{t.thinking}</div>}
               {tutor.error && <div className="text-xs text-red-600">{tutor.error.message}</div>}
             </div>
             <form onSubmit={e => { e.preventDefault(); if (chatInput.trim()) { askEmma("ask", chatInput.trim()); setChatInput(""); } }} className="mt-3 flex gap-2">

@@ -3010,6 +3010,29 @@ export const satTestSessions = mysqlTable("sat_test_sessions", {
 });
 export type SatTestSession = typeof satTestSessions.$inferSelect;
 
+/** Phase 3: live voice Emma calls (for the daily minutes cap + cost tracking). */
+export const satLiveSessions = mysqlTable("sat_live_sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  studentId: int("studentId").notNull(),
+  questionId: int("questionId").notNull(),
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  endedAt: timestamp("endedAt"),
+  seconds: int("seconds").default(0).notNull(),
+});
+
+/** Phase 3: official Bluebook practice / real SAT scores entered for calibration. */
+export const satOfficialScores = mysqlTable("sat_official_scores", {
+  id: int("id").autoincrement().primaryKey(),
+  studentId: int("studentId").notNull(),
+  source: mysqlEnum("source", ["bluebook", "real", "other"]).default("bluebook").notNull(),
+  testDate: varchar("testDate", { length: 40 }),
+  rw: int("rw").notNull(),
+  math: int("math").notNull(),
+  total: int("total").notNull(),
+  note: varchar("note", { length: 200 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export const satResponses = mysqlTable("sat_responses", {
   id: int("id").autoincrement().primaryKey(),
   attemptId: int("attemptId").notNull(),

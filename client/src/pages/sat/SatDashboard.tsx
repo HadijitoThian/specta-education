@@ -28,6 +28,10 @@ export default function SatDashboard() {
   const setPrefs = trpc.sat.setPrefs.useMutation({ onSuccess: () => utils.sat.me.invalidate() });
   const [target, setTarget] = useState<string>("");
   const [date, setDate] = useState<string>("");
+  const official = trpc.sat.officialScores.useQuery(undefined, { enabled: !!me.data });
+  const addOfficial = trpc.sat.addOfficialScore.useMutation({ onSuccess: () => { utils.sat.officialScores.invalidate(); utils.sat.plan.invalidate(); setOs({ rw: "", math: "", date: "", source: "bluebook" }); } });
+  const delOfficial = trpc.sat.deleteOfficialScore.useMutation({ onSuccess: () => { utils.sat.officialScores.invalidate(); utils.sat.plan.invalidate(); } });
+  const [os, setOs] = useState<{ rw: string; math: string; date: string; source: "bluebook" | "real" | "other" }>({ rw: "", math: "", date: "", source: "bluebook" });
 
   const grouped = useMemo(() => {
     const out: Record<"rw" | "math", Record<string, NonNullable<typeof skills.data>>> = { rw: {}, math: {} };
@@ -60,7 +64,7 @@ export default function SatDashboard() {
         {[
           { label: t.answered, value: w?.answered ?? "–" },
           { label: t.accuracy, value: acc === null ? "–" : `${acc}%` },
-          { label: t.days, value: w?.activeDays ?? "–", icon: <Flame className="w-4 h-4 text-orange-500" /> },
+          { label: lang === "id" ? "hari berturut" : "day streak", value: progress.data?.streak ?? "–", icon: <Flame className="w-4 h-4 text-orange-500" /> },
           { label: t.minutes, value: w?.minutes ?? "–" },
         ].map((c, i) => (
           <div key={i} className="bg-white rounded-2xl border border-slate-200 p-4">
@@ -89,9 +93,9 @@ export default function SatDashboard() {
           <h2 className="font-bold mb-1">{lang === "id" ? "Perkiraan skor" : "Predicted score"}</h2>
           {plan.data ? (
             <>
-              <div className="text-4xl font-black">{plan.data.predicted.practised === 0 && !plan.data.predicted.lastMock ? "—" : plan.data.predicted.total}<span className="text-sm text-slate-400 font-semibold"> / 1600</span></div>
+              <div className="text-4xl font-black">{plan.data.predicted.practised === 0 && !plan.data.predicted.lastMock && !plan.data.predicted.lastOfficial ? "—" : plan.data.predicted.total}<span className="text-sm text-slate-400 font-semibold"> / 1600</span></div>
               <div className="text-xs text-slate-500 mt-1">RW {plan.data.predicted.rw} · Math {plan.data.predicted.math}{plan.data.targetScore ? ` · ${lang === "id" ? "target" : "target"} ${plan.data.targetScore}` : ""}</div>
-              <div className="text-[11px] text-slate-400 mt-2">{plan.data.predicted.practised === 0 && !plan.data.predicted.lastMock ? (lang === "id" ? "Kerjakan diagnostik untuk mendapat perkiraan." : "Take the diagnostic to get an estimate.") : plan.data.predicted.basis === "blend" ? (lang === "id" ? "Dari mock terakhir + latihan harian." : "From your latest mock + daily practice.") : (lang === "id" ? "Dari latihan harian; mock akan mempertajam." : "From daily practice; a full mock will sharpen this.")}</div>
+              <div className="text-[11px] text-slate-400 mt-2">{plan.data.predicted.practised === 0 && !plan.data.predicted.lastMock && !plan.data.predicted.lastOfficial ? (lang === "id" ? "Kerjakan diagnostik untuk mendapat perkiraan." : "Take the diagnostic to get an estimate.") : plan.data.predicted.basis === "calibrated" ? (lang === "id" ? `Dikalibrasi dengan skor resmi ${plan.data.predicted.lastOfficial?.total}.` : `Calibrated with your official score of ${plan.data.predicted.lastOfficial?.total}.`) : plan.data.predicted.basis === "blend" ? (lang === "id" ? "Dari mock terakhir + latihan harian." : "From your latest mock + daily practice.") : (lang === "id" ? "Dari latihan harian; mock akan mempertajam." : "From daily practice; a full mock will sharpen this.")}</div>
             </>
           ) : <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
         </div>
@@ -106,6 +110,22 @@ export default function SatDashboard() {
           {startTest.error && <div className="text-xs text-red-600 mb-2">{startTest.error.message}</div>}
           <ul className="text-xs divide-y divide-slate-100">{(tests.data || []).filter(x => x.status === "completed").slice(0, 4).map(x => <li key={x.id} className="py-1.5 flex justify-between"><span>{x.kind === "mock" ? (lang === "id" ? "Tes lengkap" : "Full test") : (lang === "id" ? "Diagnostik" : "Diagnostic")} · {x.completedAt ? new Date(x.completedAt).toLocaleDateString() : ""}</span><Link href={`/sat/test/${x.id}/report`} className="font-bold text-indigo-700">{x.scores?.total ?? "—"} →</Link></li>)}</ul>
         </div>
+      </section>
+
+      {/* Official scores (calibration) */}
+      <section className="bg-white rounded-2xl border border-slate-200 p-5 mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <h2 className="font-bold">{lang === "id" ? "Skor resmi" : "Official scores"}</h2>
+          <span className="text-xs text-slate-500">{lang === "id" ? "Masukkan skor Bluebook practice test atau SAT asli agar perkiraan lebih akurat." : "Enter Bluebook practice test or real SAT scores to calibrate your prediction."}</span>
+        </div>
+        <form onSubmit={e => { e.preventDefault(); const rw = Number(os.rw), math = Number(os.math); if (rw >= 200 && rw <= 800 && math >= 200 && math <= 800) addOfficial.mutate({ source: os.source, testDate: os.date || undefined, rw, math }); }} className="flex flex-wrap gap-2 items-center text-xs mb-3">
+          <select value={os.source} onChange={e => setOs(o => ({ ...o, source: e.target.value as any }))} className="border rounded-lg px-2 py-1.5"><option value="bluebook">Bluebook practice</option><option value="real">Real SAT</option><option value="other">Other</option></select>
+          <input type="date" value={os.date} onChange={e => setOs(o => ({ ...o, date: e.target.value }))} className="border rounded-lg px-2 py-1.5" />
+          <input value={os.rw} onChange={e => setOs(o => ({ ...o, rw: e.target.value }))} placeholder="RW 200–800" className="border rounded-lg px-2 py-1.5 w-28" />
+          <input value={os.math} onChange={e => setOs(o => ({ ...o, math: e.target.value }))} placeholder="Math 200–800" className="border rounded-lg px-2 py-1.5 w-28" />
+          <button type="submit" disabled={addOfficial.isPending} className="px-3 py-1.5 rounded-lg bg-slate-900 text-white font-semibold disabled:opacity-50">{lang === "id" ? "Simpan" : "Add"}</button>
+        </form>
+        {(official.data?.length || 0) > 0 ? <ul className="text-sm divide-y divide-slate-100">{official.data!.map(o => <li key={o.id} className="py-1.5 flex items-center justify-between"><span>{o.source === "real" ? "Real SAT" : o.source === "bluebook" ? "Bluebook" : "Other"}{o.testDate ? ` · ${o.testDate}` : ""} · RW {o.rw} · Math {o.math}</span><span className="flex items-center gap-3"><b>{o.total}</b><button onClick={() => delOfficial.mutate({ id: o.id })} className="text-xs text-slate-400 hover:text-red-600">✕</button></span></li>)}</ul> : <div className="text-xs text-slate-400">{lang === "id" ? "Belum ada skor resmi." : "No official scores yet."}</div>}
       </section>
 
       {/* Assignments */}

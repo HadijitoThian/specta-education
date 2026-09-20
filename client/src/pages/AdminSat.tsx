@@ -305,9 +305,25 @@ function Assign({ setMsg }: { setMsg: (m: string) => void }) {
 // ── Mock results ──────────────────────────────────────────────────────────
 function TestResults() {
   const r = trpc.admin.sat.testResults.useQuery();
+  const live = trpc.admin.sat.liveUsage.useQuery();
+  const official = trpc.admin.sat.officialScores.useQuery();
   if (r.isLoading) return <Loader2 className="w-5 h-5 animate-spin text-slate-400" />;
   const rows = r.data || [];
   return (
+    <>
+    <div className="grid md:grid-cols-2 gap-4 mb-4">
+      <section className="bg-white rounded-2xl border border-slate-200 p-4">
+        <div className="font-bold mb-1">Live Emma usage (30 days)</div>
+        <div className="text-xs text-slate-500 mb-2">{live.data?.totalMinutes30d ?? 0} minutes total · cap {live.data?.dailyCapMinutes ?? 30} min/student/day (env SAT_LIVE_DAILY_MINUTES)</div>
+        <ul className="text-sm divide-y divide-slate-100">{(live.data?.students || []).map(s => <li key={s.studentId} className="py-1 flex justify-between"><span>{s.name}</span><span className="text-slate-600">{s.calls} calls · {s.minutes} min</span></li>)}</ul>
+        {(live.data?.students.length || 0) === 0 && <div className="text-xs text-slate-400">No live calls yet.</div>}
+      </section>
+      <section className="bg-white rounded-2xl border border-slate-200 p-4">
+        <div className="font-bold mb-1">Official scores entered by students</div>
+        <ul className="text-sm divide-y divide-slate-100">{(official.data || []).slice(0, 12).map(o => <li key={o.id} className="py-1 flex justify-between"><span>{o.name} · {o.source}{o.testDate ? ` · ${o.testDate}` : ""}</span><span className="text-slate-600">RW {o.rw} · M {o.math} · <b>{o.total}</b></span></li>)}</ul>
+        {(official.data?.length || 0) === 0 && <div className="text-xs text-slate-400">None yet.</div>}
+      </section>
+    </div>
     <section className="bg-white rounded-2xl border border-slate-200 overflow-x-auto">
       <table className="w-full text-sm">
         <thead><tr className="text-left text-xs uppercase tracking-wider text-slate-500"><th className="p-3">Student</th><th>Test</th><th>Status</th><th>Total</th><th>RW</th><th>Math</th><th>Module 2 route</th><th>Date</th></tr></thead>
@@ -324,6 +340,7 @@ function TestResults() {
       </table>
       {rows.length === 0 && <div className="p-5 text-sm text-slate-500">No tests taken yet.</div>}
     </section>
+    </>
   );
 }
 

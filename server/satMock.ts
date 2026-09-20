@@ -11,7 +11,7 @@
 
 import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "./db";
-import { satQuestions, satSkills, satMastery, satTestSessions, type SatQuestion } from "../drizzle/schema";
+import { satQuestions, satSkills, satMastery, satTestSessions, satOfficialScores, type SatQuestion } from "../drizzle/schema";
 import { DOMAIN_SHARE } from "./satSkills";
 
 export interface TestModule { section: "rw" | "math"; stage: 1 | 2; variant: "standard" | "easier" | "harder"; minutes: number; questionIds: number[] }
@@ -154,7 +154,7 @@ export async function scoreSession(modules: TestModule[], responses: Array<{ que
 
 // ── Predictor + study plan ────────────────────────────────────────────────
 /** Predicted section score from mastery (domain-share weighted), blended with the latest mock if any. */
-export async function predictScore(studentId: number): Promise<{ rw: number; math: number; total: number; basis: "mastery" | "blend"; lastMock: TestScores | null; practised: number }> {
+export async function predictScore(studentId: number): Promise<{ rw: number; math: number; total: number; basis: "mastery" | "blend" | "calibrated"; lastMock: TestScores | null; lastOfficial: { rw: number; math: number; total: number; testDate: string | null; source: string } | null; practised: number }> {
   const db = await getDb(); if (!db) throw new Error("Database unavailable");
   const skills = await db.select({ id: satSkills.id, section: satSkills.section, domainCode: satSkills.domainCode }).from(satSkills);
   const mastery = await db.select().from(satMastery).where(eq(satMastery.studentId, studentId));
@@ -170,9 +170,20 @@ export async function predictScore(studentId: number): Promise<{ rw: number; mat
   const sessions = await db.select().from(satTestSessions).where(and(eq(satTestSessions.studentId, studentId), eq(satTestSessions.status, "completed")));
   const mocks = sessions.filter(s => s.kind === "mock" && s.scores).sort((a, b) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0));
   const last = (mocks[0]?.scores as TestScores | undefined) || null;
-  let basis: "mastery" | "blend" = "mastery";
+  let basis: "mastery" | "blend" | "calibrated" = "mastery";
   if (last) { rw = Math.round((rw * 0.4 + last.rw * 0.6) / 10) * 10; math = Math.round((math * 0.4 + last.math * 0.6) / 10) * 10; basis = "blend"; }
-  return { rw, math, total: rw + math, basis, lastMock: last, practised: mastery.length };
+  // Live calibration: an official Bluebook/real score is ground truth. Blend it
+  // in at 50% (it fades in weight as it ages past 90 days).
+  const officials = (await db.select().from(satOfficialScores).where(eq(satOfficialScores.studentId, studentId))).sort((a, b) => (b.testDate || "").localeCompare(a.testDate || "") || b.id - a.id);
+  const off = officials[0] || null;
+  let lastOfficial: { rw: number; math: number; total: number; testDate: string | null; source: string } | null = null;
+  if (off) {
+    const ageDays = off.testDate && !isNaN(new Date(off.testDate).getTime()) ? (Date.now() - new Date(off.testDate).getTime()) / 86400000 : 0;
+    const w = Math.max(0.2, 0.5 * (1 - Math.max(0, ageDays - 90) / 180));
+    rw = Math.round((rw * (1 - w) + off.rw * w) / 10) * 10; math = Math.round((math * (1 - w) + off.math * w) / 10) * 10; basis = "calibrated";
+    lastOfficial = { rw: off.rw, math: off.math, total: off.total, testDate: off.testDate, source: off.source };
+  }
+  return { rw, math, total: rw + math, basis, lastMock: last, lastOfficial, practised: mastery.length };
 }
 
 export interface PlanItem { code: string; title: string; section: "rw" | "math"; reason: "new" | "weak" | "review"; action: "lesson" | "drill"; minutes: number }

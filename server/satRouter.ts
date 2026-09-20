@@ -15,12 +15,14 @@ import { getDb } from "./db";
 import { ENV } from "./_core/env";
 import {
   satStudents, satSkills, satQuestions, satAttempts, satResponses, satMastery,
-  satAssignments, satAssignmentStudents, satTestSessions, type SatQuestion, type SatTestSession,
+  satAssignments, satAssignmentStudents, satTestSessions, satLiveSessions, satOfficialScores, type SatQuestion, type SatTestSession,
 } from "../drizzle/schema";
 import { issueSatCookie, clearSatCookie, resolveSatStudent, hashPassword, verifyPassword, tempPassword } from "./satAuth";
 import { checkAnswer, recordAnswer, pickDrillQuestions, questionsByIds, publicQuestion, masteryLabel, seedSatSkills } from "./satEngine";
 import { generateQuestions, generateLesson, tutorReply } from "./satQuestionGenerator";
 import { DOMAIN_LABEL, DOMAIN_SHARE } from "./satSkills";
+import { getSatTutorSignedUrl, buildDynamicVariables, SAT_LIVE_MAX_SECONDS, SAT_LIVE_DAILY_MINUTES } from "./satLiveAgent";
+import { reviewWorkingPhoto, visionAvailable } from "./satVision";
 import { buildDiagnostic, buildMockStage1, routeStage2, moduleOpen, moduleDeadline, scoreSession, predictScore, todayPlan, SHAPE, type TestModule, type TestScores } from "./satMock";
 
 function assertAdmin(ctx: { user: { role: string } | null }) {
@@ -457,6 +459,67 @@ export const satRouter = router({
     return { ...plan, daysToTest, predicted, targetScore: s.targetScore, hasDiagnostic };
   }),
 
+  // ═══════════════ Phase 3: live Emma, photo of working, official scores ═══════════════
+  /** Start a live voice call with Emma about one question (daily minutes cap). */
+  liveStart: publicProcedure
+    .input(z.object({ questionId: z.number().int(), studentAnswer: z.string().max(200).optional() }))
+    .mutation(async ({ input, ctx }) => {
+      const s = await requireStudent(ctx); const db = await dbOrThrow();
+      const since = new Date(); since.setHours(0, 0, 0, 0);
+      const today = await db.select({ seconds: satLiveSessions.seconds, startedAt: satLiveSessions.startedAt, endedAt: satLiveSessions.endedAt }).from(satLiveSessions).where(and(eq(satLiveSessions.studentId, s.id), gte(satLiveSessions.startedAt, since)));
+      const usedSec = today.reduce((x, r) => x + (r.endedAt ? r.seconds : Math.min(SAT_LIVE_MAX_SECONDS, Math.round((Date.now() - new Date(r.startedAt).getTime()) / 1000))), 0);
+      const remaining = SAT_LIVE_DAILY_MINUTES * 60 - usedSec;
+      if (remaining < 60) throw new TRPCError({ code: "FORBIDDEN", message: `You've used today's ${SAT_LIVE_DAILY_MINUTES} minutes of live Emma. Text chat still works, and the minutes reset tomorrow.` });
+      const [q] = await db.select().from(satQuestions).where(eq(satQuestions.id, input.questionId)).limit(1);
+      if (!q) throw new TRPCError({ code: "NOT_FOUND" });
+      const [k] = await db.select({ title: satSkills.title }).from(satSkills).where(eq(satSkills.id, q.skillId)).limit(1);
+      const signedUrl = await getSatTutorSignedUrl();
+      const res = await db.insert(satLiveSessions).values({ studentId: s.id, questionId: q.id });
+      const liveSessionId = Number((res as any)[0]?.insertId || 0);
+      const dynamicVariables = buildDynamicVariables({ studentName: s.name, lang: s.lang, skillTitle: k?.title || "SAT", passage: q.passage, stem: q.stem, choices: q.choices as string[] | null, answer: q.answer, explanation: q.explanationEn, studentAnswer: input.studentAnswer || null, format: q.format });
+      return { signedUrl, liveSessionId, dynamicVariables, maxSeconds: Math.min(SAT_LIVE_MAX_SECONDS, remaining), remainingMinutes: Math.floor(remaining / 60) };
+    }),
+
+  liveEnd: publicProcedure
+    .input(z.object({ liveSessionId: z.number().int(), seconds: z.number().int().min(0).max(7200) }))
+    .mutation(async ({ input, ctx }) => {
+      const s = await requireStudent(ctx); const db = await dbOrThrow();
+      await db.update(satLiveSessions).set({ endedAt: new Date(), seconds: input.seconds }).where(and(eq(satLiveSessions.id, input.liveSessionId), eq(satLiveSessions.studentId, s.id)));
+      return { ok: true };
+    }),
+
+  /** Photo of handwritten working → Emma reads it and points to the slip. */
+  tutorPhoto: publicProcedure
+    .input(z.object({ questionId: z.number().int(), imageBase64: z.string().min(100).max(6_000_000), mimeType: z.string().max(40).default("image/jpeg"), studentAnswer: z.string().max(200).optional(), note: z.string().max(300).optional() }))
+    .mutation(async ({ input, ctx }) => {
+      const s = await requireStudent(ctx); const db = await dbOrThrow();
+      if (!visionAvailable()) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Photo review isn't configured yet." });
+      const [q] = await db.select().from(satQuestions).where(eq(satQuestions.id, input.questionId)).limit(1);
+      if (!q) throw new TRPCError({ code: "NOT_FOUND" });
+      const text = await reviewWorkingPhoto({ imageBase64: input.imageBase64, mimeType: input.mimeType, lang: s.lang, question: { passage: q.passage, stem: q.stem, choices: q.choices as string[] | null, answer: q.answer, explanation: q.explanationEn, format: q.format }, studentAnswer: input.studentAnswer, note: input.note });
+      if (!text) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Emma couldn't read the photo. Try a clearer, brighter shot." });
+      return { text };
+    }),
+
+  officialScores: publicProcedure.query(async ({ ctx }) => {
+    const s = await requireStudent(ctx); const db = await dbOrThrow();
+    return db.select().from(satOfficialScores).where(eq(satOfficialScores.studentId, s.id)).orderBy(desc(satOfficialScores.createdAt));
+  }),
+  addOfficialScore: publicProcedure
+    .input(z.object({ source: z.enum(["bluebook", "real", "other"]).default("bluebook"), testDate: z.string().max(40).optional(), rw: z.number().int().min(200).max(800), math: z.number().int().min(200).max(800), note: z.string().max(200).optional() }))
+    .mutation(async ({ input, ctx }) => {
+      const s = await requireStudent(ctx); const db = await dbOrThrow();
+      await db.insert(satOfficialScores).values({ studentId: s.id, source: input.source, testDate: input.testDate || null, rw: input.rw, math: input.math, total: input.rw + input.math, note: input.note || null });
+      return { ok: true };
+    }),
+  deleteOfficialScore: publicProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(async ({ input, ctx }) => {
+      const s = await requireStudent(ctx); const db = await dbOrThrow();
+      await db.delete(satOfficialScores).where(and(eq(satOfficialScores.id, input.id), eq(satOfficialScores.studentId, s.id)));
+      return { ok: true };
+    }),
+
   /** Dashboard stats. */
   progress: publicProcedure.query(async ({ ctx }) => {
     const s = await requireStudent(ctx); const db = await dbOrThrow();
@@ -464,12 +527,19 @@ export const satRouter = router({
     const recent = await db.select().from(satResponses).where(and(eq(satResponses.studentId, s.id), gte(satResponses.createdAt, since7)));
     const all = await db.select({ n: sql<number>`count(*)`, c: sql<number>`sum(correct)` }).from(satResponses).where(eq(satResponses.studentId, s.id));
     const days = new Set(recent.map(r => new Date(r.createdAt).toISOString().slice(0, 10)));
+    // Streak: consecutive active days ending today or yesterday.
+    const allDays = await db.select({ d: sql<string>`DATE(createdAt)` }).from(satResponses).where(eq(satResponses.studentId, s.id)).groupBy(sql`DATE(createdAt)`);
+    const dset = new Set(allDays.map(r => String(r.d).slice(0, 10)));
+    let streak = 0; const cur = new Date(); cur.setHours(0, 0, 0, 0);
+    if (!dset.has(cur.toISOString().slice(0, 10))) cur.setDate(cur.getDate() - 1);
+    while (dset.has(cur.toISOString().slice(0, 10))) { streak++; cur.setDate(cur.getDate() - 1); }
     const mastery = await db.select().from(satMastery).where(eq(satMastery.studentId, s.id));
     const skills = await db.select({ id: satSkills.id, domainCode: satSkills.domainCode, section: satSkills.section }).from(satSkills);
     const byDomain: Record<string, { sum: number; n: number }> = {};
     for (const k of skills) { const m = mastery.find(x => x.skillId === k.id); const p = m ? Number(m.pKnown) : 0.2; const d = byDomain[k.domainCode] || { sum: 0, n: 0 }; d.sum += p; d.n++; byDomain[k.domainCode] = d; }
     return {
       week: { answered: recent.length, correct: recent.filter(r => r.correct).length, minutes: Math.round(recent.reduce((x, r) => x + (r.timeMs || 0), 0) / 60000), activeDays: days.size },
+      streak,
       allTime: { answered: Number(all[0]?.n || 0), correct: Number(all[0]?.c || 0) },
       domains: Object.entries(byDomain).map(([code, d]) => ({ code, label: DOMAIN_LABEL[code]?.[s.lang] || code, share: DOMAIN_SHARE[code] || 0, mastery: d.n ? d.sum / d.n : 0.2 })),
     };
@@ -716,6 +786,21 @@ export const satAdminRouter = router({
       }
       return { html, sent, to: s.parentEmail };
     }),
+
+  // ═══════════════ Phase 3 admin ═══════════════
+  liveUsage: protectedProcedure.query(async ({ ctx }) => {
+    assertAdmin(ctx); const db = await dbOrThrow();
+    const since = new Date(Date.now() - 30 * 86400000);
+    const rows = await db.select({ studentId: satLiveSessions.studentId, name: satStudents.name, n: sql<number>`count(*)`, seconds: sql<number>`sum(seconds)` }).from(satLiveSessions).innerJoin(satStudents, eq(satStudents.id, satLiveSessions.studentId)).where(gte(satLiveSessions.startedAt, since)).groupBy(satLiveSessions.studentId, satStudents.name);
+    const total = rows.reduce((x, r) => x + Number(r.seconds || 0), 0);
+    return { dailyCapMinutes: SAT_LIVE_DAILY_MINUTES, totalMinutes30d: Math.round(total / 60), students: rows.map(r => ({ studentId: r.studentId, name: r.name, calls: Number(r.n), minutes: Math.round(Number(r.seconds || 0) / 60) })) };
+  }),
+
+  officialScores: protectedProcedure.query(async ({ ctx }) => {
+    assertAdmin(ctx); const db = await dbOrThrow();
+    const rows = await db.select({ o: satOfficialScores, name: satStudents.name }).from(satOfficialScores).innerJoin(satStudents, eq(satStudents.id, satOfficialScores.studentId)).orderBy(desc(satOfficialScores.createdAt)).limit(200);
+    return rows.map(r => ({ ...r.o, name: r.name }));
+  }),
 
   // ── Class heatmap ──
   heatmap: protectedProcedure.query(async ({ ctx }) => {
