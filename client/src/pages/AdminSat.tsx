@@ -6,12 +6,12 @@
  *   Assign    — auto-build an assignment from approved skills for chosen students
  *   Heatmap   — class × skill mastery; "teach next" list for the offline class
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Navigation from "@/components/Navigation";
 import { trpc } from "@/lib/trpc";
 import { Loader2, CheckCircle2, XCircle, UserPlus, KeyRound } from "lucide-react";
 
-type Tab = "students" | "skills" | "questions" | "assign" | "heatmap";
+type Tab = "students" | "skills" | "questions" | "assign" | "heatmap" | "tests";
 const LETTERS = ["A", "B", "C", "D"];
 
 export default function AdminSat() {
@@ -36,7 +36,7 @@ export default function AdminSat() {
           {(jobs.data || []).filter(j => j.status === "error").slice(0, 2).map(j => <div key={j.key} className="mt-1 text-xs text-red-600">{j.label}: {j.error}</div>)}
         </div>
         <div className="flex flex-wrap gap-1 border-b border-slate-200">
-          {([["students", "Students"], ["skills", "Skills & lessons"], ["questions", "Question bank"], ["assign", "Assignments"], ["heatmap", "Class heatmap"]] as [Tab, string][]).map(([k, l]) => (
+          {([["students", "Students"], ["skills", "Skills & lessons"], ["questions", "Question bank"], ["assign", "Assignments"], ["heatmap", "Class heatmap"], ["tests", "Mock results"]] as [Tab, string][]).map(([k, l]) => (
             <button key={k} onClick={() => setTab(k)} className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px ${tab === k ? "border-indigo-600 text-indigo-700" : "border-transparent text-slate-500 hover:text-slate-800"}`}>{l}</button>
           ))}
         </div>
@@ -45,6 +45,7 @@ export default function AdminSat() {
         {tab === "questions" && <Questions setMsg={setMsg} />}
         {tab === "assign" && <Assign setMsg={setMsg} />}
         {tab === "heatmap" && <Heatmap />}
+        {tab === "tests" && <TestResults />}
       </main>
     </div>
   );
@@ -61,6 +62,10 @@ function Students({ setMsg }: { setMsg: (m: string) => void }) {
   });
   const setActive = trpc.admin.sat.setStudentActive.useMutation({ onSuccess: () => utils.admin.sat.students.invalidate() });
   const reset = trpc.admin.sat.resetStudentPassword.useMutation({ onSuccess: (d) => setMsg(`New temporary password: ${d.tempPassword}${d.emailed ? " (emailed)" : " — email NOT sent"}`) });
+  const update = trpc.admin.sat.updateStudent.useMutation({ onSuccess: () => { utils.admin.sat.students.invalidate(); setMsg("Saved."); }, onError: (e) => setMsg(`Error: ${e.message}`) });
+  const report = trpc.admin.sat.parentReport.useMutation({ onSuccess: (d) => { if (d.sent) setMsg(`Parent report sent to ${d.to}.`); else { const w = window.open("", "_blank"); if (w) { w.document.write(d.html); w.document.close(); } } }, onError: (e) => setMsg(`Error: ${e.message}`) });
+  const [editing, setEditing] = useState<number | null>(null);
+  const [pe, setPe] = useState(""); const [ts, setTs] = useState(""); const [td, setTd] = useState("");
   return (
     <section className="space-y-4">
       <form onSubmit={e => { e.preventDefault(); create.mutate({ email, name, sendEmail }); }} className="bg-white rounded-2xl border border-slate-200 p-5 grid md:grid-cols-[1fr_1fr_auto_auto] gap-2 items-center">
@@ -73,14 +78,32 @@ function Students({ setMsg }: { setMsg: (m: string) => void }) {
         <table className="w-full text-sm">
           <thead><tr className="text-left text-xs uppercase tracking-wider text-slate-500"><th className="p-3">Student</th><th>Access</th><th>Answered</th><th>Last active</th><th>Last login</th><th></th></tr></thead>
           <tbody>{(list.data || []).map(s => (
-            <tr key={s.id} className="border-t border-slate-100">
-              <td className="p-3"><div className="font-semibold">{s.name}</div><div className="text-xs text-slate-500">{s.email}{s.targetScore ? ` · target ${s.targetScore}` : ""}{s.testDate ? ` · test ${s.testDate}` : ""}</div></td>
+            <Fragment key={s.id}>
+            <tr className="border-t border-slate-100">
+              <td className="p-3"><div className="font-semibold">{s.name}</div><div className="text-xs text-slate-500">{s.email}{s.targetScore ? ` · target ${s.targetScore}` : ""}{s.testDate ? ` · test ${s.testDate}` : ""}{(s as any).parentEmail ? ` · parent ${(s as any).parentEmail}` : ""}</div></td>
               <td><button onClick={() => setActive.mutate({ id: s.id, active: !s.active })} className={`text-xs px-2.5 py-1 rounded-full font-semibold ${s.active ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"}`}>{s.active ? "Active" : "Off"}</button></td>
               <td>{s.answered}</td>
               <td className="text-xs text-slate-600">{s.lastActive ? new Date(s.lastActive as any).toLocaleDateString() : "–"}</td>
               <td className="text-xs text-slate-600">{s.lastLoginAt ? new Date(s.lastLoginAt).toLocaleDateString() : "never"}</td>
-              <td className="p-3 text-right"><button onClick={() => { if (confirm(`Reset password for ${s.name}?`)) reset.mutate({ id: s.id, sendEmail: true }); }} className="text-xs px-2.5 py-1 rounded-lg border border-slate-300 flex items-center gap-1 ml-auto"><KeyRound className="w-3 h-3" />Reset password</button></td>
+              <td className="p-3 text-right">
+                <div className="flex flex-wrap gap-1 justify-end">
+                  <button onClick={() => { setEditing(editing === s.id ? null : s.id); setPe((s as any).parentEmail || ""); setTs(s.targetScore ? String(s.targetScore) : ""); setTd(s.testDate || ""); }} className="text-xs px-2.5 py-1 rounded-lg border border-slate-300">Edit</button>
+                  <button onClick={() => report.mutate({ id: s.id, send: false })} className="text-xs px-2.5 py-1 rounded-lg border border-slate-300">Preview report</button>
+                  <button onClick={() => { if (!(s as any).parentEmail) { setMsg("Add a parent email first (Edit)."); return; } if (confirm(`Email the progress report to ${(s as any).parentEmail}?`)) report.mutate({ id: s.id, send: true }); }} disabled={report.isPending} className="text-xs px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-semibold disabled:opacity-50">Send to parent</button>
+                  <button onClick={() => { if (confirm(`Reset password for ${s.name}?`)) reset.mutate({ id: s.id, sendEmail: true }); }} className="text-xs px-2.5 py-1 rounded-lg border border-slate-300 flex items-center gap-1"><KeyRound className="w-3 h-3" />Reset password</button>
+                </div>
+              </td>
             </tr>
+            {editing === s.id && <tr key={s.id + "-edit"} className="bg-slate-50"><td colSpan={6} className="p-3">
+              <div className="flex flex-wrap gap-2 items-center text-xs">
+                <input value={pe} onChange={e => setPe(e.target.value)} placeholder="Parent email" className="border rounded-lg px-2 py-1 w-56" />
+                <input value={ts} onChange={e => setTs(e.target.value)} placeholder="Target score" className="border rounded-lg px-2 py-1 w-24" />
+                <input type="date" value={td} onChange={e => setTd(e.target.value)} className="border rounded-lg px-2 py-1" />
+                <button onClick={() => update.mutate({ id: s.id, parentEmail: pe.trim() || null, targetScore: ts ? Number(ts) : null, testDate: td || null })} className="px-3 py-1 rounded-lg bg-slate-900 text-white font-semibold">Save</button>
+                <button onClick={() => setEditing(null)} className="px-3 py-1 rounded-lg border">Cancel</button>
+              </div>
+            </td></tr>}
+            </Fragment>
           ))}</tbody>
         </table>
         {list.data?.length === 0 && <div className="p-5 text-sm text-slate-500">No SAT students yet. Create the first account above.</div>}
@@ -275,6 +298,31 @@ function Assign({ setMsg }: { setMsg: (m: string) => void }) {
         <ul className="divide-y divide-slate-100 text-sm">{(list.data || []).map(a => <li key={a.id} className="py-2 flex justify-between gap-3"><div><b>{a.title}</b><div className="text-xs text-slate-500">{a.count} questions · {a.dueAt ? `due ${new Date(a.dueAt).toLocaleDateString()}` : "no due date"}</div></div><div className="text-xs text-slate-600 text-right">{a.completed}/{a.students} done</div></li>)}</ul>
         {list.data?.length === 0 && <div className="text-sm text-slate-500">No assignments yet.</div>}
       </div>
+    </section>
+  );
+}
+
+// ── Mock results ──────────────────────────────────────────────────────────
+function TestResults() {
+  const r = trpc.admin.sat.testResults.useQuery();
+  if (r.isLoading) return <Loader2 className="w-5 h-5 animate-spin text-slate-400" />;
+  const rows = r.data || [];
+  return (
+    <section className="bg-white rounded-2xl border border-slate-200 overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead><tr className="text-left text-xs uppercase tracking-wider text-slate-500"><th className="p-3">Student</th><th>Test</th><th>Status</th><th>Total</th><th>RW</th><th>Math</th><th>Module 2 route</th><th>Date</th></tr></thead>
+        <tbody>{rows.map(x => (
+          <tr key={x.id} className="border-t border-slate-100">
+            <td className="p-3 font-semibold">{x.name}</td>
+            <td>{x.kind === "mock" ? "Full mock" : "Diagnostic"}</td>
+            <td><span className={`text-[11px] px-2 py-0.5 rounded-full ${x.status === "completed" ? "bg-emerald-100 text-emerald-800" : x.status === "abandoned" ? "bg-slate-200 text-slate-600" : "bg-amber-100 text-amber-800"}`}>{x.status}</span></td>
+            <td className="font-black">{x.scores?.total ?? "–"}</td><td>{x.scores?.rw ?? "–"}</td><td>{x.scores?.math ?? "–"}</td>
+            <td className="text-xs text-slate-500">{x.route || "–"}</td>
+            <td className="text-xs text-slate-500 p-3">{new Date(x.completedAt || x.createdAt).toLocaleDateString()}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+      {rows.length === 0 && <div className="p-5 text-sm text-slate-500">No tests taken yet.</div>}
     </section>
   );
 }

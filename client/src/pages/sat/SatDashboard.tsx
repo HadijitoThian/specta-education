@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { Loader2, ClipboardList, Flame, Target } from "lucide-react";
+import { Loader2, ClipboardList, Flame, Target, CalendarClock, Sparkles, FileText } from "lucide-react";
 import SatShell, { masteryBar, MASTERY_TEXT } from "./SatShell";
 
 const T = {
@@ -18,6 +18,10 @@ export default function SatDashboard() {
   const skills = trpc.sat.skills.useQuery(undefined, { enabled: !!me.data });
   const progress = trpc.sat.progress.useQuery(undefined, { enabled: !!me.data });
   const assignments = trpc.sat.assignments.useQuery(undefined, { enabled: !!me.data });
+  const plan = trpc.sat.plan.useQuery(undefined, { enabled: !!me.data });
+  const tests = trpc.sat.tests.useQuery(undefined, { enabled: !!me.data });
+  const startTest = trpc.sat.startTest.useMutation({ onSuccess: (d) => navigate(`/sat/test/${d.sessionId}`) });
+  const openTest = (tests.data || []).find(x => x.status === "active" || x.status === "break");
   const utils = trpc.useUtils();
   const startDrill = trpc.sat.startDrill.useMutation({ onSuccess: (d) => navigate(`/sat/drill/${d.attemptId}`) });
   const startAssignment = trpc.sat.startAssignment.useMutation({ onSuccess: (d) => navigate(`/sat/drill/${d.attemptId}`) });
@@ -64,6 +68,44 @@ export default function SatDashboard() {
             <div className="text-2xl font-black mt-1">{c.value}</div>
           </div>
         ))}
+      </section>
+
+      {/* Today's plan + predicted score + tests */}
+      <section className="grid lg:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 lg:col-span-1">
+          <h2 className="font-bold flex items-center gap-2 mb-1"><Sparkles className="w-4 h-4 text-indigo-600" />{lang === "id" ? "Rencana hari ini" : "Today's plan"}</h2>
+          <div className="text-xs text-slate-500 mb-3">{plan.data?.daysToTest !== null && plan.data?.daysToTest !== undefined ? <span className="inline-flex items-center gap-1"><CalendarClock className="w-3.5 h-3.5" />{plan.data.daysToTest > 0 ? (lang === "id" ? `${plan.data.daysToTest} hari lagi menuju tes` : `${plan.data.daysToTest} days to your test`) : (lang === "id" ? "Hari tes!" : "Test day!")}</span> : (lang === "id" ? "±20 menit" : "About 20 minutes")}</div>
+          {plan.isLoading ? <Loader2 className="w-4 h-4 animate-spin text-slate-400" /> : (plan.data?.items.length || 0) === 0 ? <div className="text-sm text-slate-500">{lang === "id" ? "Belum ada soal yang disetujui. Cek lagi nanti." : "No approved content yet. Check back soon."}</div> : (
+            <ol className="space-y-2">{plan.data!.items.map((it, i) => (
+              <li key={it.code} className="flex items-center gap-2 text-sm">
+                <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                <div className="flex-1 min-w-0"><div className="font-medium truncate">{it.title}</div><div className="text-[11px] text-slate-500">{it.section === "rw" ? "RW" : "Math"} · {it.reason === "new" ? (lang === "id" ? "baru" : "new") : it.reason === "weak" ? (lang === "id" ? "perlu latihan" : "needs work") : (lang === "id" ? "ulas" : "review")} · {it.minutes} min</div></div>
+                {it.action === "lesson" ? <Link href={`/sat/skill/${it.code}`} className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-300">{t.lesson}</Link> : <button onClick={() => startDrill.mutate({ code: it.code, count: 8 })} disabled={startDrill.isPending} className="text-xs font-bold px-2.5 py-1.5 rounded-lg bg-slate-900 text-white disabled:opacity-60">{t.practise}</button>}
+              </li>
+            ))}</ol>
+          )}
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <h2 className="font-bold mb-1">{lang === "id" ? "Perkiraan skor" : "Predicted score"}</h2>
+          {plan.data ? (
+            <>
+              <div className="text-4xl font-black">{plan.data.predicted.practised === 0 && !plan.data.predicted.lastMock ? "—" : plan.data.predicted.total}<span className="text-sm text-slate-400 font-semibold"> / 1600</span></div>
+              <div className="text-xs text-slate-500 mt-1">RW {plan.data.predicted.rw} · Math {plan.data.predicted.math}{plan.data.targetScore ? ` · ${lang === "id" ? "target" : "target"} ${plan.data.targetScore}` : ""}</div>
+              <div className="text-[11px] text-slate-400 mt-2">{plan.data.predicted.practised === 0 && !plan.data.predicted.lastMock ? (lang === "id" ? "Kerjakan diagnostik untuk mendapat perkiraan." : "Take the diagnostic to get an estimate.") : plan.data.predicted.basis === "blend" ? (lang === "id" ? "Dari mock terakhir + latihan harian." : "From your latest mock + daily practice.") : (lang === "id" ? "Dari latihan harian; mock akan mempertajam." : "From daily practice; a full mock will sharpen this.")}</div>
+            </>
+          ) : <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <h2 className="font-bold flex items-center gap-2 mb-2"><FileText className="w-4 h-4 text-indigo-600" />{lang === "id" ? "Tes" : "Tests"}</h2>
+          {openTest ? <Link href={`/sat/test/${openTest.id}`} className="block text-center text-sm font-bold px-3 py-2 rounded-xl bg-amber-500 text-white mb-2">{lang === "id" ? "Lanjutkan tes yang berjalan" : "Resume test in progress"} →</Link> : (
+            <div className="flex flex-col gap-2 mb-2">
+              {!plan.data?.hasDiagnostic && <button onClick={() => startTest.mutate({ kind: "diagnostic" })} disabled={startTest.isPending} className="text-sm font-bold px-3 py-2 rounded-xl bg-slate-900 text-white disabled:opacity-60">{lang === "id" ? "Tes diagnostik" : "Diagnostic test"} <span className="font-normal text-slate-300">· 49 q · 67 min</span></button>}
+              <button onClick={() => startTest.mutate({ kind: "mock" })} disabled={startTest.isPending} className="text-sm font-bold px-3 py-2 rounded-xl border-2 border-slate-900 disabled:opacity-60">{lang === "id" ? "Tes lengkap" : "Full practice test"} <span className="font-normal text-slate-500">· 98 q · 2h 14m</span></button>
+            </div>
+          )}
+          {startTest.error && <div className="text-xs text-red-600 mb-2">{startTest.error.message}</div>}
+          <ul className="text-xs divide-y divide-slate-100">{(tests.data || []).filter(x => x.status === "completed").slice(0, 4).map(x => <li key={x.id} className="py-1.5 flex justify-between"><span>{x.kind === "mock" ? (lang === "id" ? "Tes lengkap" : "Full test") : (lang === "id" ? "Diagnostik" : "Diagnostic")} · {x.completedAt ? new Date(x.completedAt).toLocaleDateString() : ""}</span><Link href={`/sat/test/${x.id}/report`} className="font-bold text-indigo-700">{x.scores?.total ?? "—"} →</Link></li>)}</ul>
+        </div>
       </section>
 
       {/* Assignments */}

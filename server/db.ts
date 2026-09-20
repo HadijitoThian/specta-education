@@ -4425,8 +4425,24 @@ export async function ensureSatSchema(): Promise<void> {
        UNIQUE KEY uk_satas (assignmentId, studentId)
      )`,
   ];
+  statements.push(`CREATE TABLE IF NOT EXISTS sat_test_sessions (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       studentId INT NOT NULL,
+       attemptId INT NOT NULL,
+       kind ENUM(diagnostic,mock) NOT NULL,
+       modules JSON NOT NULL,
+       currentModule INT NOT NULL DEFAULT 0,
+       moduleStartedAt TIMESTAMP NULL,
+       breakUntil TIMESTAMP NULL,
+       status ENUM(active,break,completed,abandoned) NOT NULL DEFAULT active,
+       scores JSON NULL,
+       createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       completedAt TIMESTAMP NULL,
+       INDEX idx_sts_student (studentId)
+     )`);
+  statements.push("ALTER TABLE sat_students ADD COLUMN parentEmail VARCHAR(320) NULL");
   for (const stmt of statements) {
     try { await db.execute(sql.raw(stmt)); }
-    catch (e: any) { if (!/already exists/i.test(e?.message || "")) console.error("[SAT] ensureSatSchema failed:", e?.message); }
+    catch (e: any) { if (!/already exists|Duplicate column/i.test(e?.message || "")) console.error("[SAT] ensureSatSchema failed:", e?.message); }
   }
 }

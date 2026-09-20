@@ -2918,6 +2918,7 @@ export const satStudents = mysqlTable("sat_students", {
   targetScore: int("targetScore"),
   testDate: varchar("testDate", { length: 40 }),
   lang: mysqlEnum("lang", ["en", "id"]).default("en").notNull(), // explanation language preference
+  parentEmail: varchar("parentEmail", { length: 320 }),           // Phase 2: parent progress report recipient
   mustChangePassword: boolean("mustChangePassword").default(true).notNull(),
   lastLoginAt: timestamp("lastLoginAt"),
   createdBy: int("createdBy"),
@@ -2987,6 +2988,27 @@ export const satAttempts = mysqlTable("sat_attempts", {
   completedAt: timestamp("completedAt"),
 });
 export type SatAttempt = typeof satAttempts.$inferSelect;
+
+/**
+ * Phase 2: a timed test session (diagnostic or full Bluebook-style mock).
+ * modules = [{ section, stage, variant, minutes, questionIds }] assembled at
+ * start; module timing is server-authoritative (moduleStartedAt + minutes).
+ */
+export const satTestSessions = mysqlTable("sat_test_sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  studentId: int("studentId").notNull(),
+  attemptId: int("attemptId").notNull(),
+  kind: mysqlEnum("kind", ["diagnostic", "mock"]).notNull(),
+  modules: json("modules").notNull(),
+  currentModule: int("currentModule").default(0).notNull(),
+  moduleStartedAt: timestamp("moduleStartedAt"),
+  breakUntil: timestamp("breakUntil"),
+  status: mysqlEnum("status", ["active", "break", "completed", "abandoned"]).default("active").notNull(),
+  scores: json("scores"),                                        // { rw, math, total, sections: {...} } once completed
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+});
+export type SatTestSession = typeof satTestSessions.$inferSelect;
 
 export const satResponses = mysqlTable("sat_responses", {
   id: int("id").autoincrement().primaryKey(),

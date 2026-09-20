@@ -15,12 +15,13 @@ import { getDb } from "./db";
 import { ENV } from "./_core/env";
 import {
   satStudents, satSkills, satQuestions, satAttempts, satResponses, satMastery,
-  satAssignments, satAssignmentStudents, type SatQuestion,
+  satAssignments, satAssignmentStudents, satTestSessions, type SatQuestion, type SatTestSession,
 } from "../drizzle/schema";
 import { issueSatCookie, clearSatCookie, resolveSatStudent, hashPassword, verifyPassword, tempPassword } from "./satAuth";
 import { checkAnswer, recordAnswer, pickDrillQuestions, questionsByIds, publicQuestion, masteryLabel, seedSatSkills } from "./satEngine";
 import { generateQuestions, generateLesson, tutorReply } from "./satQuestionGenerator";
 import { DOMAIN_LABEL, DOMAIN_SHARE } from "./satSkills";
+import { buildDiagnostic, buildMockStage1, routeStage2, moduleOpen, moduleDeadline, scoreSession, predictScore, todayPlan, SHAPE, type TestModule, type TestScores } from "./satMock";
 
 function assertAdmin(ctx: { user: { role: string } | null }) {
   if (!ctx.user || ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Admin only." });
@@ -82,6 +83,62 @@ const fullQuestion = (q: SatQuestion) => ({
   ...publicQuestion(q), answer: q.answer, acceptedAnswers: q.acceptedAnswers as string[] | null,
   explanationEn: q.explanationEn, explanationId: q.explanationId, distractorNotes: q.distractorNotes as Record<string, string> | null,
 });
+
+// ── Phase 2 test-session helpers ──────────────────────────────────────────
+async function loadSession(studentId: number, sessionId: number): Promise<SatTestSession> {
+  const db = await dbOrThrow();
+  const [sess] = await db.select().from(satTestSessions).where(and(eq(satTestSessions.id, sessionId), eq(satTestSessions.studentId, studentId))).limit(1);
+  if (!sess) throw new TRPCError({ code: "NOT_FOUND", message: "Test session not found." });
+  return sess;
+}
+
+/** What the client sees: only the open module's questions; deadlines; saved answers. */
+async function sessionView(sess: SatTestSession) {
+  const db = await dbOrThrow();
+  const mods = sess.modules as TestModule[];
+  const cur = mods[sess.currentModule];
+  const qs = sess.status === "active" && cur ? await questionsByIds(cur.questionIds) : [];
+  const saved = cur ? await db.select({ questionId: satResponses.questionId, answer: satResponses.answer }).from(satResponses).where(and(eq(satResponses.attemptId, sess.attemptId), inArray(satResponses.questionId, cur.questionIds.length ? cur.questionIds : [-1]))) : [];
+  return {
+    id: sess.id, kind: sess.kind, status: sess.status, currentModule: sess.currentModule, totalModules: mods.length,
+    module: cur ? { section: cur.section, stage: cur.stage, minutes: cur.minutes, count: cur.questionIds.length } : null,
+    started: !!sess.moduleStartedAt, deadline: cur ? moduleDeadline(sess.moduleStartedAt, cur.minutes) : null,
+    breakUntil: sess.breakUntil ? sess.breakUntil.getTime() : null, serverNow: Date.now(),
+    questions: qs.map(publicQuestion), saved: saved.map(x => ({ questionId: x.questionId, answer: x.answer || "" })),
+    scores: sess.status === "completed" ? (sess.scores as TestScores | null) : null,
+  };
+}
+
+/** Close the open module: route Module 2, start the break, or finish + score. */
+async function submitCurrentModule(sess: SatTestSession): Promise<void> {
+  const db = await dbOrThrow();
+  const mods = sess.modules as TestModule[];
+  const cur = mods[sess.currentModule];
+  if (!cur) return;
+  const responses = await db.select().from(satResponses).where(eq(satResponses.attemptId, sess.attemptId));
+  const ok = new Map(responses.map(r => [r.questionId, r.correct]));
+  const next = mods[sess.currentModule + 1];
+  if (next && next.stage === 2 && next.questionIds.length === 0) {
+    const m1c = cur.questionIds.filter(id => ok.get(id)).length;
+    const routed = await routeStage2(cur.section, m1c, cur.questionIds.length, mods.flatMap(m => m.questionIds));
+    next.variant = routed.variant; next.questionIds = routed.questionIds;
+    await db.update(satAttempts).set({ questionIds: mods.flatMap(m => m.questionIds) }).where(eq(satAttempts.id, sess.attemptId));
+  }
+  if (!next) {
+    const scores = await scoreSession(mods, responses.map(r => ({ questionId: r.questionId, correct: r.correct })));
+    // Mastery update happens once, at the end, so no feedback leaks mid-test.
+    const qs = await questionsByIds(mods.flatMap(m => m.questionIds));
+    for (const r of responses) { const q = qs.find(x => x.id === r.questionId); if (q) await recordAnswer({ studentId: sess.studentId, skillId: q.skillId, correct: r.correct, format: q.format }); }
+    await db.update(satTestSessions).set({ modules: mods, status: "completed", scores, completedAt: new Date(), moduleStartedAt: null }).where(eq(satTestSessions.id, sess.id));
+    await db.update(satAttempts).set({ status: "completed", completedAt: new Date(), correct: responses.filter(r => r.correct).length, total: mods.reduce((x, m) => x + m.questionIds.length, 0) }).where(eq(satAttempts.id, sess.attemptId));
+    return;
+  }
+  const isBreak = sess.kind === "mock" && cur.section === "rw" && next.section === "math";
+  await db.update(satTestSessions).set({
+    modules: mods, currentModule: sess.currentModule + 1, moduleStartedAt: isBreak ? null : new Date(),
+    status: isBreak ? "break" : "active", breakUntil: isBreak ? new Date(Date.now() + SHAPE.breakMinutes * 60000) : null,
+  }).where(eq(satTestSessions.id, sess.id));
+}
 
 // =========================================================================
 // STUDENT
@@ -273,6 +330,132 @@ export const satRouter = router({
       const text = await tutorReply({ mode: input.mode, lang: s.lang, studentAnswer: input.studentAnswer, message: input.message, history: input.history, question: { passage: q.passage, stem: q.stem, choices: q.choices as string[] | null, answer: q.answer, explanationEn: q.explanationEn, format: q.format } });
       return { text };
     }),
+
+  // ═══════════════ Phase 2: diagnostic + full mock ═══════════════
+  /** Start a diagnostic (1 RW + 1 Math module) or a full Bluebook-style mock. */
+  startTest: publicProcedure
+    .input(z.object({ kind: z.enum(["diagnostic", "mock"]) }))
+    .mutation(async ({ input, ctx }) => {
+      const s = await requireStudent(ctx); const db = await dbOrThrow();
+      const open = await db.select().from(satTestSessions).where(and(eq(satTestSessions.studentId, s.id), inArray(satTestSessions.status, ["active", "break"]))).limit(1);
+      if (open.length) return { sessionId: open[0].id, resumed: true };
+      const modules = input.kind === "diagnostic" ? await buildDiagnostic() : await buildMockStage1();
+      const short = modules.filter(m => m.stage === 1 && m.questionIds.length < (m.section === "rw" ? SHAPE.rw.n : SHAPE.math.n) * 0.6);
+      if (short.length) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "The question bank doesn't have enough approved questions for a full test yet. Ask your teacher." });
+      const allIds = modules.flatMap(m => m.questionIds);
+      const res = await db.insert(satAttempts).values({ studentId: s.id, kind: input.kind, questionIds: allIds, total: input.kind === "diagnostic" ? allIds.length : (SHAPE.rw.n + SHAPE.math.n) * 2 });
+      const attemptId = Number((res as any)[0]?.insertId || 0);
+      const r2 = await db.insert(satTestSessions).values({ studentId: s.id, attemptId, kind: input.kind, modules });
+      return { sessionId: Number((r2 as any)[0]?.insertId || 0), resumed: false };
+    }),
+
+  /** Current state of a test session (auto-submits an expired module). */
+  testSession: publicProcedure
+    .input(z.object({ sessionId: z.number().int() }))
+    .query(async ({ input, ctx }) => {
+      const s = await requireStudent(ctx);
+      let sess = await loadSession(s.id, input.sessionId);
+      const mods = sess.modules as TestModule[];
+      const cur = mods[sess.currentModule];
+      if (sess.status === "active" && cur && sess.moduleStartedAt && !moduleOpen(sess.moduleStartedAt, cur.minutes)) {
+        await submitCurrentModule(sess); sess = await loadSession(s.id, input.sessionId);
+      }
+      return sessionView(sess);
+    }),
+
+  startModule: publicProcedure
+    .input(z.object({ sessionId: z.number().int() }))
+    .mutation(async ({ input, ctx }) => {
+      const s = await requireStudent(ctx); const db = await dbOrThrow();
+      const sess = await loadSession(s.id, input.sessionId);
+      if (sess.status === "break") {
+        await db.update(satTestSessions).set({ status: "active", breakUntil: null, moduleStartedAt: new Date() }).where(eq(satTestSessions.id, sess.id));
+      } else if (sess.status === "active" && !sess.moduleStartedAt) {
+        await db.update(satTestSessions).set({ moduleStartedAt: new Date() }).where(eq(satTestSessions.id, sess.id));
+      }
+      return sessionView(await loadSession(s.id, input.sessionId));
+    }),
+
+  /** Save/replace an answer inside the open module (no feedback until the report). */
+  saveAnswer: publicProcedure
+    .input(z.object({ sessionId: z.number().int(), questionId: z.number().int(), answer: z.string().max(200) }))
+    .mutation(async ({ input, ctx }) => {
+      const s = await requireStudent(ctx); const db = await dbOrThrow();
+      const sess = await loadSession(s.id, input.sessionId);
+      const cur = (sess.modules as TestModule[])[sess.currentModule];
+      if (sess.status !== "active" || !cur || !cur.questionIds.includes(input.questionId)) throw new TRPCError({ code: "BAD_REQUEST", message: "Not in the open module." });
+      if (!moduleOpen(sess.moduleStartedAt, cur.minutes)) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Time is up for this module." });
+      const [q] = await db.select().from(satQuestions).where(eq(satQuestions.id, input.questionId)).limit(1);
+      if (!q) throw new TRPCError({ code: "NOT_FOUND" });
+      const correct = checkAnswer(q, input.answer);
+      const [ex] = await db.select().from(satResponses).where(and(eq(satResponses.attemptId, sess.attemptId), eq(satResponses.questionId, q.id))).limit(1);
+      if (ex) await db.update(satResponses).set({ answer: input.answer.slice(0, 200), correct }).where(eq(satResponses.id, ex.id));
+      else await db.insert(satResponses).values({ attemptId: sess.attemptId, studentId: s.id, questionId: q.id, skillId: q.skillId, answer: input.answer.slice(0, 200), correct });
+      return { ok: true };
+    }),
+
+  submitModule: publicProcedure
+    .input(z.object({ sessionId: z.number().int() }))
+    .mutation(async ({ input, ctx }) => {
+      const s = await requireStudent(ctx);
+      const sess = await loadSession(s.id, input.sessionId);
+      if (sess.status !== "active") return sessionView(sess);
+      await submitCurrentModule(sess);
+      return sessionView(await loadSession(s.id, input.sessionId));
+    }),
+
+  abandonTest: publicProcedure
+    .input(z.object({ sessionId: z.number().int() }))
+    .mutation(async ({ input, ctx }) => {
+      const s = await requireStudent(ctx); const db = await dbOrThrow();
+      const sess = await loadSession(s.id, input.sessionId);
+      if (sess.status === "completed") return { ok: true };
+      await db.update(satTestSessions).set({ status: "abandoned" }).where(eq(satTestSessions.id, sess.id));
+      await db.update(satAttempts).set({ status: "abandoned" }).where(eq(satAttempts.id, sess.attemptId));
+      return { ok: true };
+    }),
+
+  tests: publicProcedure.query(async ({ ctx }) => {
+    const s = await requireStudent(ctx); const db = await dbOrThrow();
+    const rows = await db.select().from(satTestSessions).where(eq(satTestSessions.studentId, s.id)).orderBy(desc(satTestSessions.createdAt)).limit(20);
+    return rows.map(r => ({ id: r.id, kind: r.kind, status: r.status, scores: r.scores as TestScores | null, createdAt: r.createdAt, completedAt: r.completedAt }));
+  }),
+
+  /** Full report for a completed test: scores, domain breakdown, every question with the student's answer. */
+  testReport: publicProcedure
+    .input(z.object({ sessionId: z.number().int() }))
+    .query(async ({ input, ctx }) => {
+      const s = await requireStudent(ctx); const db = await dbOrThrow();
+      const sess = await loadSession(s.id, input.sessionId);
+      if (sess.status !== "completed") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Test not completed." });
+      const mods = sess.modules as TestModule[];
+      const qs = await questionsByIds(mods.flatMap(m => m.questionIds));
+      const responses = await db.select().from(satResponses).where(eq(satResponses.attemptId, sess.attemptId));
+      const rm = new Map(responses.map(r => [r.questionId, r]));
+      const skills = await db.select({ id: satSkills.id, code: satSkills.code, title: satSkills.title, domainCode: satSkills.domainCode }).from(satSkills);
+      const sk = new Map(skills.map(k => [k.id, k]));
+      return {
+        kind: sess.kind, completedAt: sess.completedAt, scores: sess.scores as TestScores,
+        modules: mods.map((m, i) => ({
+          index: i, section: m.section, stage: m.stage, variant: m.variant,
+          questions: m.questionIds.map((id, n) => { const q = qs.find(x => x.id === id); const r = rm.get(id); const k = q ? sk.get(q.skillId) : undefined; return q ? { n: n + 1, ...fullQuestion(q), given: r?.answer ?? null, correct: !!r?.correct, skillCode: k?.code, skillTitle: k?.title, domainCode: k?.domainCode } : null; }).filter((x): x is NonNullable<typeof x> => !!x),
+        })),
+        domainLabels: Object.fromEntries(Object.entries(DOMAIN_LABEL).map(([k, v]) => [k, v[s.lang]])),
+      };
+    }),
+
+  /** Today's plan + predicted score + countdown. */
+  plan: publicProcedure.query(async ({ ctx }) => {
+    const s = await requireStudent(ctx); const db = await dbOrThrow();
+    const skills = await db.select({ id: satSkills.id, lessonStatus: satSkills.lessonStatus }).from(satSkills);
+    const lessons = new Set(skills.filter(k => k.lessonStatus === "approved").map(k => k.id));
+    const plan = await todayPlan(s.id, (id) => lessons.has(id));
+    const predicted = await predictScore(s.id);
+    let daysToTest: number | null = null;
+    if (s.testDate) { const d = new Date(s.testDate); if (!isNaN(d.getTime())) daysToTest = Math.ceil((d.getTime() - Date.now()) / 86400000); }
+    const hasDiagnostic = (await db.select({ id: satTestSessions.id }).from(satTestSessions).where(and(eq(satTestSessions.studentId, s.id), eq(satTestSessions.kind, "diagnostic"), eq(satTestSessions.status, "completed"))).limit(1)).length > 0;
+    return { ...plan, daysToTest, predicted, targetScore: s.targetScore, hasDiagnostic };
+  }),
 
   /** Dashboard stats. */
   progress: publicProcedure.query(async ({ ctx }) => {
@@ -469,6 +652,70 @@ export const satAdminRouter = router({
     const st = await db.select().from(satAssignmentStudents);
     return rows.map(a => { const mine = st.filter(x => x.assignmentId === a.id); return { id: a.id, title: a.title, count: (a.questionIds as number[]).length, dueAt: a.dueAt, createdAt: a.createdAt, students: mine.length, completed: mine.filter(x => x.status === "completed").length }; });
   }),
+
+  // ═══════════════ Phase 2 admin ═══════════════
+  updateStudent: protectedProcedure
+    .input(z.object({ id: z.number().int(), name: z.string().min(1).max(120).optional(), parentEmail: z.string().email().nullable().optional(), targetScore: z.number().int().min(400).max(1600).nullable().optional(), testDate: z.string().max(40).nullable().optional() }))
+    .mutation(async ({ input, ctx }) => {
+      assertAdmin(ctx); const db = await dbOrThrow();
+      const { id, ...rest } = input; const patch: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(rest)) if (v !== undefined) patch[k] = v;
+      if (Object.keys(patch).length) await db.update(satStudents).set(patch).where(eq(satStudents.id, id));
+      return { ok: true };
+    }),
+
+  testResults: protectedProcedure.query(async ({ ctx }) => {
+    assertAdmin(ctx); const db = await dbOrThrow();
+    const rows = await db.select({ s: satTestSessions, name: satStudents.name }).from(satTestSessions).innerJoin(satStudents, eq(satStudents.id, satTestSessions.studentId)).orderBy(desc(satTestSessions.createdAt)).limit(200);
+    return rows.map(r => ({ id: r.s.id, studentId: r.s.studentId, name: r.name, kind: r.s.kind, status: r.s.status, scores: r.s.scores as TestScores | null, createdAt: r.s.createdAt, completedAt: r.s.completedAt, route: (r.s.modules as TestModule[]).filter(m => m.stage === 2).map(m => `${m.section}:${m.variant}`).join(" ") }));
+  }),
+
+  /** Parent progress report (email via Resend). Preview with send=false. */
+  parentReport: protectedProcedure
+    .input(z.object({ id: z.number().int(), send: z.boolean().default(false) }))
+    .mutation(async ({ input, ctx }) => {
+      assertAdmin(ctx); const db = await dbOrThrow();
+      const [s] = await db.select().from(satStudents).where(eq(satStudents.id, input.id)).limit(1);
+      if (!s) throw new TRPCError({ code: "NOT_FOUND" });
+      const since = new Date(Date.now() - 14 * 86400000);
+      const recent = await db.select().from(satResponses).where(and(eq(satResponses.studentId, s.id), gte(satResponses.createdAt, since)));
+      const days = new Set(recent.map(r => new Date(r.createdAt).toISOString().slice(0, 10))).size;
+      const predicted = await predictScore(s.id);
+      const skills = await db.select().from(satSkills);
+      const mastery = await db.select().from(satMastery).where(eq(satMastery.studentId, s.id));
+      const mm = new Map(mastery.map(m => [m.skillId, Number(m.pKnown)]));
+      const domains = Object.keys(DOMAIN_LABEL).map(code => { const ks = skills.filter(k => k.domainCode === code); const ps = ks.map(k => mm.get(k.id)).filter((x): x is number => x !== undefined); return { code, label: DOMAIN_LABEL[code].en, section: ks[0]?.section, avg: ps.length ? ps.reduce((a, b) => a + b, 0) / ps.length : null }; });
+      const strengths = domains.filter(d => d.avg !== null && d.avg >= 0.7).map(d => d.label);
+      const focus = domains.filter(d => d.avg !== null && d.avg < 0.5).map(d => d.label);
+      const bar = (p: number | null) => p === null ? `<span style="color:#999">not started</span>` : `<span style="display:inline-block;width:120px;height:8px;background:#eee;border-radius:4px;vertical-align:middle"><span style="display:block;width:${Math.round(p * 100)}%;height:8px;background:${p < 0.5 ? "#f59e0b" : p < 0.75 ? "#0ea5e9" : "#10b981"};border-radius:4px"></span></span> ${Math.round(p * 100)}%`;
+      const first = s.name.split(" ")[0];
+      const html = `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#f4f5f8;padding:24px;color:#1f2937;">
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:14px;padding:28px;">
+  <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#4f46e5;font-weight:700">SpecTa SAT Self-Prep &middot; Progress report</div>
+  <h2 style="margin:6px 0 2px;color:#14213D;">${s.name}</h2>
+  <div style="font-size:13px;color:#667">${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}${s.testDate ? ` &middot; SAT test date: ${s.testDate}` : ""}${s.targetScore ? ` &middot; Target: ${s.targetScore}` : ""}</div>
+  <table style="width:100%;margin:18px 0;border-collapse:collapse;font-size:14px">
+    <tr><td style="padding:8px;background:#f8fafc;border-radius:8px"><b>Last 14 days</b><br/>${recent.length} questions answered &middot; ${recent.length ? Math.round(recent.filter(r => r.correct).length / recent.length * 100) : 0}% correct &middot; ${days} active day${days === 1 ? "" : "s"}</td></tr>
+  </table>
+  <div style="font-size:14px;margin-bottom:6px"><b>Estimated score today: ${predicted.total}</b> <span style="color:#667">(Reading &amp; Writing ${predicted.rw} &middot; Math ${predicted.math})</span></div>
+  <div style="font-size:12px;color:#667;margin-bottom:16px">${predicted.basis === "blend" ? "Based on the latest full mock test and daily practice." : "Based on daily practice so far; a full mock test will sharpen this estimate."}${predicted.lastMock ? ` Latest mock: <b>${predicted.lastMock.total}</b>.` : ""}</div>
+  <h3 style="font-size:14px;margin:16px 0 8px">Mastery by area</h3>
+  <table style="width:100%;font-size:13px;border-collapse:collapse">${domains.map(d => `<tr><td style="padding:4px 0;color:#334">${d.section === "rw" ? "RW" : "Math"} &middot; ${d.label}</td><td style="padding:4px 0;text-align:right">${bar(d.avg)}</td></tr>`).join("")}</table>
+  ${strengths.length ? `<p style="font-size:13px"><b>Strengths:</b> ${strengths.join(", ")}</p>` : ""}
+  ${focus.length ? `<p style="font-size:13px"><b>Focus next:</b> ${focus.join(", ")}</p>` : ""}
+  <p style="font-size:13px;color:#334;line-height:1.6">Students who practise 20 minutes a day, most days, typically gain 100+ points over a season. Encourage ${first} to follow the daily plan on the dashboard.</p>
+  <p style="font-size:12px;color:#667;margin-top:22px">Questions? Reply to this email or WhatsApp SpecTa. SAT&reg; is a registered trademark of College Board, which is not affiliated with and does not endorse SpecTa Education.</p>
+</div></body></html>`;
+      let sent = false;
+      if (input.send) {
+        if (!s.parentEmail) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "No parent email on this student." });
+        if (!ENV.resendApiKey) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Resend is not configured." });
+        const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${ENV.resendApiKey}` }, body: JSON.stringify({ from: "SpecTa Education <noreply@spectaeducation.com>", to: [s.parentEmail], subject: `${s.name} - SAT progress report from SpecTa`, html }) });
+        sent = r.ok;
+        if (!sent) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Email provider rejected the message." });
+      }
+      return { html, sent, to: s.parentEmail };
+    }),
 
   // ── Class heatmap ──
   heatmap: protectedProcedure.query(async ({ ctx }) => {
