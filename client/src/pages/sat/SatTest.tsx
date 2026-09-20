@@ -5,7 +5,7 @@
  * the report.
  */
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useParams } from "wouter";
+import { Link, useLocation, useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Loader2, Flag, Calculator as CalcIcon, ChevronLeft, ChevronRight, Eye, EyeOff, Grid3x3 } from "lucide-react";
 import SatCalculator from "./SatCalculator";
@@ -21,11 +21,24 @@ export default function SatTest() {
   const [, navigate] = useLocation();
   const utils = trpc.useUtils();
   const me = trpc.sat.me.useQuery(undefined, { retry: false });
-  const session = trpc.sat.testSession.useQuery({ sessionId: id }, { enabled: !!me.data && Number.isFinite(id), refetchOnWindowFocus: false });
+  const session = trpc.sat.testSession.useQuery({ sessionId: id }, { enabled: !!me.data && Number.isFinite(id), refetchOnWindowFocus: false, staleTime: 0, refetchOnMount: "always" });
+  useEffect(() => { if (me.isFetched && !me.data) navigate("/sat/login"); }, [me.isFetched, me.data, navigate]);
+  const invalidateHome = () => { utils.sat.tests.invalidate(); utils.sat.plan.invalidate(); utils.sat.progress.invalidate(); utils.sat.skills.invalidate(); };
   const startModule = trpc.sat.startModule.useMutation({ onSuccess: (d) => { utils.sat.testSession.setData({ sessionId: id }, d); } });
-  const submit = trpc.sat.submitModule.useMutation({ onSuccess: (d) => { utils.sat.testSession.setData({ sessionId: id }, d); setIdx(0); setReview(false); if (d.status === "completed") navigate(`/sat/test/${id}/report`); } });
-  const save = trpc.sat.saveAnswer.useMutation();
-  const abandon = trpc.sat.abandonTest.useMutation({ onSuccess: () => navigate("/sat") });
+  const submit = trpc.sat.submitModule.useMutation({
+    onSuccess: (d) => { utils.sat.testSession.setData({ sessionId: id }, d); setIdx(0); setReview(false); if (d.status === "completed") { invalidateHome(); navigate(`/sat/test/${id}/report`); } },
+    onError: () => { submittedFor.current = null; session.refetch(); },
+  });
+  const save = trpc.sat.saveAnswer.useMutation({ onError: (e, vars) => setUnsaved(u => ({ ...u, [vars.questionId]: e.message })) , onSuccess: (_d, vars) => setUnsaved(u => { const n = { ...u }; delete n[vars.questionId]; return n; }) });
+  const abandon = trpc.sat.abandonTest.useMutation({ onSuccess: () => { invalidateHome(); navigate("/sat"); } });
+  const [unsaved, setUnsaved] = useState<Record<number, string>>({});
+  const pendingSaves = useRef<Set<Promise<unknown>>>(new Set());
+  /** Flush debounced SPR saves and wait for in-flight saves, then submit. */
+  const submitModule = async () => {
+    for (const [qid, tm] of Object.entries(sprTimer.current)) { clearTimeout(tm); delete sprTimer.current[Number(qid)]; const val = answersRef.current[Number(qid)]; if (val !== undefined) doSave(Number(qid), val); }
+    try { await Promise.allSettled(Array.from(pendingSaves.current)); } catch { /* */ }
+    submit.mutate({ sessionId: id });
+  };
 
   const [idx, setIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -36,6 +49,7 @@ export default function SatTest() {
   const [calc, setCalc] = useState(false);
   const [now, setNow] = useState(Date.now());
   const offset = useRef(0);
+  const answersRef = useRef<Record<number, string>>({});
   const submittedFor = useRef<number | null>(null);
   const sprTimer = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
@@ -43,12 +57,14 @@ export default function SatTest() {
   // Hydrate saved answers + clock offset when the module changes.
   useEffect(() => {
     if (!d) return;
-    offset.current = d.serverNow - Date.now();
-    const a: Record<number, string> = {}; for (const s of d.saved) a[s.questionId] = s.answer; setAnswers(a);
+    offset.current = d.serverNow - (session.dataUpdatedAt || Date.now());
+    const a: Record<number, string> = {}; for (const s of d.saved) a[s.questionId] = s.answer; setAnswers(a); answersRef.current = a;
+    try { const savedIdx = Number(sessionStorage.getItem(`sat_idx_${id}_${d.currentModule}`)); if (Number.isFinite(savedIdx) && savedIdx > 0) setIdx(savedIdx); } catch { /* */ }
     try { setMarked(JSON.parse(sessionStorage.getItem(`sat_marked_${id}_${d.currentModule}`) || "{}")); } catch { setMarked({}); }
     if (d.status === "completed") navigate(`/sat/test/${id}/report`);
   }, [d?.currentModule, d?.status, d?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { try { sessionStorage.setItem(`sat_marked_${id}_${d?.currentModule ?? 0}`, JSON.stringify(marked)); } catch { /* */ } }, [marked, id, d?.currentModule]);
+  useEffect(() => { if (!d) return; try { sessionStorage.setItem(`sat_marked_${id}_${d.currentModule}`, JSON.stringify(marked)); } catch { /* */ } }, [marked, id, d?.currentModule]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!d) return; try { sessionStorage.setItem(`sat_idx_${id}_${d.currentModule}`, String(idx)); } catch { /* */ } }, [idx, id, d?.currentModule]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const t = setInterval(() => setNow(Date.now() + offset.current), 500); return () => clearInterval(t); }, []);
 
   const remaining = d?.deadline ? d.deadline - now : null;
@@ -56,19 +72,21 @@ export default function SatTest() {
   // Auto-submit on expiry (once per module); auto-resume after the break.
   useEffect(() => {
     if (!d) return;
-    if (d.status === "active" && d.started && remaining !== null && remaining <= 0 && submittedFor.current !== d.currentModule && !submit.isPending) { submittedFor.current = d.currentModule; submit.mutate({ sessionId: id }); }
-    if (d.status === "break" && breakLeft !== null && breakLeft <= 0 && !startModule.isPending) startModule.mutate({ sessionId: id });
+    if (d.status === "active" && d.started && remaining !== null && remaining <= 0 && submittedFor.current !== d.currentModule && !submit.isPending) { submittedFor.current = d.currentModule; void submitModule(); }
+    if (d.status === "break" && breakLeft !== null && breakLeft <= 0 && !startModule.isPending && !startModule.isError) startModule.mutate({ sessionId: id });
   }, [remaining, breakLeft, d?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const qs: PubQ[] = (d?.questions as PubQ[]) || [];
   const q = qs[idx];
+  const doSave = (qid: number, val: string) => { const p = save.mutateAsync({ sessionId: id, questionId: qid, answer: val }).catch(() => { /* surfaced via onError */ }); pendingSaves.current.add(p); p.finally(() => pendingSaves.current.delete(p)); };
   const setAnswer = (qid: number, val: string, debounce = false) => {
-    setAnswers(a => ({ ...a, [qid]: val }));
-    if (debounce) { clearTimeout(sprTimer.current[qid]); sprTimer.current[qid] = setTimeout(() => save.mutate({ sessionId: id, questionId: qid, answer: val }), 600); }
-    else save.mutate({ sessionId: id, questionId: qid, answer: val });
+    setAnswers(a => { const n = { ...a, [qid]: val }; answersRef.current = n; return n; });
+    if (debounce) { clearTimeout(sprTimer.current[qid]); sprTimer.current[qid] = setTimeout(() => { delete sprTimer.current[qid]; doSave(qid, val); }, 600); }
+    else doSave(qid, val);
   };
   const answered = qs.filter(x => (answers[x.id] || "").trim()).length;
 
+  if (session.error) return <Shell title="Test"><div className="max-w-md mx-auto py-16 text-center"><div className="text-red-600 text-sm mb-4">{session.error.message}</div><Link href="/sat" className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold">Back to dashboard</Link></div></Shell>;
   if (!d) return <div className="min-h-screen bg-slate-100 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
 
   // ── Break ──
@@ -79,6 +97,7 @@ export default function SatTest() {
         <div className="text-6xl font-black my-4 tabular-nums">{mmss(breakLeft ?? 0)}</div>
         <p className="text-slate-600 text-sm">Reading and Writing is done. Math starts automatically when the break ends. Stretch, drink water, don't look up answers.</p>
         <button onClick={() => startModule.mutate({ sessionId: id })} disabled={startModule.isPending} className="mt-6 px-6 py-3 rounded-xl bg-slate-900 text-white font-bold">Resume now</button>
+        {startModule.error && <div className="text-sm text-red-600 mt-3">{startModule.error.message}</div>}
       </div>
     </Shell>
   );
@@ -112,7 +131,7 @@ export default function SatTest() {
         <div className="font-semibold truncate">{SECTION[d.module.section]}{d.kind === "mock" ? ` · Module ${d.module.stage}` : ""}</div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowTimer(v => !v)} className="p-1.5 rounded hover:bg-slate-100 text-slate-500">{showTimer ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}</button>
-          <span className={`font-mono font-bold tabular-nums w-14 text-center ${timerCls}`}>{showTimer ? mmss(remaining ?? 0) : "••:••"}</span>
+          <span aria-live="polite" className={`font-mono font-bold tabular-nums w-14 text-center ${timerCls}`}>{showTimer ? mmss(remaining ?? 0) : "••:••"}</span>
         </div>
         <div className="flex items-center gap-2">
           {d.module.section === "math" && <button onClick={() => setCalc(v => !v)} className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 ${calc ? "bg-slate-900 text-white border-slate-900" : "border-slate-300"}`}><CalcIcon className="w-3.5 h-3.5" />Calculator</button>}
@@ -129,7 +148,9 @@ export default function SatTest() {
         <h2 className="text-xl font-black">Check your work</h2>
         <p className="text-sm text-slate-600 mt-1">{answered} of {qs.length} answered. Click a question to go back to it. Submit when you're ready or wait for the timer.</p>
         <div className="grid grid-cols-9 sm:grid-cols-14 gap-1.5 mt-5">{qs.map((x, i) => { const has = (answers[x.id] || "").trim(); return <button key={x.id} onClick={() => { setIdx(i); setReview(false); }} className={`relative h-9 rounded-lg text-sm font-semibold border ${has ? "bg-slate-900 text-white border-slate-900" : "bg-white border-dashed border-slate-400 text-slate-700"}`}>{i + 1}{marked[x.id] && <Flag className="w-3 h-3 absolute -top-1 -right-1 text-red-500 fill-red-500" />}</button>; })}</div>
-        <div className="mt-6 flex justify-between"><button onClick={() => setReview(false)} className="px-4 py-2.5 rounded-xl border border-slate-300 font-semibold text-sm">Back</button><button onClick={() => submit.mutate({ sessionId: id })} disabled={submit.isPending} className="px-6 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-sm disabled:opacity-60">{submit.isPending ? "Submitting…" : "Submit module"}</button></div>
+        <div className="mt-6 flex justify-between"><button onClick={() => setReview(false)} className="px-4 py-2.5 rounded-xl border border-slate-300 font-semibold text-sm">Back</button><button onClick={() => void submitModule()} disabled={submit.isPending} className="px-6 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-sm disabled:opacity-60">{submit.isPending ? "Submitting…" : "Submit module"}</button></div>
+        {submit.error && <div className="text-sm text-red-600 mt-3">{submit.error.message}</div>}
+        {Object.keys(unsaved).length > 0 && <div className="text-sm text-amber-700 mt-3">Some answers could not be saved (questions {Object.keys(unsaved).map(qid => qs.findIndex(x => x.id === Number(qid)) + 1).join(", ")}). Check your connection, reopen them and choose again.</div>}
       </div>
     </div>
   );
@@ -147,9 +168,10 @@ export default function SatTest() {
                 <button onClick={() => setMarked(m => ({ ...m, [q.id]: !m[q.id] }))} className={`text-xs font-semibold flex items-center gap-1 px-2.5 py-1.5 rounded-lg border ${marked[q.id] ? "border-red-300 text-red-600 bg-red-50" : "border-slate-300 text-slate-600"}`}><Flag className={`w-3.5 h-3.5 ${marked[q.id] ? "fill-red-500" : ""}`} />Mark for review</button>
               </div>
               <div className="font-medium leading-relaxed whitespace-pre-wrap mb-4">{q.stem}</div>
+              {unsaved[q.id] && <div className="text-xs text-amber-700 mb-2">Not saved yet ({unsaved[q.id]}). Choose again to retry.</div>}
               {q.format === "mc" && q.choices ? (
-                <div className="space-y-2">{q.choices.map((c, i) => { const L = LETTERS[i]; const picked = (answers[q.id] || "") === L; return (
-                  <button key={L} onClick={() => setAnswer(q.id, picked ? "" : L)} className={`w-full text-left flex gap-3 items-start border-2 rounded-xl px-3 py-2.5 transition ${picked ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-400"}`}>
+                <div className="space-y-2" role="radiogroup">{q.choices.map((c, i) => { const L = LETTERS[i]; const picked = (answers[q.id] || "") === L; return (
+                  <button key={L} role="radio" aria-checked={picked} aria-label={`${L}. ${c}`} onClick={() => setAnswer(q.id, picked ? "" : L)} className={`w-full text-left flex gap-3 items-start border-2 rounded-xl px-3 py-2.5 transition ${picked ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-400"}`}>
                     <span className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs font-bold shrink-0 ${picked ? "bg-slate-900 text-white border-slate-900" : "border-slate-300"}`}>{L}</span><span className="leading-relaxed">{c}</span>
                   </button>); })}</div>
               ) : (

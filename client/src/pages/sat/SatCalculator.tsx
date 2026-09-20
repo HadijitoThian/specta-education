@@ -40,18 +40,22 @@ export function compile(src: string): Fn | null {
     }
     throw new Error("unexpected " + (peek() ?? "end"));
   }
+  // factor = primary [^ unary]  → so 2x^2 means 2·(x^2) and 3(x+1)^2 means 3·((x+1)^2)
+  // exponent = [-] factor  → right-associative (2^3^2 = 512) and (x+1)^2(x-1) = ((x+1)^2)·(x-1)
+  function exponent(): Node { if (eat("-")) { const n = exponent(); return x => -n(x); } return factor(); }
+  function factor(): Node { const b = primary(); if (eat("^")) { const e = exponent(); return x => Math.pow(b(x), e(x)); } return b; }
   function postfix(): Node {
-    let n = primary();
+    let n = factor();
     // implicit multiplication: 2x, 3(x+1), x(x-1), )(
     for (;;) {
       const c = peek();
       if (c === undefined) break;
-      if (c === "(" || /[a-zA-Z0-9.]/.test(c)) { if (/[0-9.]/.test(c) && !/[a-zA-Z)]/.test(s[i - 1] || "")) break; const r = primary(); const l = n; n = x => l(x) * r(x); continue; }
+      if (c === "(" || /[a-zA-Z0-9.]/.test(c)) { if (/[0-9.]/.test(c) && !/[a-zA-Z)]/.test(s[i - 1] || "")) break; const r = factor(); const l = n; n = x => l(x) * r(x); continue; }
       break;
     }
     return n;
   }
-  function power(): Node { const b = postfix(); if (eat("^")) { const e = unary(); return x => Math.pow(b(x), e(x)); } return b; }
+  function power(): Node { return postfix(); }
   function unary(): Node { if (eat("-")) { const n = unary(); return x => -n(x); } return power(); }
   function term(): Node { let n = unary(); for (;;) { if (eat("*")) { const r = unary(); const l = n; n = x => l(x) * r(x); } else if (eat("/")) { const r = unary(); const l = n; n = x => l(x) / r(x); } else break; } return n; }
   function expr(): Node { let n = term(); for (;;) { if (eat("+")) { const r = term(); const l = n; n = x => l(x) + r(x); } else if (eat("-")) { const r = term(); const l = n; n = x => l(x) - r(x); } else break; } return n; }
@@ -59,7 +63,7 @@ export function compile(src: string): Fn | null {
 }
 
 const COLORS = ["#4f46e5", "#dc2626", "#059669"];
-const fmt = (v: number) => Number.isFinite(v) ? (Math.abs(v) >= 1e9 || (Math.abs(v) < 1e-6 && v !== 0) ? v.toExponential(4) : String(Math.round(v * 1e6) / 1e6)) : "—";
+const fmt = (v: number) => Number.isFinite(v) ? (Math.abs(v) >= 1e9 || (Math.abs(v) < 1e-6 && v !== 0) ? v.toExponential(4) : String(Math.round(v * 1e6) / 1e6)) : "undefined";
 
 export default function SatCalculator({ onClose }: { onClose: () => void }) {
   const [tab, setTab] = useState<"calc" | "graph">("calc");
@@ -68,7 +72,8 @@ export default function SatCalculator({ onClose }: { onClose: () => void }) {
   const [fns, setFns] = useState<string[]>(["", "", ""]);
   const [view, setView] = useState({ cx: 0, cy: 0, w: 20, h: 14 });
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [pos, setPos] = useState({ x: 40, y: 80 });
+  const [pos, setPos] = useState(() => ({ x: typeof window !== "undefined" && window.innerWidth < 480 ? 8 : 40, y: 80 }));
+  const clamp = (x: number, y: number) => ({ x: Math.max(0, Math.min(x, (typeof window !== "undefined" ? window.innerWidth : 1000) - 120)), y: Math.max(0, Math.min(y, (typeof window !== "undefined" ? window.innerHeight : 800) - 60)) });
   const drag = useRef<{ dx: number; dy: number } | null>(null);
   const compiled = useMemo(() => fns.map(f => compile(f.replace(/^y\s*=\s*/i, ""))), [fns]);
 
@@ -109,12 +114,12 @@ export default function SatCalculator({ onClose }: { onClose: () => void }) {
   }, [tab, view, compiled]);
 
   const zoom = (f: number) => setView(v => ({ ...v, w: v.w * f, h: v.h * f }));
-  const onWheel = (e: React.WheelEvent) => { e.preventDefault(); zoom(e.deltaY > 0 ? 1.15 : 0.87); };
+  useEffect(() => { const c = canvasRef.current; if (!c) return; const h = (e: WheelEvent) => { e.preventDefault(); zoom(e.deltaY > 0 ? 1.15 : 0.87); }; c.addEventListener("wheel", h, { passive: false }); return () => c.removeEventListener("wheel", h); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
   const panRef = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
 
   return (
     <div className="fixed z-50 w-[360px] max-w-[95vw] bg-white rounded-2xl shadow-2xl border border-slate-300 select-none" style={{ left: pos.x, top: pos.y }}>
-      <div className="flex items-center justify-between px-3 py-2 bg-slate-900 text-white rounded-t-2xl cursor-move" onPointerDown={e => { drag.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y }; (e.target as HTMLElement).setPointerCapture(e.pointerId); }} onPointerMove={e => { if (drag.current) setPos({ x: e.clientX - drag.current.dx, y: e.clientY - drag.current.dy }); }} onPointerUp={() => { drag.current = null; }}>
+      <div className="flex items-center justify-between px-3 py-2 bg-slate-900 text-white rounded-t-2xl cursor-move" onPointerDown={e => { drag.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y }; (e.target as HTMLElement).setPointerCapture(e.pointerId); }} onPointerMove={e => { if (drag.current) setPos(clamp(e.clientX - drag.current.dx, e.clientY - drag.current.dy)); }} onPointerUp={() => { drag.current = null; }}>
         <div className="flex gap-1 text-xs">{(["calc", "graph"] as const).map(t => <button key={t} onClick={() => setTab(t)} className={`px-2.5 py-1 rounded-full ${tab === t ? "bg-white text-slate-900" : "text-slate-300"}`}>{t === "calc" ? "Calculator" : "Graph"}</button>)}</div>
         <button onClick={onClose} className="p-1 rounded hover:bg-slate-700"><X className="w-4 h-4" /></button>
       </div>
@@ -133,7 +138,7 @@ export default function SatCalculator({ onClose }: { onClose: () => void }) {
       ) : (
         <div className="p-3">
           {fns.map((f, k) => <div key={k} className="flex items-center gap-2 mb-1"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: COLORS[k] }} /><span className="text-xs font-mono text-slate-500">y =</span><input value={f} onChange={e => setFns(a => a.map((x, i) => i === k ? e.target.value : x))} placeholder={k === 0 ? "2x + 1" : k === 1 ? "x^2 - 4" : ""} className={`flex-1 border rounded-lg px-2 py-1 text-sm font-mono ${f && !compiled[k] ? "border-red-400" : "border-slate-300"}`} /></div>)}
-          <canvas ref={canvasRef} width={336} height={240} className="w-full rounded-lg border border-slate-200 mt-1 cursor-grab touch-none" onWheel={onWheel}
+          <canvas ref={canvasRef} width={336} height={240} className="w-full rounded-lg border border-slate-200 mt-1 cursor-grab touch-none"
             onPointerDown={e => { panRef.current = { x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy }; (e.target as HTMLElement).setPointerCapture(e.pointerId); }}
             onPointerMove={e => { const p = panRef.current; if (!p) return; const c = canvasRef.current!; setView(v => ({ ...v, cx: p.cx - ((e.clientX - p.x) / c.clientWidth) * v.w, cy: p.cy + ((e.clientY - p.y) / c.clientHeight) * v.h })); }}
             onPointerUp={() => { panRef.current = null; }} />

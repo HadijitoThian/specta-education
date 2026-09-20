@@ -16,6 +16,7 @@ export default function SatTestReport() {
   const r = trpc.sat.testReport.useQuery({ sessionId: id }, { enabled: !!me.data && Number.isFinite(id) });
   const [filter, setFilter] = useState<"all" | "wrong">("wrong");
   const [open, setOpen] = useState<number | null>(null);
+  if (r.error) return <SatShell back="/sat"><div className="max-w-md mx-auto py-10 text-center"><div className="text-red-600 text-sm mb-4">{r.error.message}</div><Link href="/sat" className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold">Back to dashboard</Link></div></SatShell>;
   if (r.isLoading || !r.data) return <SatShell back="/sat"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></SatShell>;
   const { scores, modules, domainLabels } = r.data;
   const title = r.data.kind === "mock" ? "Full practice test" : "Diagnostic";
@@ -59,7 +60,7 @@ export default function SatTestReport() {
                       {q.correct ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : skipped ? <MinusCircle className="w-4 h-4 text-slate-400 shrink-0" /> : <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
                       <span className="text-xs text-slate-500 w-6">{q.n}</span>
                       <span className="flex-1 text-sm truncate">{q.stem}</span>
-                      <Link href={`/sat/skill/${q.skillCode}`} onClick={e => e.stopPropagation()} className="text-[11px] text-indigo-700 whitespace-nowrap">{q.skillCode}</Link>
+                      <span className="text-[11px] text-indigo-700 whitespace-nowrap">{q.skillCode}</span>
                     </button>
                     {isOpen && (
                       <div className="px-4 pb-4 text-sm">

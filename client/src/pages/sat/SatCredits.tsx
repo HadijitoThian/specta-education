@@ -13,8 +13,9 @@ export default function SatCredits() {
   const utils = trpc.useUtils();
   const me = trpc.sat.me.useQuery(undefined, { retry: false });
   const lang = (me.data?.lang || "en") as "en" | "id";
-  const quota = trpc.sat.liveQuota.useQuery(undefined, { enabled: !!me.data, refetchInterval: paid === "1" ? 5000 : false });
-  const orders = trpc.sat.creditOrders.useQuery(undefined, { enabled: !!me.data, refetchInterval: paid === "1" ? 5000 : false });
+  const [settled, setSettled] = useState(false);
+  const quota = trpc.sat.liveQuota.useQuery(undefined, { enabled: !!me.data, refetchInterval: paid === "1" && !settled ? 5000 : false });
+  const orders = trpc.sat.creditOrders.useQuery(undefined, { enabled: !!me.data, refetchInterval: paid === "1" && !settled ? 5000 : false });
   const [hours, setHours] = useState<number>(1);
   const [err, setErr] = useState<string | null>(null);
   const buy = trpc.sat.buyCredits.useMutation({ onSuccess: (d) => { window.location.href = d.invoiceUrl; }, onError: (e) => setErr(e.message) });
@@ -28,6 +29,7 @@ export default function SatCredits() {
     today: "This week", used: "used", left: "free left", credit: "Credit balance", buy: "Buy credit", hour: "hour", pay: "Pay with Xendit", paying: "Opening payment…", history: "Purchase history", none: "No purchases yet.", paidOk: "Payment received. Your credit has been added.", paidWait: "Thanks! Waiting for payment confirmation, usually under a minute.", paidNo: "Payment wasn't completed. You can try again below.", status: { pending: "pending", paid: "paid", expired: "expired", failed: "failed" },
   };
   const latestPaid = (orders.data || []).find(o => o.status === "paid" && o.paidAt && Date.now() - new Date(o.paidAt).getTime() < 10 * 60000);
+  useEffect(() => { if (latestPaid) setSettled(true); }, [latestPaid]);
 
   return (
     <SatShell title={t.title} back="/sat">

@@ -23,7 +23,7 @@ export default function SatSkill() {
 
   return (
     <SatShell title={q.data?.skill.title} back="/sat">
-      {q.isLoading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : q.data ? (
+      {q.error ? <div className="text-sm text-red-600">{q.error.message}</div> : q.isLoading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : q.data ? (
         <article className="max-w-3xl">
           <div className="text-[11px] font-mono text-slate-400">{q.data.skill.code} · {q.data.skill.domain}</div>
           <h1 className="text-2xl font-black mb-1">{q.data.skill.title}</h1>

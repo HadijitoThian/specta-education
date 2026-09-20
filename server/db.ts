@@ -4440,12 +4440,23 @@ export async function ensureSatSchema(): Promise<void> {
        completedAt TIMESTAMP NULL,
        INDEX idx_sts_student (studentId)
      )`);
+  statements.push(`CREATE TABLE IF NOT EXISTS sat_live_sessions (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       studentId INT NOT NULL,
+       questionId INT NOT NULL,
+       startedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       endedAt TIMESTAMP NULL,
+       seconds INT NOT NULL DEFAULT 0,
+       creditSeconds INT NOT NULL DEFAULT 0,
+       INDEX idx_sls_student (studentId, startedAt)
+     )`);
+  statements.push("ALTER TABLE sat_live_sessions ADD COLUMN creditSeconds INT NOT NULL DEFAULT 0");
   statements.push("ALTER TABLE sat_students ADD COLUMN parentEmail VARCHAR(320) NULL");
   statements.push("ALTER TABLE sat_students ADD COLUMN liveCreditSeconds INT NOT NULL DEFAULT 0");
   statements.push("ALTER TABLE sat_students ADD COLUMN accessUntil TIMESTAMP NULL");
   // Backfill: 2 months of access from account creation for accounts made before expiry existed.
-  statements.push("UPDATE sat_students SET accessUntil = DATE_ADD(createdAt, INTERVAL 2 MONTH) WHERE accessUntil IS NULL");
-  statements.push("ALTER TABLE sat_live_sessions ADD COLUMN creditSeconds INT NOT NULL DEFAULT 0");
+  statements.push("UPDATE sat_students SET accessUntil = DATE_ADD(createdAt, INTERVAL 2 MONTH) WHERE accessUntil IS NULL AND createdAt < '2026-09-21 00:00:00'");
+  statements.push("ALTER TABLE sat_responses ADD UNIQUE KEY uk_satr_attempt_q (attemptId, questionId)");
   statements.push(`CREATE TABLE IF NOT EXISTS sat_credit_orders (
        id INT AUTO_INCREMENT PRIMARY KEY,
        studentId INT NOT NULL,
@@ -4459,15 +4470,7 @@ export async function ensureSatSchema(): Promise<void> {
        paidAt TIMESTAMP NULL,
        INDEX idx_sco_student (studentId)
      )`);
-  statements.push(`CREATE TABLE IF NOT EXISTS sat_live_sessions (
-       id INT AUTO_INCREMENT PRIMARY KEY,
-       studentId INT NOT NULL,
-       questionId INT NOT NULL,
-       startedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-       endedAt TIMESTAMP NULL,
-       seconds INT NOT NULL DEFAULT 0,
-       INDEX idx_sls_student (studentId, startedAt)
-     )`);
+
   statements.push(`CREATE TABLE IF NOT EXISTS sat_official_scores (
        id INT AUTO_INCREMENT PRIMARY KEY,
        studentId INT NOT NULL,
@@ -4482,6 +4485,6 @@ export async function ensureSatSchema(): Promise<void> {
      )`);
   for (const stmt of statements) {
     try { await db.execute(sql.raw(stmt)); }
-    catch (e: any) { if (!/already exists|Duplicate column/i.test(e?.message || "")) console.error("[SAT] ensureSatSchema failed:", e?.message); }
+    catch (e: any) { if (!/already exists|Duplicate column|Duplicate key name/i.test(e?.message || "")) console.error("[SAT] ensureSatSchema failed:", e?.message); }
   }
 }

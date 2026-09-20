@@ -97,7 +97,10 @@ export async function buildMockStage1(): Promise<TestModule[]> {
 export const ROUTE_THRESHOLD = 0.6;
 export async function routeStage2(section: "rw" | "math", m1Correct: number, m1Total: number, exclude: number[]): Promise<{ variant: "easier" | "harder"; questionIds: number[] }> {
   const harder = m1Total > 0 && m1Correct / m1Total >= ROUTE_THRESHOLD;
-  const ids = await assemble(section, SHAPE[section].n, harder ? MIX_HARD : MIX_EASY, new Set(exclude));
+  const n = SHAPE[section].n;
+  let ids = await assemble(section, n, harder ? MIX_HARD : MIX_EASY, new Set(exclude));
+  // Thin bank: rather than a near-empty module, allow repeats from Module 1.
+  if (ids.length < Math.ceil(n * 0.6)) ids = await assemble(section, n, harder ? MIX_HARD : MIX_EASY, new Set());
   return { variant: harder ? "harder" : "easier", questionIds: ids };
 }
 

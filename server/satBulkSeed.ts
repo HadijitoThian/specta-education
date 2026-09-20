@@ -14,7 +14,7 @@
  * SAT_BULK_SEED_CONCURRENCY (default 3).
  */
 
-import { and, eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "./db";
 import { satSkills, satQuestions } from "../drizzle/schema";
 import { generateQuestions, generateLesson } from "./satQuestionGenerator";
@@ -25,6 +25,8 @@ const TARGET = Number(process.env.SAT_BULK_SEED_TARGET || 8);
 const CONCURRENCY = Math.max(1, Number(process.env.SAT_BULK_SEED_CONCURRENCY || 3));
 const PROGRESS_FLAG = "sat_bulk_seed_progress";
 const DONE_FLAG = "sat_bulk_seed_done_v1";
+const LOCK_FLAG = "sat_bulk_seed_lock";
+const LOCK_TTL_MS = 3 * 3600e3;
 
 export interface SeedProgress { state: "idle" | "running" | "done" | "error"; startedAt?: string; finishedAt?: string; cellsTotal: number; cellsDone: number; generated: number; approved: number; lessons: number; errors: number; lastError?: string; current?: string[] }
 let running = false;
@@ -37,12 +39,16 @@ export async function runSatBulkSeed(): Promise<void> {
   if ((process.env.SAT_BULK_SEED || "on").toLowerCase() === "off") return;
   const db = await getDb(); if (!db) return;
   if (await readFlag(DONE_FLAG)) { progress = { ...progress, state: "done" }; return; }
+  // Rolling deploys run two instances for a while: only one may seed.
+  const lock = Number((await readFlag(LOCK_FLAG)) || 0);
+  if (lock && Date.now() - lock < LOCK_TTL_MS) { console.log("[SAT seed] another instance holds the seed lock; skipping"); return; }
+  await writeFlag(LOCK_FLAG, String(Date.now()));
   running = true;
   progress = { state: "running", startedAt: new Date().toISOString(), cellsTotal: 0, cellsDone: 0, generated: 0, approved: 0, lessons: 0, errors: 0, current: [] };
   try {
     const skills = await db.select().from(satSkills).orderBy(satSkills.sortOrder);
     // Work list: every skill × difficulty that is still short, plus lessons.
-    const counts = await db.select({ skillId: satQuestions.skillId, difficulty: satQuestions.difficulty, n: sql<number>`count(*)` }).from(satQuestions).groupBy(satQuestions.skillId, satQuestions.difficulty);
+    const counts = await db.select({ skillId: satQuestions.skillId, difficulty: satQuestions.difficulty, n: sql<number>`count(*)` }).from(satQuestions).where(inArray(satQuestions.status, ["draft", "approved"])).groupBy(satQuestions.skillId, satQuestions.difficulty);
     const have = new Map(counts.map(c => [`${c.skillId}:${c.difficulty}`, Number(c.n)]));
     type Cell = { kind: "q"; skill: typeof skills[number]; difficulty: 1 | 2 | 3 } | { kind: "lesson"; skill: typeof skills[number] };
     const cells: Cell[] = [];
@@ -92,7 +98,7 @@ export async function runSatBulkSeed(): Promise<void> {
   } catch (e) {
     progress.state = "error"; progress.lastError = String((e as Error)?.message || e).slice(0, 300);
     console.error("[SAT seed] failed:", progress.lastError);
-  } finally { running = false; await persist(); }
+  } finally { running = false; try { await writeFlag(LOCK_FLAG, ""); } catch { /* */ } await persist(); }
 }
 
 /** Retry cells that are still short (e.g. after LLM errors) — admin button. */

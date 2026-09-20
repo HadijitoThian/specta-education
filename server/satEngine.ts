@@ -49,7 +49,15 @@ export function checkAnswer(q: Pick<SatQuestion, "format" | "answer" | "accepted
   for (const c of candidates) {
     if (g.replace(/\s+/g, "").toLowerCase() === String(c).replace(/\s+/g, "").toLowerCase()) return true;
     const cn = parseNumeric(String(c));
-    if (gn !== null && cn !== null && Math.abs(gn - cn) <= Math.max(1e-6, Math.abs(cn) * 1e-4)) return true;
+    if (gn !== null && cn !== null) {
+      if (Math.abs(gn - cn) <= Math.max(1e-6, Math.abs(cn) * 1e-4)) return true;
+      // Bluebook accepts a repeating decimal truncated or rounded to the entered precision (e.g. .666 / .667 / 0.67 for 2/3).
+      const dp = (g.replace(/,/g, ".").split(".")[1] || "").replace(/[^0-9]/g, "").length;
+      if (dp >= 2) {
+        const f = 10 ** dp;
+        if (Math.abs(gn - Math.round(cn * f) / f) < 1e-9 || Math.abs(gn - Math.trunc(cn * f) / f) < 1e-9) return true;
+      }
+    }
   }
   return false;
 }
@@ -57,8 +65,9 @@ export function checkAnswer(q: Pick<SatQuestion, "format" | "answer" | "accepted
 // ── Mastery (Bayesian knowledge tracing) ──────────────────────────────────
 // Per-skill hidden state "known". Standard 4-parameter BKT. Guess is higher
 // for 4-choice items than for typed answers.
-const P_INIT = 0.2, P_LEARN = 0.18, P_SLIP = 0.10;
-const P_GUESS = { mc: 0.25, spr: 0.08 } as const;
+const P_INIT = 0.2, P_LEARN = 0.10, P_SLIP = 0.10;
+const P_GUESS = { mc: 0.30, spr: 0.08 } as const;
+export const MASTERED_MIN_ATTEMPTS = 5;
 
 export function bktUpdate(pKnown: number, correct: boolean, format: "mc" | "spr"): number {
   const g = P_GUESS[format], s = P_SLIP;
@@ -70,15 +79,15 @@ export function bktUpdate(pKnown: number, correct: boolean, format: "mc" | "spr"
   return Math.min(0.999, Math.max(0.001, next));
 }
 
-export function masteryLabel(p: number): "new" | "building" | "developing" | "solid" | "mastered" {
+export function masteryLabel(p: number, attempts?: number): "new" | "building" | "developing" | "solid" | "mastered" {
   if (p < 0.25) return "new";
   if (p < 0.5) return "building";
   if (p < 0.75) return "developing";
-  if (p < 0.9) return "solid";
+  if (p < 0.9 || (attempts !== undefined && attempts < MASTERED_MIN_ATTEMPTS)) return "solid";
   return "mastered";
 }
 
-export async function recordAnswer(args: { studentId: number; skillId: number; correct: boolean; format: "mc" | "spr" }): Promise<{ pKnown: number }> {
+export async function recordAnswer(args: { studentId: number; skillId: number; correct: boolean; format: "mc" | "spr" }): Promise<{ pKnown: number; attempts: number }> {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
   const [row] = await db.select().from(satMastery).where(and(eq(satMastery.studentId, args.studentId), eq(satMastery.skillId, args.skillId))).limit(1);
@@ -95,7 +104,7 @@ export async function recordAnswer(args: { studentId: number; skillId: number; c
       correct: args.correct ? 1 : 0, streak: args.correct ? 1 : 0, lastPracticedAt: new Date(),
     });
   }
-  return { pKnown: next };
+  return { pKnown: next, attempts: (row?.attempts || 0) + 1 };
 }
 
 // ── Drill selection ───────────────────────────────────────────────────────

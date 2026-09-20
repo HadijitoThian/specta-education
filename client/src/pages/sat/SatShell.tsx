@@ -35,10 +35,10 @@ export default function SatShell({ children, title, back }: { children: ReactNod
   const [, navigate] = useLocation();
   const utils = trpc.useUtils();
   const me = trpc.sat.me.useQuery(undefined, { retry: false, staleTime: 60000 });
-  const logout = trpc.sat.logout.useMutation({ onSuccess: () => { utils.invalidate(); navigate("/sat/login"); } });
-  const setPrefs = trpc.sat.setPrefs.useMutation({ onSuccess: () => utils.invalidate() });
+  const logout = trpc.sat.logout.useMutation({ onSuccess: () => { utils.sat.me.setData(undefined, null); utils.invalidate(); navigate("/sat/login"); } });
+  const setPrefs = trpc.sat.setPrefs.useMutation({ onSuccess: () => { utils.sat.me.invalidate(); utils.sat.skills.invalidate(); utils.sat.lesson.invalidate(); utils.sat.plan.invalidate(); utils.sat.progress.invalidate(); utils.sat.testReport.invalidate(); } });
 
-  useEffect(() => { if (me.isFetched && !me.data) navigate("/sat/login"); }, [me.isFetched, me.data, navigate]);
+  useEffect(() => { if (me.isFetched && !me.isFetching && !me.data) navigate("/sat/login"); }, [me.isFetched, me.isFetching, me.data, navigate]);
   useEffect(() => { document.title = `${title ? title + " · " : ""}SpecTa SAT Self-Prep`; }, [title]);
 
   if (!me.data) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;

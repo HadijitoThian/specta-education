@@ -6,8 +6,8 @@ import { Loader2, ClipboardList, Flame, Target, CalendarClock, Sparkles, FileTex
 import SatShell, { masteryBar, MASTERY_TEXT } from "./SatShell";
 
 const T = {
-  en: { week: "This week", answered: "answered", accuracy: "accuracy", days: "active days", minutes: "minutes", assignments: "Assignments from your teacher", noAssign: "No assignments yet.", start: "Start", continue: "Continue", done: "Done", due: "Due", skills: "Skill tree", rw: "Reading & Writing", math: "Math", ofTest: "of the section", practise: "Practise", lesson: "Lesson", noQ: "Coming soon", questions: "questions", target: "Target score", testDate: "Test date", set: "Set", tip: "Pick a skill and do 8 questions. Aim for two or three skills a day." },
-  id: { week: "Minggu ini", answered: "dijawab", accuracy: "akurasi", days: "hari aktif", minutes: "menit", assignments: "Tugas dari gurumu", noAssign: "Belum ada tugas.", start: "Mulai", continue: "Lanjutkan", done: "Selesai", due: "Batas", skills: "Peta skill", rw: "Reading & Writing", math: "Matematika", ofTest: "dari bagian ini", practise: "Latihan", lesson: "Pelajaran", noQ: "Segera hadir", questions: "soal", target: "Target skor", testDate: "Tanggal tes", set: "Simpan", tip: "Pilih satu skill dan kerjakan 8 soal. Targetkan dua atau tiga skill sehari." },
+  en: { week: "Last 7 days", answered: "answered", accuracy: "accuracy", days: "active days", minutes: "minutes", assignments: "Assignments from your teacher", noAssign: "No assignments yet.", start: "Start", continue: "Continue", done: "Done", due: "Due", skills: "Skill tree", rw: "Reading & Writing", math: "Math", ofTest: "of the section", practise: "Practise", lesson: "Lesson", noQ: "Coming soon", questions: "questions", target: "Target score", testDate: "Test date", set: "Set", tip: "Pick a skill and do 8 questions. Aim for two or three skills a day." },
+  id: { week: "7 hari terakhir", answered: "dijawab", accuracy: "akurasi", days: "hari aktif", minutes: "menit", assignments: "Tugas dari gurumu", noAssign: "Belum ada tugas.", start: "Mulai", continue: "Lanjutkan", done: "Selesai", due: "Tenggat", skills: "Peta skill", rw: "Reading & Writing", math: "Matematika", ofTest: "dari bagian ini", practise: "Latihan", lesson: "Pelajaran", noQ: "Segera hadir", questions: "soal", target: "Target skor", testDate: "Tanggal tes", set: "Simpan", tip: "Pilih satu skill dan kerjakan 8 soal. Targetkan dua atau tiga skill sehari." },
 };
 
 export default function SatDashboard() {
@@ -65,15 +65,17 @@ export default function SatDashboard() {
         {[
           { label: t.answered, value: w?.answered ?? "–" },
           { label: t.accuracy, value: acc === null ? "–" : `${acc}%` },
-          { label: lang === "id" ? "hari berturut" : "day streak", value: progress.data?.streak ?? "–", icon: <Flame className="w-4 h-4 text-orange-500" /> },
+          { label: lang === "id" ? "hari berturut-turut" : "day streak", value: progress.data?.streak ?? "–", icon: <Flame className="w-4 h-4 text-orange-500" />, noPrefix: true },
           { label: t.minutes, value: w?.minutes ?? "–" },
         ].map((c, i) => (
           <div key={i} className="bg-white rounded-2xl border border-slate-200 p-4">
-            <div className="text-[11px] uppercase tracking-wider text-slate-500 flex items-center gap-1">{c.icon}{t.week} · {c.label}</div>
+            <div className="text-[11px] uppercase tracking-wider text-slate-500 flex items-center gap-1">{c.icon}{(c as any).noPrefix ? c.label : `${t.week} · ${c.label}`}</div>
             <div className="text-2xl font-black mt-1">{c.value}</div>
           </div>
         ))}
       </section>
+
+      {(startDrill.error || startAssignment.error) && <div className="mb-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2">{startDrill.error?.message || startAssignment.error?.message}</div>}
 
       {/* Access expiry */}
       {me.data?.accessUntil && (() => { const days = Math.ceil((me.data!.accessUntil! - Date.now()) / 86400000); const dateStr = new Date(me.data!.accessUntil!).toLocaleDateString(lang === "id" ? "id-ID" : "en-GB", { day: "numeric", month: "long", year: "numeric" }); return (

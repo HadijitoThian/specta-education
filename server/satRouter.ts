@@ -32,12 +32,27 @@ import { buildDiagnostic, buildMockStage1, routeStage2, moduleOpen, moduleDeadli
 function assertAdmin(ctx: { user: { role: string } | null }) {
   if (!ctx.user || ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Admin only." });
 }
-async function requireStudent(ctx: any) {
+async function requireStudent(ctx: any, allowUnsetPassword = false) {
   const s = await resolveSatStudent(ctx);
   if (!s) throw new TRPCError({ code: "UNAUTHORIZED", message: "Please sign in to SAT Self-Prep." });
+  if (s.mustChangePassword && !allowUnsetPassword) throw new TRPCError({ code: "FORBIDDEN", message: "Please choose your password first." });
   return s;
 }
 const dbOrThrow = async () => { const db = await getDb(); if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" }); return db; };
+const DRILL_KINDS = ["drill", "assignment"];
+const isDup = (e: unknown) => /ER_DUP_ENTRY|Duplicate entry/i.test(String((e as any)?.message || (e as any)?.code || e));
+const affected = (r: unknown): number => Number((r as any)?.[0]?.affectedRows ?? (r as any)?.affectedRows ?? 0);
+
+/** Question ids inside this student's open timed tests: Emma must not explain them until the test is done. */
+async function lockedQuestionIds(studentId: number): Promise<Set<number>> {
+  const db = await dbOrThrow();
+  const open = await db.select({ modules: satTestSessions.modules }).from(satTestSessions).where(and(eq(satTestSessions.studentId, studentId), inArray(satTestSessions.status, ["active", "break"])));
+  return new Set(open.flatMap(o => (o.modules as TestModule[]).flatMap(m => m.questionIds)));
+}
+async function assertNotLocked(studentId: number, questionId: number): Promise<void> {
+  if ((await lockedQuestionIds(studentId)).has(questionId)) throw new TRPCError({ code: "FORBIDDEN", message: "This question is part of your test in progress. Emma can help once you finish the test." });
+}
+const submitLocks = new Set<number>();
 
 // ── Background generation queue (same pattern as the GEO engine) ──────────
 interface Job { key: string; label: string; status: "queued" | "running" | "done" | "error"; result?: string; error?: string; queuedAt: number; startedAt?: number; finishedAt?: number; run: () => Promise<string> }
@@ -126,35 +141,46 @@ async function sessionView(sess: SatTestSession) {
   };
 }
 
-/** Close the open module: route Module 2, start the break, or finish + score. */
+/** Close the open module: route Module 2, start the break, or finish + score. Runs at most once per module. */
 async function submitCurrentModule(sess: SatTestSession): Promise<void> {
-  const db = await dbOrThrow();
-  const mods = sess.modules as TestModule[];
-  const cur = mods[sess.currentModule];
-  if (!cur) return;
-  const responses = await db.select().from(satResponses).where(eq(satResponses.attemptId, sess.attemptId));
-  const ok = new Map(responses.map(r => [r.questionId, r.correct]));
-  const next = mods[sess.currentModule + 1];
-  if (next && next.stage === 2 && next.questionIds.length === 0) {
-    const m1c = cur.questionIds.filter(id => ok.get(id)).length;
-    const routed = await routeStage2(cur.section, m1c, cur.questionIds.length, mods.flatMap(m => m.questionIds));
-    next.variant = routed.variant; next.questionIds = routed.questionIds;
-    await db.update(satAttempts).set({ questionIds: mods.flatMap(m => m.questionIds) }).where(eq(satAttempts.id, sess.attemptId));
-  }
-  if (!next) {
-    const scores = await scoreSession(mods, responses.map(r => ({ questionId: r.questionId, correct: r.correct })));
-    // Mastery update happens once, at the end, so no feedback leaks mid-test.
-    const qs = await questionsByIds(mods.flatMap(m => m.questionIds));
-    for (const r of responses) { const q = qs.find(x => x.id === r.questionId); if (q) await recordAnswer({ studentId: sess.studentId, skillId: q.skillId, correct: r.correct, format: q.format }); }
-    await db.update(satTestSessions).set({ modules: mods, status: "completed", scores, completedAt: new Date(), moduleStartedAt: null }).where(eq(satTestSessions.id, sess.id));
-    await db.update(satAttempts).set({ status: "completed", completedAt: new Date(), correct: responses.filter(r => r.correct).length, total: mods.reduce((x, m) => x + m.questionIds.length, 0) }).where(eq(satAttempts.id, sess.attemptId));
-    return;
-  }
-  const isBreak = sess.kind === "mock" && cur.section === "rw" && next.section === "math";
-  await db.update(satTestSessions).set({
-    modules: mods, currentModule: sess.currentModule + 1, moduleStartedAt: isBreak ? null : new Date(),
-    status: isBreak ? "break" : "active", breakUntil: isBreak ? new Date(Date.now() + SHAPE.breakMinutes * 60000) : null,
-  }).where(eq(satTestSessions.id, sess.id));
+  if (submitLocks.has(sess.id)) return;
+  submitLocks.add(sess.id);
+  try {
+    const db = await dbOrThrow();
+    // Claim this transition: only the caller that flips moduleStartedAt to NULL proceeds (two tabs, poll + click).
+    const claim = await db.update(satTestSessions).set({ moduleStartedAt: null })
+      .where(and(eq(satTestSessions.id, sess.id), eq(satTestSessions.status, "active"), eq(satTestSessions.currentModule, sess.currentModule), sql`moduleStartedAt IS NOT NULL`));
+    if (affected(claim) !== 1) return;
+    const mods = sess.modules as TestModule[];
+    const cur = mods[sess.currentModule];
+    if (!cur) return;
+    const responses = await db.select().from(satResponses).where(eq(satResponses.attemptId, sess.attemptId));
+    const ok = new Map(responses.map(r => [r.questionId, r.correct]));
+    const next = mods[sess.currentModule + 1];
+    if (next && next.stage === 2 && next.questionIds.length === 0) {
+      const m1c = cur.questionIds.filter(id => ok.get(id)).length;
+      const routed = await routeStage2(cur.section, m1c, cur.questionIds.length, mods.flatMap(m => m.questionIds));
+      next.variant = routed.variant; next.questionIds = routed.questionIds;
+      // A thin bank gives a short module: keep the pace of the real test rather than 32 minutes for 5 questions.
+      const full = SHAPE[cur.section].n;
+      if (next.questionIds.length < full) next.minutes = Math.max(5, Math.round(SHAPE[cur.section].minutes * next.questionIds.length / full));
+      await db.update(satAttempts).set({ questionIds: mods.flatMap(m => m.questionIds) }).where(eq(satAttempts.id, sess.attemptId));
+    }
+    if (!next) {
+      const scores = await scoreSession(mods, responses.map(r => ({ questionId: r.questionId, correct: r.correct })));
+      const qs = await questionsByIds(mods.flatMap(m => m.questionIds));
+      const seenQ = new Set<number>();
+      for (const r of responses) { if (seenQ.has(r.questionId)) continue; seenQ.add(r.questionId); const q = qs.find(x => x.id === r.questionId); if (q) await recordAnswer({ studentId: sess.studentId, skillId: q.skillId, correct: r.correct, format: q.format }); }
+      await db.update(satTestSessions).set({ modules: mods, status: "completed", scores, completedAt: new Date(), moduleStartedAt: null }).where(eq(satTestSessions.id, sess.id));
+      await db.update(satAttempts).set({ status: "completed", completedAt: new Date(), correct: responses.filter(r => r.correct).length, total: mods.reduce((x, m) => x + m.questionIds.length, 0) }).where(eq(satAttempts.id, sess.attemptId));
+      return;
+    }
+    const isBreak = sess.kind === "mock" && cur.section === "rw" && next.section === "math";
+    await db.update(satTestSessions).set({
+      modules: mods, currentModule: sess.currentModule + 1, moduleStartedAt: isBreak ? null : new Date(),
+      status: isBreak ? "break" : "active", breakUntil: isBreak ? new Date(Date.now() + SHAPE.breakMinutes * 60000) : null,
+    }).where(eq(satTestSessions.id, sess.id));
+  } finally { submitLocks.delete(sess.id); }
 }
 
 // =========================================================================
@@ -184,7 +210,7 @@ export const satRouter = router({
   changePassword: publicProcedure
     .input(z.object({ newPassword: z.string().min(8).max(100) }))
     .mutation(async ({ input, ctx }) => {
-      const s = await requireStudent(ctx); const db = await dbOrThrow();
+      const s = await requireStudent(ctx, true); const db = await dbOrThrow();
       await db.update(satStudents).set({ passwordHash: await hashPassword(input.newPassword), mustChangePassword: false }).where(eq(satStudents.id, s.id));
       return { ok: true };
     }),
@@ -212,7 +238,7 @@ export const satRouter = router({
         id: k.id, section: k.section, domain: k.domain, domainCode: k.domainCode, code: k.code, title: k.title, outcomes: k.outcomes,
         domainLabel: DOMAIN_LABEL[k.domainCode]?.[s.lang] || k.domain, domainShare: DOMAIN_SHARE[k.domainCode] || 0,
         hasLesson: k.lessonStatus === "approved", questionCount: cMap.get(k.id) || 0,
-        mastery: { pKnown: p, label: masteryLabel(p), attempts: m?.attempts || 0, correct: m?.correct || 0, lastPracticedAt: m?.lastPracticedAt || null },
+        mastery: { pKnown: p, label: masteryLabel(p, m?.attempts || 0), attempts: m?.attempts || 0, correct: m?.correct || 0, lastPracticedAt: m?.lastPracticedAt || null },
       };
     });
   }),
@@ -248,16 +274,18 @@ export const satRouter = router({
       const s = await requireStudent(ctx); const db = await dbOrThrow();
       const [a] = await db.select().from(satAttempts).where(and(eq(satAttempts.id, input.attemptId), eq(satAttempts.studentId, s.id))).limit(1);
       if (!a || a.status !== "active") throw new TRPCError({ code: "NOT_FOUND", message: "Attempt not active." });
+      if (!DRILL_KINDS.includes(a.kind)) throw new TRPCError({ code: "BAD_REQUEST", message: "Timed tests are answered inside the test." });
       if (!(a.questionIds as number[]).includes(input.questionId)) throw new TRPCError({ code: "BAD_REQUEST" });
       const [already] = await db.select().from(satResponses).where(and(eq(satResponses.attemptId, a.id), eq(satResponses.questionId, input.questionId))).limit(1);
       if (already) throw new TRPCError({ code: "BAD_REQUEST", message: "Already answered." });
       const [q] = await db.select().from(satQuestions).where(eq(satQuestions.id, input.questionId)).limit(1);
       if (!q) throw new TRPCError({ code: "NOT_FOUND" });
       const correct = checkAnswer(q, input.answer);
-      await db.insert(satResponses).values({ attemptId: a.id, studentId: s.id, questionId: q.id, skillId: q.skillId, answer: input.answer.slice(0, 200), correct, timeMs: input.timeMs ?? null });
-      if (correct) { await db.update(satAttempts).set({ correct: a.correct + 1 }).where(eq(satAttempts.id, a.id)); await db.update(satQuestions).set({ timesCorrect: sql`timesCorrect + 1` }).where(eq(satQuestions.id, q.id)); }
-      const { pKnown } = await recordAnswer({ studentId: s.id, skillId: q.skillId, correct, format: q.format });
-      return { correct, question: fullQuestion(q), mastery: { pKnown, label: masteryLabel(pKnown) } };
+      try { await db.insert(satResponses).values({ attemptId: a.id, studentId: s.id, questionId: q.id, skillId: q.skillId, answer: input.answer.slice(0, 200), correct, timeMs: input.timeMs ?? null }); }
+      catch (e) { if (isDup(e)) throw new TRPCError({ code: "BAD_REQUEST", message: "Already answered." }); throw e; }
+      if (correct) { await db.update(satAttempts).set({ correct: sql`correct + 1` }).where(eq(satAttempts.id, a.id)); await db.update(satQuestions).set({ timesCorrect: sql`timesCorrect + 1` }).where(eq(satQuestions.id, q.id)); }
+      const { pKnown, attempts } = await recordAnswer({ studentId: s.id, skillId: q.skillId, correct, format: q.format });
+      return { correct, question: fullQuestion(q), mastery: { pKnown, label: masteryLabel(pKnown, attempts) } };
     }),
 
   /** Reload an active attempt (page refresh / resume). */
@@ -267,6 +295,7 @@ export const satRouter = router({
       const s = await requireStudent(ctx); const db = await dbOrThrow();
       const [a] = await db.select().from(satAttempts).where(and(eq(satAttempts.id, input.attemptId), eq(satAttempts.studentId, s.id))).limit(1);
       if (!a) throw new TRPCError({ code: "NOT_FOUND" });
+      if (!DRILL_KINDS.includes(a.kind)) throw new TRPCError({ code: "BAD_REQUEST", message: "Timed tests are reviewed from their report." });
       const qs = await questionsByIds(a.questionIds as number[]);
       const responses = await db.select().from(satResponses).where(eq(satResponses.attemptId, a.id));
       const skill = a.skillId ? (await db.select({ code: satSkills.code, title: satSkills.title }).from(satSkills).where(eq(satSkills.id, a.skillId)).limit(1))[0] : null;
@@ -284,14 +313,15 @@ export const satRouter = router({
       const s = await requireStudent(ctx); const db = await dbOrThrow();
       const [a] = await db.select().from(satAttempts).where(and(eq(satAttempts.id, input.attemptId), eq(satAttempts.studentId, s.id))).limit(1);
       if (!a) throw new TRPCError({ code: "NOT_FOUND" });
+      if (!DRILL_KINDS.includes(a.kind)) throw new TRPCError({ code: "BAD_REQUEST" });
       const responses = await db.select().from(satResponses).where(eq(satResponses.attemptId, a.id));
-      await db.update(satAttempts).set({ status: "completed", completedAt: new Date(), correct: responses.filter(r => r.correct).length }).where(eq(satAttempts.id, a.id));
-      if (a.assignmentId) {
+      if (a.status === "active") await db.update(satAttempts).set({ status: "completed", completedAt: new Date(), correct: responses.filter(r => r.correct).length }).where(and(eq(satAttempts.id, a.id), eq(satAttempts.status, "active")));
+      if (a.assignmentId && a.status === "active") {
         await db.update(satAssignmentStudents).set({ status: "completed", completedAt: new Date(), attemptId: a.id })
           .where(and(eq(satAssignmentStudents.assignmentId, a.assignmentId), eq(satAssignmentStudents.studentId, s.id)));
       }
       const [m] = a.skillId ? await db.select().from(satMastery).where(and(eq(satMastery.studentId, s.id), eq(satMastery.skillId, a.skillId))).limit(1) : [];
-      return { correct: responses.filter(r => r.correct).length, total: a.total, answered: responses.length, avgTimeMs: responses.length ? Math.round(responses.reduce((x, r) => x + (r.timeMs || 0), 0) / responses.length) : 0, mastery: m ? { pKnown: Number(m.pKnown), label: masteryLabel(Number(m.pKnown)) } : null };
+      return { correct: responses.filter(r => r.correct).length, total: a.total, answered: responses.length, avgTimeMs: responses.length ? Math.round(responses.reduce((x, r) => x + (r.timeMs || 0), 0) / responses.length) : 0, mastery: m ? { pKnown: Number(m.pKnown), label: masteryLabel(Number(m.pKnown), m.attempts) } : null };
     }),
 
   flagQuestion: publicProcedure
@@ -345,6 +375,7 @@ export const satRouter = router({
       const s = await requireStudent(ctx); const db = await dbOrThrow();
       const [q] = await db.select().from(satQuestions).where(eq(satQuestions.id, input.questionId)).limit(1);
       if (!q) throw new TRPCError({ code: "NOT_FOUND" });
+      await assertNotLocked(s.id, q.id);
       const text = await tutorReply({ mode: input.mode, lang: s.lang, studentAnswer: input.studentAnswer, message: input.message, history: input.history, question: { passage: q.passage, stem: q.stem, choices: q.choices as string[] | null, answer: q.answer, explanationEn: q.explanationEn, format: q.format } });
       return { text };
     }),
@@ -377,6 +408,11 @@ export const satRouter = router({
       const cur = mods[sess.currentModule];
       if (sess.status === "active" && cur && sess.moduleStartedAt && !moduleOpen(sess.moduleStartedAt, cur.minutes)) {
         await submitCurrentModule(sess); sess = await loadSession(s.id, input.sessionId);
+      } else if (sess.status === "break" && sess.breakUntil && Date.now() > sess.breakUntil.getTime()) {
+        // Bluebook's break ends by itself: the Math clock starts when the break ends.
+        const db = await dbOrThrow();
+        await db.update(satTestSessions).set({ status: "active", breakUntil: null, moduleStartedAt: sess.breakUntil }).where(and(eq(satTestSessions.id, sess.id), eq(satTestSessions.status, "break")));
+        sess = await loadSession(s.id, input.sessionId);
       }
       return sessionView(sess);
     }),
@@ -408,7 +444,10 @@ export const satRouter = router({
       const correct = checkAnswer(q, input.answer);
       const [ex] = await db.select().from(satResponses).where(and(eq(satResponses.attemptId, sess.attemptId), eq(satResponses.questionId, q.id))).limit(1);
       if (ex) await db.update(satResponses).set({ answer: input.answer.slice(0, 200), correct }).where(eq(satResponses.id, ex.id));
-      else await db.insert(satResponses).values({ attemptId: sess.attemptId, studentId: s.id, questionId: q.id, skillId: q.skillId, answer: input.answer.slice(0, 200), correct });
+      else {
+        try { await db.insert(satResponses).values({ attemptId: sess.attemptId, studentId: s.id, questionId: q.id, skillId: q.skillId, answer: input.answer.slice(0, 200), correct }); }
+        catch (e) { if (!isDup(e)) throw e; await db.update(satResponses).set({ answer: input.answer.slice(0, 200), correct }).where(and(eq(satResponses.attemptId, sess.attemptId), eq(satResponses.questionId, q.id))); }
+      }
       return { ok: true };
     }),
 
@@ -488,6 +527,10 @@ export const satRouter = router({
     .input(z.object({ questionId: z.number().int(), studentAnswer: z.string().max(200).optional() }))
     .mutation(async ({ input, ctx }) => {
       const s = await requireStudent(ctx); const db = await dbOrThrow();
+      await assertNotLocked(s.id, input.questionId);
+      // Close calls that never reported an end (tab closed, mic refused): they count what actually elapsed, capped at one call.
+      const orphans = await db.select().from(satLiveSessions).where(and(eq(satLiveSessions.studentId, s.id), sql`endedAt IS NULL`));
+      for (const o of orphans) { const secs = Math.min(SAT_LIVE_MAX_SECONDS, Math.max(0, Math.round((Date.now() - new Date(o.startedAt).getTime()) / 1000))); await db.update(satLiveSessions).set({ endedAt: new Date(), seconds: secs }).where(and(eq(satLiveSessions.id, o.id), sql`endedAt IS NULL`)); }
       const qta = await liveAllowance(s.id, s.liveCreditSeconds);
       if (qta.availableSec < 60) throw new TRPCError({ code: "FORBIDDEN", message: s.lang === "id"
         ? `Jatah gratis ${SAT_LIVE_WEEKLY_MINUTES / 60} jam/minggu untuk bicara dengan Emma sudah habis (reset hari Senin). Chat teks tetap bisa. Ingin lanjut sekarang? Beli kredit Rp ${SAT_CREDIT_PRICE_PER_HOUR.toLocaleString("id-ID")}/jam di halaman Kredit.`
@@ -509,13 +552,17 @@ export const satRouter = router({
       const s = await requireStudent(ctx); const db = await dbOrThrow();
       const [sess] = await db.select().from(satLiveSessions).where(and(eq(satLiveSessions.id, input.liveSessionId), eq(satLiveSessions.studentId, s.id))).limit(1);
       if (!sess || sess.endedAt) return { ok: true };
+      // The server clock decides the duration (the client value is only a lower bound).
+      const elapsed = Math.max(0, Math.round((Date.now() - new Date(sess.startedAt).getTime()) / 1000));
+      const seconds = Math.min(SAT_LIVE_MAX_SECONDS, Math.max(input.seconds, elapsed - 20));
       const since = liveWeekStart();
       const others = await db.select({ seconds: satLiveSessions.seconds }).from(satLiveSessions).where(and(eq(satLiveSessions.studentId, s.id), gte(satLiveSessions.startedAt, since), sql`endedAt IS NOT NULL`, sql`id <> ${sess.id}`));
       const usedBefore = others.reduce((x, r) => x + r.seconds, 0);
       const free = SAT_LIVE_WEEKLY_MINUTES * 60;
-      const overflow = Math.max(0, usedBefore + input.seconds - free) - Math.max(0, usedBefore - free);
+      const overflow = Math.max(0, usedBefore + seconds - free) - Math.max(0, usedBefore - free);
       const charge = Math.min(overflow, s.liveCreditSeconds);
-      await db.update(satLiveSessions).set({ endedAt: new Date(), seconds: input.seconds, creditSeconds: charge }).where(eq(satLiveSessions.id, sess.id));
+      const r = await db.update(satLiveSessions).set({ endedAt: new Date(), seconds, creditSeconds: charge }).where(and(eq(satLiveSessions.id, sess.id), sql`endedAt IS NULL`));
+      if (affected(r) !== 1) return { ok: true };
       if (charge > 0) await db.update(satStudents).set({ liveCreditSeconds: sql`GREATEST(0, liveCreditSeconds - ${charge})` }).where(eq(satStudents.id, s.id));
       return { ok: true, creditCharged: charge };
     }),
@@ -535,8 +582,9 @@ export const satRouter = router({
       const externalId = satCreditExternalId();
       const amount = SAT_CREDIT_PRICE_PER_HOUR * input.hours;
       const base = (ENV.appUrl || "https://www.spectaeducation.com").replace(/\/+$/, "");
+      await db.insert(satCreditOrders).values({ studentId: s.id, hours: input.hours, amount, externalId, status: "pending" });
       const invoice = await createSatCreditInvoice({ externalId, hours: input.hours, customerName: s.name, customerEmail: s.email, successRedirectUrl: `${base}/sat/credits?paid=1`, failureRedirectUrl: `${base}/sat/credits?paid=0` });
-      await db.insert(satCreditOrders).values({ studentId: s.id, hours: input.hours, amount, externalId, xenditInvoiceId: invoice.id || null, invoiceUrl: invoice.invoice_url, status: "pending" });
+      await db.update(satCreditOrders).set({ xenditInvoiceId: invoice.id || null, invoiceUrl: invoice.invoice_url }).where(eq(satCreditOrders.externalId, externalId));
       return { invoiceUrl: invoice.invoice_url, amount };
     }),
 
@@ -548,6 +596,7 @@ export const satRouter = router({
       if (!visionAvailable()) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Photo review isn't configured yet." });
       const [q] = await db.select().from(satQuestions).where(eq(satQuestions.id, input.questionId)).limit(1);
       if (!q) throw new TRPCError({ code: "NOT_FOUND" });
+      await assertNotLocked(s.id, q.id);
       const text = await reviewWorkingPhoto({ imageBase64: input.imageBase64, mimeType: input.mimeType, lang: s.lang, question: { passage: q.passage, stem: q.stem, choices: q.choices as string[] | null, answer: q.answer, explanation: q.explanationEn, format: q.format }, studentAnswer: input.studentAnswer, note: input.note });
       if (!text) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Emma couldn't read the photo. Try a clearer, brighter shot." });
       return { text };
@@ -580,11 +629,11 @@ export const satRouter = router({
     const all = await db.select({ n: sql<number>`count(*)`, c: sql<number>`sum(correct)` }).from(satResponses).where(eq(satResponses.studentId, s.id));
     const days = new Set(recent.map(r => new Date(r.createdAt).toISOString().slice(0, 10)));
     // Streak: consecutive active days ending today or yesterday.
-    const allDays = await db.select({ d: sql<string>`DATE(createdAt)` }).from(satResponses).where(eq(satResponses.studentId, s.id)).groupBy(sql`DATE(createdAt)`);
-    const dset = new Set(allDays.map(r => String(r.d).slice(0, 10)));
-    let streak = 0; const cur = new Date(); cur.setHours(0, 0, 0, 0);
-    if (!dset.has(cur.toISOString().slice(0, 10))) cur.setDate(cur.getDate() - 1);
-    while (dset.has(cur.toISOString().slice(0, 10))) { streak++; cur.setDate(cur.getDate() - 1); }
+    const allDays = await db.select({ d: sql<string>`DATE(DATE_ADD(createdAt, INTERVAL 7 HOUR))` }).from(satResponses).where(eq(satResponses.studentId, s.id)).groupBy(sql`DATE(DATE_ADD(createdAt, INTERVAL 7 HOUR))`);
+    const dset = new Set(allDays.map(r => { const v: unknown = r.d; return (v instanceof Date ? new Date(v.getTime() + 7 * 3600e3).toISOString() : String(v)).slice(0, 10); }));
+    let streak = 0; const cur = new Date(Date.now() + 7 * 3600e3);
+    if (!dset.has(cur.toISOString().slice(0, 10))) cur.setUTCDate(cur.getUTCDate() - 1);
+    while (dset.has(cur.toISOString().slice(0, 10))) { streak++; cur.setUTCDate(cur.getUTCDate() - 1); }
     const mastery = await db.select().from(satMastery).where(eq(satMastery.studentId, s.id));
     const skills = await db.select({ id: satSkills.id, domainCode: satSkills.domainCode, section: satSkills.section }).from(satSkills);
     const byDomain: Record<string, { sum: number; n: number }> = {};

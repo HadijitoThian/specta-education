@@ -90,11 +90,13 @@ Return JSON ONLY: { "items": [ { "passage": "..." or null, "stem": "...", "forma
   const items: any[] = Array.isArray(parsed) ? parsed : (parsed?.items || []);
   const drafts: DraftQuestion[] = [];
   for (const it of items.slice(0, count)) {
-    const fmt: "mc" | "spr" = it?.format === "spr" ? "spr" : "mc";
-    const choices = fmt === "mc" ? (Array.isArray(it?.choices) ? it.choices.map((c: any) => String(c).trim()).slice(0, 4) : null) : null;
+    const fmt: "mc" | "spr" = it?.format === "spr" && skill.section === "math" ? "spr" : "mc";
+    const rawChoices = Array.isArray(it?.choices) ? it.choices.map((c: any) => String(c).trim()).filter(Boolean) : null;
+    const choices = fmt === "mc" ? (rawChoices && rawChoices.length === 4 ? rawChoices : null) : null;
     const answer = String(it?.answer ?? "").trim();
     const stem = String(it?.stem ?? "").trim();
-    if (!stem || !answer || (fmt === "mc" && (!choices || choices.length !== 4 || !/^[A-D]$/i.test(answer)))) continue;
+    if (!stem || !answer || (fmt === "mc" && (!choices || !/^[A-D]$/i.test(answer)))) continue;
+    if (fmt === "spr" && parseNumeric(answer) === null) continue;
     const d: DraftQuestion = {
       passage: it?.passage ? String(it.passage).trim() : null,
       stem, format: fmt, choices,

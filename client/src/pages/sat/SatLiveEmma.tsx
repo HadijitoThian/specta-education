@@ -1,7 +1,7 @@
 /**
  * Live voice Emma for one SAT question (Phase 3).
  * Small card inside the drill's Emma panel: Start → speaking indicator +
- * transcript + countdown → End. Minutes are capped per day on the server.
+ * transcript + countdown → End. Free minutes are capped per week on the server.
  */
 import { useEffect, useRef, useState } from "react";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
@@ -50,9 +50,9 @@ function Inner({ questionId, studentAnswer, lang, onClose }: { questionId: numbe
   const start = trpc.sat.liveStart.useMutation({
     onSuccess: async (d) => {
       liveId.current = d.liveSessionId; maxSec.current = d.maxSeconds; setLeft(d.maxSeconds);
-      try { await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { setErr("Microphone permission is needed."); setPhase("idle"); return; }
+      try { await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { setErr("Microphone permission is needed."); setPhase("idle"); liveEnd.mutate({ liveSessionId: d.liveSessionId, seconds: 0 }); return; }
       try { await conversation.startSession({ signedUrl: d.signedUrl, dynamicVariables: d.dynamicVariables } as any); }
-      catch (e: any) { setErr(String(e?.message || e).slice(0, 200)); setPhase("idle"); }
+      catch (e: any) { setErr(String(e?.message || e).slice(0, 200)); setPhase("idle"); liveEnd.mutate({ liveSessionId: d.liveSessionId, seconds: 0 }); }
     },
     onError: (e) => { setErr(e.message); setPhase("idle"); },
   });
@@ -67,6 +67,16 @@ function Inner({ questionId, studentAnswer, lang, onClose }: { questionId: numbe
     return () => clearInterval(iv);
   }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { try { conversation.endSession(); } catch { /* */ } }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Tab closed / phone locked mid-call: tell the server with a keepalive request so the call is closed at the real elapsed time.
+  useEffect(() => {
+    const onHide = () => {
+      if (phase !== "live" || !liveId.current) return;
+      const secs = Math.round((Date.now() - startedAt.current) / 1000);
+      try { fetch("/api/trpc/sat.liveEnd", { method: "POST", keepalive: true, credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ json: { liveSessionId: liveId.current, seconds: secs } }) }); } catch { /* */ }
+    };
+    window.addEventListener("pagehide", onHide);
+    return () => window.removeEventListener("pagehide", onHide);
+  }, [phase]);
 
   const speaking = conversation.isSpeaking;
   return (

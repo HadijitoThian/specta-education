@@ -84,7 +84,8 @@ function Students({ setMsg }: { setMsg: (m: string) => void }) {
   const setActive = trpc.admin.sat.setStudentActive.useMutation({ onSuccess: () => utils.admin.sat.students.invalidate() });
   const reset = trpc.admin.sat.resetStudentPassword.useMutation({ onSuccess: (d) => setMsg(`New temporary password: ${d.tempPassword}${d.emailed ? " (emailed)" : " — email NOT sent"}`) });
   const update = trpc.admin.sat.updateStudent.useMutation({ onSuccess: () => { utils.admin.sat.students.invalidate(); setMsg("Saved."); }, onError: (e) => setMsg(`Error: ${e.message}`) });
-  const report = trpc.admin.sat.parentReport.useMutation({ onSuccess: (d) => { if (d.sent) setMsg(`Parent report sent to ${d.to}.`); else { const w = window.open("", "_blank"); if (w) { w.document.write(d.html); w.document.close(); } } }, onError: (e) => setMsg(`Error: ${e.message}`) });
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const report = trpc.admin.sat.parentReport.useMutation({ onSuccess: (d) => { if (d.sent) setMsg(`Parent report sent to ${d.to}.`); else setPreviewHtml(d.html); }, onError: (e) => setMsg(`Error: ${e.message}`) });
   const [editing, setEditing] = useState<number | null>(null);
   const [pe, setPe] = useState(""); const [ts, setTs] = useState(""); const [td, setTd] = useState(""); const [au, setAu] = useState("");
   const grant = trpc.admin.sat.grantLiveCredit.useMutation({ onSuccess: () => { utils.admin.sat.students.invalidate(); setMsg("Credit updated."); } });
@@ -97,6 +98,7 @@ function Students({ setMsg }: { setMsg: (m: string) => void }) {
         <label className="text-xs text-slate-600 flex items-center gap-1"><input type="checkbox" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)} /> Email login</label>
         <button type="submit" disabled={create.isPending} className="text-sm px-3 py-2 rounded-lg bg-slate-900 text-white font-semibold flex items-center gap-1 disabled:opacity-50"><UserPlus className="w-4 h-4" />Create account</button>
       </form>
+      {previewHtml && <div className="bg-white rounded-2xl border border-slate-200 p-3"><div className="flex justify-between items-center mb-2 text-sm"><b>Parent report preview</b><button onClick={() => setPreviewHtml(null)} className="text-xs underline">Close</button></div><iframe title="Parent report preview" srcDoc={previewHtml} className="w-full h-[640px] rounded-xl border" /></div>}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-x-auto">
         <table className="w-full text-sm">
           <thead><tr className="text-left text-xs uppercase tracking-wider text-slate-500"><th className="p-3">Student</th><th>Access</th><th>Answered</th><th>Emma credit</th><th>Last active</th><th>Last login</th><th></th></tr></thead>

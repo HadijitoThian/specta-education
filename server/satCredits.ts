@@ -6,7 +6,7 @@
  *   the week's free minutes are gone.
  */
 
-import { and, eq, gte } from "drizzle-orm";
+import { and, eq, gte, ne, sql } from "drizzle-orm";
 import { getDb } from "./db";
 import { satStudents, satLiveSessions, satCreditOrders } from "../drizzle/schema";
 import { SAT_LIVE_WEEKLY_MINUTES, SAT_LIVE_MAX_SECONDS, liveWeekStart, liveWeekEnd } from "./satLiveAgent";
@@ -28,9 +28,11 @@ export async function applySatCreditPayment(externalId: string, status: string, 
   if (!order) return { credited: false, reason: "order not found" };
   if (status === "PAID" || status === "SETTLED") {
     if (order.status === "paid") return { credited: false, reason: "already processed" };
-    await db.update(satCreditOrders).set({ status: "paid", paidAt: new Date(), xenditInvoiceId: invoiceId || order.xenditInvoiceId }).where(eq(satCreditOrders.id, order.id));
+    const r = await db.update(satCreditOrders).set({ status: "paid", paidAt: new Date(), xenditInvoiceId: invoiceId || order.xenditInvoiceId }).where(and(eq(satCreditOrders.id, order.id), ne(satCreditOrders.status, "paid")));
+    const n = Number((r as any)?.[0]?.affectedRows ?? 0);
+    if (n !== 1) return { credited: false, reason: "already processed" };
+    await db.update(satStudents).set({ liveCreditSeconds: sql`liveCreditSeconds + ${order.hours * 3600}` }).where(eq(satStudents.id, order.studentId));
     const [s] = await db.select().from(satStudents).where(eq(satStudents.id, order.studentId)).limit(1);
-    if (s) await db.update(satStudents).set({ liveCreditSeconds: (s.liveCreditSeconds || 0) + order.hours * 3600 }).where(eq(satStudents.id, s.id));
     console.log(`[SAT credit] ${externalId}: +${order.hours}h for student ${order.studentId}`);
     return { credited: true, hours: order.hours, amount: order.amount, studentName: s?.name, studentEmail: s?.email };
   }

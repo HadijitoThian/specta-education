@@ -13,11 +13,11 @@ export default function SatLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const login = trpc.sat.login.useMutation({
-    onSuccess: (d) => { utils.sat.me.invalidate(); navigate(d.mustChangePassword ? "/sat/password" : "/sat"); },
+    onSuccess: async (d) => { await utils.sat.me.refetch(); navigate(d.mustChangePassword ? "/sat/password" : "/sat"); },
     onError: (e) => setError(e.message),
   });
   useEffect(() => { document.title = "Sign in · SpecTa SAT Self-Prep"; }, []);
-  useEffect(() => { if (me.data) navigate(me.data.mustChangePassword ? "/sat/password" : "/sat"); }, [me.data, navigate]);
+  useEffect(() => { if (me.data && !me.isFetching) navigate(me.data.mustChangePassword ? "/sat/password" : "/sat"); }, [me.data, me.isFetching, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 flex items-center justify-center px-4">
