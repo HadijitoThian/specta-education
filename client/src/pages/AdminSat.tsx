@@ -21,6 +21,8 @@ export default function AdminSat() {
   const jobs = trpc.admin.sat.jobs.useQuery(undefined, { refetchInterval: 4000 });
   const active = (jobs.data || []).filter(j => j.status === "queued" || j.status === "running");
   const prevActive = useRef(0);
+  const seed = trpc.admin.sat.seedStatus.useQuery(undefined, { refetchInterval: 10000 });
+  const seedRestart = trpc.admin.sat.seedRestart.useMutation({ onSuccess: () => { setMsg("Seed restarted for the cells still short."); seed.refetch(); } });
   useEffect(() => { if (prevActive.current > active.length) { utils.admin.sat.skills.invalidate(); utils.admin.sat.questions.invalidate(); } prevActive.current = active.length; }, [active.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -32,6 +34,14 @@ export default function AdminSat() {
           <h1 className="text-2xl font-black text-slate-900">SpecTa SAT Self-Prep</h1>
           <p className="text-sm text-slate-600 mt-1">Students sign in at <a className="underline" href="/sat/login" target="_blank" rel="noreferrer">/sat/login</a>. Nothing reaches students until a lesson or question is approved here.</p>
           {msg && <div className="mt-3 p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-sm text-indigo-900 flex justify-between gap-3"><span>{msg}</span><button onClick={() => setMsg(null)} className="text-xs">✕</button></div>}
+          {seed.data && seed.data.state !== "idle" && (
+            <div className={`mt-3 p-3 rounded-xl border text-xs ${seed.data.state === "running" ? "bg-amber-50 border-amber-200 text-amber-900" : seed.data.state === "done" ? "bg-emerald-50 border-emerald-200 text-emerald-900" : "bg-red-50 border-red-200 text-red-900"}`}>
+              <b>Bank seed {seed.data.state}</b> · {seed.data.cellsDone}/{seed.data.cellsTotal} cells · {seed.data.generated} questions generated, {seed.data.approved} auto-approved (blind-check ✓), {seed.data.lessons} lessons{seed.data.errors ? ` · ${seed.data.errors} errors` : ""}
+              {seed.data.current && seed.data.current.length > 0 && <span className="animate-pulse"> · now: {seed.data.current.join(", ")}</span>}
+              {seed.data.lastError && <div className="mt-1 opacity-80">Last error: {seed.data.lastError}</div>}
+              {seed.data.state !== "running" && <button onClick={() => seedRestart.mutate()} className="ml-2 underline">Fill remaining</button>}
+            </div>
+          )}
           {active.length > 0 && <div className="mt-2 text-xs text-indigo-700 animate-pulse">{active.length} generation job{active.length > 1 ? "s" : ""} in progress: {active.map(j => j.label).join(" · ")}</div>}
           {(jobs.data || []).filter(j => j.status === "error").slice(0, 2).map(j => <div key={j.key} className="mt-1 text-xs text-red-600">{j.label}: {j.error}</div>)}
         </div>

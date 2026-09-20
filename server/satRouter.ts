@@ -23,6 +23,7 @@ import { generateQuestions, generateLesson, tutorReply } from "./satQuestionGene
 import { DOMAIN_LABEL, DOMAIN_SHARE } from "./satSkills";
 import { getSatTutorSignedUrl, buildDynamicVariables, SAT_LIVE_MAX_SECONDS, SAT_LIVE_DAILY_MINUTES } from "./satLiveAgent";
 import { reviewWorkingPhoto, visionAvailable } from "./satVision";
+import { getSeedProgress, restartSatBulkSeed } from "./satBulkSeed";
 import { buildDiagnostic, buildMockStage1, routeStage2, moduleOpen, moduleDeadline, scoreSession, predictScore, todayPlan, SHAPE, type TestModule, type TestScores } from "./satMock";
 
 function assertAdmin(ctx: { user: { role: string } | null }) {
@@ -801,6 +802,9 @@ export const satAdminRouter = router({
     const rows = await db.select({ o: satOfficialScores, name: satStudents.name }).from(satOfficialScores).innerJoin(satStudents, eq(satStudents.id, satOfficialScores.studentId)).orderBy(desc(satOfficialScores.createdAt)).limit(200);
     return rows.map(r => ({ ...r.o, name: r.name }));
   }),
+
+  seedStatus: protectedProcedure.query(({ ctx }) => { assertAdmin(ctx); return getSeedProgress(); }),
+  seedRestart: protectedProcedure.mutation(async ({ ctx }) => { assertAdmin(ctx); await restartSatBulkSeed(); return { ok: true }; }),
 
   // ── Class heatmap ──
   heatmap: protectedProcedure.query(async ({ ctx }) => {

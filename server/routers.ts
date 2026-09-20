@@ -8556,6 +8556,9 @@ import("./db").then(async m => {
     await m.ensureSatSchema();
     const { seedSatSkills } = await import("./satEngine");
     await seedSatSkills();
+    // One-time background fill of the question bank + lessons (idempotent, SAT_BULK_SEED=off to disable).
+    const { runSatBulkSeed } = await import("./satBulkSeed");
+    setTimeout(() => { runSatBulkSeed().catch(e => console.error("[SAT seed]", e)); }, 20000);
   } catch (e) {
     console.error('[SAT] ensureSatSchema/seed failed:', e);
   }
