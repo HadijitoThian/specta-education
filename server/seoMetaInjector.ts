@@ -269,6 +269,9 @@ const PAGE_META: Record<string, PageMeta> = {
   },
   // Admin pages - noindex
   "/admin": { title: "Admin Dashboard | SpecTa Education", description: "Administration dashboard", noindex: true },
+  "/admin/sat": { title: "SAT Self-Prep Admin | SpecTa Education", description: "SAT Self-Prep administration", noindex: true },
+  "/sat": { title: "SpecTa SAT Self-Prep", description: "Student dashboard for SpecTa SAT Self-Prep", noindex: true },
+  "/sat/login": { title: "Sign in | SpecTa SAT Self-Prep", description: "Sign in to SpecTa SAT Self-Prep", noindex: true },
   "/admin/agents": { title: "Agent Command Center | SpecTa Education", description: "AI Agent management", noindex: true },
   "/staff-login": { title: "Staff Login | SpecTa Education", description: "Staff login portal", noindex: true },
   "/staff-dashboard": { title: "Staff Dashboard | SpecTa Education", description: "Staff management dashboard", noindex: true },

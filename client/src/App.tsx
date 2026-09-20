@@ -74,6 +74,12 @@ const WritingClassroom = lazyWithReload(() => import("./pages/WritingClassroom")
 const AnswerPage = lazyWithReload(() => import("./pages/AnswerPage"));
 const AnswersIndex = lazyWithReload(() => import("./pages/AnswersIndex"));
 const AdminAnswers = lazyWithReload(() => import("./pages/AdminAnswers"));
+const AdminSat = lazyWithReload(() => import("./pages/AdminSat"));
+const SatLogin = lazyWithReload(() => import("./pages/sat/SatLogin"));
+const SatPassword = lazyWithReload(() => import("./pages/sat/SatLogin").then(m => ({ default: m.SatPassword })));
+const SatDashboard = lazyWithReload(() => import("./pages/sat/SatDashboard"));
+const SatSkill = lazyWithReload(() => import("./pages/sat/SatSkill"));
+const SatDrill = lazyWithReload(() => import("./pages/sat/SatDrill"));
 const Igcse = lazyWithReload(() => import("./pages/Igcse"));
 const IgcseApp = lazyWithReload(() => import("./pages/IgcseApp"));
 const IgcseLesson = lazyWithReload(() => import("./pages/IgcseLesson"));
@@ -274,6 +280,13 @@ function Router() {
         <Route path={"/admin/ielts-tutor"} component={AdminIeltsTutor} />
         <Route path={"/admin/iq-bank"} component={AdminIqBank} />
         <Route path={"/admin/answers"} component={AdminAnswers} />
+        <Route path={"/admin/sat"} component={AdminSat} />
+        {/* ── SAT Self-Prep (own login, own cookie) ── */}
+        <Route path={"/sat/login"} component={SatLogin} />
+        <Route path={"/sat/password"} component={SatPassword} />
+        <Route path={"/sat"} component={SatDashboard} />
+        <Route path={"/sat/skill/:code"} component={SatSkill} />
+        <Route path={"/sat/drill/:attemptId"} component={SatDrill} />
         <Route path={"/admin/ads-launcher"} component={AdminAdsLauncher} />
         <Route path={"/admin/wa-links"} component={AdminWaLinks} />
         <Route path={"/ielts/mock-test"} component={IeltsMockTest} />

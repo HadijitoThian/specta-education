@@ -230,6 +230,7 @@ import { iqAdminRouter } from "./iqAdminRouter";
 import { iqSessionRouter } from "./iqSessionRouter";
 import { writingCourseRouter } from "./writingCourseRouter";
 import { geoRouter, geoAdminRouter } from "./geoRouter";
+import { satRouter, satAdminRouter } from "./satRouter";
 import { ieltsRouter } from "./ieltsRouter";
 import { voiceCloneAdminRouter } from "./voiceCloneAdminRouter";
 import { crmTeamRouter } from "./crmTeamRouter";
@@ -1274,6 +1275,7 @@ Return as JSON:
   }),
 
   admin: router({
+    sat: satAdminRouter,
     geo: geoAdminRouter,
     ielts: ieltsAdminRouter,
     tutor: tutorAdminRouter,
@@ -8439,6 +8441,7 @@ Be specific, practical, and concise. Format as clear paragraphs, not bullet poin
   tutor: tutorRouter,
   writing: writingCourseRouter,
   geo: geoRouter,
+  sat: satRouter,
   igcse: igcseRouter,
   journey: crmJourneyRouter,
   sosmed: sosmedRouter,
@@ -8547,6 +8550,14 @@ import("./db").then(async m => {
     await m.ensureGeoSchema();
   } catch (e) {
     console.error('[GEO] ensureGeoSchema failed:', e);
+  }
+  // SpecTa SAT Self-Prep tables + skill tree seed.
+  try {
+    await m.ensureSatSchema();
+    const { seedSatSkills } = await import("./satEngine");
+    await seedSatSkills();
+  } catch (e) {
+    console.error('[SAT] ensureSatSchema/seed failed:', e);
   }
   // WhatsApp attribution schema (wa_sessions + wa_campaigns) — powers
   // /wa/:code trackable links and Google Ads offline conversion upload.

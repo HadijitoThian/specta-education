@@ -4303,3 +4303,130 @@ export async function ensureGeoSchema(): Promise<void> {
     if (!/already exists/i.test(e?.message || "")) console.error("[GEO] ensureGeoSchema failed:", e?.message);
   }
 }
+
+/** SpecTa SAT Self-Prep tables (see drizzle/schema.ts sat*). Created at boot. */
+export async function ensureSatSchema(): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const statements = [
+    `CREATE TABLE IF NOT EXISTS sat_students (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       email VARCHAR(320) NOT NULL UNIQUE,
+       name VARCHAR(120) NOT NULL,
+       passwordHash VARCHAR(255) NOT NULL,
+       active TINYINT(1) NOT NULL DEFAULT 1,
+       targetScore INT NULL,
+       testDate VARCHAR(40) NULL,
+       lang ENUM('en','id') NOT NULL DEFAULT 'en',
+       mustChangePassword TINYINT(1) NOT NULL DEFAULT 1,
+       lastLoginAt TIMESTAMP NULL,
+       createdBy INT NULL,
+       createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+     )`,
+    `CREATE TABLE IF NOT EXISTS sat_skills (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       section ENUM('rw','math') NOT NULL,
+       domain VARCHAR(60) NOT NULL,
+       domainCode VARCHAR(8) NOT NULL,
+       code VARCHAR(16) NOT NULL UNIQUE,
+       title VARCHAR(160) NOT NULL,
+       outcomes TEXT NULL,
+       lessonEn JSON NULL,
+       lessonId JSON NULL,
+       lessonStatus ENUM('none','draft','approved') NOT NULL DEFAULT 'none',
+       sortOrder INT NOT NULL,
+       createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+     )`,
+    `CREATE TABLE IF NOT EXISTS sat_questions (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       skillId INT NOT NULL,
+       section ENUM('rw','math') NOT NULL,
+       difficulty TINYINT NOT NULL,
+       format ENUM('mc','spr') NOT NULL,
+       passage TEXT NULL,
+       stem TEXT NOT NULL,
+       choices JSON NULL,
+       answer VARCHAR(120) NOT NULL,
+       acceptedAnswers JSON NULL,
+       explanationEn TEXT NOT NULL,
+       explanationId TEXT NULL,
+       distractorNotes JSON NULL,
+       checks JSON NULL,
+       status ENUM('draft','approved','rejected','retired') NOT NULL DEFAULT 'draft',
+       source VARCHAR(40) NOT NULL DEFAULT 'ai',
+       timesServed INT NOT NULL DEFAULT 0,
+       timesCorrect INT NOT NULL DEFAULT 0,
+       flags INT NOT NULL DEFAULT 0,
+       reviewedBy INT NULL,
+       reviewedAt TIMESTAMP NULL,
+       createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+       INDEX idx_satq_skill_status (skillId, status),
+       INDEX idx_satq_section_status (section, status)
+     )`,
+    `CREATE TABLE IF NOT EXISTS sat_attempts (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       studentId INT NOT NULL,
+       kind ENUM('drill','assignment','diagnostic','mock') NOT NULL,
+       skillId INT NULL,
+       assignmentId INT NULL,
+       questionIds JSON NOT NULL,
+       status ENUM('active','completed','abandoned') NOT NULL DEFAULT 'active',
+       correct INT NOT NULL DEFAULT 0,
+       total INT NOT NULL,
+       startedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       completedAt TIMESTAMP NULL,
+       INDEX idx_sata_student (studentId, status)
+     )`,
+    `CREATE TABLE IF NOT EXISTS sat_responses (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       attemptId INT NOT NULL,
+       studentId INT NOT NULL,
+       questionId INT NOT NULL,
+       skillId INT NOT NULL,
+       answer VARCHAR(200) NULL,
+       correct TINYINT(1) NOT NULL,
+       timeMs INT NULL,
+       createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       INDEX idx_satr_student (studentId, createdAt),
+       INDEX idx_satr_attempt (attemptId)
+     )`,
+    `CREATE TABLE IF NOT EXISTS sat_mastery (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       studentId INT NOT NULL,
+       skillId INT NOT NULL,
+       pKnown DECIMAL(5,4) NOT NULL DEFAULT 0.2000,
+       attempts INT NOT NULL DEFAULT 0,
+       correct INT NOT NULL DEFAULT 0,
+       streak INT NOT NULL DEFAULT 0,
+       lastPracticedAt TIMESTAMP NULL,
+       updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+       UNIQUE KEY uk_satm (studentId, skillId)
+     )`,
+    `CREATE TABLE IF NOT EXISTS sat_assignments (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       title VARCHAR(160) NOT NULL,
+       note TEXT NULL,
+       questionIds JSON NOT NULL,
+       skillIds JSON NULL,
+       dueAt TIMESTAMP NULL,
+       createdBy INT NULL,
+       createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+     )`,
+    `CREATE TABLE IF NOT EXISTS sat_assignment_students (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       assignmentId INT NOT NULL,
+       studentId INT NOT NULL,
+       status ENUM('assigned','in_progress','completed') NOT NULL DEFAULT 'assigned',
+       attemptId INT NULL,
+       completedAt TIMESTAMP NULL,
+       UNIQUE KEY uk_satas (assignmentId, studentId)
+     )`,
+  ];
+  for (const stmt of statements) {
+    try { await db.execute(sql.raw(stmt)); }
+    catch (e: any) { if (!/already exists/i.test(e?.message || "")) console.error("[SAT] ensureSatSchema failed:", e?.message); }
+  }
+}

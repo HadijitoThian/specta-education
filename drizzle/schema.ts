@@ -2901,3 +2901,134 @@ export const answerPages = mysqlTable("answer_pages", {
 });
 export type AnswerPage = typeof answerPages.$inferSelect;
 export type InsertAnswerPage = typeof answerPages.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// SpecTa SAT Self-Prep — Digital SAT self-study platform + AI tutor.
+// Own question bank (never College Board content), admin-approved.
+// Tables are created at boot via ensureSatSchema in server/db.ts.
+// ---------------------------------------------------------------------------
+
+/** Dedicated SAT student accounts (email + password), created by admin. */
+export const satStudents = mysqlTable("sat_students", {
+  id: int("id").autoincrement().primaryKey(),
+  email: varchar("email", { length: 320 }).notNull().unique(),
+  name: varchar("name", { length: 120 }).notNull(),
+  passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
+  active: boolean("active").default(true).notNull(),            // admin-granted access
+  targetScore: int("targetScore"),
+  testDate: varchar("testDate", { length: 40 }),
+  lang: mysqlEnum("lang", ["en", "id"]).default("en").notNull(), // explanation language preference
+  mustChangePassword: boolean("mustChangePassword").default(true).notNull(),
+  lastLoginAt: timestamp("lastLoginAt"),
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type SatStudent = typeof satStudents.$inferSelect;
+
+/** The skill tree: section → domain → skill, with a lesson in two languages. */
+export const satSkills = mysqlTable("sat_skills", {
+  id: int("id").autoincrement().primaryKey(),
+  section: mysqlEnum("section", ["rw", "math"]).notNull(),
+  domain: varchar("domain", { length: 60 }).notNull(),           // e.g. "Craft and Structure"
+  domainCode: varchar("domainCode", { length: 8 }).notNull(),    // CS, II, SEC, EOI, ALG, ADV, PSDA, GEO
+  code: varchar("code", { length: 16 }).notNull().unique(),      // e.g. "CS-1"
+  title: varchar("title", { length: 160 }).notNull(),
+  outcomes: text("outcomes"),                                    // what the student must be able to do
+  lessonEn: json("lessonEn"),                                    // { summary, rule, example, trap, steps[] }
+  lessonId: json("lessonId"),
+  lessonStatus: mysqlEnum("lessonStatus", ["none", "draft", "approved"]).default("none").notNull(),
+  sortOrder: int("sortOrder").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type SatSkill = typeof satSkills.$inferSelect;
+
+/** The question bank. AI-drafted to the blueprint, blind-checked, admin-approved. */
+export const satQuestions = mysqlTable("sat_questions", {
+  id: int("id").autoincrement().primaryKey(),
+  skillId: int("skillId").notNull(),
+  section: mysqlEnum("section", ["rw", "math"]).notNull(),
+  difficulty: tinyint("difficulty").notNull(),                   // 1 easy · 2 medium · 3 hard
+  format: mysqlEnum("format", ["mc", "spr"]).notNull(),          // multiple choice · student-produced response
+  passage: text("passage"),                                      // RW passage / Math setup (may be null)
+  stem: text("stem").notNull(),
+  choices: json("choices"),                                      // ["...","...","...","..."] for mc
+  answer: varchar("answer", { length: 120 }).notNull(),          // "A".."D" for mc; numeric/expression for spr
+  acceptedAnswers: json("acceptedAnswers"),                      // spr alternates, e.g. ["0.5","1/2"]
+  explanationEn: text("explanationEn").notNull(),
+  explanationId: text("explanationId"),
+  distractorNotes: json("distractorNotes"),                      // why each wrong choice is wrong
+  checks: json("checks"),                                        // { blindSolveAgrees, blindAnswer, model, notes }
+  status: mysqlEnum("status", ["draft", "approved", "rejected", "retired"]).default("draft").notNull(),
+  source: varchar("source", { length: 40 }).default("ai").notNull(),
+  timesServed: int("timesServed").default(0).notNull(),
+  timesCorrect: int("timesCorrect").default(0).notNull(),
+  flags: int("flags").default(0).notNull(),                      // student "something wrong" reports
+  reviewedBy: int("reviewedBy"),
+  reviewedAt: timestamp("reviewedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type SatQuestion = typeof satQuestions.$inferSelect;
+
+/** One practice run: a drill on a skill, or an assignment set. */
+export const satAttempts = mysqlTable("sat_attempts", {
+  id: int("id").autoincrement().primaryKey(),
+  studentId: int("studentId").notNull(),
+  kind: mysqlEnum("kind", ["drill", "assignment", "diagnostic", "mock"]).notNull(),
+  skillId: int("skillId"),
+  assignmentId: int("assignmentId"),
+  questionIds: json("questionIds").notNull(),                    // ordered
+  status: mysqlEnum("status", ["active", "completed", "abandoned"]).default("active").notNull(),
+  correct: int("correct").default(0).notNull(),
+  total: int("total").notNull(),
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+});
+export type SatAttempt = typeof satAttempts.$inferSelect;
+
+export const satResponses = mysqlTable("sat_responses", {
+  id: int("id").autoincrement().primaryKey(),
+  attemptId: int("attemptId").notNull(),
+  studentId: int("studentId").notNull(),
+  questionId: int("questionId").notNull(),
+  skillId: int("skillId").notNull(),
+  answer: varchar("answer", { length: 200 }),
+  correct: boolean("correct").notNull(),
+  timeMs: int("timeMs"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+/** Per-student, per-skill mastery (Bayesian knowledge tracing state). */
+export const satMastery = mysqlTable("sat_mastery", {
+  id: int("id").autoincrement().primaryKey(),
+  studentId: int("studentId").notNull(),
+  skillId: int("skillId").notNull(),
+  pKnown: decimal("pKnown", { precision: 5, scale: 4 }).default("0.2000").notNull(),
+  attempts: int("attempts").default(0).notNull(),
+  correct: int("correct").default(0).notNull(),
+  streak: int("streak").default(0).notNull(),
+  lastPracticedAt: timestamp("lastPracticedAt"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+/** Teacher-assigned sets. */
+export const satAssignments = mysqlTable("sat_assignments", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 160 }).notNull(),
+  note: text("note"),
+  questionIds: json("questionIds").notNull(),
+  skillIds: json("skillIds"),
+  dueAt: timestamp("dueAt"),
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export const satAssignmentStudents = mysqlTable("sat_assignment_students", {
+  id: int("id").autoincrement().primaryKey(),
+  assignmentId: int("assignmentId").notNull(),
+  studentId: int("studentId").notNull(),
+  status: mysqlEnum("status", ["assigned", "in_progress", "completed"]).default("assigned").notNull(),
+  attemptId: int("attemptId"),
+  completedAt: timestamp("completedAt"),
+});
