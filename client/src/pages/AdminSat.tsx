@@ -66,6 +66,7 @@ function Students({ setMsg }: { setMsg: (m: string) => void }) {
   const utils = trpc.useUtils();
   const list = trpc.admin.sat.students.useQuery();
   const [email, setEmail] = useState(""); const [name, setName] = useState(""); const [sendEmail, setSendEmail] = useState(true);
+  const [accessUntil, setAccessUntil] = useState<string>(() => { const d = new Date(); d.setMonth(d.getMonth() + 2); return d.toISOString().slice(0, 10); });
   const create = trpc.admin.sat.createStudent.useMutation({
     onSuccess: (d) => { setMsg(`Account created. Temporary password: ${d.tempPassword}${d.emailed ? " (emailed to the student)" : " — email NOT sent, share it manually"}`); setEmail(""); setName(""); utils.admin.sat.students.invalidate(); },
     onError: (e) => setMsg(`Error: ${e.message}`),
@@ -75,13 +76,14 @@ function Students({ setMsg }: { setMsg: (m: string) => void }) {
   const update = trpc.admin.sat.updateStudent.useMutation({ onSuccess: () => { utils.admin.sat.students.invalidate(); setMsg("Saved."); }, onError: (e) => setMsg(`Error: ${e.message}`) });
   const report = trpc.admin.sat.parentReport.useMutation({ onSuccess: (d) => { if (d.sent) setMsg(`Parent report sent to ${d.to}.`); else { const w = window.open("", "_blank"); if (w) { w.document.write(d.html); w.document.close(); } } }, onError: (e) => setMsg(`Error: ${e.message}`) });
   const [editing, setEditing] = useState<number | null>(null);
-  const [pe, setPe] = useState(""); const [ts, setTs] = useState(""); const [td, setTd] = useState("");
+  const [pe, setPe] = useState(""); const [ts, setTs] = useState(""); const [td, setTd] = useState(""); const [au, setAu] = useState("");
   const grant = trpc.admin.sat.grantLiveCredit.useMutation({ onSuccess: () => { utils.admin.sat.students.invalidate(); setMsg("Credit updated."); } });
   return (
     <section className="space-y-4">
-      <form onSubmit={e => { e.preventDefault(); create.mutate({ email, name, sendEmail }); }} className="bg-white rounded-2xl border border-slate-200 p-5 grid md:grid-cols-[1fr_1fr_auto_auto] gap-2 items-center">
+      <form onSubmit={e => { e.preventDefault(); create.mutate({ email, name, sendEmail, accessUntil }); }} className="bg-white rounded-2xl border border-slate-200 p-5 grid md:grid-cols-[1fr_1fr_auto_auto_auto] gap-2 items-center">
         <input required type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="student@email.com" className="border rounded-lg px-3 py-2 text-sm" />
         <input required value={name} onChange={e => setName(e.target.value)} placeholder="Full name" className="border rounded-lg px-3 py-2 text-sm" />
+        <label className="text-xs text-slate-600 flex items-center gap-1">Access until <input type="date" required value={accessUntil} onChange={e => setAccessUntil(e.target.value)} className="border rounded-lg px-2 py-1.5" /></label>
         <label className="text-xs text-slate-600 flex items-center gap-1"><input type="checkbox" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)} /> Email login</label>
         <button type="submit" disabled={create.isPending} className="text-sm px-3 py-2 rounded-lg bg-slate-900 text-white font-semibold flex items-center gap-1 disabled:opacity-50"><UserPlus className="w-4 h-4" />Create account</button>
       </form>
@@ -92,14 +94,14 @@ function Students({ setMsg }: { setMsg: (m: string) => void }) {
             <Fragment key={s.id}>
             <tr className="border-t border-slate-100">
               <td className="p-3"><div className="font-semibold">{s.name}</div><div className="text-xs text-slate-500">{s.email}{s.targetScore ? ` · target ${s.targetScore}` : ""}{s.testDate ? ` · test ${s.testDate}` : ""}{(s as any).parentEmail ? ` · parent ${(s as any).parentEmail}` : ""}</div></td>
-              <td><button onClick={() => setActive.mutate({ id: s.id, active: !s.active })} className={`text-xs px-2.5 py-1 rounded-full font-semibold ${s.active ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"}`}>{s.active ? "Active" : "Off"}</button></td>
+              <td><button onClick={() => setActive.mutate({ id: s.id, active: !s.active })} className={`text-xs px-2.5 py-1 rounded-full font-semibold ${s.active ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"}`}>{s.active ? "Active" : "Off"}</button>{(s as any).accessUntil && <div className={`text-[11px] mt-1 ${(s as any).accessUntil < Date.now() ? "text-red-600 font-semibold" : "text-slate-500"}`}>{(s as any).accessUntil < Date.now() ? "expired " : "until "}{new Date((s as any).accessUntil).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" })}</div>}</td>
               <td>{s.answered}</td>
               <td className="text-xs"><span className="font-semibold">{(s as any).liveCreditMinutes ?? 0} min</span> <button onClick={() => { const m = prompt(`Add minutes of live Emma credit for ${s.name} (negative to remove):`, "60"); const n = Number(m); if (m !== null && Number.isFinite(n) && n !== 0) grant.mutate({ id: s.id, minutes: Math.round(n) }); }} className="ml-1 text-[11px] underline text-indigo-700">+/-</button></td>
               <td className="text-xs text-slate-600">{s.lastActive ? new Date(s.lastActive as any).toLocaleDateString() : "–"}</td>
               <td className="text-xs text-slate-600">{s.lastLoginAt ? new Date(s.lastLoginAt).toLocaleDateString() : "never"}</td>
               <td className="p-3 text-right">
                 <div className="flex flex-wrap gap-1 justify-end">
-                  <button onClick={() => { setEditing(editing === s.id ? null : s.id); setPe((s as any).parentEmail || ""); setTs(s.targetScore ? String(s.targetScore) : ""); setTd(s.testDate || ""); }} className="text-xs px-2.5 py-1 rounded-lg border border-slate-300">Edit</button>
+                  <button onClick={() => { setEditing(editing === s.id ? null : s.id); setPe((s as any).parentEmail || ""); setTs(s.targetScore ? String(s.targetScore) : ""); setTd(s.testDate || ""); setAu((s as any).accessUntil ? new Date((s as any).accessUntil + 7 * 3600e3).toISOString().slice(0, 10) : ""); }} className="text-xs px-2.5 py-1 rounded-lg border border-slate-300">Edit</button>
                   <button onClick={() => report.mutate({ id: s.id, send: false })} className="text-xs px-2.5 py-1 rounded-lg border border-slate-300">Preview report</button>
                   <button onClick={() => { if (!(s as any).parentEmail) { setMsg("Add a parent email first (Edit)."); return; } if (confirm(`Email the progress report to ${(s as any).parentEmail}?`)) report.mutate({ id: s.id, send: true }); }} disabled={report.isPending} className="text-xs px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-semibold disabled:opacity-50">Send to parent</button>
                   <button onClick={() => { if (confirm(`Reset password for ${s.name}?`)) reset.mutate({ id: s.id, sendEmail: true }); }} className="text-xs px-2.5 py-1 rounded-lg border border-slate-300 flex items-center gap-1"><KeyRound className="w-3 h-3" />Reset password</button>
@@ -110,8 +112,9 @@ function Students({ setMsg }: { setMsg: (m: string) => void }) {
               <div className="flex flex-wrap gap-2 items-center text-xs">
                 <input value={pe} onChange={e => setPe(e.target.value)} placeholder="Parent email" className="border rounded-lg px-2 py-1 w-56" />
                 <input value={ts} onChange={e => setTs(e.target.value)} placeholder="Target score" className="border rounded-lg px-2 py-1 w-24" />
-                <input type="date" value={td} onChange={e => setTd(e.target.value)} className="border rounded-lg px-2 py-1" />
-                <button onClick={() => update.mutate({ id: s.id, parentEmail: pe.trim() || null, targetScore: ts ? Number(ts) : null, testDate: td || null })} className="px-3 py-1 rounded-lg bg-slate-900 text-white font-semibold">Save</button>
+                <label className="flex items-center gap-1">Test date <input type="date" value={td} onChange={e => setTd(e.target.value)} className="border rounded-lg px-2 py-1" /></label>
+                <label className="flex items-center gap-1 font-semibold">Access until <input type="date" value={au} onChange={e => setAu(e.target.value)} className="border rounded-lg px-2 py-1" /></label>
+                <button onClick={() => update.mutate({ id: s.id, parentEmail: pe.trim() || null, targetScore: ts ? Number(ts) : null, testDate: td || null, accessUntil: au || null })} className="px-3 py-1 rounded-lg bg-slate-900 text-white font-semibold">Save</button>
                 <button onClick={() => setEditing(null)} className="px-3 py-1 rounded-lg border">Cancel</button>
               </div>
             </td></tr>}
@@ -326,7 +329,7 @@ function TestResults() {
     <div className="grid md:grid-cols-2 gap-4 mb-4">
       <section className="bg-white rounded-2xl border border-slate-200 p-4">
         <div className="font-bold mb-1">Live Emma usage (30 days)</div>
-        <div className="text-xs text-slate-500 mb-2">{live.data?.totalMinutes30d ?? 0} minutes total · cap {live.data?.dailyCapMinutes ?? 30} min/student/day (env SAT_LIVE_DAILY_MINUTES)</div>
+        <div className="text-xs text-slate-500 mb-2">{live.data?.totalMinutes30d ?? 0} minutes total · free allowance {(live.data?.dailyCapMinutes ?? 120) / 60} h/student/week, Mon–Sun (env SAT_LIVE_WEEKLY_MINUTES)</div>
         <ul className="text-sm divide-y divide-slate-100">{(live.data?.students || []).map(s => <li key={s.studentId} className="py-1 flex justify-between"><span>{s.name}</span><span className="text-slate-600">{s.calls} calls · {s.minutes} min</span></li>)}</ul>
         {(live.data?.students.length || 0) === 0 && <div className="text-xs text-slate-400">No live calls yet.</div>}
       </section>

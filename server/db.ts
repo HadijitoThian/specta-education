@@ -4442,6 +4442,9 @@ export async function ensureSatSchema(): Promise<void> {
      )`);
   statements.push("ALTER TABLE sat_students ADD COLUMN parentEmail VARCHAR(320) NULL");
   statements.push("ALTER TABLE sat_students ADD COLUMN liveCreditSeconds INT NOT NULL DEFAULT 0");
+  statements.push("ALTER TABLE sat_students ADD COLUMN accessUntil TIMESTAMP NULL");
+  // Backfill: 2 months of access from account creation for accounts made before expiry existed.
+  statements.push("UPDATE sat_students SET accessUntil = DATE_ADD(createdAt, INTERVAL 2 MONTH) WHERE accessUntil IS NULL");
   statements.push("ALTER TABLE sat_live_sessions ADD COLUMN creditSeconds INT NOT NULL DEFAULT 0");
   statements.push(`CREATE TABLE IF NOT EXISTS sat_credit_orders (
        id INT AUTO_INCREMENT PRIMARY KEY,

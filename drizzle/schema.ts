@@ -2919,7 +2919,8 @@ export const satStudents = mysqlTable("sat_students", {
   testDate: varchar("testDate", { length: 40 }),
   lang: mysqlEnum("lang", ["en", "id"]).default("en").notNull(), // explanation language preference
   parentEmail: varchar("parentEmail", { length: 320 }),           // Phase 2: parent progress report recipient
-  liveCreditSeconds: int("liveCreditSeconds").default(0).notNull(), // paid live-Emma credit (beyond the free daily minutes)
+  liveCreditSeconds: int("liveCreditSeconds").default(0).notNull(), // paid live-Emma credit (beyond the free weekly minutes)
+  accessUntil: timestamp("accessUntil"),                            // platform access expiry (default 2 months from creation)
   mustChangePassword: boolean("mustChangePassword").default(true).notNull(),
   lastLoginAt: timestamp("lastLoginAt"),
   createdBy: int("createdBy"),

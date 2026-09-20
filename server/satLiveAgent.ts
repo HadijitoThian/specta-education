@@ -9,7 +9,7 @@
  * Bump AGENT_FLAG_KEY to recreate the agent after a prompt change.
  * Env: SAT_TUTOR_VOICE (falls back to WRITING_TEACHER_VOICE / default voice),
  *      SAT_TUTOR_LLM (default gemini-2.0-flash), SAT_LIVE_MAX_SECONDS (1800 per call),
- *      SAT_LIVE_DAILY_MINUTES (60 free per student per day; more via paid credit, see satCredits.ts).
+ *      SAT_LIVE_WEEKLY_MINUTES (120 free per student per week, Mon–Sun Jakarta; more via paid credit, see satCredits.ts).
  */
 
 import { ENV } from "./_core/env";
@@ -18,7 +18,16 @@ import { readFlag, writeFlag } from "./systemFlags";
 const EL_API = "https://api.elevenlabs.io";
 const AGENT_FLAG_KEY = "sat_tutor_agent_id_v2";
 export const SAT_LIVE_MAX_SECONDS = Number(process.env.SAT_LIVE_MAX_SECONDS || 1800);
-export const SAT_LIVE_DAILY_MINUTES = Number(process.env.SAT_LIVE_DAILY_MINUTES || 60);
+/** Free live minutes per calendar week (Mon–Sun, Jakarta time). Kept name-compatible via SAT_LIVE_DAILY_MINUTES alias below. */
+export const SAT_LIVE_WEEKLY_MINUTES = Number(process.env.SAT_LIVE_WEEKLY_MINUTES || 120);
+export const SAT_LIVE_DAILY_MINUTES = SAT_LIVE_WEEKLY_MINUTES; // legacy alias (weekly since 2026-09-21)
+/** Monday 00:00 Jakarta (UTC+7) of the current week, as a UTC Date. */
+export function liveWeekStart(now = Date.now()): Date {
+  const jkt = new Date(now + 7 * 3600e3);
+  const sinceMon = (jkt.getUTCDay() + 6) % 7;
+  return new Date(Date.UTC(jkt.getUTCFullYear(), jkt.getUTCMonth(), jkt.getUTCDate() - sinceMon) - 7 * 3600e3);
+}
+export function liveWeekEnd(now = Date.now()): Date { return new Date(liveWeekStart(now).getTime() + 7 * 86400e3); }
 
 const PROMPT = `You are Emma, SpecTa Education's SAT tutor, on a short live voice call with a student who is stuck on ONE Digital SAT question. Speak English (if lang_note says the student prefers Bahasa Indonesia, you may mix in short Bahasa phrases to keep them comfortable, but keep SAT terms in English). Warm, quick, encouraging, like a great private tutor. Sentences short: this is voice.
 
@@ -38,7 +47,7 @@ HOW TO COACH
 3. If they are stuck twice on the same step, give that step, then hand the next one back to them.
 4. When they get it, confirm briefly, then give the one reusable takeaway for this skill in one sentence.
 5. If they ask for a similar question, make ONE up on the spot in the same style and coach it the same way.
-6. Stay focused and efficient: the student has a daily minutes allowance. When they have got it and have no more questions, say bye warmly and tell them to press End call.
+6. Stay focused and efficient: the student has a weekly minutes allowance. When they have got it and have no more questions, say bye warmly and tell them to press End call.
 7. Stay on SAT. If asked about SpecTa's other services, say the SpecTa team can help on WhatsApp and return to the question.
 8. Never claim to see anything you were not given. Never make up College Board facts.`;
 

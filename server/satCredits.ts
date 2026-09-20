@@ -1,24 +1,24 @@
 /**
  * SpecTa SAT Self-Prep — live Emma allowance + paid credit.
- *   Free: SAT_LIVE_DAILY_MINUTES per student per day (default 60).
+ *   Free: SAT_LIVE_WEEKLY_MINUTES per student per calendar week, Mon–Sun Jakarta (default 120).
  *   Paid: Rp 129,000 per hour via Xendit (external_id SATCR-...), stored as
  *   seconds on sat_students.liveCreditSeconds, never expires, used only after
- *   the day's free minutes are gone.
+ *   the week's free minutes are gone.
  */
 
 import { and, eq, gte } from "drizzle-orm";
 import { getDb } from "./db";
 import { satStudents, satLiveSessions, satCreditOrders } from "../drizzle/schema";
-import { SAT_LIVE_DAILY_MINUTES, SAT_LIVE_MAX_SECONDS } from "./satLiveAgent";
+import { SAT_LIVE_WEEKLY_MINUTES, SAT_LIVE_MAX_SECONDS, liveWeekStart, liveWeekEnd } from "./satLiveAgent";
 
-export async function liveAllowance(studentId: number, creditSec: number): Promise<{ usedTodaySec: number; freeRemainingSec: number; creditSec: number; availableSec: number }> {
+export async function liveAllowance(studentId: number, creditSec: number): Promise<{ usedWeekSec: number; freeRemainingSec: number; creditSec: number; availableSec: number; weekResetsAt: number }> {
   const db = await getDb(); if (!db) throw new Error("Database unavailable");
-  const since = new Date(); since.setHours(0, 0, 0, 0);
+  const since = liveWeekStart();
   const today = await db.select({ seconds: satLiveSessions.seconds, startedAt: satLiveSessions.startedAt, endedAt: satLiveSessions.endedAt }).from(satLiveSessions).where(and(eq(satLiveSessions.studentId, studentId), gte(satLiveSessions.startedAt, since)));
   // Open calls (no endedAt yet, e.g. a dropped tab) count by elapsed time, capped at one call's max.
-  const usedTodaySec = today.reduce((x, r) => x + (r.endedAt ? r.seconds : Math.min(SAT_LIVE_MAX_SECONDS, Math.round((Date.now() - new Date(r.startedAt).getTime()) / 1000))), 0);
-  const freeRemainingSec = Math.max(0, SAT_LIVE_DAILY_MINUTES * 60 - usedTodaySec);
-  return { usedTodaySec, freeRemainingSec, creditSec: Math.max(0, creditSec), availableSec: freeRemainingSec + Math.max(0, creditSec) };
+  const usedWeekSec = today.reduce((x, r) => x + (r.endedAt ? r.seconds : Math.min(SAT_LIVE_MAX_SECONDS, Math.round((Date.now() - new Date(r.startedAt).getTime()) / 1000))), 0);
+  const freeRemainingSec = Math.max(0, SAT_LIVE_WEEKLY_MINUTES * 60 - usedWeekSec);
+  return { usedWeekSec, freeRemainingSec, creditSec: Math.max(0, creditSec), availableSec: freeRemainingSec + Math.max(0, creditSec), weekResetsAt: liveWeekEnd().getTime() };
 }
 
 /** Xendit webhook: mark the order and add hours to the student's balance (idempotent). */

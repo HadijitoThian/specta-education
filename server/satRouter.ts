@@ -21,7 +21,7 @@ import { issueSatCookie, clearSatCookie, resolveSatStudent, hashPassword, verify
 import { checkAnswer, recordAnswer, pickDrillQuestions, questionsByIds, publicQuestion, masteryLabel, seedSatSkills } from "./satEngine";
 import { generateQuestions, generateLesson, tutorReply } from "./satQuestionGenerator";
 import { DOMAIN_LABEL, DOMAIN_SHARE } from "./satSkills";
-import { getSatTutorSignedUrl, buildDynamicVariables, SAT_LIVE_MAX_SECONDS, SAT_LIVE_DAILY_MINUTES } from "./satLiveAgent";
+import { getSatTutorSignedUrl, buildDynamicVariables, SAT_LIVE_MAX_SECONDS, SAT_LIVE_WEEKLY_MINUTES, liveWeekStart } from "./satLiveAgent";
 import { reviewWorkingPhoto, visionAvailable } from "./satVision";
 import { getSeedProgress, restartSatBulkSeed } from "./satBulkSeed";
 import { liveAllowance } from "./satCredits";
@@ -63,7 +63,18 @@ function enqueue(key: string, label: string, run: () => Promise<string>) {
   return { started: true };
 }
 
-async function sendCredentialsEmail(to: string, name: string, password: string): Promise<boolean> {
+/** 23:59:59 Jakarta on the given YYYY-MM-DD. */
+function endOfDayJakarta(ymd: string): Date {
+  const d = new Date(ymd.slice(0, 10) + "T23:59:59+07:00");
+  return isNaN(d.getTime()) ? defaultAccessUntil() : d;
+}
+/** Default study window: 2 months from today (end of that day, Jakarta). */
+function defaultAccessUntil(): Date {
+  const d = new Date(Date.now() + 7 * 3600e3); d.setUTCMonth(d.getUTCMonth() + 2);
+  return new Date(d.toISOString().slice(0, 10) + "T23:59:59+07:00");
+}
+
+async function sendCredentialsEmail(to: string, name: string, password: string, accessUntil?: Date): Promise<boolean> {
   if (!ENV.resendApiKey) return false;
   const base = (ENV.appUrl || "https://www.spectaeducation.com").replace(/\/+$/, "");
   const html = `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#f4f5f8;padding:24px;">
@@ -72,7 +83,7 @@ async function sendCredentialsEmail(to: string, name: string, password: string):
     <p style="color:#334;line-height:1.6;">Your SAT study dashboard is ready. Practise any time, get instant explanations, and ask Emma when you're stuck.</p>
     <p style="margin:18px 0 6px;color:#334;"><b>Sign in:</b> <a href="${base}/sat/login">${base}/sat/login</a></p>
     <p style="margin:0;color:#334;"><b>Email:</b> ${to}<br/><b>Temporary password:</b> <code style="font-size:16px;">${password}</code></p>
-    <p style="color:#667;font-size:13px;line-height:1.6;margin-top:16px;">You'll be asked to choose your own password the first time you sign in.</p>
+    <p style="color:#667;font-size:13px;line-height:1.6;margin-top:16px;">You'll be asked to choose your own password the first time you sign in.${accessUntil ? ` Your access runs until <b>${accessUntil.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta" })}</b>.` : ""}</p>
     <p style="color:#667;font-size:12px;margin-top:22px;">SAT® is a registered trademark of College Board, which is not affiliated with and does not endorse SpecTa Education.</p>
   </div></body></html>`;
   try {
@@ -156,6 +167,7 @@ export const satRouter = router({
       const [s] = await db.select().from(satStudents).where(eq(satStudents.email, input.email.trim().toLowerCase())).limit(1);
       if (!s || !(await verifyPassword(input.password, s.passwordHash))) throw new TRPCError({ code: "UNAUTHORIZED", message: "Email or password is incorrect." });
       if (!s.active) throw new TRPCError({ code: "FORBIDDEN", message: "Your access is not active. Please contact SpecTa." });
+      if (s.accessUntil && new Date(s.accessUntil).getTime() < Date.now()) throw new TRPCError({ code: "FORBIDDEN", message: `Your SpecTa SAT Self-Prep access ended on ${new Date(s.accessUntil).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}. Contact SpecTa to extend it.` });
       await issueSatCookie(ctx, s.id);
       await db.update(satStudents).set({ lastLoginAt: new Date() }).where(eq(satStudents.id, s.id));
       return { ok: true, mustChangePassword: s.mustChangePassword };
@@ -165,7 +177,7 @@ export const satRouter = router({
   me: publicProcedure.query(async ({ ctx }) => {
     const s = await resolveSatStudent(ctx);
     if (!s) return null;
-    return { id: s.id, name: s.name, email: s.email, lang: s.lang, targetScore: s.targetScore, testDate: s.testDate, mustChangePassword: s.mustChangePassword };
+    return { id: s.id, name: s.name, email: s.email, lang: s.lang, targetScore: s.targetScore, testDate: s.testDate, mustChangePassword: s.mustChangePassword, accessUntil: s.accessUntil ? new Date(s.accessUntil).getTime() : null };
   }),
 
   changePassword: publicProcedure
@@ -467,7 +479,7 @@ export const satRouter = router({
   liveQuota: publicProcedure.query(async ({ ctx }) => {
     const s = await requireStudent(ctx);
     const q = await liveAllowance(s.id, s.liveCreditSeconds);
-    return { ...q, freeMinutesPerDay: SAT_LIVE_DAILY_MINUTES, pricePerHour: SAT_CREDIT_PRICE_PER_HOUR };
+    return { ...q, freeMinutesPerWeek: SAT_LIVE_WEEKLY_MINUTES, pricePerHour: SAT_CREDIT_PRICE_PER_HOUR };
   }),
 
   /** Start a live voice call with Emma about one question. */
@@ -477,8 +489,8 @@ export const satRouter = router({
       const s = await requireStudent(ctx); const db = await dbOrThrow();
       const qta = await liveAllowance(s.id, s.liveCreditSeconds);
       if (qta.availableSec < 60) throw new TRPCError({ code: "FORBIDDEN", message: s.lang === "id"
-        ? `Jatah gratis ${SAT_LIVE_DAILY_MINUTES} menit/hari untuk bicara dengan Emma sudah habis. Chat teks tetap bisa. Ingin lanjut hari ini? Beli kredit Rp ${SAT_CREDIT_PRICE_PER_HOUR.toLocaleString("id-ID")}/jam di halaman Kredit.`
-        : `You've used today's free ${SAT_LIVE_DAILY_MINUTES} minutes with Emma. Text chat still works. Want more today? Buy credit at Rp ${SAT_CREDIT_PRICE_PER_HOUR.toLocaleString("id-ID")}/hour on the Credits page.` });
+        ? `Jatah gratis ${SAT_LIVE_WEEKLY_MINUTES / 60} jam/minggu untuk bicara dengan Emma sudah habis (reset hari Senin). Chat teks tetap bisa. Ingin lanjut sekarang? Beli kredit Rp ${SAT_CREDIT_PRICE_PER_HOUR.toLocaleString("id-ID")}/jam di halaman Kredit.`
+        : `You've used this week's free ${SAT_LIVE_WEEKLY_MINUTES / 60} hours with Emma (resets Monday). Text chat still works. Want more now? Buy credit at Rp ${SAT_CREDIT_PRICE_PER_HOUR.toLocaleString("id-ID")}/hour on the Credits page.` });
       const [q] = await db.select().from(satQuestions).where(eq(satQuestions.id, input.questionId)).limit(1);
       if (!q) throw new TRPCError({ code: "NOT_FOUND" });
       const [k] = await db.select({ title: satSkills.title }).from(satSkills).where(eq(satSkills.id, q.skillId)).limit(1);
@@ -496,10 +508,10 @@ export const satRouter = router({
       const s = await requireStudent(ctx); const db = await dbOrThrow();
       const [sess] = await db.select().from(satLiveSessions).where(and(eq(satLiveSessions.id, input.liveSessionId), eq(satLiveSessions.studentId, s.id))).limit(1);
       if (!sess || sess.endedAt) return { ok: true };
-      const since = new Date(); since.setHours(0, 0, 0, 0);
+      const since = liveWeekStart();
       const others = await db.select({ seconds: satLiveSessions.seconds }).from(satLiveSessions).where(and(eq(satLiveSessions.studentId, s.id), gte(satLiveSessions.startedAt, since), sql`endedAt IS NOT NULL`, sql`id <> ${sess.id}`));
       const usedBefore = others.reduce((x, r) => x + r.seconds, 0);
-      const free = SAT_LIVE_DAILY_MINUTES * 60;
+      const free = SAT_LIVE_WEEKLY_MINUTES * 60;
       const overflow = Math.max(0, usedBefore + input.seconds - free) - Math.max(0, usedBefore - free);
       const charge = Math.min(overflow, s.liveCreditSeconds);
       await db.update(satLiveSessions).set({ endedAt: new Date(), seconds: input.seconds, creditSeconds: charge }).where(eq(satLiveSessions.id, sess.id));
@@ -595,20 +607,21 @@ export const satAdminRouter = router({
     const rows = await db.select().from(satStudents).orderBy(desc(satStudents.createdAt));
     const activity = await db.select({ studentId: satResponses.studentId, n: sql<number>`count(*)`, last: sql<Date>`max(createdAt)` }).from(satResponses).groupBy(satResponses.studentId);
     const aMap = new Map(activity.map(a => [a.studentId, a]));
-    return rows.map(r => ({ id: r.id, email: r.email, name: r.name, active: r.active, targetScore: r.targetScore, testDate: r.testDate, lang: r.lang, lastLoginAt: r.lastLoginAt, createdAt: r.createdAt, parentEmail: r.parentEmail, liveCreditMinutes: Math.round((r.liveCreditSeconds || 0) / 60), answered: Number(aMap.get(r.id)?.n || 0), lastActive: aMap.get(r.id)?.last || null }));
+    return rows.map(r => ({ id: r.id, email: r.email, name: r.name, active: r.active, targetScore: r.targetScore, testDate: r.testDate, lang: r.lang, lastLoginAt: r.lastLoginAt, createdAt: r.createdAt, parentEmail: r.parentEmail, liveCreditMinutes: Math.round((r.liveCreditSeconds || 0) / 60), accessUntil: r.accessUntil ? new Date(r.accessUntil).getTime() : null, answered: Number(aMap.get(r.id)?.n || 0), lastActive: aMap.get(r.id)?.last || null }));
   }),
 
   createStudent: protectedProcedure
-    .input(z.object({ email: z.string().email(), name: z.string().min(1).max(120), sendEmail: z.boolean().default(true), targetScore: z.number().int().min(400).max(1600).optional(), testDate: z.string().max(40).optional() }))
+    .input(z.object({ email: z.string().email(), name: z.string().min(1).max(120), sendEmail: z.boolean().default(true), targetScore: z.number().int().min(400).max(1600).optional(), testDate: z.string().max(40).optional(), accessUntil: z.string().max(40).optional() }))
     .mutation(async ({ input, ctx }) => {
       assertAdmin(ctx); const db = await dbOrThrow();
       const email = input.email.trim().toLowerCase();
       const [dup] = await db.select({ id: satStudents.id }).from(satStudents).where(eq(satStudents.email, email)).limit(1);
       if (dup) throw new TRPCError({ code: "CONFLICT", message: "A student with that email already exists." });
       const pw = tempPassword();
-      await db.insert(satStudents).values({ email, name: input.name.trim(), passwordHash: await hashPassword(pw), active: true, targetScore: input.targetScore ?? null, testDate: input.testDate ?? null, createdBy: (ctx as any).user?.id ?? null });
-      const emailed = input.sendEmail ? await sendCredentialsEmail(email, input.name.trim(), pw) : false;
-      return { ok: true, tempPassword: pw, emailed };
+      const accessUntil = input.accessUntil && !isNaN(new Date(input.accessUntil).getTime()) ? endOfDayJakarta(input.accessUntil) : defaultAccessUntil();
+      await db.insert(satStudents).values({ email, name: input.name.trim(), passwordHash: await hashPassword(pw), active: true, targetScore: input.targetScore ?? null, testDate: input.testDate ?? null, accessUntil, createdBy: (ctx as any).user?.id ?? null });
+      const emailed = input.sendEmail ? await sendCredentialsEmail(email, input.name.trim(), pw, accessUntil) : false;
+      return { ok: true, tempPassword: pw, emailed, accessUntil: accessUntil.getTime() };
     }),
 
   setStudentActive: protectedProcedure
@@ -764,11 +777,12 @@ export const satAdminRouter = router({
 
   // ═══════════════ Phase 2 admin ═══════════════
   updateStudent: protectedProcedure
-    .input(z.object({ id: z.number().int(), name: z.string().min(1).max(120).optional(), parentEmail: z.string().email().nullable().optional(), targetScore: z.number().int().min(400).max(1600).nullable().optional(), testDate: z.string().max(40).nullable().optional() }))
+    .input(z.object({ id: z.number().int(), name: z.string().min(1).max(120).optional(), parentEmail: z.string().email().nullable().optional(), targetScore: z.number().int().min(400).max(1600).nullable().optional(), testDate: z.string().max(40).nullable().optional(), accessUntil: z.string().max(40).nullable().optional() }))
     .mutation(async ({ input, ctx }) => {
       assertAdmin(ctx); const db = await dbOrThrow();
-      const { id, ...rest } = input; const patch: Record<string, unknown> = {};
+      const { id, accessUntil, ...rest } = input; const patch: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(rest)) if (v !== undefined) patch[k] = v;
+      if (accessUntil !== undefined) patch.accessUntil = accessUntil && !isNaN(new Date(accessUntil).getTime()) ? endOfDayJakarta(accessUntil) : null;
       if (Object.keys(patch).length) await db.update(satStudents).set(patch).where(eq(satStudents.id, id));
       return { ok: true };
     }),
@@ -832,7 +846,7 @@ export const satAdminRouter = router({
     const since = new Date(Date.now() - 30 * 86400000);
     const rows = await db.select({ studentId: satLiveSessions.studentId, name: satStudents.name, n: sql<number>`count(*)`, seconds: sql<number>`sum(seconds)` }).from(satLiveSessions).innerJoin(satStudents, eq(satStudents.id, satLiveSessions.studentId)).where(gte(satLiveSessions.startedAt, since)).groupBy(satLiveSessions.studentId, satStudents.name);
     const total = rows.reduce((x, r) => x + Number(r.seconds || 0), 0);
-    return { dailyCapMinutes: SAT_LIVE_DAILY_MINUTES, totalMinutes30d: Math.round(total / 60), students: rows.map(r => ({ studentId: r.studentId, name: r.name, calls: Number(r.n), minutes: Math.round(Number(r.seconds || 0) / 60) })) };
+    return { dailyCapMinutes: SAT_LIVE_WEEKLY_MINUTES, weeklyCapMinutes: SAT_LIVE_WEEKLY_MINUTES, totalMinutes30d: Math.round(total / 60), students: rows.map(r => ({ studentId: r.studentId, name: r.name, calls: Number(r.n), minutes: Math.round(Number(r.seconds || 0) / 60) })) };
   }),
 
   officialScores: protectedProcedure.query(async ({ ctx }) => {

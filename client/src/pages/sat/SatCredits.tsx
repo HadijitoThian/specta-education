@@ -21,11 +21,11 @@ export default function SatCredits() {
   useEffect(() => { if (paid === "1") { utils.sat.liveQuota.invalidate(); utils.sat.creditOrders.invalidate(); } }, [paid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const t = lang === "id" ? {
-    title: "Kredit bicara dengan Emma", rule: "Setiap hari kamu bisa bicara dan berdiskusi dengan Emma secara gratis selama", perDay: "menit. Jatah ini di-reset setiap hari. Chat teks dengan Emma tidak dibatasi.", more: "Ingin lebih dari itu? Beli kredit seharga", perHour: "per jam. Kredit tidak hangus dan dipakai hanya setelah jatah gratis harianmu habis.",
-    today: "Hari ini", used: "terpakai", left: "sisa gratis", credit: "Kredit tersimpan", buy: "Beli kredit", hour: "jam", pay: "Bayar dengan Xendit", paying: "Membuka pembayaran…", history: "Riwayat pembelian", none: "Belum ada pembelian.", paidOk: "Pembayaran diterima. Kreditmu sudah ditambahkan.", paidWait: "Terima kasih! Kami menunggu konfirmasi pembayaran, biasanya kurang dari 1 menit.", paidNo: "Pembayaran belum selesai. Kamu bisa coba lagi di bawah.", status: { pending: "menunggu", paid: "lunas", expired: "kedaluwarsa", failed: "gagal" },
+    title: "Kredit bicara dengan Emma", rule: "Setiap minggu kamu bisa bicara dan berdiskusi dengan Emma secara gratis selama", perDay: "jam. Jatah ini di-reset setiap hari Senin. Chat teks dengan Emma tidak dibatasi.", more: "Ingin lebih dari itu? Beli kredit seharga", perHour: "per jam. Kredit tidak hangus dan dipakai hanya setelah jatah gratis mingguanmu habis.",
+    today: "Minggu ini", used: "terpakai", left: "sisa gratis", credit: "Kredit tersimpan", buy: "Beli kredit", hour: "jam", pay: "Bayar dengan Xendit", paying: "Membuka pembayaran…", history: "Riwayat pembelian", none: "Belum ada pembelian.", paidOk: "Pembayaran diterima. Kreditmu sudah ditambahkan.", paidWait: "Terima kasih! Kami menunggu konfirmasi pembayaran, biasanya kurang dari 1 menit.", paidNo: "Pembayaran belum selesai. Kamu bisa coba lagi di bawah.", status: { pending: "menunggu", paid: "lunas", expired: "kedaluwarsa", failed: "gagal" },
   } : {
-    title: "Talk-to-Emma credit", rule: "Every day you can talk and discuss with Emma for free for", perDay: "minutes. The allowance resets daily. Text chat with Emma is unlimited.", more: "Want more than that? Buy credit at", perHour: "per hour. Credit never expires and is only used after your free daily minutes are gone.",
-    today: "Today", used: "used", left: "free left", credit: "Credit balance", buy: "Buy credit", hour: "hour", pay: "Pay with Xendit", paying: "Opening payment…", history: "Purchase history", none: "No purchases yet.", paidOk: "Payment received. Your credit has been added.", paidWait: "Thanks! Waiting for payment confirmation, usually under a minute.", paidNo: "Payment wasn't completed. You can try again below.", status: { pending: "pending", paid: "paid", expired: "expired", failed: "failed" },
+    title: "Talk-to-Emma credit", rule: "Every week you can talk and discuss with Emma for free for", perDay: "hours. The allowance resets every Monday. Text chat with Emma is unlimited.", more: "Want more than that? Buy credit at", perHour: "per hour. Credit never expires and is only used after your free weekly hours are gone.",
+    today: "This week", used: "used", left: "free left", credit: "Credit balance", buy: "Buy credit", hour: "hour", pay: "Pay with Xendit", paying: "Opening payment…", history: "Purchase history", none: "No purchases yet.", paidOk: "Payment received. Your credit has been added.", paidWait: "Thanks! Waiting for payment confirmation, usually under a minute.", paidNo: "Payment wasn't completed. You can try again below.", status: { pending: "pending", paid: "paid", expired: "expired", failed: "failed" },
   };
   const latestPaid = (orders.data || []).find(o => o.status === "paid" && o.paidAt && Date.now() - new Date(o.paidAt).getTime() < 10 * 60000);
 
@@ -34,7 +34,7 @@ export default function SatCredits() {
       <div className="max-w-2xl mx-auto space-y-5">
         <div>
           <h1 className="text-2xl font-black flex items-center gap-2"><Headphones className="w-6 h-6 text-indigo-600" />{t.title}</h1>
-          {quota.data && <p className="text-sm text-slate-600 mt-2 leading-relaxed">{t.rule} <b>{quota.data.freeMinutesPerDay}</b> {t.perDay} {t.more} <b>Rp {quota.data.pricePerHour.toLocaleString("id-ID")}</b> {t.perHour}</p>}
+          {quota.data && <p className="text-sm text-slate-600 mt-2 leading-relaxed">{t.rule} <b>{quota.data.freeMinutesPerWeek / 60}</b> {t.perDay} {t.more} <b>Rp {quota.data.pricePerHour.toLocaleString("id-ID")}</b> {t.perHour}</p>}
         </div>
 
         {paid === "1" && <div className={`rounded-xl px-4 py-3 text-sm flex items-center gap-2 ${latestPaid ? "bg-emerald-50 border border-emerald-200 text-emerald-800" : "bg-amber-50 border border-amber-200 text-amber-800"}`}>{latestPaid ? <CheckCircle2 className="w-4 h-4" /> : <Loader2 className="w-4 h-4 animate-spin" />}{latestPaid ? t.paidOk : t.paidWait}</div>}
@@ -42,8 +42,8 @@ export default function SatCredits() {
 
         {quota.data ? (
           <div className="grid sm:grid-cols-3 gap-3">
-            <div className="bg-white rounded-2xl border border-slate-200 p-4"><div className="text-[11px] uppercase tracking-wider text-slate-500 flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{t.today} · {t.used}</div><div className="text-2xl font-black mt-1">{Math.round(quota.data.usedTodaySec / 60)} <span className="text-sm text-slate-400">min</span></div></div>
-            <div className="bg-white rounded-2xl border border-slate-200 p-4"><div className="text-[11px] uppercase tracking-wider text-slate-500">{t.today} · {t.left}</div><div className="text-2xl font-black mt-1">{Math.floor(quota.data.freeRemainingSec / 60)} <span className="text-sm text-slate-400">/ {quota.data.freeMinutesPerDay} min</span></div></div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-4"><div className="text-[11px] uppercase tracking-wider text-slate-500 flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{t.today} · {t.used}</div><div className="text-2xl font-black mt-1">{Math.round(quota.data.usedWeekSec / 60)} <span className="text-sm text-slate-400">min</span></div></div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-4"><div className="text-[11px] uppercase tracking-wider text-slate-500">{t.today} · {t.left}</div><div className="text-2xl font-black mt-1">{Math.floor(quota.data.freeRemainingSec / 60)} <span className="text-sm text-slate-400">/ {quota.data.freeMinutesPerWeek} min</span></div></div>
             <div className="bg-indigo-600 text-white rounded-2xl p-4"><div className="text-[11px] uppercase tracking-wider text-indigo-200">{t.credit}</div><div className="text-2xl font-black mt-1">{Math.floor(quota.data.creditSec / 60)} <span className="text-sm text-indigo-200">min</span></div></div>
           </div>
         ) : <Loader2 className="w-5 h-5 animate-spin text-slate-400" />}

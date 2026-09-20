@@ -77,8 +77,8 @@ function Inner({ questionId, studentAnswer, lang, onClose }: { questionId: numbe
         {quota.data && (
           <div className="text-[11px] text-slate-600 mb-2 rounded-lg bg-white/70 px-2 py-1.5">
             {lang === "id"
-              ? <>Gratis <b>{quota.data.freeMinutesPerDay} menit/hari</b> · sisa hari ini <b>{Math.floor(quota.data.freeRemainingSec / 60)} menit</b>{quota.data.creditSec > 0 ? <> · kredit <b>{Math.floor(quota.data.creditSec / 60)} menit</b></> : null}. Perlu lebih? <Link href="/sat/credits" className="underline text-indigo-700">Beli kredit Rp {quota.data.pricePerHour.toLocaleString("id-ID")}/jam</Link></>
-              : <>Free <b>{quota.data.freeMinutesPerDay} min/day</b> · <b>{Math.floor(quota.data.freeRemainingSec / 60)} min</b> left today{quota.data.creditSec > 0 ? <> · credit <b>{Math.floor(quota.data.creditSec / 60)} min</b></> : null}. Need more? <Link href="/sat/credits" className="underline text-indigo-700">Buy credit at Rp {quota.data.pricePerHour.toLocaleString("id-ID")}/hour</Link></>}
+              ? <>Gratis <b>{quota.data.freeMinutesPerWeek / 60} jam/minggu</b> · sisa minggu ini <b>{Math.floor(quota.data.freeRemainingSec / 60)} menit</b> (reset Senin){quota.data.creditSec > 0 ? <> · kredit <b>{Math.floor(quota.data.creditSec / 60)} menit</b></> : null}. Perlu lebih? <Link href="/sat/credits" className="underline text-indigo-700">Beli kredit Rp {quota.data.pricePerHour.toLocaleString("id-ID")}/jam</Link></>
+              : <>Free <b>{quota.data.freeMinutesPerWeek / 60} hours/week</b> · <b>{Math.floor(quota.data.freeRemainingSec / 60)} min</b> left this week (resets Monday){quota.data.creditSec > 0 ? <> · credit <b>{Math.floor(quota.data.creditSec / 60)} min</b></> : null}. Need more? <Link href="/sat/credits" className="underline text-indigo-700">Buy credit at Rp {quota.data.pricePerHour.toLocaleString("id-ID")}/hour</Link></>}
           </div>
         )}
         {err && <div className="text-xs text-red-600 mb-2">{err} {/used|habis/i.test(err) && <Link href="/sat/credits" className="underline font-semibold">{lang === "id" ? "Beli kredit" : "Buy credit"}</Link>}</div>}

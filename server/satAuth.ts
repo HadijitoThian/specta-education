@@ -56,6 +56,8 @@ export async function resolveSatStudent(ctx: any): Promise<SatStudent | null> {
     const db = await getDb();
     if (!db) return null;
     const [s] = await db.select().from(satStudents).where(eq(satStudents.id, id)).limit(1);
-    return s && s.active ? s : null;
+    if (!s || !s.active) return null;
+    if (s.accessUntil && new Date(s.accessUntil).getTime() < Date.now()) return null;
+    return s;
   } catch { return null; }
 }

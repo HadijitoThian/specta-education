@@ -75,11 +75,18 @@ export default function SatDashboard() {
         ))}
       </section>
 
+      {/* Access expiry */}
+      {me.data?.accessUntil && (() => { const days = Math.ceil((me.data!.accessUntil! - Date.now()) / 86400000); const dateStr = new Date(me.data!.accessUntil!).toLocaleDateString(lang === "id" ? "id-ID" : "en-GB", { day: "numeric", month: "long", year: "numeric" }); return (
+        <div className={`mb-4 rounded-2xl px-4 py-2.5 text-sm border ${days <= 7 ? "bg-amber-50 border-amber-300 text-amber-900" : "bg-white border-slate-200 text-slate-600"}`}>
+          {lang === "id" ? <>Akses platform sampai <b>{dateStr}</b>{days <= 7 ? <> · tinggal <b>{Math.max(0, days)} hari</b>. Hubungi SpecTa untuk perpanjang.</> : null}</> : <>Platform access until <b>{dateStr}</b>{days <= 7 ? <> · <b>{Math.max(0, days)} day{days === 1 ? "" : "s"}</b> left. Contact SpecTa to extend.</> : null}</>}
+        </div>
+      ); })()}
+
       {/* Live Emma minutes */}
       {quota.data && (
         <div className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm flex flex-wrap items-center justify-between gap-2">
           <div>
-            🎧 {lang === "id" ? <>Bicara dengan Emma: gratis <b>{quota.data.freeMinutesPerDay} menit per hari</b>. Sisa hari ini <b>{Math.floor(quota.data.freeRemainingSec / 60)} menit</b>{quota.data.creditSec > 0 ? <>, kredit <b>{Math.floor(quota.data.creditSec / 60)} menit</b></> : null}.</> : <>Talk to Emma: <b>{quota.data.freeMinutesPerDay} free minutes a day</b>. <b>{Math.floor(quota.data.freeRemainingSec / 60)} min</b> left today{quota.data.creditSec > 0 ? <>, credit <b>{Math.floor(quota.data.creditSec / 60)} min</b></> : null}.</>}
+            🎧 {lang === "id" ? <>Bicara dengan Emma: gratis <b>{quota.data.freeMinutesPerWeek / 60} jam per minggu</b> (reset Senin). Sisa minggu ini <b>{Math.floor(quota.data.freeRemainingSec / 60)} menit</b>{quota.data.creditSec > 0 ? <>, kredit <b>{Math.floor(quota.data.creditSec / 60)} menit</b></> : null}.</> : <>Talk to Emma: <b>{quota.data.freeMinutesPerWeek / 60} free hours a week</b> (resets Monday). <b>{Math.floor(quota.data.freeRemainingSec / 60)} min</b> left this week{quota.data.creditSec > 0 ? <>, credit <b>{Math.floor(quota.data.creditSec / 60)} min</b></> : null}.</>}
           </div>
           <Link href="/sat/credits" className="text-xs font-bold px-3 py-1.5 rounded-lg bg-indigo-600 text-white">{lang === "id" ? `Beli kredit · Rp ${quota.data.pricePerHour.toLocaleString("id-ID")}/jam` : `Buy credit · Rp ${quota.data.pricePerHour.toLocaleString("id-ID")}/hour`}</Link>
         </div>
