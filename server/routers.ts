@@ -8559,6 +8559,8 @@ import("./db").then(async m => {
     // One-time background fill of the question bank + lessons (idempotent, SAT_BULK_SEED=off to disable).
     const { runSatBulkSeed } = await import("./satBulkSeed");
     setTimeout(() => { runSatBulkSeed().catch(e => console.error("[SAT seed]", e)); }, 20000);
+    // Audit any un-audited questions (seed also triggers this when it finishes).
+    setTimeout(async () => { try { const { getSeedProgress } = await import("./satBulkSeed"); if (getSeedProgress().state === "running") return; const { runSatAudit } = await import("./satAudit"); await runSatAudit(); } catch (e) { console.error("[SAT audit]", e); } }, 60000);
   } catch (e) {
     console.error('[SAT] ensureSatSchema/seed failed:', e);
   }

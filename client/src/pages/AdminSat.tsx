@@ -22,6 +22,8 @@ export default function AdminSat() {
   const active = (jobs.data || []).filter(j => j.status === "queued" || j.status === "running");
   const prevActive = useRef(0);
   const seed = trpc.admin.sat.seedStatus.useQuery(undefined, { refetchInterval: 10000 });
+  const audit = trpc.admin.sat.auditStatus.useQuery(undefined, { refetchInterval: 10000 });
+  const auditRun = trpc.admin.sat.auditRun.useMutation({ onSuccess: () => { setMsg("Audit started for un-audited questions."); audit.refetch(); } });
   const seedRestart = trpc.admin.sat.seedRestart.useMutation({ onSuccess: () => { setMsg("Seed restarted for the cells still short."); seed.refetch(); } });
   useEffect(() => { if (prevActive.current > active.length) { utils.admin.sat.skills.invalidate(); utils.admin.sat.questions.invalidate(); } prevActive.current = active.length; }, [active.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -40,6 +42,14 @@ export default function AdminSat() {
               {seed.data.current && seed.data.current.length > 0 && <span className="animate-pulse"> · now: {seed.data.current.join(", ")}</span>}
               {seed.data.lastError && <div className="mt-1 opacity-80">Last error: {seed.data.lastError}</div>}
               {seed.data.state !== "running" && <button onClick={() => seedRestart.mutate()} className="ml-2 underline">Fill remaining</button>}
+            </div>
+          )}
+          {audit.data && (
+            <div className={`mt-2 p-3 rounded-xl border text-xs ${audit.data.state === "running" ? "bg-sky-50 border-sky-200 text-sky-900" : audit.data.state === "error" ? "bg-red-50 border-red-200 text-red-900" : "bg-slate-50 border-slate-200 text-slate-700"}`}>
+              <b>SAT-standard audit {audit.data.state}</b>{audit.data.total ? <> · {audit.data.done}/{audit.data.total} checked · {audit.data.passed} passed · {audit.data.failedStructural + audit.data.failedLlm} removed ({audit.data.failedStructural} format, {audit.data.failedLlm} content){audit.data.errors ? ` · ${audit.data.errors} errors` : ""}</> : <> · nothing waiting</>}
+              {audit.data.lastError && <div className="mt-1 opacity-80">Last error: {audit.data.lastError}</div>}
+              {audit.data.state !== "running" && <button onClick={() => auditRun.mutate()} className="ml-2 underline">Audit un-checked questions</button>}
+              <span className="ml-2 opacity-70">Every question is independently re-solved and checked against Digital SAT style; failures are retired with the reason shown in the Question bank.</span>
             </div>
           )}
           {active.length > 0 && <div className="mt-2 text-xs text-indigo-700 animate-pulse">{active.length} generation job{active.length > 1 ? "s" : ""} in progress: {active.map(j => j.label).join(" · ")}</div>}
@@ -234,6 +244,7 @@ function Questions({ setMsg }: { setMsg: (m: string) => void }) {
                 {(r.checks as any)?.blindSolveAgrees ? <span className="text-emerald-700 flex items-center gap-0.5"><CheckCircle2 className="w-3 h-3" />blind-solve agrees</span> : <span className="text-red-600 flex items-center gap-0.5"><XCircle className="w-3 h-3" />blind-solve disagrees ({(r.checks as any)?.blindSolveAnswer ?? "?"})</span>}
                 {r.timesServed > 0 && <span>served {r.timesServed} · {r.timesServed ? Math.round((r.timesCorrect / r.timesServed) * 100) : 0}% correct</span>}
                 {r.flags > 0 && <span className="text-red-600 font-semibold">⚑ {r.flags} flag{r.flags > 1 ? "s" : ""}</span>}
+                {(r.checks as any)?.audit && ((r.checks as any).audit.pass ? <span className="text-emerald-700">audit ✓ {(r.checks as any).audit.score}/5</span> : <span className="text-red-600">audit ✗ {(r.checks as any).audit.stage === "structural" ? "format" : `${(r.checks as any).audit.score ?? ""}/5`}</span>)}
               </div>
               {editing === r.id ? <QuestionEditor q={r} onSave={(patch) => { update.mutate({ id: r.id, ...patch }); setEditing(null); }} onCancel={() => setEditing(null)} /> : (
                 <>
@@ -241,6 +252,7 @@ function Questions({ setMsg }: { setMsg: (m: string) => void }) {
                   <div className="text-sm font-semibold whitespace-pre-wrap">{r.stem}</div>
                   {!!r.choices && <ol className="mt-2 space-y-1 text-sm">{(r.choices as string[]).map((c, i) => <li key={i} className={`flex gap-2 ${LETTERS[i] === r.answer ? "text-emerald-700 font-semibold" : "text-slate-700"}`}><span className="w-5 shrink-0">{LETTERS[i]}.</span><span>{c}</span></li>)}</ol>}
                   {r.format === "spr" && <div className="text-sm mt-1 text-emerald-700 font-semibold">Answer: {r.answer}{(r.acceptedAnswers as string[] | null)?.length ? ` (also ${(r.acceptedAnswers as string[]).join(", ")})` : ""}</div>}
+                  {(r.checks as any)?.audit?.issues?.length > 0 && <ul className="mt-2 text-xs text-red-700 list-disc pl-4">{(r.checks as any).audit.issues.map((x: string, i: number) => <li key={i}>{x}</li>)}</ul>}
                   <details className="mt-2 text-xs text-slate-600"><summary className="cursor-pointer">Explanation & distractor notes</summary>
                     <p className="mt-1 whitespace-pre-wrap">{r.explanationEn}</p>
                     {r.explanationId && <p className="mt-1 whitespace-pre-wrap text-slate-500">ID: {r.explanationId}</p>}

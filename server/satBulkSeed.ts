@@ -19,6 +19,7 @@ import { getDb } from "./db";
 import { satSkills, satQuestions } from "../drizzle/schema";
 import { generateQuestions, generateLesson } from "./satQuestionGenerator";
 import { readFlag, writeFlag } from "./systemFlags";
+import { runSatAudit } from "./satAudit";
 
 const TARGET = Number(process.env.SAT_BULK_SEED_TARGET || 8);
 const CONCURRENCY = Math.max(1, Number(process.env.SAT_BULK_SEED_CONCURRENCY || 3));
@@ -86,6 +87,8 @@ export async function runSatBulkSeed(): Promise<void> {
     progress.state = "done"; progress.finishedAt = new Date().toISOString();
     await writeFlag(DONE_FLAG, new Date().toISOString());
     console.log(`[SAT seed] done: ${progress.generated} questions (${progress.approved} auto-approved), ${progress.lessons} lessons, ${progress.errors} errors`);
+    // Quality gate on everything that was just generated.
+    setTimeout(() => { runSatAudit().catch(e => console.error("[SAT audit]", e)); }, 5000);
   } catch (e) {
     progress.state = "error"; progress.lastError = String((e as Error)?.message || e).slice(0, 300);
     console.error("[SAT seed] failed:", progress.lastError);

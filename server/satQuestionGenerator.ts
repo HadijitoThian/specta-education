@@ -44,6 +44,11 @@ async function llm(messages: Array<{ role: "system" | "user"; content: string }>
   throw new Error(last || "LLM failed");
 }
 
+/** Shared JSON-mode LLM call with the same provider ladder as generation. */
+export async function llmJson(messages: Array<{ role: "system" | "user"; content: string }>, opts: { model?: string; maxTokens?: number; timeoutMs?: number } = {}): Promise<any> {
+  return extractJson(await llm(messages, opts));
+}
+
 export interface DraftQuestion {
   passage: string | null; stem: string; format: "mc" | "spr"; choices: string[] | null;
   answer: string; acceptedAnswers: string[]; explanationEn: string; explanationId: string;

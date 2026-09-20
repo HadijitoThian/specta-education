@@ -24,6 +24,7 @@ import { DOMAIN_LABEL, DOMAIN_SHARE } from "./satSkills";
 import { getSatTutorSignedUrl, buildDynamicVariables, SAT_LIVE_MAX_SECONDS, SAT_LIVE_WEEKLY_MINUTES, liveWeekStart } from "./satLiveAgent";
 import { reviewWorkingPhoto, visionAvailable } from "./satVision";
 import { getSeedProgress, restartSatBulkSeed } from "./satBulkSeed";
+import { getAuditProgress, runSatAudit } from "./satAudit";
 import { liveAllowance } from "./satCredits";
 import { SAT_CREDIT_PRICE_PER_HOUR, satCreditExternalId, createSatCreditInvoice } from "./xenditService";
 import { buildDiagnostic, buildMockStage1, routeStage2, moduleOpen, moduleDeadline, scoreSession, predictScore, todayPlan, SHAPE, type TestModule, type TestScores } from "./satMock";
@@ -871,6 +872,8 @@ export const satAdminRouter = router({
   }),
 
   seedStatus: protectedProcedure.query(({ ctx }) => { assertAdmin(ctx); return getSeedProgress(); }),
+  auditStatus: protectedProcedure.query(({ ctx }) => { assertAdmin(ctx); return getAuditProgress(); }),
+  auditRun: protectedProcedure.mutation(({ ctx }) => { assertAdmin(ctx); void runSatAudit(); return { ok: true }; }),
   seedRestart: protectedProcedure.mutation(async ({ ctx }) => { assertAdmin(ctx); await restartSatBulkSeed(); return { ok: true }; }),
 
   // ── Class heatmap ──
