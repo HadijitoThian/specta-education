@@ -15,7 +15,7 @@ import { getDb } from "./db";
 import { ENV } from "./_core/env";
 import {
   satStudents, satSkills, satQuestions, satAttempts, satResponses, satMastery,
-  satAssignments, satAssignmentStudents, satTestSessions, satLiveSessions, satOfficialScores, type SatQuestion, type SatTestSession,
+  satAssignments, satAssignmentStudents, satTestSessions, satLiveSessions, satOfficialScores, satCreditOrders, type SatQuestion, type SatTestSession,
 } from "../drizzle/schema";
 import { issueSatCookie, clearSatCookie, resolveSatStudent, hashPassword, verifyPassword, tempPassword } from "./satAuth";
 import { checkAnswer, recordAnswer, pickDrillQuestions, questionsByIds, publicQuestion, masteryLabel, seedSatSkills } from "./satEngine";
@@ -24,6 +24,8 @@ import { DOMAIN_LABEL, DOMAIN_SHARE } from "./satSkills";
 import { getSatTutorSignedUrl, buildDynamicVariables, SAT_LIVE_MAX_SECONDS, SAT_LIVE_DAILY_MINUTES } from "./satLiveAgent";
 import { reviewWorkingPhoto, visionAvailable } from "./satVision";
 import { getSeedProgress, restartSatBulkSeed } from "./satBulkSeed";
+import { liveAllowance } from "./satCredits";
+import { SAT_CREDIT_PRICE_PER_HOUR, satCreditExternalId, createSatCreditInvoice } from "./xenditService";
 import { buildDiagnostic, buildMockStage1, routeStage2, moduleOpen, moduleDeadline, scoreSession, predictScore, todayPlan, SHAPE, type TestModule, type TestScores } from "./satMock";
 
 function assertAdmin(ctx: { user: { role: string } | null }) {
@@ -460,17 +462,23 @@ export const satRouter = router({
     return { ...plan, daysToTest, predicted, targetScore: s.targetScore, hasDiagnostic };
   }),
 
-  // ═══════════════ Phase 3: live Emma, photo of working, official scores ═══════════════
-  /** Start a live voice call with Emma about one question (daily minutes cap). */
+  // ═══════════════ Live Emma: 60 free minutes/day + paid credits (Rp 129k/hour) ═══════════════
+  /** Today's usage, free allowance and paid credit balance. */
+  liveQuota: publicProcedure.query(async ({ ctx }) => {
+    const s = await requireStudent(ctx);
+    const q = await liveAllowance(s.id, s.liveCreditSeconds);
+    return { ...q, freeMinutesPerDay: SAT_LIVE_DAILY_MINUTES, pricePerHour: SAT_CREDIT_PRICE_PER_HOUR };
+  }),
+
+  /** Start a live voice call with Emma about one question. */
   liveStart: publicProcedure
     .input(z.object({ questionId: z.number().int(), studentAnswer: z.string().max(200).optional() }))
     .mutation(async ({ input, ctx }) => {
       const s = await requireStudent(ctx); const db = await dbOrThrow();
-      const since = new Date(); since.setHours(0, 0, 0, 0);
-      const today = await db.select({ seconds: satLiveSessions.seconds, startedAt: satLiveSessions.startedAt, endedAt: satLiveSessions.endedAt }).from(satLiveSessions).where(and(eq(satLiveSessions.studentId, s.id), gte(satLiveSessions.startedAt, since)));
-      const usedSec = today.reduce((x, r) => x + (r.endedAt ? r.seconds : Math.min(SAT_LIVE_MAX_SECONDS, Math.round((Date.now() - new Date(r.startedAt).getTime()) / 1000))), 0);
-      const remaining = SAT_LIVE_DAILY_MINUTES * 60 - usedSec;
-      if (remaining < 60) throw new TRPCError({ code: "FORBIDDEN", message: `You've used today's ${SAT_LIVE_DAILY_MINUTES} minutes of live Emma. Text chat still works, and the minutes reset tomorrow.` });
+      const qta = await liveAllowance(s.id, s.liveCreditSeconds);
+      if (qta.availableSec < 60) throw new TRPCError({ code: "FORBIDDEN", message: s.lang === "id"
+        ? `Jatah gratis ${SAT_LIVE_DAILY_MINUTES} menit/hari untuk bicara dengan Emma sudah habis. Chat teks tetap bisa. Ingin lanjut hari ini? Beli kredit Rp ${SAT_CREDIT_PRICE_PER_HOUR.toLocaleString("id-ID")}/jam di halaman Kredit.`
+        : `You've used today's free ${SAT_LIVE_DAILY_MINUTES} minutes with Emma. Text chat still works. Want more today? Buy credit at Rp ${SAT_CREDIT_PRICE_PER_HOUR.toLocaleString("id-ID")}/hour on the Credits page.` });
       const [q] = await db.select().from(satQuestions).where(eq(satQuestions.id, input.questionId)).limit(1);
       if (!q) throw new TRPCError({ code: "NOT_FOUND" });
       const [k] = await db.select({ title: satSkills.title }).from(satSkills).where(eq(satSkills.id, q.skillId)).limit(1);
@@ -478,15 +486,45 @@ export const satRouter = router({
       const res = await db.insert(satLiveSessions).values({ studentId: s.id, questionId: q.id });
       const liveSessionId = Number((res as any)[0]?.insertId || 0);
       const dynamicVariables = buildDynamicVariables({ studentName: s.name, lang: s.lang, skillTitle: k?.title || "SAT", passage: q.passage, stem: q.stem, choices: q.choices as string[] | null, answer: q.answer, explanation: q.explanationEn, studentAnswer: input.studentAnswer || null, format: q.format });
-      return { signedUrl, liveSessionId, dynamicVariables, maxSeconds: Math.min(SAT_LIVE_MAX_SECONDS, remaining), remainingMinutes: Math.floor(remaining / 60) };
+      return { signedUrl, liveSessionId, dynamicVariables, maxSeconds: Math.min(SAT_LIVE_MAX_SECONDS, qta.availableSec), freeRemainingSec: qta.freeRemainingSec, creditSec: qta.creditSec };
     }),
 
+  /** End a call: record seconds; anything beyond today's free minutes is deducted from paid credit. */
   liveEnd: publicProcedure
     .input(z.object({ liveSessionId: z.number().int(), seconds: z.number().int().min(0).max(7200) }))
     .mutation(async ({ input, ctx }) => {
       const s = await requireStudent(ctx); const db = await dbOrThrow();
-      await db.update(satLiveSessions).set({ endedAt: new Date(), seconds: input.seconds }).where(and(eq(satLiveSessions.id, input.liveSessionId), eq(satLiveSessions.studentId, s.id)));
-      return { ok: true };
+      const [sess] = await db.select().from(satLiveSessions).where(and(eq(satLiveSessions.id, input.liveSessionId), eq(satLiveSessions.studentId, s.id))).limit(1);
+      if (!sess || sess.endedAt) return { ok: true };
+      const since = new Date(); since.setHours(0, 0, 0, 0);
+      const others = await db.select({ seconds: satLiveSessions.seconds }).from(satLiveSessions).where(and(eq(satLiveSessions.studentId, s.id), gte(satLiveSessions.startedAt, since), sql`endedAt IS NOT NULL`, sql`id <> ${sess.id}`));
+      const usedBefore = others.reduce((x, r) => x + r.seconds, 0);
+      const free = SAT_LIVE_DAILY_MINUTES * 60;
+      const overflow = Math.max(0, usedBefore + input.seconds - free) - Math.max(0, usedBefore - free);
+      const charge = Math.min(overflow, s.liveCreditSeconds);
+      await db.update(satLiveSessions).set({ endedAt: new Date(), seconds: input.seconds, creditSeconds: charge }).where(eq(satLiveSessions.id, sess.id));
+      if (charge > 0) await db.update(satStudents).set({ liveCreditSeconds: sql`GREATEST(0, liveCreditSeconds - ${charge})` }).where(eq(satStudents.id, s.id));
+      return { ok: true, creditCharged: charge };
+    }),
+
+  /** Credit orders (history) for the Credits page. */
+  creditOrders: publicProcedure.query(async ({ ctx }) => {
+    const s = await requireStudent(ctx); const db = await dbOrThrow();
+    return db.select().from(satCreditOrders).where(eq(satCreditOrders.studentId, s.id)).orderBy(desc(satCreditOrders.createdAt)).limit(20);
+  }),
+
+  /** Buy N hours of live Emma via Xendit → invoice URL. */
+  buyCredits: publicProcedure
+    .input(z.object({ hours: z.number().int().min(1).max(10) }))
+    .mutation(async ({ input, ctx }) => {
+      const s = await requireStudent(ctx); const db = await dbOrThrow();
+      if (!ENV.xenditSecretKey) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Payments are not configured yet." });
+      const externalId = satCreditExternalId();
+      const amount = SAT_CREDIT_PRICE_PER_HOUR * input.hours;
+      const base = (ENV.appUrl || "https://www.spectaeducation.com").replace(/\/+$/, "");
+      const invoice = await createSatCreditInvoice({ externalId, hours: input.hours, customerName: s.name, customerEmail: s.email, successRedirectUrl: `${base}/sat/credits?paid=1`, failureRedirectUrl: `${base}/sat/credits?paid=0` });
+      await db.insert(satCreditOrders).values({ studentId: s.id, hours: input.hours, amount, externalId, xenditInvoiceId: invoice.id || null, invoiceUrl: invoice.invoice_url, status: "pending" });
+      return { invoiceUrl: invoice.invoice_url, amount };
     }),
 
   /** Photo of handwritten working → Emma reads it and points to the slip. */
@@ -557,7 +595,7 @@ export const satAdminRouter = router({
     const rows = await db.select().from(satStudents).orderBy(desc(satStudents.createdAt));
     const activity = await db.select({ studentId: satResponses.studentId, n: sql<number>`count(*)`, last: sql<Date>`max(createdAt)` }).from(satResponses).groupBy(satResponses.studentId);
     const aMap = new Map(activity.map(a => [a.studentId, a]));
-    return rows.map(r => ({ id: r.id, email: r.email, name: r.name, active: r.active, targetScore: r.targetScore, testDate: r.testDate, lang: r.lang, lastLoginAt: r.lastLoginAt, createdAt: r.createdAt, answered: Number(aMap.get(r.id)?.n || 0), lastActive: aMap.get(r.id)?.last || null }));
+    return rows.map(r => ({ id: r.id, email: r.email, name: r.name, active: r.active, targetScore: r.targetScore, testDate: r.testDate, lang: r.lang, lastLoginAt: r.lastLoginAt, createdAt: r.createdAt, parentEmail: r.parentEmail, liveCreditMinutes: Math.round((r.liveCreditSeconds || 0) / 60), answered: Number(aMap.get(r.id)?.n || 0), lastActive: aMap.get(r.id)?.last || null }));
   }),
 
   createStudent: protectedProcedure
@@ -800,6 +838,21 @@ export const satAdminRouter = router({
   officialScores: protectedProcedure.query(async ({ ctx }) => {
     assertAdmin(ctx); const db = await dbOrThrow();
     const rows = await db.select({ o: satOfficialScores, name: satStudents.name }).from(satOfficialScores).innerJoin(satStudents, eq(satStudents.id, satOfficialScores.studentId)).orderBy(desc(satOfficialScores.createdAt)).limit(200);
+    return rows.map(r => ({ ...r.o, name: r.name }));
+  }),
+
+  /** Manual credit top-up (e.g. paid by bank transfer). Negative minutes remove credit. */
+  grantLiveCredit: protectedProcedure
+    .input(z.object({ id: z.number().int(), minutes: z.number().int().min(-600).max(600) }))
+    .mutation(async ({ input, ctx }) => {
+      assertAdmin(ctx); const db = await dbOrThrow();
+      await db.update(satStudents).set({ liveCreditSeconds: sql`GREATEST(0, liveCreditSeconds + ${input.minutes * 60})` }).where(eq(satStudents.id, input.id));
+      return { ok: true };
+    }),
+
+  creditOrders: protectedProcedure.query(async ({ ctx }) => {
+    assertAdmin(ctx); const db = await dbOrThrow();
+    const rows = await db.select({ o: satCreditOrders, name: satStudents.name }).from(satCreditOrders).innerJoin(satStudents, eq(satStudents.id, satCreditOrders.studentId)).orderBy(desc(satCreditOrders.createdAt)).limit(100);
     return rows.map(r => ({ ...r.o, name: r.name }));
   }),
 

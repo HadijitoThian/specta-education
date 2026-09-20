@@ -82,6 +82,7 @@ const SatSkill = lazyWithReload(() => import("./pages/sat/SatSkill"));
 const SatDrill = lazyWithReload(() => import("./pages/sat/SatDrill"));
 const SatTest = lazyWithReload(() => import("./pages/sat/SatTest"));
 const SatTestReport = lazyWithReload(() => import("./pages/sat/SatTestReport"));
+const SatCredits = lazyWithReload(() => import("./pages/sat/SatCredits"));
 const Igcse = lazyWithReload(() => import("./pages/Igcse"));
 const IgcseApp = lazyWithReload(() => import("./pages/IgcseApp"));
 const IgcseLesson = lazyWithReload(() => import("./pages/IgcseLesson"));
@@ -289,6 +290,7 @@ function Router() {
         <Route path={"/sat"} component={SatDashboard} />
         <Route path={"/sat/skill/:code"} component={SatSkill} />
         <Route path={"/sat/drill/:attemptId"} component={SatDrill} />
+        <Route path={"/sat/credits"} component={SatCredits} />
         <Route path={"/sat/test/:sessionId/report"} component={SatTestReport} />
         <Route path={"/sat/test/:sessionId"} component={SatTest} />
         <Route path={"/admin/ads-launcher"} component={AdminAdsLauncher} />

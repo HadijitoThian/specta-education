@@ -29,6 +29,7 @@ export default function SatDashboard() {
   const [target, setTarget] = useState<string>("");
   const [date, setDate] = useState<string>("");
   const official = trpc.sat.officialScores.useQuery(undefined, { enabled: !!me.data });
+  const quota = trpc.sat.liveQuota.useQuery(undefined, { enabled: !!me.data });
   const addOfficial = trpc.sat.addOfficialScore.useMutation({ onSuccess: () => { utils.sat.officialScores.invalidate(); utils.sat.plan.invalidate(); setOs({ rw: "", math: "", date: "", source: "bluebook" }); } });
   const delOfficial = trpc.sat.deleteOfficialScore.useMutation({ onSuccess: () => { utils.sat.officialScores.invalidate(); utils.sat.plan.invalidate(); } });
   const [os, setOs] = useState<{ rw: string; math: string; date: string; source: "bluebook" | "real" | "other" }>({ rw: "", math: "", date: "", source: "bluebook" });
@@ -73,6 +74,16 @@ export default function SatDashboard() {
           </div>
         ))}
       </section>
+
+      {/* Live Emma minutes */}
+      {quota.data && (
+        <div className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm flex flex-wrap items-center justify-between gap-2">
+          <div>
+            🎧 {lang === "id" ? <>Bicara dengan Emma: gratis <b>{quota.data.freeMinutesPerDay} menit per hari</b>. Sisa hari ini <b>{Math.floor(quota.data.freeRemainingSec / 60)} menit</b>{quota.data.creditSec > 0 ? <>, kredit <b>{Math.floor(quota.data.creditSec / 60)} menit</b></> : null}.</> : <>Talk to Emma: <b>{quota.data.freeMinutesPerDay} free minutes a day</b>. <b>{Math.floor(quota.data.freeRemainingSec / 60)} min</b> left today{quota.data.creditSec > 0 ? <>, credit <b>{Math.floor(quota.data.creditSec / 60)} min</b></> : null}.</>}
+          </div>
+          <Link href="/sat/credits" className="text-xs font-bold px-3 py-1.5 rounded-lg bg-indigo-600 text-white">{lang === "id" ? `Beli kredit · Rp ${quota.data.pricePerHour.toLocaleString("id-ID")}/jam` : `Buy credit · Rp ${quota.data.pricePerHour.toLocaleString("id-ID")}/hour`}</Link>
+        </div>
+      )}
 
       {/* Today's plan + predicted score + tests */}
       <section className="grid lg:grid-cols-3 gap-4 mb-6">

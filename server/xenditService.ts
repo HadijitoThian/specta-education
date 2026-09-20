@@ -323,6 +323,42 @@ export type IgcsePlan = keyof typeof IGCSE_PLANS;
 // Per-hour top-up. Charged on top of any active subscription.
 export const IGCSE_TOPUP_PRICE = 40_000; // Rp / hour
 
+// ── SpecTa SAT Self-Prep: live Emma credit (Rp 129k / hour) ──
+export const SAT_CREDIT_PRICE_PER_HOUR = 129_000;
+export function satCreditExternalId(): string {
+  return `SATCR-${Date.now().toString(36)}-${crypto.randomBytes(4).toString("hex")}`;
+}
+export function isSatCreditExternalId(id: unknown): boolean {
+  return typeof id === "string" && id.startsWith("SATCR-");
+}
+export async function createSatCreditInvoice(params: {
+  externalId: string; hours: number; customerName: string; customerEmail: string;
+  successRedirectUrl?: string; failureRedirectUrl?: string;
+}): Promise<XenditInvoiceResponse> {
+  const body: Record<string, unknown> = {
+    external_id: params.externalId,
+    amount: SAT_CREDIT_PRICE_PER_HOUR * params.hours,
+    currency: "IDR",
+    description: `SpecTa SAT Self-Prep — Live Emma credit · ${params.hours} hour${params.hours > 1 ? "s" : ""}`,
+    customer: { given_names: params.customerName || "Student", email: params.customerEmail },
+    customer_notification_preference: { invoice_created: ["email"], invoice_reminder: ["email"], invoice_paid: ["email"] },
+    invoice_duration: 86400,
+    ...(params.successRedirectUrl ? { success_redirect_url: params.successRedirectUrl } : {}),
+    ...(params.failureRedirectUrl ? { failure_redirect_url: params.failureRedirectUrl } : {}),
+  };
+  const response = await fetch(`${XENDIT_API_BASE}/v2/invoices`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Basic ${Buffer.from(ENV.xenditSecretKey + ":").toString("base64")}` },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    console.error("[Xendit] SAT credit invoice creation failed:", response.status, error);
+    throw new Error(`Xendit invoice creation failed: ${response.status}`);
+  }
+  return response.json() as Promise<XenditInvoiceResponse>;
+}
+
 export function igcseExternalId(): string {
   return `IGCSE-${Date.now().toString(36)}-${crypto.randomBytes(4).toString("hex")}`;
 }

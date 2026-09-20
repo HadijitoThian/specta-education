@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { trpc } from "@/lib/trpc";
+import { Link } from "wouter";
 import { Loader2, Mic, PhoneOff, Phone } from "lucide-react";
 
 type Line = { role: "student" | "emma"; text: string };
@@ -27,7 +28,9 @@ function Inner({ questionId, studentAnswer, lang, onClose }: { questionId: numbe
     ? { title: "Bicara dengan Emma", sub: "Panggilan suara singkat tentang soal ini. Jelaskan apa yang kamu coba, Emma memandu langkah demi langkah.", start: "Mulai panggilan", end: "Akhiri", connecting: "Menghubungkan…", listening: "Emma mendengarkan… bicara saja", speaking: "Emma berbicara", ended: "Panggilan selesai", close: "Tutup", left: "tersisa hari ini" }
     : { title: "Talk to Emma", sub: "A short voice call about this question. Say what you tried and Emma guides you step by step.", start: "Start call", end: "End call", connecting: "Connecting…", listening: "Emma is listening… just speak", speaking: "Emma is speaking", ended: "Call ended", close: "Close", left: "left today" };
 
-  const liveEnd = trpc.sat.liveEnd.useMutation();
+  const utils = trpc.useUtils();
+  const quota = trpc.sat.liveQuota.useQuery();
+  const liveEnd = trpc.sat.liveEnd.useMutation({ onSuccess: () => { utils.sat.liveQuota.invalidate(); } });
   const finish = () => {
     if (endedRef.current) return; endedRef.current = true;
     const secs = startedAt.current ? Math.round((Date.now() - startedAt.current) / 1000) : 0;
@@ -70,8 +73,15 @@ function Inner({ questionId, studentAnswer, lang, onClose }: { questionId: numbe
     <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 text-sm">
       <div className="flex items-center justify-between mb-1"><div className="font-bold flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-indigo-600" />{t.title}</div>{phase !== "live" && <button onClick={onClose} className="text-xs text-slate-500">{t.close}</button>}</div>
       {phase === "idle" && <>
-        <p className="text-xs text-slate-600 mb-2">{t.sub}</p>
-        {err && <div className="text-xs text-red-600 mb-2">{err}</div>}
+        <p className="text-xs text-slate-600 mb-1">{t.sub}</p>
+        {quota.data && (
+          <div className="text-[11px] text-slate-600 mb-2 rounded-lg bg-white/70 px-2 py-1.5">
+            {lang === "id"
+              ? <>Gratis <b>{quota.data.freeMinutesPerDay} menit/hari</b> · sisa hari ini <b>{Math.floor(quota.data.freeRemainingSec / 60)} menit</b>{quota.data.creditSec > 0 ? <> · kredit <b>{Math.floor(quota.data.creditSec / 60)} menit</b></> : null}. Perlu lebih? <Link href="/sat/credits" className="underline text-indigo-700">Beli kredit Rp {quota.data.pricePerHour.toLocaleString("id-ID")}/jam</Link></>
+              : <>Free <b>{quota.data.freeMinutesPerDay} min/day</b> · <b>{Math.floor(quota.data.freeRemainingSec / 60)} min</b> left today{quota.data.creditSec > 0 ? <> · credit <b>{Math.floor(quota.data.creditSec / 60)} min</b></> : null}. Need more? <Link href="/sat/credits" className="underline text-indigo-700">Buy credit at Rp {quota.data.pricePerHour.toLocaleString("id-ID")}/hour</Link></>}
+          </div>
+        )}
+        {err && <div className="text-xs text-red-600 mb-2">{err} {/used|habis/i.test(err) && <Link href="/sat/credits" className="underline font-semibold">{lang === "id" ? "Beli kredit" : "Buy credit"}</Link>}</div>}
         <button onClick={() => { setErr(null); endedRef.current = false; setLines([]); setPhase("connecting"); start.mutate({ questionId, studentAnswer }); }} className="w-full py-2 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center justify-center gap-1.5"><Mic className="w-3.5 h-3.5" />{t.start}</button>
       </>}
       {phase === "connecting" && <div className="text-xs text-slate-600 flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />{t.connecting}</div>}

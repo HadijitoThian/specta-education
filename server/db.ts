@@ -4441,6 +4441,21 @@ export async function ensureSatSchema(): Promise<void> {
        INDEX idx_sts_student (studentId)
      )`);
   statements.push("ALTER TABLE sat_students ADD COLUMN parentEmail VARCHAR(320) NULL");
+  statements.push("ALTER TABLE sat_students ADD COLUMN liveCreditSeconds INT NOT NULL DEFAULT 0");
+  statements.push("ALTER TABLE sat_live_sessions ADD COLUMN creditSeconds INT NOT NULL DEFAULT 0");
+  statements.push(`CREATE TABLE IF NOT EXISTS sat_credit_orders (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       studentId INT NOT NULL,
+       hours INT NOT NULL,
+       amount INT NOT NULL,
+       externalId VARCHAR(80) NOT NULL UNIQUE,
+       xenditInvoiceId VARCHAR(120) NULL,
+       invoiceUrl VARCHAR(500) NULL,
+       status ENUM('pending','paid','expired','failed') NOT NULL DEFAULT 'pending',
+       createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       paidAt TIMESTAMP NULL,
+       INDEX idx_sco_student (studentId)
+     )`);
   statements.push(`CREATE TABLE IF NOT EXISTS sat_live_sessions (
        id INT AUTO_INCREMENT PRIMARY KEY,
        studentId INT NOT NULL,

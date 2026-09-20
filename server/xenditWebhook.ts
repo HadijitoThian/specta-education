@@ -1,5 +1,6 @@
 import { Express, Request, Response } from "express";
-import { verifyWebhookToken, isTutorExternalId, TUTOR_PLANS, isIgcseExternalId, IGCSE_PLANS, isBundleExternalId, isVoiceCloneExternalId } from "./xenditService";
+import { verifyWebhookToken, isTutorExternalId, TUTOR_PLANS, isIgcseExternalId, IGCSE_PLANS, isBundleExternalId, isVoiceCloneExternalId, isSatCreditExternalId } from "./xenditService";
+import { applySatCreditPayment } from "./satCredits";
 import { getAccessTokenByToken, createAccessTokens, getAptitudeProOrderByExternalId, updateAptitudeProOrderStatus, getTutorSubscriptionByInvoice, updateTutorSubscription, getIgcseSubscriptionByInvoice, updateIgcseSubscription } from "./db";
 import { sendProAccessLinkEmail, sendPaymentConfirmationEmail } from "./resendService";
 import { notifyOwner } from "./_core/notification";
@@ -391,6 +392,20 @@ export function registerXenditWebhook(app: Express) {
       }
 
       // Branch: IGCSE AI Teacher subscriptions (IGCSE- prefix).
+      // ----- SpecTa SAT Self-Prep: live Emma credit (SATCR-...) -----
+      if (isSatCreditExternalId(externalId)) {
+        try {
+          const r = await applySatCreditPayment(externalId, body.status, body.id);
+          if (r.credited) {
+            await notifyOwner({ title: `🎧 SAT live Emma credit bought: ${r.hours}h`, content: `${r.studentName} (${r.studentEmail}) paid Rp ${(r.amount || 0).toLocaleString("id-ID")} for ${r.hours} hour(s). Order: ${externalId}` });
+          }
+          return res.status(200).json({ received: true, satCredit: true, ...r });
+        } catch (e) {
+          console.error("[Xendit Webhook][SAT credit] failed:", e);
+          return res.status(500).json({ error: "SAT credit processing failed" });
+        }
+      }
+
       if (isIgcseExternalId(externalId)) {
         if (body.status === "PAID" || body.status === "SETTLED") {
           const sub = await getIgcseSubscriptionByInvoice(externalId);

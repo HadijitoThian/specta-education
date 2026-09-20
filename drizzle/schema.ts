@@ -2919,6 +2919,7 @@ export const satStudents = mysqlTable("sat_students", {
   testDate: varchar("testDate", { length: 40 }),
   lang: mysqlEnum("lang", ["en", "id"]).default("en").notNull(), // explanation language preference
   parentEmail: varchar("parentEmail", { length: 320 }),           // Phase 2: parent progress report recipient
+  liveCreditSeconds: int("liveCreditSeconds").default(0).notNull(), // paid live-Emma credit (beyond the free daily minutes)
   mustChangePassword: boolean("mustChangePassword").default(true).notNull(),
   lastLoginAt: timestamp("lastLoginAt"),
   createdBy: int("createdBy"),
@@ -3018,6 +3019,21 @@ export const satLiveSessions = mysqlTable("sat_live_sessions", {
   startedAt: timestamp("startedAt").defaultNow().notNull(),
   endedAt: timestamp("endedAt"),
   seconds: int("seconds").default(0).notNull(),
+  creditSeconds: int("creditSeconds").default(0).notNull(),       // part of this call charged to paid credit
+});
+
+/** Live Emma credit purchases (Rp 129k/hour) via Xendit. */
+export const satCreditOrders = mysqlTable("sat_credit_orders", {
+  id: int("id").autoincrement().primaryKey(),
+  studentId: int("studentId").notNull(),
+  hours: int("hours").notNull(),
+  amount: int("amount").notNull(),
+  externalId: varchar("externalId", { length: 80 }).notNull().unique(),
+  xenditInvoiceId: varchar("xenditInvoiceId", { length: 120 }),
+  invoiceUrl: varchar("invoiceUrl", { length: 500 }),
+  status: mysqlEnum("status", ["pending", "paid", "expired", "failed"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  paidAt: timestamp("paidAt"),
 });
 
 /** Phase 3: official Bluebook practice / real SAT scores entered for calibration. */
