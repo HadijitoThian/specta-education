@@ -90,7 +90,7 @@ export default function SatDashboard() {
           <div>
             🎧 {lang === "id" ? <>Bicara dengan Emma: gratis <b>{quota.data.freeMinutesPerWeek / 60} jam per minggu</b> (reset Senin). Sisa minggu ini <b>{Math.floor(quota.data.freeRemainingSec / 60)} menit</b>{quota.data.creditSec > 0 ? <>, kredit <b>{Math.floor(quota.data.creditSec / 60)} menit</b></> : null}.</> : <>Talk to Emma: <b>{quota.data.freeMinutesPerWeek / 60} free hours a week</b> (resets Monday). <b>{Math.floor(quota.data.freeRemainingSec / 60)} min</b> left this week{quota.data.creditSec > 0 ? <>, credit <b>{Math.floor(quota.data.creditSec / 60)} min</b></> : null}.</>}
           </div>
-          <Link href="/sat/credits" className="text-xs font-bold px-3 py-1.5 rounded-lg bg-indigo-600 text-white">{lang === "id" ? `Beli kredit · Rp ${quota.data.pricePerHour.toLocaleString("id-ID")}/jam` : `Buy credit · Rp ${quota.data.pricePerHour.toLocaleString("id-ID")}/hour`}</Link>
+          {quota.data.freeRemainingSec < 60 && <Link href="/sat/credits" className="text-xs font-bold px-3 py-1.5 rounded-lg bg-indigo-600 text-white">{lang === "id" ? `Beli kredit · Rp ${quota.data.pricePerHour.toLocaleString("id-ID")}/jam` : `Buy credit · Rp ${quota.data.pricePerHour.toLocaleString("id-ID")}/hour`}</Link>}
         </div>
       )}
 
