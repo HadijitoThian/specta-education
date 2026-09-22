@@ -149,8 +149,14 @@ function Skills({ setMsg }: { setMsg: (m: string) => void }) {
   const genQ = trpc.admin.sat.generateQuestions.useMutation({ onSuccess: (d) => { setMsg(d.started ? "Questions queued (about 2–4 minutes per batch). Review them in the Question bank tab." : `Not started: ${d.reason}`); utils.admin.sat.jobs.invalidate(); } });
   const bySection = useMemo(() => ({ rw: (skills.data || []).filter(s => s.section === "rw"), math: (skills.data || []).filter(s => s.section === "math") }), [skills.data]);
   const genAll = (section: "rw" | "math", diff: 1 | 2 | 3) => { const list = bySection[section]; setMsg(`Queued ${list.length} batches for ${section.toUpperCase()} difficulty ${diff}. They run one by one in the background.`); list.forEach(k => genQ.mutate({ code: k.code, difficulty: diff, count: 6 })); };
+  const totals = (skills.data || []).reduce((t, k) => ({ approved: t.approved + k.counts.approved, draft: t.draft + k.counts.draft, rw: t.rw + (k.section === "rw" ? k.counts.approved : 0), math: t.math + (k.section === "math" ? k.counts.approved : 0) }), { approved: 0, draft: 0, rw: 0, math: 0 });
   return (
     <section className="space-y-5">
+      <div className="bg-slate-900 text-white rounded-2xl p-4 flex flex-wrap items-center gap-6">
+        <div><div className="text-[11px] uppercase tracking-wider text-slate-300">Approved questions</div><div className="text-3xl font-black">{totals.approved}</div></div>
+        <div className="text-sm text-slate-300">RW <b className="text-white">{totals.rw}</b> · Math <b className="text-white">{totals.math}</b> · drafts waiting <b className="text-white">{totals.draft}</b></div>
+        <div className="text-xs text-slate-400 max-w-md">A student doing the daily plan uses about 120 questions a week, a diagnostic 49, a full mock 98. Divide the approved count by that to see how long the bank lasts without repeats.</div>
+      </div>
       <div className="bg-white rounded-2xl border border-slate-200 p-4 text-xs text-slate-600 flex flex-wrap items-center gap-2">
         <span className="font-semibold text-slate-800">Bulk generate 6 questions per skill:</span>
         {(["rw", "math"] as const).map(sec => ([1, 2, 3] as const).map(d => <button key={sec + d} onClick={() => genAll(sec, d)} className="px-2.5 py-1 rounded-lg border border-indigo-300 text-indigo-700 font-semibold">{sec.toUpperCase()} · D{d}</button>))}
