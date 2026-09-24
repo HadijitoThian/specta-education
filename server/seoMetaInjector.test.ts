@@ -22,8 +22,8 @@ const TEMPLATE_HTML = `<!doctype html>
 describe("SEO Meta Injector", () => {
   it("should inject homepage meta tags for root path", () => {
     const result = injectSeoMeta(TEMPLATE_HTML, "/");
-    expect(result).toContain("<title>SpecTa Education - Konsultan Pendidikan Luar Negeri Terpercaya di Indonesia Sejak 2005</title>");
-    expect(result).toContain('content="SpecTa Education - Konsultan pendidikan luar negeri terpercaya di Indonesia sejak 2005');
+    expect(result).toContain("<title>SpecTa Education | Konsultan Studi Luar Negeri Indonesia</title>");
+    expect(result).toContain('content="Konsultan pendidikan luar negeri terpercaya sejak 2005');
     expect(result).toContain('href="https://www.spectaeducation.com"');
   });
 

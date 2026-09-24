@@ -391,7 +391,6 @@ export function registerXenditWebhook(app: Express) {
         return res.status(200).json({ received: true, tutor: true });
       }
 
-      // Branch: IGCSE AI Teacher subscriptions (IGCSE- prefix).
       // ----- SpecTa SAT Self-Prep: live Emma credit (SATCR-...) -----
       if (isSatCreditExternalId(externalId)) {
         try {
@@ -406,6 +405,7 @@ export function registerXenditWebhook(app: Express) {
         }
       }
 
+      // Branch: IGCSE AI Teacher subscriptions (IGCSE- prefix).
       if (isIgcseExternalId(externalId)) {
         if (body.status === "PAID" || body.status === "SETTLED") {
           const sub = await getIgcseSubscriptionByInvoice(externalId);

@@ -9,12 +9,22 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Navigation from "@/components/Navigation";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { getLoginUrl } from "@/const";
 import { Loader2, CheckCircle2, XCircle, UserPlus, KeyRound } from "lucide-react";
 
 type Tab = "students" | "skills" | "questions" | "assign" | "heatmap" | "tests";
 const LETTERS = ["A", "B", "C", "D"];
 
 export default function AdminSat() {
+  const auth = useAuth();
+  const isAdmin = auth.user?.role === "admin";
+  if (auth.loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
+  if (!auth.isAuthenticated || !isAdmin) return <div className="min-h-screen bg-slate-50"><Navigation /><main className="pt-28 max-w-md mx-auto px-4 text-center"><h1 className="text-xl font-black">Admin only</h1><p className="text-sm text-slate-600 mt-2">{auth.isAuthenticated ? "Your account is not an admin." : "Please sign in with an admin account."}</p>{!auth.isAuthenticated && <a href={getLoginUrl()} className="inline-block mt-4 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold">Sign in</a>}</main></div>;
+  return <AdminSatInner />;
+}
+
+function AdminSatInner() {
   const utils = trpc.useUtils();
   const [tab, setTab] = useState<Tab>("students");
   const [msg, setMsg] = useState<string | null>(null);

@@ -89,6 +89,16 @@ export default function AdminDashboard() {
             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Admin</span>
           </div>
           <div className="flex items-center gap-3">
+            <Link href="/admin/sat">
+              <Button variant="outline" size="sm" className="bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100">
+                <Sparkles className="w-4 h-4 mr-2" /> SAT Self-Prep
+              </Button>
+            </Link>
+            <Link href="/admin/answers">
+              <Button variant="outline" size="sm" className="bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100">
+                <Sparkles className="w-4 h-4 mr-2" /> GEO Answer Pages
+              </Button>
+            </Link>
             <Link href="/admin/ielts-tests">
               <Button variant="outline" size="sm" className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100">
                 <Sparkles className="w-4 h-4 mr-2" /> IELTS Mock Tests

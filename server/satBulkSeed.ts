@@ -104,6 +104,6 @@ export async function runSatBulkSeed(): Promise<void> {
 /** Retry cells that are still short (e.g. after LLM errors) — admin button. */
 export async function restartSatBulkSeed(): Promise<void> {
   if (running) return;
-  try { await writeFlag(DONE_FLAG, ""); } catch { /* */ }
+  try { await writeFlag(DONE_FLAG, ""); await writeFlag(LOCK_FLAG, ""); } catch { /* */ }
   void runSatBulkSeed();
 }

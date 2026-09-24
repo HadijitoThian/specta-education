@@ -4456,6 +4456,7 @@ export async function ensureSatSchema(): Promise<void> {
   statements.push("ALTER TABLE sat_students ADD COLUMN accessUntil TIMESTAMP NULL");
   // Backfill: 2 months of access from account creation for accounts made before expiry existed.
   statements.push("UPDATE sat_students SET accessUntil = DATE_ADD(createdAt, INTERVAL 2 MONTH) WHERE accessUntil IS NULL AND createdAt < '2026-09-21 00:00:00'");
+  statements.push("DELETE r1 FROM sat_responses r1 JOIN sat_responses r2 ON r1.attemptId = r2.attemptId AND r1.questionId = r2.questionId AND r1.id > r2.id");
   statements.push("ALTER TABLE sat_responses ADD UNIQUE KEY uk_satr_attempt_q (attemptId, questionId)");
   statements.push(`CREATE TABLE IF NOT EXISTS sat_credit_orders (
        id INT AUTO_INCREMENT PRIMARY KEY,
@@ -4485,6 +4486,6 @@ export async function ensureSatSchema(): Promise<void> {
      )`);
   for (const stmt of statements) {
     try { await db.execute(sql.raw(stmt)); }
-    catch (e: any) { if (!/already exists|Duplicate column|Duplicate key name/i.test(e?.message || "")) console.error("[SAT] ensureSatSchema failed:", e?.message); }
+    catch (e: any) { if (!/already exists|Duplicate column|Duplicate key name|Duplicate entry/i.test(e?.message || "")) console.error("[SAT] ensureSatSchema failed:", e?.message); }
   }
 }
