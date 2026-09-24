@@ -74,6 +74,8 @@ async function startServer() {
             "https://maps.googleapis.com",
             "https://maps.gstatic.com",
             "https://cdn.jsdelivr.net",
+            "https://googleads.g.doubleclick.net", // Google Ads conversion tag
+            "https://www.googleadservices.com",
           ],
           // AudioWorklet / Worker sources — the ElevenLabs live-speaking
           // SDK spins up its audio-processing worklet from a blob URL.
@@ -92,6 +94,14 @@ async function startServer() {
             "https://www.google-analytics.com",
             "https://analytics.google.com",
             "https://www.googletagmanager.com",
+            // Google Ads conversions + GA4 collection (were blocked → under-reported conversions)
+            "https://www.google.com",
+            "https://*.google-analytics.com",
+            "https://*.analytics.google.com",
+            "https://stats.g.doubleclick.net",
+            "https://ad.doubleclick.net",
+            "https://googleads.g.doubleclick.net",
+            "https://www.googleadservices.com",
             "https://maps.googleapis.com",
             "https://api.elevenlabs.io",   // signed-url + agent API
             "https://api.us.elevenlabs.io", // regional API host
