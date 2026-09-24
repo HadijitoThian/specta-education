@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { lazy, Suspense, useEffect, type ComponentType } from "react";
-import { Route, Switch, Redirect } from "wouter";
+import { Route, Switch, Redirect, useSearch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { MascotAgentProvider } from "./contexts/MascotAgentContext";
@@ -108,6 +108,8 @@ const Quiz = lazyWithReload(() => import("./pages/Quiz"));
 const Persona = lazyWithReload(() => import("./pages/Persona"));
 const AptitudeTest = lazyWithReload(() => import("./pages/AptitudeTest"));
 const AptitudeTestPro = lazyWithReload(() => import("./pages/AptitudeTestPro"));
+/** /aptitude-test?pro=1 (emails, cross-sell cards) → Pro report; plain /aptitude-test → free test. */
+function AptitudeTestLegacy() { const search = useSearch(); return new URLSearchParams(search).get("pro") ? <AptitudeTestPro /> : <AptitudeTest />; }
 const ProPaymentSuccess = lazyWithReload(() => import("./pages/ProPaymentSuccess"));
 const Blog = lazyWithReload(() => import("./pages/Blog"));
 const BlogPost = lazyWithReload(() => import("./pages/BlogPost"));
@@ -227,6 +229,9 @@ function Router() {
         <Route path={"/play/quiz"} component={Quiz} />
         <Route path={"/play/persona"} component={Persona} />
         <Route path={"/play/aptitude"} component={AptitudeTest} />
+        {/* Legacy URLs still used by emails, cross-sell cards and SEO meta */}
+        <Route path={"/aptitude-test"} component={AptitudeTestLegacy} />
+        <Route path={"/aptitude-test/pro"} component={AptitudeTestPro} />
         <Route path={"/test/pro"} component={AptitudeTestPro} />
         <Route path={"/test/pro/payment-success"} component={ProPaymentSuccess} />
         {/* Keep old /quiz route as redirect for SEO */}

@@ -240,6 +240,10 @@ const PAGE_META: Record<string, PageMeta> = {
     description: "Find scholarships for studying abroad in Australia, UK, USA, Canada, and more. SpecTa Education helps you secure funding for your education.",
     keywords: "study abroad scholarships, beasiswa luar negeri, scholarship 2026, beasiswa kuliah, international scholarships, LPDP scholarship",
   },
+  "/ielts/mock-test": { title: "IELTS Mock Test Rp 79k - Full 4-Skill AI-Graded Test | SpecTa Education", description: "Simulasi IELTS lengkap 4 skill (Listening, Reading, Writing, Speaking) dengan penilaian AI sesuai band descriptor resmi. Laporan PDF, examiner Speaking live. Rp 79.000." },
+  "/ielts/tutor": { title: "AI IELTS Tutor 24/7 - Latihan Writing & Speaking | SpecTa Education", description: "Tutor IELTS berbasis AI: latihan Writing Task 1 & 2 dan Speaking dengan feedback band descriptor resmi kapan saja. Coba gratis, lanjut Rp 99k/bulan." },
+  "/igcse": { title: "IGCSE AI Teacher - Math, Physics, Economics, Business | SpecTa Education", description: "Guru AI untuk Cambridge IGCSE: penjelasan langkah demi langkah, latihan soal, dan pelacakan kemajuan untuk Math, Physics, Economics dan Business Studies." },
+  "/voice-clone": { title: "IELTS Voice Clone - Dengar Dirimu Bicara di Band 8 | SpecTa Education", description: "Rekam 3 jawaban IELTS Speaking, AI menulis ulang ke Band 8 dan memutarnya dengan suaramu sendiri. Rp 49.000, hasil dalam hitungan menit." },
   "/aptitude-test": {
     title: "AI Aptitude Test - Temukan Jurusan Terbaik Kamu | SpecTa Education",
     description: "Ikuti tes bakat AI gratis SpecTa Education untuk menemukan jurusan kuliah yang paling cocok. Analisis RIASEC dan Multiple Intelligence dalam 10 menit.",
